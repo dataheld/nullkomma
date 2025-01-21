@@ -17,5 +17,3 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@v16
         with:
           determinate: true
-      - name: Set up Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
