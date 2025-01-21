@@ -1,0 +1,21 @@
+---
+name: Main
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+  checks: write
+jobs:
+  main:
+    name: Main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v16
+        with:
+          determinate: true
+      - name: Set up Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
