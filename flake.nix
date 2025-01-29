@@ -26,7 +26,6 @@
         default = pkgs.mkShell {
           # Pinned packages available in the environment
           packages = with pkgs; [
-            git
             gnumake
             nixpkgs-fmt
           ];
