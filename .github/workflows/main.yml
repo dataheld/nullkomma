@@ -17,3 +17,5 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@v16
         with:
           determinate: true
+      - name: Check Nix
+        run: make check-nix

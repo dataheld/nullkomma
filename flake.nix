@@ -6,7 +6,6 @@
   # Flake inputs
   inputs = {
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/*";
-
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*";
   };
 
@@ -28,6 +27,7 @@
           # Pinned packages available in the environment
           packages = with pkgs; [
             git
+            gnumake
             nixpkgs-fmt
           ];
         };
