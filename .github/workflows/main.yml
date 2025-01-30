@@ -18,4 +18,4 @@ jobs:
         with:
           determinate: true
       - name: Check Nix
-        run: make check-nix
+        run: nix develop --command make check-nix
