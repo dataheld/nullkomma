@@ -6,7 +6,7 @@
   # Flake inputs
   inputs = {
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.4.tar.gz";
-    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/*";
+    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.5.tar.gz";
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*";
   };
 
