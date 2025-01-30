@@ -1,13 +1,13 @@
 ---
-name: Check flake.lock file
+name: Maintenance
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 1 * * 0' # runs weekly on Sunday at 01:00
+    - cron: '0 0 * * 0' # runs weekly on Sunday at 01:00
 
 jobs:
-  flake-checker:
-    name: Run Flake-Checker
+  nix-maintenance:
+    name: Nix Maintenance
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -20,4 +20,10 @@ jobs:
         with:
           determinate: true
       - uses: DeterminateSystems/flakehub-cache-action@main
+      - uses: DeterminateSystems/update-flake-lock@main
+        with:
+          pr-title: "Update flake.lock"
+          pr-labels: |
+            dependencies
+            automated
       - uses: DeterminateSystems/flake-checker-action@main

@@ -17,9 +17,3 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
         with:
           determinate: true
-      - uses: DeterminateSystems/update-flake-lock@main
-        with:
-          pr-title: "Update flake.lock"
-          pr-labels: |
-            dependencies
-            automated
