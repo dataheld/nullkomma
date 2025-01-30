@@ -27,3 +27,5 @@ jobs:
             dependencies
             automated
       - uses: DeterminateSystems/flake-checker-action@main
+        with:
+            fail-mode: true
