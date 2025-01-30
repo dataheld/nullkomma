@@ -5,12 +5,13 @@
 
   # Flake inputs
   inputs = {
+    flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.4.tar.gz";
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/*";
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*";
   };
 
   # Flake outputs that other flakes can use
-  outputs = { self, flake-schemas, nixpkgs }:
+  outputs = { self, flake-schemas, nixpkgs, flake-checker }:
     let
       # Helpers for producing system-specific outputs
       supportedSystems = [ "x86_64-linux" "aarch64-darwin" "x86_64-darwin" "aarch64-linux" ];
@@ -26,6 +27,7 @@
         default = pkgs.mkShell {
           # Pinned packages available in the environment
           packages = with pkgs; [
+            flake-checker.packages.${pkgs.system}.default
             gnumake
             nixpkgs-fmt
           ];
