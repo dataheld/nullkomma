@@ -13,14 +13,11 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@main
         with:
           determinate: true
-      - name: Cache flakes
-        uses: DeterminateSystems/flakehub-cache-action@main
-      - name: Run flake-checker
-        uses: DeterminateSystems/flake-checker-action@main
+      - uses: DeterminateSystems/flakehub-cache-action@main
+      - uses: DeterminateSystems/flake-checker-action@main

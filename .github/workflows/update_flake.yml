@@ -13,14 +13,11 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
         with:
           determinate: true
-      - name: Update flake.lock
-        uses: DeterminateSystems/update-flake-lock@main
+      - uses: DeterminateSystems/update-flake-lock@main
         with:
           pr-title: "Update flake.lock"
           pr-labels: |

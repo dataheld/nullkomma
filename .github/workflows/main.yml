@@ -11,10 +11,8 @@ jobs:
     name: Main
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v16
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v16
         with:
           determinate: true
       - name: Check Nix
