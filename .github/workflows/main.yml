@@ -25,5 +25,5 @@ jobs:
         with:
           name: "dataheld/NixPlate"
           rolling: true
-          visibility: "Public"
+          visibility: "public"
           include-output-paths: true
