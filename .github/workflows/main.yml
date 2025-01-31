@@ -19,3 +19,11 @@ jobs:
       - uses: DeterminateSystems/flakehub-cache-action@main
       - name: Check Nix
         run: nix develop --command make check-nix
+      - name: "Publish to Flakehub"
+        if: github.ref == 'refs/heads/my-branch'
+        uses: "DeterminateSystems/flakehub-push@main"
+        with:
+          name: "dataheld/NixPlate"
+          rolling: true
+          visibility: "Public"
+          include-output-paths: true
