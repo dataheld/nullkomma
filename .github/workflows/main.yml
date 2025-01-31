@@ -20,7 +20,7 @@ jobs:
       - name: Check Nix
         run: nix develop --command make check-nix
       - name: "Publish to Flakehub"
-        if: github.ref == 'refs/heads/my-branch'
+        if: github.ref == 'refs/heads/main'
         uses: "DeterminateSystems/flakehub-push@main"
         with:
           name: "dataheld/NixPlate"
