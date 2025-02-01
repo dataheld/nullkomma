@@ -1,6 +1,10 @@
-.PHONY: check-nix check-flake update-flake
+.PHONY: check-nix check-flake update-flake build-nix
 
 NIX_FILES := $(wildcard *.nix)
+
+## Build all flake outputs with derivations
+build-nix:
+	flake-iter build
 
 ## Check all nix stuff
 check-nix: check-flake check-flake-checker
