@@ -19,7 +19,6 @@
       supportedSystems = [
         "x86_64-linux"
         "aarch64-darwin"
-        "x86_64-darwin"
         "aarch64-linux"
       ];
       forEachSupportedSystem = f: nixpkgs.lib.genAttrs supportedSystems (system: f {
