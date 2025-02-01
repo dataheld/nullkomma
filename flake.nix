@@ -1,13 +1,13 @@
 {
-  description = "dataheld base";
+  description = "dataheld-base";
 
   inputs = {
+    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*";
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.4.tar.gz";
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.5.tar.gz";
-    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*";
   };
 
-  outputs = { self, flake-schemas, nixpkgs, flake-checker }:
+  outputs = { self, nixpkgs, flake-schemas, flake-checker }:
     let
       supportedSystems = [
         "x86_64-linux"
@@ -20,7 +20,6 @@
       });
     in {
       schemas = flake-schemas.schemas;
-
       checks = forEachSupportedSystem ({ pkgs }: {
         default = pkgs.runCommand "check" {} ''touch $out'';
       });
