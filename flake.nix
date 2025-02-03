@@ -37,6 +37,7 @@
           flake-checker.packages.${pkgs.system}.default
           flake-iter.packages.${pkgs.system}.default
           gnumake
+          nixd
         ];
       };
     });

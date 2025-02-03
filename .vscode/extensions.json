@@ -2,5 +2,6 @@
   "recommendations": [
     "kamadorueda.alejandra",
     "arrterian.nix-env-selector",
+    "jnoortheen.nix-ide"
   ]
 }
