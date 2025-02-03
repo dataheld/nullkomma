@@ -1,22 +1,25 @@
-.PHONY: check-nix check-flake update-flake build-nix
-
 NIX_FILES := $(wildcard *.nix)
 
+.PHONY: build-nix
 ## Build all flake outputs with derivations
 build-nix:
 	flake-iter build
 
+.PHONY: check-nix
 ## Check all nix stuff
-check-nix: check-flake check-flake-checker
+check-nix: check-flake check-flake-checker format-nix-check
 
+.PHONY: check-flake
 # Check nix flake for bad syntax etc.
 check-flake:
 	nix flake check --all-systems
 
+.PHONY: check-flake-checker
 # Check nix flake for outdated dependencies, etc.
 check-flake-checker: flake.lock
 	flake-checker
 
+.PHONY: update-flake
 # Update flake.lock file
 update-flake:
 	nix flake update
@@ -24,3 +27,13 @@ update-flake:
 # Complete flake.lock file
 flake.lock: $(NIX_FILES)
 	nix flake lock
+
+.PHONY: format-nix
+# Format nix files
+format-flake: $(NIX_FILES)
+	alejandra --quiet $(NIX_FILES)
+
+.PHONY: format-nix-check
+# Format nix files, stop on diff
+format-flake-check: $(NIX_FILES)
+	alejandra --quiet --check $(NIX_FILES)

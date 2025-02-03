@@ -13,31 +13,33 @@
     nixpkgs,
     flake-checker,
     flake-iter,
-    flake-schemas
-  }:
-    let
-      supportedSystems = [
-        "x86_64-linux"
-        "aarch64-darwin"
-        "aarch64-linux"
-      ];
-      forEachSupportedSystem = f: nixpkgs.lib.genAttrs supportedSystems (system: f {
-        pkgs = import nixpkgs { inherit system; };
-      });
-    in {
-      schemas = flake-schemas.schemas;
-      checks = forEachSupportedSystem ({ pkgs }: {
-        default = pkgs.runCommand "check" {} ''touch $out'';
-      });
-      devShells = forEachSupportedSystem ({ pkgs }: {
-        default = pkgs.mkShell {
-          packages = with pkgs; [
-            flake-checker.packages.${pkgs.system}.default
-            flake-iter.packages.${pkgs.system}.default
-            gnumake
-            nixpkgs-fmt
-          ];
-        };
-      });
-    };
+    flake-schemas,
+  }: let
+    supportedSystems = [
+      "x86_64-linux"
+      "aarch64-darwin"
+      "aarch64-linux"
+    ];
+    forEachSupportedSystem = f:
+      nixpkgs.lib.genAttrs supportedSystems (system:
+        f {
+          pkgs = import nixpkgs {inherit system;};
+        });
+  in {
+    schemas = flake-schemas.schemas;
+    checks = forEachSupportedSystem ({pkgs}: {
+      default = pkgs.runCommand "check" {} ''touch $out'';
+    });
+    devShells = forEachSupportedSystem ({pkgs}: {
+      default = pkgs.mkShell {
+        packages = with pkgs; [
+          alejandra
+          flake-checker.packages.${pkgs.system}.default
+          flake-iter.packages.${pkgs.system}.default
+          gnumake
+        ];
+      };
+    });
+    formatter = forEachSupportedSystem ({pkgs}: pkgs.alejandra);
+  };
 }
