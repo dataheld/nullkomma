@@ -9,11 +9,11 @@
   };
 
   outputs = {
-    self,
     nixpkgs,
     flake-checker,
     flake-iter,
     flake-schemas,
+    ...
   }: let
     supportedSystems = [
       "x86_64-linux"
