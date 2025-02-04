@@ -29,6 +29,10 @@ extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌
 > but you can use the
 > [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).
 
+From now on, whenever you change into the directory of your project,
+all the necessary dependencies etc. will be ready.
+The first time you enter the directory, this might take some time.
+
 ## Building
 
 All build-targets are self-documented:
@@ -64,3 +68,14 @@ of your repository:
 ```sh
 direnv reload
 ```
+
+Or if you have `nix-direnv` installed,:
+
+```sh
+nix-direnv-reload
+```
+
+## Issues
+
+`nix-`/`direnv` can be a bit chatty on launch.
+Set [`hide_env_diff=true`](https://direnv.net/man/direnv.toml.1.html) to quiet it down.
