@@ -1,6 +1,10 @@
-# NixPlate
+# nullkomma ⚡️❄️
 
-Opinionated Boilerplate for Projects using Nix
+[![built with nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
+
+Opinionated 🤓, batteries-included 🔋, extra-DRY 🤌 Nix boilerplate.
+
+> nullkommanix [ɪn ˈnʊl ˌkɔma ˈnɪçt͡s] noun German colloquialism (translation: in next to time).
 
 ## Installation
 

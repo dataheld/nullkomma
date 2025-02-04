@@ -1,5 +1,5 @@
 {
-  description = "dataheld-base";
+  description = "nullkomma";
 
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*";
