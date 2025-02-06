@@ -37,7 +37,6 @@
     devShells = forEachSupportedSystem ({pkgs}: {
       default = pkgs.mkShell {
         packages = with pkgs; [
-          alejandra
           flake-checker.packages.${pkgs.system}.default
           flake-iter.packages.${pkgs.system}.default
           gnumake

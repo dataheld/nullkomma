@@ -1,5 +1,6 @@
 # treefmt.nix
 {pkgs, ...}: {
   # Used to find the project root
-  projectRootFile = "flake.nix";
+  projectRootFile = ".git/config";
+  programs.alejandra.enable = true;
 }

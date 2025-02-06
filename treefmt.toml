@@ -1,7 +1,0 @@
-[formatter.alejandra]
-command = "alejandra"
-includes = ["*.nix"]
-
-allow-misssing-formatter = true
-
-on-unmatched = "info"
