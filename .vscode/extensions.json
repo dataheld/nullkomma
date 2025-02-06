@@ -1,7 +1,7 @@
 {
   "recommendations": [
-    "kamadorueda.alejandra",
     "arrterian.nix-env-selector",
-    "jnoortheen.nix-ide"
+    "jnoortheen.nix-ide",
+    "ibecker.treefmt-vscode"
   ]
 }

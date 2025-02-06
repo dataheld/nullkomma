@@ -7,7 +7,7 @@ build-nix:
 
 .PHONY: check-nix
 ## Check all nix stuff
-check-nix: check-flake check-flake-checker format-nix-check
+check-nix: check-flake check-flake-checker
 
 .PHONY: check-flake
 # Check nix flake for bad syntax etc.
@@ -27,13 +27,3 @@ update-flake:
 # Complete flake.lock file
 flake.lock: $(NIX_FILES)
 	nix flake lock
-
-.PHONY: format-nix
-# Format nix files
-format-flake: $(NIX_FILES)
-	alejandra --quiet $(NIX_FILES)
-
-.PHONY: format-nix-check
-# Format nix files, stop on diff
-format-flake-check: $(NIX_FILES)
-	alejandra --quiet --check $(NIX_FILES)

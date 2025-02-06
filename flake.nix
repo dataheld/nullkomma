@@ -38,6 +38,7 @@
           flake-iter.packages.${pkgs.system}.default
           gnumake
           nixd
+          treefmt2
         ];
       };
     });

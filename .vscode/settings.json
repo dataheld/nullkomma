@@ -1,14 +1,14 @@
 {
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
   "nixEnvSelector.suggestion": false,
-  "nix.formatterPath": "alejandra",
   "nix.enableLanguageServer": true,
   "nix.serverPath": "nixd",
   "nix.serverSettings": {
     "nixd": {
       "formatting": {
-        "command": [ "alejandra" ]
+        "command": [ "treefmt" ]
       }
      }
-  }
+  },
+  "editor.defaultFormatter": "ibecker.treefmt-vscode"
 }
