@@ -14,12 +14,3 @@ jobs:
       contents: "read"
     with:
       visibility: public
-  format:
-    name: format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@v16
-        with:
-          determinate: true
-      - uses: DeterminateSystems/flakehub-cache-action@main
