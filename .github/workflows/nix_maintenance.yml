@@ -1,10 +1,8 @@
----
 name: Maintenance
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * 0' # runs weekly on Sunday at 01:00
-
+    - cron: "0 0 * * 0" # runs weekly on Sunday at 01:00
 jobs:
   nix-maintenance:
     name: Nix Maintenance
@@ -23,4 +21,4 @@ jobs:
             automated
       - uses: DeterminateSystems/flake-checker-action@main
         with:
-            fail-mode: true
+          fail-mode: true
