@@ -46,7 +46,6 @@
           flake-iter.packages.${pkgs.system}.default
           gnumake
           nixd
-          treefmt2
           # keep-sorted end
         ];
       };
