@@ -9,8 +9,17 @@
     systems,
     treefmt-nix,
   }: let
-    # Small tool to iterate over each systems
-    eachSystem = f: nixpkgs.lib.genAttrs (import systems) (system: f nixpkgs.legacyPackages.${system});
+    # Small tool to iterate over each systems, now allowing unfree packages
+    eachSystem = f:
+      nixpkgs.lib.genAttrs (import systems) (
+        system: let
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true; # Allows unfree packages
+          };
+        in
+          f pkgs
+      );
     # Eval the treefmt modules from ./treefmt.nix
     treefmtEval = eachSystem (pkgs: treefmt-nix.lib.evalModule pkgs ./treefmt.nix);
   in {
