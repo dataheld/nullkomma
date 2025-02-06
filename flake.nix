@@ -6,6 +6,7 @@
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.4.tar.gz";
     flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.92.tar.gz";
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.5.tar.gz";
+    format.url = "path:./format";
   };
 
   outputs = {
@@ -13,6 +14,7 @@
     flake-checker,
     flake-iter,
     flake-schemas,
+    format,
     ...
   }: let
     supportedSystems = [
@@ -23,7 +25,10 @@
     forEachSupportedSystem = f:
       nixpkgs.lib.genAttrs supportedSystems (system:
         f {
-          pkgs = import nixpkgs {inherit system;};
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
         });
   in {
     schemas = flake-schemas.schemas;
@@ -42,6 +47,8 @@
         ];
       };
     });
-    formatter = forEachSupportedSystem ({pkgs}: pkgs.alejandra);
+    formatter = forEachSupportedSystem (
+      {pkgs}: format.formatter.${pkgs.system}
+    );
   };
 }
