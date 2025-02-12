@@ -44,6 +44,8 @@
           # keep-sorted start
           flake-checker.packages.${pkgs.system}.default
           flake-iter.packages.${pkgs.system}.default
+          format.formatter.${pkgs.system}
+          git
           gnumake
           nixd
           # keep-sorted end
