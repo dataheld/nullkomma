@@ -6,9 +6,11 @@
   "nix.serverSettings": {
     "nixd": {
       "formatting": {
-        "command": [ "treefmt" ]
+        "command": ["treefmt"]
       }
-     }
+    }
   },
-  "editor.defaultFormatter": "ibecker.treefmt-vscode"
+  "editor.defaultFormatter": "ibecker.treefmt-vscode",
+  "treefmt.command": "treefmt",
+  "nix.formatterPath": "treefmt"
 }

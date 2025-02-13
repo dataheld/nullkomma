@@ -1,14 +1,11 @@
----
 name: CI
 on:
   pull_request:
   workflow_dispatch:
   push:
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 jobs:
   DeterminateCI:
     uses: dataheld/ci/.github/workflows/workflow.yml@main
@@ -17,14 +14,3 @@ jobs:
       contents: "read"
     with:
       visibility: public
-  format:
-    name: format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@v16
-        with:
-          determinate: true
-      - uses: DeterminateSystems/flakehub-cache-action@main
-      - name: Format Files
-        run: nix develop --command make format-ci
