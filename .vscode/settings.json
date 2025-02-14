@@ -11,5 +11,10 @@
     }
   },
   "editor.defaultFormatter": "ibecker.treefmt-vscode",
-  "treefmt.command": "treefmt"
+  "treefmt.command": "treefmt",
+  "nix.hiddenLanguageServerErrors": [
+    "textDocument/definition",
+    "textDocument/completion",
+    "textDocument/documentHighlight"
+  ]
 }
