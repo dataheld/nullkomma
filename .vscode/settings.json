@@ -6,12 +6,11 @@
   "nix.serverSettings": {
     "nixd": {
       "formatting": {
-        "command": ["treefmt"]
+        "command": ["treefmt", "--stdin", "{file}"]
       }
     }
   },
-  "editor.defaultFormatter": "ibecker.treefmt-vscode",
-  "treefmt.command": "treefmt",
+  "nix.formatterPath": ["treefmt", "--stdin", "{file}"],
   "nix.hiddenLanguageServerErrors": [
     "textDocument/definition",
     "textDocument/completion",
