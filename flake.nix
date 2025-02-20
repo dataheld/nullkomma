@@ -13,6 +13,7 @@
   };
 
   outputs = {
+    self,
     nixpkgs,
     flake-checker,
     flake-iter,
