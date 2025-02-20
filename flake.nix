@@ -22,24 +22,29 @@
     format,
     ...
   }: 
-    flake-utils.lib.eachDefaultSystem (system:
-      let pkgs = nixpkgs.legacyPackages.${system};
-      in {
+    let
+      systemOutputs = flake-utils.lib.eachDefaultSystem (system:
+        let pkgs = nixpkgs.legacyPackages.${system};
+        in {
+          formatting = format.checks.${system}.formatting;
+          devShells.default = pkgs.mkShell {
+              packages = [
+                # keep-sorted start
+                flake-checker.packages.${system}.default
+                flake-iter.packages.${system}.default
+                format.formatter.${system}
+                pkgs.git
+                pkgs.gnumake
+                pkgs.nixd
+                # keep-sorted end
+              ];
+            };
+          formatter = format.formatter.${system};
+        }
+      );
+      universalOutputs = {
         schemas = flake-schemas.schemas;
-        formatting = format.checks.${system}.formatting;
-        devShells.default = pkgs.mkShell {
-            packages = [
-              # keep-sorted start
-              flake-checker.packages.${system}.default
-              flake-iter.packages.${system}.default
-              format.formatter.${system}
-              pkgs.git
-              pkgs.gnumake
-              pkgs.nixd
-              # keep-sorted end
-            ];
-          };
-        formatter = format.formatter.${system};
-      }
-    );
+      };
+    in
+    systemOutputs // universalOutputs;
 }
