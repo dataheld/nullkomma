@@ -99,7 +99,7 @@
       },
       "original": {
         "type": "tarball",
-        "url": "https://flakehub.com/f/DeterminateSystems/fh/%2A"
+        "url": "https://flakehub.com/f/DeterminateSystems/fh/0.1.%2A"
       }
     },
     "flake-checker": {
@@ -118,7 +118,7 @@
       },
       "original": {
         "type": "tarball",
-        "url": "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.4.tar.gz"
+        "url": "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.%2A"
       }
     },
     "flake-compat": {
@@ -153,7 +153,7 @@
       },
       "original": {
         "type": "tarball",
-        "url": "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.92.tar.gz"
+        "url": "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.%2A"
       }
     },
     "flake-schemas": {
@@ -181,7 +181,7 @@
       },
       "original": {
         "type": "tarball",
-        "url": "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.5.tar.gz"
+        "url": "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.%2A"
       }
     },
     "flake-utils": {
@@ -198,7 +198,7 @@
       },
       "original": {
         "type": "tarball",
-        "url": "https://flakehub.com/f/numtide/flake-utils/0.1.102.tar.gz"
+        "url": "https://flakehub.com/f/numtide/flake-utils/0.1.%2A"
       }
     },
     "flake-utils_2": {
@@ -215,7 +215,7 @@
       },
       "original": {
         "type": "tarball",
-        "url": "https://flakehub.com/f/numtide/flake-utils/0.1.102.tar.gz"
+        "url": "https://flakehub.com/f/numtide/flake-utils/0.1.%2A"
       }
     },
     "format": {
@@ -467,6 +467,7 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "rev": "3d0579f5cc93436052d94b73925b48973a104204",
         "type": "github"
       }
     }

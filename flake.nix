@@ -4,11 +4,11 @@
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*";
     # keep-sorted start
-    fh.url = "https://flakehub.com/f/DeterminateSystems/fh/*";
-    flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.4.tar.gz";
-    flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.92.tar.gz";
-    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.5.tar.gz";
-    flake-utils.url = "https://flakehub.com/f/numtide/flake-utils/0.1.102.tar.gz";
+    fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
+    flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
+    flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
+    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.*";
+    flake-utils.url = "https://flakehub.com/f/numtide/flake-utils/0.1.*";
     format.url = "path:./format";
     # keep-sorted end
   };
