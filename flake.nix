@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/*";
     # keep-sorted start
+    fh.url = "https://flakehub.com/f/DeterminateSystems/fh/*";
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.4.tar.gz";
     flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.92.tar.gz";
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.5.tar.gz";
@@ -15,6 +16,7 @@
   outputs = {
     self,
     nixpkgs,
+    fh,
     flake-checker,
     flake-iter,
     flake-schemas,
@@ -33,6 +35,7 @@
                 flake-checker.packages.${system}.default
                 flake-iter.packages.${system}.default
                 format.formatter.${system}
+                fh.packages.${system}.default
                 pkgs.git
                 pkgs.gnumake
                 pkgs.nixd
