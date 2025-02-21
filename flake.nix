@@ -23,11 +23,16 @@
     format,
     ...
   }: let
+    universalOutputs = {
+      schemas = flake-schemas.schemas;
+    };
     systemOutputs = flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
       in {
-        formatting = format.checks.${system}.formatting;
+        checks = {
+          formatting = format.formatting.${system};
+        };
         devShells.default = pkgs.mkShell {
           packages = [
             # keep-sorted start
@@ -44,9 +49,6 @@
         formatter = format.formatter.${system};
       }
     );
-    universalOutputs = {
-      schemas = flake-schemas.schemas;
-    };
   in
-    systemOutputs // universalOutputs;
+     universalOutputs // systemOutputs;
 }
