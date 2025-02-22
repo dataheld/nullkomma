@@ -32,6 +32,7 @@
       in {
         checks = {
           formatting = format.formatting.${system};
+          flake-check = flake-checker.packages.${system}.default;
         };
         devShells.default = pkgs.mkShell {
           packages = [
