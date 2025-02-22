@@ -10,7 +10,7 @@
   };
 
   outputs = {
-    nixpkgs,  
+    nixpkgs,
     flake-utils,
     flake-schemas,
     treefmt-nix,
