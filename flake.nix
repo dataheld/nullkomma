@@ -50,5 +50,5 @@
       }
     );
   in
-     universalOutputs // systemOutputs;
+    universalOutputs // systemOutputs;
 }
