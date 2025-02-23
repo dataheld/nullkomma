@@ -1,6 +1,7 @@
 # nullkomma ⚡️❄️
 
 [![built with nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
+[![FlakeHub](https://img.shields.io/endpoint?url=https://flakehub.com/f/dataheld/nullkomma/badge)](https://flakehub.com/flake/dataheld/nullkomma)
 
 Opinionated 🤓,
 batteries-included 🔋,
