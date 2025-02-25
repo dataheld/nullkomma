@@ -22,7 +22,7 @@
     systemOutputs = flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
-        treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
+        treefmtEval = treefmt-nix.lib.evalModule pkgs ./default.nix;
         formatter = treefmtEval.config.build.wrapper;
         format-check = treefmtEval.config.build.check;
       in {

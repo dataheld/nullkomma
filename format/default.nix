@@ -18,7 +18,6 @@
   programs.shellcheck.enable = true;
   programs.shfmt.enable = true;
   programs.sqlfluff.enable = true;
-  programs.terraform.enable = true;
   programs.toml-sort.enable = true;
   programs.yamlfmt.enable = true;
   # keep-sorted end
