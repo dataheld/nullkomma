@@ -15,12 +15,15 @@
 
   outputs = {
     nixpkgs,
+    # keep-sorted start
     fh,
     flake-checker,
     flake-iter,
     flake-schemas,
     flake-utils,
     format,
+    # keep-sorted end
+    self,
     ...
   }: let
     universalOutputs = {
@@ -31,7 +34,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in {
         checks = {
-          formatting = format.checks.${system}.formatting;
+          format-check = format.packages.${system}.format-check self;
           flake-check = flake-checker.packages.${system}.default;
         };
         devShells.default = pkgs.mkShell {
@@ -40,14 +43,14 @@
             fh.packages.${system}.default
             flake-checker.packages.${system}.default
             flake-iter.packages.${system}.default
-            format.formatter.${system}
+            format.packages.${system}.default
             pkgs.git
             pkgs.gnumake
             pkgs.nixd
             # keep-sorted end
           ];
         };
-        formatter = format.formatter.${system};
+        formatter = format.packages.${system}.default;
       }
     );
   in
