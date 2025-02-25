@@ -31,7 +31,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in {
         checks = {
-          formatting = format.formatting.${system};
+          formatting = format.checks.${system}.formatting;
           flake-check = flake-checker.packages.${system}.default;
         };
         devShells.default = pkgs.mkShell {

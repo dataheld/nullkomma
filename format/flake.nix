@@ -24,8 +24,10 @@
         pkgs = nixpkgs.legacyPackages.${system};
         treefmtEval = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
       in {
-        formatting = treefmtEval.config.build.check self;
         formatter = treefmtEval.config.build.wrapper;
+        checks = {
+          formatting = treefmtEval.config.build.check self;
+        };
       }
     );
   in
