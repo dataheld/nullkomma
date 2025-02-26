@@ -7,18 +7,20 @@
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
     flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
+    flake-parts.url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.*";
     flake-utils.url = "https://flakehub.com/f/numtide/flake-utils/0.1.*";
     format.url = "path:./format";
     # keep-sorted end
   };
 
-  outputs = {
+  outputs = inputs@{
     nixpkgs,
     # keep-sorted start
     fh,
     flake-checker,
     flake-iter,
+    flake-parts,
     flake-schemas,
     flake-utils,
     format,
