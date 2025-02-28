@@ -66,6 +66,7 @@
             # keep-sorted end
           };
         };
+        packages.default = pkgs.hello;
       };
       flake = {
         schemas = inputs.flake-schemas.schemas;
