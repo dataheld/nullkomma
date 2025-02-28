@@ -26,11 +26,17 @@
         "aarch64-darwin"
         "x86_64-darwin"
       ];
-      perSystem = {pkgs, ...}: {
+      perSystem = {
+        inputs',
+        pkgs,
+        ...
+      }: {
         devshells.default = {
           packages = [
             # keep-sorted start
-            pkgs.flake-checker
+            inputs'.fh.packages.default
+            inputs'.flake-checker.packages.default
+            inputs'.flake-iter.packages.default
             pkgs.git
             pkgs.gnumake
             pkgs.nixd
