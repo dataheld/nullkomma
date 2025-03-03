@@ -27,6 +27,7 @@
       perSystem = {
         inputs',
         pkgs,
+        self',
         ...
       }: {
         devShells.default = pkgs.mkShell {
@@ -38,6 +39,7 @@
             pkgs.git
             pkgs.gnumake
             pkgs.nixd
+            self'.formatter
             # keep-sorted end
           ];
         };
