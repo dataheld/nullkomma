@@ -27,3 +27,8 @@ update-flake:
 # Complete flake.lock file
 flake.lock: $(NIX_FILES)
 	nix flake lock
+
+.PHONY: format
+# Format all files
+	format:
+		treefmt
