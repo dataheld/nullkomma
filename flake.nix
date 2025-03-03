@@ -4,7 +4,6 @@
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2411.*";
     # keep-sorted start
-    devshell.url = "github:numtide/devshell/f7795ede5b02664b57035b3b757876703e2c3eac";
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
     flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
@@ -18,7 +17,6 @@
     flake-parts.lib.mkFlake {inherit inputs;} {
       imports = [
         inputs.treefmt-nix.flakeModule
-        inputs.devshell.flakeModule
       ];
       systems = [
         "x86_64-linux"
@@ -31,7 +29,7 @@
         pkgs,
         ...
       }: {
-        devshells.default = {
+        devShells.default = pkgs.mkShell {
           packages = [
             # keep-sorted start
             inputs'.fh.packages.default
