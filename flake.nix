@@ -70,6 +70,15 @@
       };
       flake = {
         schemas = inputs.flake-schemas.schemas;
+        templates = {
+          default = {
+            description = "nullkomma template";
+            path = ./template;
+            welcomeText = ''
+              Welcome to the nullkomma template!
+            '';
+          };
+        };
       };
     };
 }
