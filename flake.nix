@@ -7,14 +7,20 @@
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
     flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
-    flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
-    flake-parts.url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
-    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.*";
-    nix-unit.inputs.flake-parts.follows = "flake-parts";
-    nix-unit.inputs.nixpkgs.follows = "nixpkgs";
-    nix-unit.url = "github:nix-community/nix-unit";
-    treefmt-nix.url = "github:numtide/treefmt-nix/3d0579f5cc93436052d94b73925b48973a104204";
     # keep-sorted end
+    flake-parts = {
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+      url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
+    };
+    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.*";
+    nix-unit = {
+      url = "github:nix-community/nix-unit";
+      inputs = {
+        flake-parts.follows = "flake-parts";
+        nixpkgs.follows = "nixpkgs";
+      };
+    };
+    treefmt-nix.url = "github:numtide/treefmt-nix/3d0579f5cc93436052d94b73925b48973a104204";
   };
 
   outputs =
