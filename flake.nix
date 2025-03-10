@@ -13,13 +13,6 @@
       url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
     };
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.*";
-    nix-unit = {
-      url = "github:nix-community/nix-unit";
-      inputs = {
-        flake-parts.follows = "flake-parts";
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
     treefmt-nix.url = "github:numtide/treefmt-nix/3d0579f5cc93436052d94b73925b48973a104204";
   };
 
@@ -28,15 +21,14 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         # keep-sorted start
-        inputs.nix-unit.modules.flake.default
         inputs.treefmt-nix.flakeModule
         # keep-sorted end
       ];
       systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "aarch64-darwin"
         "x86_64-darwin"
+        "x86_64-linux"
+        "aarch64-darwin"
+        "aarch64-linux"
       ];
       perSystem =
         {
