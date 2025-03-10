@@ -83,9 +83,9 @@
             };
           };
           nix-unit = {
-            inputs = {
-              inherit (inputs) nixpkgs flake-parts nix-unit;
-            };
+            # inputs = {
+            #   inherit (inputs) nixpkgs flake-parts nix-unit;
+            # };
             tests = {
               "example" = {
                 expr = "1";
