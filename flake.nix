@@ -82,17 +82,17 @@
               # keep-sorted end
             };
           };
-          nix-unit = {
+          # nix-unit = {
             # inputs = {
             #   inherit (inputs) nixpkgs flake-parts nix-unit;
             # };
-            tests = {
-              "example" = {
-                expr = "1";
-                expected = "1";
-              };
-            };
-          };
+          #   tests = {
+          #     "example" = {
+          #       expr = "1";
+          #       expected = "1";
+          #     };
+          #   };
+          # };
           packages.default = pkgs.hello;
         };
       flake = {
