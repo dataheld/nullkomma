@@ -14,7 +14,7 @@
     };
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.*";
     nix-unit = {
-      url = "github:nix-community/nix-unit/v2.23.0";
+      url = "github:nix-community/nix-unit/?tag=v2.23.0";
       inputs = {
         flake-parts.follows = "flake-parts";
         nixpkgs.follows = "nixpkgs";
@@ -28,6 +28,7 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         # keep-sorted start
+        inputs.nix-unit.modules.flake.default
         inputs.treefmt-nix.flakeModule
         # keep-sorted end
       ];
@@ -84,6 +85,17 @@
             };
           };
           packages.default = pkgs.hello;
+          nix-unit = {
+            inputs = {
+              inherit (inputs) nixpkgs flake-parts nix-unit;
+            };
+            tests = {
+              "example" = {
+                expr = "1";
+                expected = "1";
+              };
+            };
+          };
         };
       flake = {
         schemas = inputs.flake-schemas.schemas;
