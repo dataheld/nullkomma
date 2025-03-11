@@ -34,8 +34,8 @@
       ];
       systems = [
         # keep-sorted start
-        "aarch64-linux"
         "aarch64-darwin"
+        "aarch64-linux"
         # keep-sorted end
       ];
       perSystem =
