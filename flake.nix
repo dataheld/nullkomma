@@ -2,7 +2,7 @@
   description = "nullkomma";
 
   inputs = {
-    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2411.*";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     # keep-sorted start
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
