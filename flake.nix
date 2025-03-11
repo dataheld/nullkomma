@@ -35,7 +35,9 @@
       systems = [
         # keep-sorted start
         "aarch64-darwin"
+        "aarch64-linux"
         "x86_64-darwin"
+        "x86_64-linux"
         # keep-sorted end
       ];
       perSystem =
@@ -87,7 +89,7 @@
               inherit (inputs) nixpkgs flake-parts nix-unit;
             };
             tests = {
-              "test example" = {
+              "test example system-specific" = {
                 expr = "1";
                 expected = "1";
               };
@@ -103,6 +105,12 @@
             welcomeText = ''
               Welcome to the nullkomma template!
             '';
+          };
+        };
+        tests = {
+          "test example system-agnostic" = {
+            expr = "2";
+            expected = "2";
           };
         };
       };
