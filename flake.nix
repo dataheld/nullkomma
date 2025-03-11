@@ -14,7 +14,7 @@
     };
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.*";
     nix-unit = {
-      url = "github:nix-community/nix-unit";
+      url = "github:nix-community/nix-unit/?tag=v2.24.1";
       inputs = {
         flake-parts.follows = "flake-parts";
         nixpkgs.follows = "nixpkgs";
