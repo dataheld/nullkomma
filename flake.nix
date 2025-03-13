@@ -86,7 +86,12 @@
           };
           nix-unit = {
             inputs = {
-              inherit (inputs) nixpkgs flake-parts nix-unit treefmt-nix;
+              inherit (inputs)
+                nixpkgs
+                flake-parts
+                nix-unit
+                treefmt-nix
+                ;
             };
             tests = {
               "test example system-specific" = {
