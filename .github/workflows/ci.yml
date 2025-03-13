@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   DeterminateCI:
-    uses: DeterminateSystems/ci/.github/workflows/workflow.yml@main
+    uses: DeterminateSystems/dataheld/.github/workflows/workflow.yml@pass-thru-failearly
     permissions:
       id-token: "write"
       contents: "read"
