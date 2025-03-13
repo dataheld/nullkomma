@@ -35,7 +35,9 @@
       systems = [
         # keep-sorted start
         "aarch64-darwin"
+        "aarch64-linux"
         "x86_64-darwin"
+        "x86_64-linux"
         # keep-sorted end
       ];
       perSystem =
@@ -84,7 +86,7 @@
           };
           nix-unit = {
             inputs = {
-              inherit (inputs) nixpkgs flake-parts nix-unit;
+              inherit (inputs) nixpkgs flake-parts nix-unit treefmt-nix;
             };
             tests = {
               "test example system-specific" = {
