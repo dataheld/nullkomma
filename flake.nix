@@ -103,14 +103,15 @@
         };
       flake = {
         schemas = inputs.flake-schemas.schemas;
-        templates = {
-          default = {
+        templates = rec {
+          base = {
             description = "nullkomma template";
-            path = ./template;
+            path = ./templates/base;
             welcomeText = ''
-              Welcome to the nullkomma template!
+              Welcome to the nullkomma template
             '';
           };
+          default = base;
         };
         tests = {
           "test example system-agnostic" = {
