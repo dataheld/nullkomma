@@ -22,15 +22,19 @@ extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌
 
 1. Install Nix (the package manager).
    The [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer) is recommended.
+
 1. Install [direnv](https://direnv.net).
+
 1. (optional) Install
    [nix-direnv](https://github.com/nix-community/nix-direnv)
    for better performance during development.
+
 1. Add the necessary boilerplate files.
-    
-    ```sh
-    nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
-    ```
+
+   ```sh
+   nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
+   ```
+
 1. (one-time only) Inside the repo, run `direnv allow`
 
 > \[!TIP\]
