@@ -24,7 +24,7 @@
   };
 
   outputs =
-    { flake-parts, ... }@inputs:
+    { flake-parts, self, ... }@inputs:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         # keep-sorted start
@@ -117,6 +117,10 @@
           "test example system-agnostic" = {
             expr = "2";
             expected = "2";
+          };
+          "test template welcome text" = {
+            expr = self.templates.default.description;
+            expected = "nullkomma template";
           };
         };
       };
