@@ -13,16 +13,28 @@ extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌
 ## Installing
 
 > \[!NOTE\]
+> This is not another flake or development framework.
+> It is much less; just the set of composable nix flakes and modules that I use for my projects.
+
+> \[!TIP\]
 > This is the software you need to have on your _system_.
 > All project-specific software is handled automatically.
 
 1. Install Nix (the package manager).
    The [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer) is recommended.
+
 1. Install [direnv](https://direnv.net).
+
 1. (optional) Install
    [nix-direnv](https://github.com/nix-community/nix-direnv)
    for better performance during development.
-1. (if not already done) Clone the repo
+
+1. Add the necessary boilerplate files.
+
+   ```sh
+   nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
+   ```
+
 1. (one-time only) Inside the repo, run `direnv allow`
 
 > \[!TIP\]
