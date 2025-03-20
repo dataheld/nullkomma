@@ -56,6 +56,7 @@
                     pkgs.nix
                     pkgs.git
                   ];
+                  __noChroot = true;
                   NIX_CONFIG = "experimental-features = nix-command flakes";
                 }
                 ''
