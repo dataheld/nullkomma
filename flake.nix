@@ -54,7 +54,9 @@
                 {
                   buildInputs = [
                     pkgs.nix
+                    pkgs.git
                   ];
+                  NIX_CONFIG = "experimental-features = nix-command flakes";
                 }
                 ''
                   mkdir -p $TMPDIR/home
