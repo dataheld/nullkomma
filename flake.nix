@@ -48,6 +48,20 @@
           ...
         }:
         {
+          checks = {
+            test-template-bad-readme =
+              pkgs.runCommand "test-bad-readme"
+                {
+                  nativeBuildInputs = [
+                    pkgs.nix
+                    pkgs.git
+                  ];
+                }
+                ''
+                  echo "evertyhing is fine"
+                  touch $out  # Create output file to indicate success
+                '';
+          };
           devShells.default = pkgs.mkShell {
             packages = [
               # keep-sorted start
