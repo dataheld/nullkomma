@@ -52,14 +52,42 @@
             test-template-bad-readme =
               pkgs.runCommand "test-bad-readme"
                 {
-                  nativeBuildInputs = [
+                  buildInputs = [
                     pkgs.nix
-                    pkgs.git
                   ];
                 }
                 ''
-                  echo "evertyhing is fine"
-                  touch $out  # Create output file to indicate success
+                  mkdir -p $TMPDIR/home
+                  export HOME=$TMPDIR/home
+                  # cd $tmp
+                  nix flake init --template ${self}#default
+                  echo "bad _markdown*" > README.md
+                  if ! nix flake check; then
+                    touch $out
+                  else
+                    echo "Test failed: nix flake check succeeded unexpectedly"
+                    exit 1
+                  fi
+                '';
+            test-template-good-readme =
+              pkgs.runCommand "test-good-readme"
+                {
+                  buildInputs = [
+                    pkgs.nix
+                  ];
+                }
+                ''
+                  mkdir -p $TMPDIR/home
+                  export HOME=$TMPDIR/home
+                  # cd $tmp
+                  nix flake init --template ${self}#default
+                  echo "good *markdown*" > README.md
+                  if nix flake check; then
+                    touch $out
+                  else
+                    echo "Test failed: nix flake check failed unexpectedly"
+                    exit 1
+                  fi
                 '';
           };
           devShells.default = pkgs.mkShell {
