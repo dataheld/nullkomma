@@ -1,10 +1,6 @@
 {
   description = "nullkomma";
 
-  nixConfig = {
-    sandbox = false;
-  };
-
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2411.*";
     # keep-sorted start

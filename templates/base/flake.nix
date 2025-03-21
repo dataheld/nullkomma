@@ -1,8 +1,5 @@
 # flake.nix
 {
-  nixConfig = {
-    sandbox = false;
-  };
   inputs.treefmt-nix.url = "github:numtide/treefmt-nix";
 
   outputs =
