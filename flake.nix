@@ -1,6 +1,10 @@
 {
   description = "nullkomma";
 
+  nixConfig = {
+    sandbox = false;
+  };
+
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2411.*";
     # keep-sorted start
@@ -56,6 +60,7 @@
                     pkgs.nix
                     pkgs.git
                   ];
+                  __noChroot = true;
                   NIX_CONFIG = "experimental-features = nix-command flakes";
                 }
                 ''
@@ -77,6 +82,7 @@
                   buildInputs = [
                     pkgs.nix
                   ];
+                  __noChroot = true;
                   NIX_CONFIG = "experimental-features = nix-command flakes";
                 }
                 ''
