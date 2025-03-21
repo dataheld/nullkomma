@@ -54,9 +54,6 @@
                 {
                   buildInputs = [
                     pkgs.nix
-                    pkgs.mdformat
-                    pkgs.treefmt
-                    inputs'.treefmt-nix.formatter
                   ];
                   __noChroot = true;
                   NIX_CONFIG = "experimental-features = nix-command flakes";
@@ -79,9 +76,6 @@
                 {
                   buildInputs = [
                     pkgs.nix
-                    pkgs.mdformat
-                    pkgs.treefmt
-                    inputs'.treefmt-nix.formatter
                   ];
                   __noChroot = true;
                   NIX_CONFIG = "experimental-features = nix-command flakes";
