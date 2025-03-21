@@ -78,6 +78,8 @@
                   buildInputs = [
                     pkgs.nix
                   ];
+                  __noChroot = true;
+                  NIX_CONFIG = "experimental-features = nix-command flakes";
                 }
                 ''
                   mkdir -p $TMPDIR/home
