@@ -70,8 +70,8 @@
                 quarto render
               '';
               installPhase = ''
-                mkdir -p $out
-                cp -r _site/* $out
+                mkdir $out
+                mv _site $out
               '';
             };
           };
