@@ -1,1 +1,1 @@
-foo
+{{< include README.md >}}
