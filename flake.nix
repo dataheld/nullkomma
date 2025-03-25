@@ -65,7 +65,10 @@
             docs = pkgs.stdenv.mkDerivation {
               name = "nullkomma-docs";
               src = ./.;
-              buildInputs = [ pkgs.quartoMinimal ];
+              buildInputs = [ 
+                pkgs.quartoMinimal
+                pkgs.which
+              ];
               HOME = "$TMPDIR";
               configurePhase = ''
                 export HOME=$(mktemp -d)
