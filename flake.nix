@@ -61,6 +61,20 @@
               # keep-sorted end
             ];
           };
+          packages = {
+            docs = pkgs.stdenv.mkDerivation {
+              name = "nullkomma-docs";
+              src = ./.;
+              buildInputs = [ pkgs.quartoMinimal ];
+              buildPhase = ''
+                quarto render
+              '';
+              installPhase = ''
+                mkdir -p $out
+                cp -r _site/* $out
+              '';
+            };
+          };
           treefmt = {
             programs = {
               # keep-sorted start
@@ -102,9 +116,6 @@
           };
         };
       flake = {
-        site = {
-          foo = "bar";
-        };
         schemas = inputs.flake-schemas.schemas;
         templates = rec {
           base = {
