@@ -66,8 +66,12 @@
               name = "nullkomma-docs";
               src = ./.;
               buildInputs = [ pkgs.quartoMinimal ];
+              HOME = "$TMPDIR";
+              configurePhase = ''
+                export HOME=$(mktemp -d)
+              '';
               buildPhase = ''
-                make render-no-cache
+                make render
               '';
               installPhase = ''
                 mkdir $out
