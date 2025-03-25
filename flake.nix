@@ -67,7 +67,7 @@
               src = ./.;
               buildInputs = [ pkgs.quartoMinimal ];
               buildPhase = ''
-                quarto render
+                make render-no-cache
               '';
               installPhase = ''
                 mkdir $out
