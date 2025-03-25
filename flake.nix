@@ -56,6 +56,7 @@
               pkgs.git
               pkgs.gnumake
               pkgs.nixd
+              pkgs.quartoMinimal
               self'.formatter
               # keep-sorted end
             ];
@@ -101,6 +102,9 @@
           };
         };
       flake = {
+        site = {
+          foo = "bar";
+        };
         schemas = inputs.flake-schemas.schemas;
         templates = rec {
           base = {
