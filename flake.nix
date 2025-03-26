@@ -56,9 +56,30 @@
               pkgs.git
               pkgs.gnumake
               pkgs.nixd
+              pkgs.quartoMinimal
               self'.formatter
               # keep-sorted end
             ];
+          };
+          packages = {
+            docs = pkgs.stdenv.mkDerivation {
+              name = "nullkomma-docs";
+              src = ./.;
+              nativeBuildInputs = [
+                pkgs.writableTmpDirAsHomeHook
+              ];
+              buildInputs = [
+                pkgs.quartoMinimal
+                pkgs.which
+              ];
+              buildPhase = ''
+                make render
+              '';
+              installPhase = ''
+                mkdir $out
+                mv _site $out
+              '';
+            };
           };
           treefmt = {
             programs = {
