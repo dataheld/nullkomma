@@ -65,14 +65,13 @@
             docs = pkgs.stdenv.mkDerivation {
               name = "nullkomma-docs";
               src = ./.;
+              nativeBuildInputs = [
+                pkgs.stdenv.writableTmpDirAsHomeHook
+              ];
               buildInputs = [
                 pkgs.quartoMinimal
                 pkgs.which
               ];
-              HOME = "$TMPDIR";
-              configurePhase = ''
-                export HOME=$(mktemp -d)
-              '';
               buildPhase = ''
                 make render
               '';
