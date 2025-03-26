@@ -66,7 +66,7 @@
               name = "nullkomma-docs";
               src = ./.;
               nativeBuildInputs = [
-                pkgs.stdenv.writableTmpDirAsHomeHook
+                pkgs.writableTmpDirAsHomeHook
               ];
               buildInputs = [
                 pkgs.quartoMinimal
