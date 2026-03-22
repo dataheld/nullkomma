@@ -8,15 +8,15 @@ batteries-included 🔋,
 extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌
 [Nix](https://nixos.org) ❄️ boilerplate.
 
-> nullkommanix \[ɪn ˈnʊl ˌkɔma ˈnɪçt͡s\] noun German colloquialism (translation: in next to time).
+> nullkommanix [ɪn ˈnʊl ˌkɔma ˈnɪçt͡s] noun German colloquialism (translation: in next to time).
 
 ## Installing
 
-> \[!NOTE\]
+> [!NOTE]
 > This is not another flake or development framework.
 > It is much less; just the set of composable nix flakes and modules that I use for my projects.
 
-> \[!TIP\]
+> [!TIP]
 > This is the software you need to have on your _system_.
 > All project-specific software is handled automatically.
 
@@ -37,7 +37,7 @@ extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌
 
 1. (one-time only) Inside the repo, run `direnv allow`
 
-> \[!TIP\]
+> [!TIP]
 > Windows is not supported by Nix,
 > but you can use the
 > [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).
