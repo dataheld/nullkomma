@@ -2,7 +2,7 @@
   description = "nullkomma";
 
   inputs = {
-    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2411.*";
+    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2511.*";
     # keep-sorted start
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
@@ -20,7 +20,7 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-    treefmt-nix.url = "github:numtide/treefmt-nix/3d0579f5cc93436052d94b73925b48973a104204";
+    treefmt-nix.url = "https://flakehub.com/f/numtide/treefmt-nix/0.1.*";
   };
 
   outputs =
