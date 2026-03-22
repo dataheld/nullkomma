@@ -5,7 +5,7 @@
 .DEFAULT_GOAL := help
 
 ## Run all targets
-all: check-flake
+all: check-flake render
 
 all-check:
 	check-nix
