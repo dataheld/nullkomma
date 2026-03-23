@@ -5,7 +5,10 @@
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2511.*";
     # keep-sorted start
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
-    flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
+    flake-checker = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
+    };
     flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
     # keep-sorted end
     flake-parts = {
