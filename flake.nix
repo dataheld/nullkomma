@@ -6,6 +6,9 @@
     # keep-sorted start
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
     flake-checker = {
+      # must use non-flakehub inputs,
+      # b/c flake-checker was build with DetSys Secure Packages
+      # which are not available without subscription
       inputs.nixpkgs.follows = "nixpkgs";
       url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
     };
