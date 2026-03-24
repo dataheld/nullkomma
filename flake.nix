@@ -9,8 +9,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
     };
-    flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
     # keep-sorted end
+    flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
     flake-parts = {
       inputs.nixpkgs-lib.follows = "nixpkgs";
       url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
