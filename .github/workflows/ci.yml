@@ -17,7 +17,9 @@ jobs:
       fail-fast: false
       runner-map: |
         {
-          "aarch64-linux": "ubuntu-24.04-arm"
+          "aarch64-darwin": "macos-26",
+          "aarch64-linux": "ubuntu-24.04-arm",
+          "x86_64-linux": "ubuntu-24.04"
         }
   flake-checker:
     runs-on: ubuntu-latest
