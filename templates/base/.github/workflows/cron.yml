@@ -10,8 +10,6 @@ jobs:
     permissions:
       id-token: "write"
       contents: "read"
-      issues: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v6
       - uses: DeterminateSystems/determinate-nix-action@main
