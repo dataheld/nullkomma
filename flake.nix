@@ -18,7 +18,7 @@
       inputs.nixpkgs-lib.follows = "nixpkgs";
       url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
     };
-    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.1.*";
+    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.3.*";
     nix-unit = {
       url = "github:nix-community/nix-unit/?tag=v2.24.1";
       inputs = {
