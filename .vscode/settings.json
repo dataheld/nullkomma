@@ -1,5 +1,6 @@
 {
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
+  "nixEnvSelector.useFlakes": true,
   "nixEnvSelector.suggestion": false,
   "nix.enableLanguageServer": true,
   "nix.serverPath": "nixd",
