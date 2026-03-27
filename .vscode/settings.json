@@ -16,5 +16,7 @@
     "textDocument/definition",
     "textDocument/completion",
     "textDocument/documentHighlight"
-  ]
+  ],
+  "editor.defaultFormatter": "ibecker.treefmt-vscode",
+  "notebook.defaultFormatter": "ibecker.treefmt-vscode"
 }
