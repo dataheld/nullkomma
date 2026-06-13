@@ -2,7 +2,7 @@
   description = "nullkomma";
 
   inputs = {
-    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2511.*";
+    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2605.*";
     # keep-sorted start
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
     flake-checker = {
@@ -18,7 +18,7 @@
       inputs.nixpkgs-lib.follows = "nixpkgs";
       url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
     };
-    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.3.*";
+    flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.5.*";
     nix-unit = {
       url = "github:nix-community/nix-unit/?tag=v2.24.1";
       inputs = {
