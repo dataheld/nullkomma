@@ -22,7 +22,6 @@
     nix-unit = {
       url = "github:nix-community/nix-unit/?tag=v2.34.0";
       inputs = {
-        flake-parts.follows = "flake-parts";
         nixpkgs.follows = "nixpkgs";
       };
     };
