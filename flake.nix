@@ -52,6 +52,16 @@
           self',
           ...
         }:
+        let
+          # workaround for https://github.com/NixOS/nixpkgs/issues/519484
+          # quarto 1.9.37 emits "syntax-highlighting" but pandoc 3.7+ expects "highlight-style"
+          quartoMinimal = pkgs.quartoMinimal.overrideAttrs (oldAttrs: {
+            postPatch = (oldAttrs.postPatch or "") + ''
+              substituteInPlace bin/quarto.js \
+                --replace-fail "syntax-highlighting" "highlight-style"
+            '';
+          });
+        in
         {
           devShells.default = pkgs.mkShell {
             packages = [
@@ -62,7 +72,7 @@
               pkgs.git
               pkgs.gnumake
               pkgs.nixd
-              pkgs.quartoMinimal
+              quartoMinimal
               self'.formatter
               # keep-sorted end
             ];
@@ -75,7 +85,7 @@
                 pkgs.writableTmpDirAsHomeHook
               ];
               buildInputs = [
-                pkgs.quartoMinimal
+                quartoMinimal
                 pkgs.which
               ];
               buildPhase = ''
