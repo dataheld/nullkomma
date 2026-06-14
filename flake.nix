@@ -7,6 +7,7 @@
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
     flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
+    # keep-sorted end
     flake-parts = {
       inputs.nixpkgs-lib.follows = "nixpkgs";
       url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
@@ -18,7 +19,6 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-    # keep-sorted end
     treefmt-nix.url = "https://flakehub.com/f/numtide/treefmt-nix/0.1.*";
   };
 
