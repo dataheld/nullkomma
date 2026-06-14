@@ -8,8 +8,8 @@
     flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
     flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
     flake-parts = {
-      url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
       inputs.nixpkgs-lib.follows = "nixpkgs";
+      url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
     };
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.5.*";
     nix-unit = {
