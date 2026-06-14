@@ -15,8 +15,8 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
-    treefmt-nix.url = "https://flakehub.com/f/numtide/treefmt-nix/0.1.*";
     # keep-sorted end
+    treefmt-nix.url = "https://flakehub.com/f/numtide/treefmt-nix/0.1.*";
   };
 
   outputs =
