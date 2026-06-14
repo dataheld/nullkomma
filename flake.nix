@@ -5,22 +5,13 @@
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2605.*";
     # keep-sorted start
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
-    flake-checker = {
-      url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
-    };
-    # keep-sorted end
+    flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
     flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
-    flake-parts = {
-      url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
-    };
+    flake-parts.url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.5.*";
-    nix-unit = {
-      url = "github:nix-community/nix-unit/?tag=v2.34.0";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
+    nix-unit.url = "github:nix-community/nix-unit/?tag=v2.34.0";
     treefmt-nix.url = "https://flakehub.com/f/numtide/treefmt-nix/0.1.*";
+    # keep-sorted end
   };
 
   outputs =
