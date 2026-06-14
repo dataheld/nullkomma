@@ -5,15 +5,9 @@
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2605.*";
     # keep-sorted start
     fh.url = "https://flakehub.com/f/DeterminateSystems/fh/0.1.*";
-    flake-checker = {
-      # must use non-flakehub inputs,
-      # b/c flake-checker was build with DetSys Secure Packages
-      # which are not available without subscription
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
-    };
-    # keep-sorted end
+    flake-checker.url = "https://flakehub.com/f/DeterminateSystems/flake-checker/0.2.*";
     flake-iter.url = "https://flakehub.com/f/DeterminateSystems/flake-iter/0.1.*";
+    # keep-sorted end
     flake-parts = {
       inputs.nixpkgs-lib.follows = "nixpkgs";
       url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
