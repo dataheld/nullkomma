@@ -16,12 +16,12 @@ nullkomma is **per-project** Nix scaffolding: flakes, templates, devshells, form
 
 It is **not**:
 
-| Concern | Lives in |
-| --- | --- |
-| Fleet placement, clan, networking, fleet secrets | [dataheld/aoshima](https://github.com/dataheld/aoshima) |
-| Host baseline (boot, disk, hardening, host services) | [dataheld/pads](https://github.com/dataheld/pads) |
-| User environment policy (home-manager, shell ergonomics) | [dataheld/lap](https://github.com/dataheld/lap) |
-| Agentic coding app / runtime | [dataheld/gittens](https://github.com/dataheld/gittens) |
+| Concern                                                  | Lives in                                                |
+| -------------------------------------------------------- | ------------------------------------------------------- |
+| Fleet placement, clan, networking, fleet secrets         | [dataheld/aoshima](https://github.com/dataheld/aoshima) |
+| Host baseline (boot, disk, hardening, host services)     | [dataheld/pads](https://github.com/dataheld/pads)       |
+| User environment policy (home-manager, shell ergonomics) | [dataheld/lap](https://github.com/dataheld/lap)         |
+| Agentic coding app / runtime                             | [dataheld/gittens](https://github.com/dataheld/gittens) |
 
 Separation tracker: [dataheld/aoshima#227](https://github.com/dataheld/aoshima/issues/227).
 
