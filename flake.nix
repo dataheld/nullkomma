@@ -15,7 +15,6 @@
     flake-schemas.url = "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.5.*";
     nix-unit = {
       # Pin to 2.34.x: nixpkgs 0.2605 has nixComponents_2_34, not _2_35
-      # (github:.../?tag=... does not lock a ref; use /<tag> form).
       url = "github:nix-community/nix-unit/v2.34.2";
       inputs = {
         nixpkgs.follows = "nixpkgs";
