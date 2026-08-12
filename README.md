@@ -10,6 +10,21 @@ extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌
 
 > nullkommanix [ɪn ˈnʊl ˌkɔma ˈnɪçt͡s] noun German colloquialism (translation: in next to time).
 
+## Scope
+
+nullkomma is **per-project** Nix scaffolding: flakes, templates, devshells, formatters/checks, Makefile helpers, and the CI patterns those templates ship.
+
+It is **not**:
+
+| Concern                                                  | Lives in                                                |
+| -------------------------------------------------------- | ------------------------------------------------------- |
+| Fleet placement, clan, networking, fleet secrets         | [dataheld/aoshima](https://github.com/dataheld/aoshima) |
+| Host baseline (boot, disk, hardening, host services)     | [dataheld/pads](https://github.com/dataheld/pads)       |
+| User environment policy (home-manager, shell ergonomics) | [dataheld/lap](https://github.com/dataheld/lap)         |
+| Agentic coding app / runtime                             | [dataheld/gittens](https://github.com/dataheld/gittens) |
+
+Separation tracker: [dataheld/aoshima#227](https://github.com/dataheld/aoshima/issues/227).
+
 ## Installing
 
 > [!NOTE]
@@ -17,17 +32,20 @@ extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌
 > It is much less; just the set of composable nix flakes and modules that I use for my projects.
 
 > [!TIP]
-> This is the software you need to have on your _system_.
-> All project-specific software is handled automatically.
+> The steps below are **system / user** prerequisites.
+> Project-specific software is handled by the flake once you are inside the repo.
+> Providing `direnv` and `nix-direnv` is user-environment policy ([dataheld/lap](https://github.com/dataheld/lap)), not something each project should own forever.
+> Templates may still bootstrap `nix-direnv` from `.envrc` until that lands ([#35](https://github.com/dataheld/nullkomma/issues/35)).
 
 1. Install Nix (the package manager).
    The [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer) is recommended.
 
 1. Install [direnv](https://direnv.net).
 
-1. (optional) Install
+1. (optional, recommended) Install
    [nix-direnv](https://github.com/nix-community/nix-direnv)
    for better performance during development.
+   Prefer installing it once in your user environment rather than relying on per-project `.envrc` bootstraps.
 
 1. Add the necessary boilerplate files.
 
