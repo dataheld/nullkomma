@@ -27,9 +27,8 @@ Separation tracker: [dataheld/aoshima#227](https://github.com/dataheld/aoshima/i
 
 ## Charter
 
-Read the [estate-wide Charter](https://github.com/dataheld/aoshima#charter) **before design decisions**.
-That document is the north star for this estate.
-This repo does not keep a second manifesto.
+This repo contributes to the broader IT infrastructure laid out in [aoshima](https://github.com/dataheld/aoshima).
+When making changes, adhere to [aoshima's charter](https://github.com/dataheld/aoshima#charter).
 
 ## Installing
 
