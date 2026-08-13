@@ -25,6 +25,11 @@ It is **not**:
 
 Separation tracker: [dataheld/aoshima#227](https://github.com/dataheld/aoshima/issues/227).
 
+## Charter
+
+This repo contributes to the broader IT infrastructure laid out in [aoshima](https://github.com/dataheld/aoshima).
+When making changes, adhere to [aoshima's charter](https://github.com/dataheld/aoshima#charter).
+
 ## Installing
 
 > [!NOTE]
