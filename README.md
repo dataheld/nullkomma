@@ -39,18 +39,11 @@ When making changes, adhere to [aoshima's charter](https://github.com/dataheld/a
 > [!TIP]
 > The steps below are **system / user** prerequisites.
 > Project-specific software is handled by the flake once you are inside the repo.
-> Providing `direnv` and `nix-direnv` is user-environment policy ([dataheld/lap](https://github.com/dataheld/lap)), not something each project should own forever.
-> Templates may still bootstrap `nix-direnv` from `.envrc` until that lands ([#35](https://github.com/dataheld/nullkomma/issues/35)).
 
 1. Install Nix (the package manager).
    The [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer) is recommended.
 
-1. Install [direnv](https://direnv.net).
-
-1. (optional, recommended) Install
-   [nix-direnv](https://github.com/nix-community/nix-direnv)
-   for better performance during development.
-   Prefer installing it once in your user environment rather than relying on per-project `.envrc` bootstraps.
+For automatic flake-shell activation, provide [direnv](https://direnv.net) and [nix-direnv](https://github.com/nix-community/nix-direnv) in your user environment (managed via [lap](https://github.com/dataheld/lap) or installed manually).
 
 1. Add the necessary boilerplate files.
 
