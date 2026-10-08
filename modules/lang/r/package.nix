@@ -3,7 +3,12 @@
 { inputs, ... }:
 {
   flake.flakeModules.r =
-    { config, lib, ... }:
+    {
+      config,
+      flake-parts-lib,
+      lib,
+      ...
+    }:
     let
       cfg = config.nullkomma.r;
       rlib = import ../../../lib/r.nix { inherit lib; };
@@ -19,7 +24,14 @@
       );
     in
     {
-      perSystem =
+      options.perSystem = flake-parts-lib.mkPerSystemOption {
+        options.nullkomma.r.package = lib.mkOption {
+          type = lib.types.package;
+          readOnly = true;
+          description = "R with every package from DESCRIPTION and `nullkomma.r.extraPackages`.";
+        };
+      };
+      config.perSystem =
         { system, ... }:
         let
           pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
@@ -29,11 +41,6 @@
             or (throw "nullkomma.r: R package `${name}` is not in `rPackages` of nixpkgs-r; pin a newer nixpkgs-r or drop it from DESCRIPTION/extraPackages.");
         in
         {
-          options.nullkomma.r.package = lib.mkOption {
-            type = lib.types.package;
-            readOnly = true;
-            description = "R with every package from DESCRIPTION and `nullkomma.r.extraPackages`.";
-          };
           config.nullkomma.r.package = pkgsR.rWrapper.override { packages = map lookup names; };
         };
     };

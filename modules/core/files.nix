@@ -1,12 +1,11 @@
 # Initialize repository files once; existing files belong to the user.
 {
   flake.flakeModules.default =
-    { lib, ... }:
+    { flake-parts-lib, lib, ... }:
     {
-      perSystem =
-        { config, pkgs, ... }:
+      options.perSystem = flake-parts-lib.mkPerSystemOption (
+        { pkgs, ... }:
         let
-          files = lib.filterAttrs (_: f: f.enable) config.nullkomma.files;
           fileModule =
             { name, config, ... }:
             {
@@ -37,6 +36,14 @@
             default = { };
             description = "Files, keyed by path relative to the repo root, that nullkomma initializes if absent. Existing files are never overwritten or checked for drift.";
           };
+        }
+      );
+      config.perSystem =
+        { config, pkgs, ... }:
+        let
+          files = lib.filterAttrs (_: f: f.enable) config.nullkomma.files;
+        in
+        {
           config = {
             nullkomma.tasks.write-files = {
               description = "Initialize missing repository files (.gitignore, .envrc, CI stubs, …), preserving existing files";

@@ -112,7 +112,7 @@ Import only the ones a project needs; an aspect never adds anything to a project
 
 ### Knobs
 
-Options live under `nullkomma.*` (see the `options.nix` and other files in [`modules/`](modules)), for example:
+Options live under `nullkomma.*`, for example (the generated [option reference](reference.qmd) lists all of them, also under `perSystem`; build it with `nix build .#docs-reference`):
 
 ```nix
 inputs.nullkomma.lib.mkFlake { inherit inputs; } {

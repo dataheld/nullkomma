@@ -1,8 +1,9 @@
 project:
   type: website
-  # only the README; tests/fixtures holds other Quarto projects
+  # top-level pages only; tests/fixtures holds other Quarto projects
   render:
-    - index.qmd
+    - "*.qmd"
+    - "!tests/"
 website:
   title: "nullkomma"
   description: "Opinionated 🤓, batteries-included 🔋, extra-DRY 🤌 Nix boilerplate."
@@ -10,6 +11,8 @@ website:
     left:
       - href: index.qmd
         text: Home
+      - href: reference.qmd
+        text: Reference
 format:
   html:
     theme: pulse

@@ -2,6 +2,7 @@
   flake.flakeModules.quarto =
     {
       config,
+      flake-parts-lib,
       lib,
       self,
       ...
@@ -24,6 +25,18 @@
           description = "Whether `quarto render` of `root` becomes `nullkomma.site`.";
         };
       };
+      options.perSystem = flake-parts-lib.mkPerSystemOption {
+        options.nullkomma.quarto.engines = lib.mkOption {
+          type = lib.types.listOf lib.types.package;
+          default = [ ];
+          description = "Engine environments (R, Python) on `PATH` for rendering; set by the language aspects.";
+        };
+        options.nullkomma.quarto.extraFiles = lib.mkOption {
+          type = lib.types.attrsOf lib.types.path;
+          default = { };
+          description = "Generated files (relative path to source) copied into the project before `nullkomma.site` is rendered.";
+        };
+      };
       config.perSystem =
         { config, pkgs, ... }:
         let
@@ -31,11 +44,6 @@
           inputs = [ quarto ] ++ config.nullkomma.quarto.engines;
         in
         {
-          options.nullkomma.quarto.engines = lib.mkOption {
-            type = lib.types.listOf lib.types.package;
-            default = [ ];
-            description = "Engine environments (R, Python) on `PATH` for rendering; set by the language aspects.";
-          };
           config = {
             nullkomma = {
               devshell.packages = [ quarto ];
@@ -45,6 +53,10 @@
                     name = "site";
                     src = cfg.root;
                     nativeBuildInputs = inputs;
+                    preBuild = lib.concatMapAttrsStringSep "" (target: source: ''
+                      mkdir -p "$(dirname ${lib.escapeShellArg target})"
+                      cp ${source} ${lib.escapeShellArg target}
+                    '') config.nullkomma.quarto.extraFiles;
                     buildPhase = ''
                       runHook preBuild
                       export HOME="$TMPDIR"

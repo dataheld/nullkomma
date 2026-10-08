@@ -1,10 +1,10 @@
 { inputs, ... }:
 {
   flake.flakeModules.quarto =
-    { lib, ... }:
+    { flake-parts-lib, lib, ... }:
     {
       imports = [ inputs.self.flakeModules.default ];
-      perSystem =
+      options.perSystem = flake-parts-lib.mkPerSystemOption (
         { pkgs, ... }:
         {
           options.nullkomma.quarto.package = lib.mkOption {
@@ -23,6 +23,7 @@
             defaultText = lib.literalMD "`pkgs.quartoMinimal` with nullkomma's workarounds";
             description = "Quarto, without bundled R/Python; engines come from the R/Python aspects.";
           };
-        };
+        }
+      );
     };
 }
