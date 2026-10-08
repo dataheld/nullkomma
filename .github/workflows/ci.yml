@@ -1,4 +1,4 @@
-# Reusable CI of nullkomma projects, called by their generated push.yml.
+# Reusable CI of nullkomma projects, called by their push.yml.
 name: nullkomma CI
 on:
   workflow_call:

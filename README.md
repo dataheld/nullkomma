@@ -47,7 +47,7 @@ When making changes, adhere to [aoshima's charter](https://github.com/dataheld/a
    nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
    ```
 
-1. Write the generated files (`.gitignore`, `.envrc`, CI workflows, editor settings):
+1. Initialize missing files (`.gitignore`, `.envrc`, CI workflows, editor settings):
 
    ```sh
    git add flake.nix
@@ -98,12 +98,12 @@ Then, as usual: `nix develop`, `nix fmt`, `nix flake check`, `nix flake show`.
 Each aspect is a flake-parts module in `flakeModules`.
 Import only the ones a project needs; an aspect never adds anything to a project that does not import it.
 
-| Aspect             | Adds                                                                                                                                                                                                                                                                 |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `default`          | devshell, [treefmt](https://github.com/numtide/treefmt-nix) (Nix, Markdown, YAML, JSON, TOML, shell, GitHub Actions), tasks (`check`, `update`, `flake-checker`, `write-files`), generated `.gitignore`, `.envrc`, CI workflows and VS Code settings, `checks.files` |
-| `r`                | R with all packages from `DESCRIPTION`, [air](https://posit-dev.github.io/air/) (and optionally [jarl](https://jarl.etiennebacher.com)), `checks.r-cmd-check`, VS Code extensions                                                                                    |
-| `quarto`           | Quarto, `packages.site` (if there is a `_quarto.yml`), tasks `render` and `preview`; with `r`, R chunks run with the project's R environment                                                                                                                         |
-| `cloudflare-pages` | task `deploy` of `packages.site` to [Cloudflare Pages](https://pages.cloudflare.com), run by CI on pushes to the default branch                                                                                                                                      |
+| Aspect             | Adds                                                                                                                                                                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `default`          | devshell, [treefmt](https://github.com/numtide/treefmt-nix) (Nix, Markdown, YAML, JSON, TOML, shell, GitHub Actions), tasks (`check`, `update`, `flake-checker`, `write-files`), initial `.gitignore`, `.envrc`, CI workflow and VS Code settings |
+| `r`                | R with all packages from `DESCRIPTION`, [air](https://posit-dev.github.io/air/) (and optionally [jarl](https://jarl.etiennebacher.com)), `checks.r-cmd-check`, VS Code extensions                                                                 |
+| `quarto`           | Quarto, `packages.site` (if there is a `_quarto.yml`), tasks `render` and `preview`; with `r`, R chunks run with the project's R environment                                                                                                      |
+| `cloudflare-pages` | task `deploy` of `packages.site` to [Cloudflare Pages](https://pages.cloudflare.com), run by CI on pushes to the default branch                                                                                                                   |
 
 ### Knobs
 
@@ -133,14 +133,16 @@ To pin R and CRAN to a date, point nullkomma's `nixpkgs-r` input elsewhere
 inputs.nullkomma.inputs.nixpkgs-r.url = "github:rstats-on-nix/nixpkgs/2026-01-05";
 ```
 
-### Generated files
+### Initialized files
 
-Some files must live in the repo, so nullkomma generates them:
-`.gitignore`, `.envrc`, `.github/workflows/{push,cron}.yml` and `.vscode/*.json`.
-Configure them in `flake.nix` (e.g. `nullkomma.gitignore`, `nullkomma.editor.vscode`),
-then run `nix run .#write-files`; `checks.files` fails if they are out of date.
-Commit them: flakes only see git-tracked files, so the generated `.gitignore` re-includes them, overriding a global `core.excludesFile`.
-The workflows are thin stubs that call nullkomma's reusable [`ci.yml`](.github/workflows/ci.yml) and [`maintenance.yml`](.github/workflows/maintenance.yml).
+Some files must live in the repo, so `nix run .#write-files` initializes missing
+`.gitignore`, `.envrc`, `.github/workflows/push.yml` and `.vscode/*.json` files.
+Configure their initial contents in `flake.nix` (e.g. `nullkomma.gitignore`, `nullkomma.editor.vscode`).
+After initialization they belong to you: edit them directly. Re-running `write-files`
+preserves existing files, and there is no drift check or automatic overwrite on upgrades.
+Commit them; the initial `.gitignore` re-includes these paths to override a global `core.excludesFile`.
+The CI stub calls nullkomma's reusable [`ci.yml`](.github/workflows/ci.yml).
+The scheduled `cron.yml` maintenance workflow exists only in nullkomma itself, not in consumers.
 
 ## Updating
 
@@ -151,11 +153,9 @@ There are two separate aspects to updating the nix dependencies.
 1. There may be newer versions available _given_ the pinning in `flake.nix`.
    This can be accomplished by running `nix run .#update` locally and may change the `flake.lock`.
    However such updates may break a project.
-   It is therefore recommended **to only run this in CI**,
-   using the periodically scheduled `cron.yml` workflow.
-   It will automatically open pull requests if there are updates available.
-   Users can then inspect whether the updated project still passes all tests.
-   If a new nullkomma generates different files, `checks.files` fails until you run `nix run .#write-files`.
+   Review updates and run checks before merging. Nullkomma itself uses a scheduled
+   `cron.yml` workflow to open update pull requests; downstream repos do not receive this workflow.
+   Updates never overwrite your initialized repository files.
 1. The versions pinned in `flake.nix` (and the resulting `flake.lock`) itself may be out of date.
    The [DeterminateSystems/flake-checker](https://github.com/DeterminateSystems/flake-checker) will fail if this is the case.
    It runs on every push as well as periodically.

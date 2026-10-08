@@ -34,28 +34,13 @@
         "    with:\n"
         + lib.concatStrings (lib.mapAttrsToList (k: v: "      ${k}: ${scalar v}\n") cfg.ci.inputs)
       );
-      maintenance = ''
-        name: Maintenance
-        on:
-          schedule:
-            - cron: "0 0 * * 0" # weekly, Sunday 00:00 UTC
-          workflow_dispatch:
-        jobs:
-          nullkomma:
-            uses: ${uses "maintenance"}
-            permissions:
-              contents: write
-              id-token: write
-              issues: write
-              pull-requests: write
-      '';
     in
     {
       options.nullkomma.github = {
         enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Whether to generate `.github/workflows/{push,cron}.yml`.";
+          description = "Whether to initialize `.github/workflows/push.yml`.";
         };
         workflows = {
           source = lib.mkOption {
@@ -93,7 +78,6 @@
       };
       config.perSystem.nullkomma.files = lib.mkIf cfg.enable {
         ".github/workflows/push.yml".text = ci;
-        ".github/workflows/cron.yml".text = maintenance;
       };
     };
 }

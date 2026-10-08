@@ -1,4 +1,4 @@
-# Reusable maintenance of nullkomma projects, called by their generated cron.yml.
+# Maintenance workflow called by nullkomma's own cron.yml.
 name: nullkomma maintenance
 on:
   workflow_call:
