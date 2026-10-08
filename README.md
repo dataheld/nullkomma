@@ -67,6 +67,11 @@ The first time you enter the directory, this might take some time.
 
 ## Using
 
+The default aspect also exports [flake schemas](https://github.com/DeterminateSystems/flake-schemas)
+for standard outputs (`packages`, `checks`, `devShells`, `apps`, etc.) and module/library outputs.
+Schema-aware Nix tooling can inventory and validate these outputs; ordinary Nix can still consume the flake.
+The shared `flake-schemas` input adds one lightweight node to consumer locks, with no language toolchain dependencies.
+
 A project's entire nullkomma footprint is its `flake.nix` (and `flake.lock`):
 
 ```nix
@@ -187,7 +192,7 @@ and one file can extend several aspects; [`modules/lang/quarto/r.nix`](modules/l
 
 nullkomma uses itself:
 its devshell, formatter, checks and this website come from the `dev` [partition](https://flake.parts/options/flake-parts-partitions.html),
-whose extra inputs live in [`dev/flake.nix`](dev/flake.nix) and never end up in a project's `flake.lock`.
+so development-only configuration is not evaluated by consumers.
 The fixtures in [`tests/fixtures`](tests/fixtures) are evaluated like projects using nullkomma, and their checks, devshells and sites are part of `nix flake check`.
 
 ## Issues

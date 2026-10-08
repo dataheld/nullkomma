@@ -48,6 +48,50 @@
           importTreeRoot = ../../tests/fixtures/import-tree;
           tests = {
             # keep-sorted start block=yes
+            testConsumersExportSchemas = {
+              expr = lib.mapAttrs (_: flake: {
+                versions = map (name: flake.schemas.${name}.version) [
+                  "apps"
+                  "checks"
+                  "devShells"
+                  "formatter"
+                  "packages"
+                ];
+                app =
+                  (flake.schemas.apps.inventory flake.apps)
+                  .children.${system}.children.write-files.evalChecks.isValidApp;
+                check =
+                  (flake.schemas.checks.inventory flake.checks).children.${system}.children.treefmt.isFlakeCheck;
+                shell = (flake.schemas.devShells.inventory flake.devShells).children.${system}.children ? default;
+                module =
+                  (flake.schemas.flakeModules.inventory {
+                    default = nullkomma.flakeModules.default;
+                  }).children.default.evalChecks.isModule;
+              }) (fixtures // lib.mapAttrs' (name: lib.nameValuePair "template-${name}") templates);
+              expected =
+                lib.genAttrs
+                  [
+                    "md"
+                    "quarto"
+                    "r"
+                    "template-default"
+                    "template-quarto"
+                    "template-r"
+                  ]
+                  (_: {
+                    versions = [
+                      1
+                      1
+                      1
+                      1
+                      1
+                    ];
+                    app = true;
+                    check = true;
+                    shell = true;
+                    module = true;
+                  });
+            };
             testGitignoreReincludesManagedFiles = {
               expr =
                 let

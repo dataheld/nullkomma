@@ -1,10 +1,8 @@
-# Everything nullkomma needs for its own development (dogfooding, schemas, tests)
-# is evaluated in the `dev` partition, with extra inputs from ./dev/flake.nix that
-# consumers never fetch nor lock.
+# Dogfooding and tests are evaluated only in the `dev` partition.
+# Schemas come from the shared default aspect imported by dogfooding.
 { inputs, lib, ... }:
 {
   imports = [ inputs.flake-parts.flakeModules.partitions ];
-  partitions.dev.extraInputsFlake = ../../dev;
   partitionedAttrs = lib.genAttrs [
     "apps"
     "checks"

@@ -1,8 +1,8 @@
-# Flake schemas (DeterminateSystems/flake-schemas) make `nix flake show` and
-# `nix flake check` understand nullkomma's non-standard outputs.
+# Consumers inherit output schemas without declaring another input.
+{ inputs, ... }:
 {
-  partitions.dev.module =
-    { inputs, ... }:
+  flake.flakeModules.default =
+    { ... }:
     let
       isModule = m: builtins.isAttrs m || builtins.isFunction m;
       children = what: output: {
