@@ -1,5 +1,8 @@
 project:
   type: website
+  # only the README; tests/fixtures holds other Quarto projects
+  render:
+    - index.qmd
 website:
   title: "nullkomma"
   description: "Opinionated 🤓, batteries-included 🔋, extra-DRY 🤌 Nix boilerplate."

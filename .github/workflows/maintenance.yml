@@ -1,0 +1,22 @@
+# Reusable maintenance of nullkomma projects, called by their generated cron.yml.
+name: nullkomma maintenance
+on:
+  workflow_call:
+jobs:
+  update-flake-lock:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/flake-checker-action@v14
+      - uses: DeterminateSystems/update-flake-lock@v29
+        with:
+          pr-title: Update flake.lock
+          pr-labels: |
+            dependencies
+            automated

@@ -1,0 +1,9 @@
+---
+title: nullkomma fixture
+---
+
+R chunks run with the R aspect's environment:
+
+```{r}
+1 + 1
+```

@@ -1,22 +1,30 @@
 {
-  "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
-  "nixEnvSelector.useFlakes": true,
-  "nixEnvSelector.suggestion": false,
+  "editor.defaultFormatter": "ibecker.treefmt-vscode",
   "nix.enableLanguageServer": true,
-  "nix.serverPath": "nixd",
-  "nix.serverSettings": {
-    "nixd": {
-      "formatting": {
-        "command": ["treefmt", "--stdin", "{file}"]
-      }
-    }
-  },
-  "nix.formatterPath": ["treefmt", "--stdin", "{file}"],
+  "nix.formatterPath": [
+    "treefmt",
+    "--stdin",
+    "{file}"
+  ],
   "nix.hiddenLanguageServerErrors": [
     "textDocument/definition",
     "textDocument/completion",
     "textDocument/documentHighlight"
   ],
-  "editor.defaultFormatter": "ibecker.treefmt-vscode",
+  "nix.serverPath": "nixd",
+  "nix.serverSettings": {
+    "nixd": {
+      "formatting": {
+        "command": [
+          "treefmt",
+          "--stdin",
+          "{file}"
+        ]
+      }
+    }
+  },
+  "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
+  "nixEnvSelector.suggestion": false,
+  "nixEnvSelector.useFlakes": true,
   "notebook.defaultFormatter": "ibecker.treefmt-vscode"
 }
