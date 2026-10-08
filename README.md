@@ -138,6 +138,12 @@ To pin R and CRAN to a date, point nullkomma's `nixpkgs-r` input elsewhere
 inputs.nullkomma.inputs.nixpkgs-r.url = "github:rstats-on-nix/nixpkgs/2026-01-05";
 ```
 
+`nix flake update` then moves R and every R package together, and `flake.lock` records the exact revision.
+nullkomma does not parse `DESCRIPTION` itself: R's own `read.dcf` and `tools::package_dependencies` do,
+inside a small derivation that is evaluated on demand
+(import from derivation, so the first evaluation builds R once).
+Package versions come from the pinned package set; `DESCRIPTION` version constraints are not resolved.
+
 ### Initialized files
 
 Some files must live in the repo, so `nix run .#write-files` initializes missing

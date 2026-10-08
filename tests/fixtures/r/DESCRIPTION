@@ -6,6 +6,10 @@ Description: Exercises the R aspect of nullkomma: dependencies from the
     DESCRIPTION file, formatting with air and R CMD check.
 License: CC0
 Encoding: UTF-8
+Depends:
+    R (>= 4.1.0)
+Imports:
+    stats
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

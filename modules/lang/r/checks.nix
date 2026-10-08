@@ -4,8 +4,7 @@
     let
       cfg = config.nullkomma.r;
       rlib = import ../../../lib/r.nix { inherit lib; };
-      isPackage =
-        cfg.description != null && (rlib.parseDCF (builtins.readFile cfg.description)) ? Package;
+      isPackage = cfg.description != null && rlib.hasPackageField (builtins.readFile cfg.description);
     in
     {
       options.nullkomma.r.check = {

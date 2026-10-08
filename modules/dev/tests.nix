@@ -193,8 +193,10 @@
               };
             };
             testRDependsOnDescription = {
-              expr = nullkomma.lib.r.depsFromDescription { path = ../../tests/fixtures/r/DESCRIPTION; };
-              expected = [ "testthat" ];
+              expr = (perSystem fixtures.r).nullkomma.r.dependencies;
+              expected = [
+                "testthat"
+              ];
             };
             testRHasAirAndCheck = {
               expr = {
@@ -211,25 +213,6 @@
             testRLibAttrName = {
               expr = nullkomma.lib.r.attrName "data.table";
               expected = "data_table";
-            };
-            testRLibDepNames = {
-              expr = nullkomma.lib.r.depNames "R (>= 4.1), data.table (>= 1.0),\n  rlang, utils";
-              expected = [
-                "data.table"
-                "rlang"
-              ];
-            };
-            testRLibParseDCF = {
-              expr = nullkomma.lib.r.parseDCF ''
-                Package: foo
-                Imports:
-                    bar,
-                    baz (>= 1.0)
-              '';
-              expected = {
-                Package = "foo";
-                Imports = "bar, baz (>= 1.0)";
-              };
             };
             testTemplatesAreFixtures = {
               expr = map builtins.readFile [
