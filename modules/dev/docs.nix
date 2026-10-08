@@ -56,6 +56,9 @@
             for option in \
               nullkomma.github.enable \
               nullkomma.r.extraPackages \
+              nullkomma.r.rprofile \
+              perSystem.nullkomma.r.snapshot \
+              perSystem.nullkomma.r.buildInputs \
               nullkomma.quarto.root \
               nullkomma.cloudflare-pages.project \
               perSystem.nullkomma.tasks \
