@@ -175,6 +175,42 @@ into lap's global user defaults. Profiles containing workspace-relative paths mu
 be used with the corresponding project open. Personal language-specific formatter
 overrides may still need project-specific workspace overrides.
 
+## Testing nullkomma
+
+Tests of nullkomma itself live in the development partition; consumers do not
+inherit them. Use three complementary layers:
+
+- **Module contracts:** `lib.debug.runTests` checks evaluated consumer options,
+  overrides, templates and exported outputs.
+- **Build contracts:** consumer fixture checks are included in nullkomma's own
+  `checks`. Inspect successful build outputs as well as build success. For negative
+  fixtures, use Nixpkgs' `testers.testBuildFailure'` with an expected exit code and
+  tool-specific log entries; an arbitrary failure is not sufficient.
+- **CLI integration:** `nix run .#check-fixtures` runs real `nix flake check`
+  commands against good and bad consumer input, overriding nullkomma with this
+  checkout. This tests input resolution and CLI failure propagation, which the
+  in-process fixture evaluator does not cover. nullkomma's own CI runs it before
+  the reusable build/publish workflow.
+
+Run the build contracts with `nix flake check`. CLI integration runs outside
+derivation builders: no nested Nix daemon, recursive builds or import-from-derivation
+is needed. Fixtures use the checkout's locked dependencies, not the published
+nullkomma release.
+
+New language aspects should add small successful and deliberately broken fixtures.
+The successful fixture must exercise the actual build and verify meaningful output;
+the broken fixture must fail at the intended stage with its expected diagnostic.
+Do not compare an output with itself or substitute a dummy failing builder for the
+real tool. Keep invalid fixture content out of the repository-wide formatter's
+input, for example by constructing it with `pkgs.writeTextDir`.
+
+These patterns follow [flake-parts' module tests](https://github.com/hercules-ci/flake-parts/blob/main/dev/tests/nix-unit.nix),
+[treefmt-nix's consumer integration tests](https://github.com/numtide/treefmt-nix/blob/main/run-tests.sh),
+and [Nixpkgs' testing helpers](https://nixos.org/manual/nixpkgs/unstable/#chap-testers).
+`runTests` suffices for current value comparisons; consider
+[nix-unit](https://github.com/nix-community/nix-unit) when precise expected
+evaluation-error tests or per-test error isolation are needed.
+
 ## Updating
 
 ### Nix

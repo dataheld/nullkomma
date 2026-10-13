@@ -204,19 +204,45 @@
           ) fixtures;
         in
         {
+          nullkomma.tasks.check-fixtures = {
+            description = "Check a real consumer flake accepts valid input and rejects formatting drift";
+            runtimeInputs = [
+              pkgs.coreutils
+              pkgs.git
+              pkgs.gnugrep
+            ];
+            command = ''
+              root="$(git rev-parse --show-toplevel)"
+              scratch="$(mktemp -d)"
+              trap 'rm -f "$scratch/project/flake.nix" "$scratch/project/README.md" "$scratch/project/unformatted.nix" "$scratch/failure.log"; rmdir "$scratch/project" "$scratch"' EXIT
+              mkdir "$scratch/project"
+              cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
+              nix flake check "path:$scratch/project" \
+                --override-input nullkomma "path:$root" \
+                --no-write-lock-file --print-build-logs
+
+              printf '{foo=1;}\n' > "$scratch/project/unformatted.nix"
+              if nix flake check "path:$scratch/project" \
+                --override-input nullkomma "path:$root" \
+                --no-write-lock-file --print-build-logs > "$scratch/failure.log" 2>&1; then
+                echo "Invalid consumer unexpectedly passed nix flake check" >&2
+                exit 1
+              fi
+              cat "$scratch/failure.log"
+              grep -qF 'diff --git a/unformatted.nix b/unformatted.nix' "$scratch/failure.log"
+              grep -qF '+{ foo = 1; }' "$scratch/failure.log"
+            '';
+          };
           checks = fixtureChecks // {
-            formatting-rejects =
-              pkgs.runCommandLocal "nullkomma-formatting-rejects"
-                {
-                  failure = pkgs.testers.testBuildFailure (
-                    (perSystem fixtures.md).treefmt.build.check (pkgs.writeTextDir "flake.nix" "{foo=1;}\n")
-                  );
-                }
-                ''
-                  grep -qF 'diff --git a/flake.nix b/flake.nix' "$failure/testBuildFailure.log"
-                  grep -qF '+{ foo = 1; }' "$failure/testBuildFailure.log"
-                  touch $out
-                '';
+            formatting-rejects = pkgs.testers.testBuildFailure' {
+              name = "nullkomma-formatting-rejects";
+              drv = (perSystem fixtures.md).treefmt.build.check (pkgs.writeTextDir "flake.nix" "{foo=1;}\n");
+              expectedBuilderExitCode = 1;
+              expectedBuilderLogEntries = [
+                "diff --git a/flake.nix b/flake.nix"
+                "+{ foo = 1; }"
+              ];
+            };
             file-initialization = pkgs.runCommandLocal "nullkomma-file-initialization" { } ''
               mkdir project
               cd project
