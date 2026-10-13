@@ -186,6 +186,10 @@
               expr = builtins.readFile ../../templates/default/flake.nix;
               expected = builtins.readFile ../../tests/fixtures/md/flake.nix;
             };
+            testTemplatesIncludeDirenvBootstrap = {
+              expr = builtins.readFile (nullkomma.templates.default.path + "/.envrc");
+              expected = (perSystem templates.default).nullkomma.files.".envrc".text;
+            };
             # keep-sorted end
           };
           failures = lib.debug.runTests tests;

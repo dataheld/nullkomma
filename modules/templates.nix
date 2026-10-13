@@ -4,8 +4,10 @@ let
 
     Next steps:
 
-    1. `git add flake.nix` (flakes only see tracked files)
-    2. `nix run .#write-files` to initialize `.gitignore`, `.envrc`, CI stubs, …
+    The template includes `.envrc` for automatic shell activation.
+
+    1. `git add flake.nix .envrc` (flakes only see tracked files)
+    2. `nix run .#write-files` to initialize remaining files (`.gitignore`, CI stubs, editor settings, …)
     3. `direnv allow` (or `nix develop`)
     4. `nix run` to list all tasks
   '';

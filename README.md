@@ -47,10 +47,13 @@ When making changes, adhere to [aoshima's charter](https://github.com/dataheld/a
    nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
    ```
 
-1. Initialize missing files (`.gitignore`, `.envrc`, CI workflows, editor settings):
+   The template also includes `.envrc` containing `use flake`.
+   Existing files are preserved.
+
+1. Initialize remaining missing files (`.gitignore`, CI workflows, editor settings):
 
    ```sh
-   git add flake.nix
+   git add flake.nix .envrc
    nix run .#write-files
    ```
 
