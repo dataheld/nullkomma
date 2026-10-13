@@ -1,7 +1,3 @@
-**/*.quarto_ipynb
-/.quarto/
-/_book/
-/_site/
 .direnv/
 result
 result-*
