@@ -56,6 +56,8 @@
             for option in \
               nullkomma.github.enable \
               nullkomma.r.extraPackages \
+              nullkomma.r.allowOffNixpkgs \
+              nullkomma.r.lockfile \
               nullkomma.r.rprofile \
               nullkomma.r.snapshot \
               nullkomma.r.ppmUrl \

@@ -1,5 +1,6 @@
 # R and its packages come from nixpkgs (inputs.nixpkgs-r, defaulting to nullkomma's nixpkgs).
-# `Remotes:` in DESCRIPTION, pinned to a commit, are layered on top.
+# pak's lockfile decides which packages; with `allowOffNixpkgs`, those nixpkgs
+# cannot provide are built from the sources the lockfile pins.
 { inputs, ... }:
 {
   flake.flakeModules.r =
@@ -15,10 +16,15 @@
     in
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption {
-        options.nullkomma.r.dependencies = lib.mkOption {
+        options.nullkomma.r.lock = lib.mkOption {
+          type = lib.types.raw;
+          readOnly = true;
+          description = "`nullkomma.r.lockfile`, as read by `nullkomma.lib.r.readLock` (empty without DESCRIPTION).";
+        };
+        options.nullkomma.r.packages = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           readOnly = true;
-          description = "Package names `nullkomma.r.description` depends on in `nullkomma.r.fields`, as parsed by R itself (base packages excluded).";
+          description = "Names of the R packages in `nullkomma.r.package`: those of the lockfile and `nullkomma.r.extraPackages`, pak and languageserver.";
         };
         options.nullkomma.r.buildInputs = lib.mkOption {
           type = lib.types.attrsOf (lib.types.listOf lib.types.package);
@@ -29,7 +35,7 @@
         options.nullkomma.r.package = lib.mkOption {
           type = lib.types.package;
           readOnly = true;
-          description = "R with every package from DESCRIPTION and `nullkomma.r.extraPackages`.";
+          description = "R with every package of `nullkomma.r.packages`.";
         };
       };
       config.perSystem =
@@ -37,156 +43,90 @@
         let
           pcfg = config.nullkomma.r;
           pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
+          base = pkgsR.rPackages;
 
-          projectDcf =
-            if cfg.description != null then rlib.parseDcf (builtins.readFile cfg.description) else { };
-
-          describe =
-            src:
-            let
-              dcf = rlib.parseDcf (builtins.readFile "${src}/DESCRIPTION");
-            in
-            if (rlib.remotesOf dcf) != [ ] then
-              throw "nullkomma.r: transitive Remotes are not supported; declare pinned overrides in the project's DESCRIPTION."
-            else
+          lock =
+            if cfg.description == null then
               {
-                inherit src;
-                dcf = dcf;
-                package = dcf.Package or (throw "nullkomma.r: ${src}/DESCRIPTION is missing a `Package` field.");
-                version = dcf.Version or (throw "nullkomma.r: ${src}/DESCRIPTION is missing a `Version` field.");
-                dependencies = map (d: d.name) (
-                  rlib.depsOf dcf [
-                    "Depends"
-                    "Imports"
-                    "LinkingTo"
-                  ]
-                );
+                nixpkgs = [ ];
+                sources = { };
+                refs = [ ];
+              }
+            else if !builtins.pathExists cfg.lockfile then
+              throw "nullkomma.r: the lockfile `${baseNameOf cfg.lockfile}` of DESCRIPTION is missing; create it with `nix run .#r-lock` (flakes only see files known to git)."
+            else
+              rlib.readLock {
+                lock = lib.importJSON cfg.lockfile;
+                available = base;
+                inherit (cfg) fields allowOffNixpkgs hashes;
               };
 
-          dependencies =
-            if cfg.description != null then map (d: d.name) (rlib.depsOf projectDcf cfg.fields) else [ ];
-
-          # Only `owner/repo@<commit>` is accepted: a commit is the one reference
-          # that cannot move, which is what makes the lock meaningful.
-          parseRemote =
-            entry:
-            let
-              m = builtins.match "([A-Za-z0-9.]+=)?(github::)?([^/@#=:]+)/([^/@#=:]+)@([0-9a-f]{40})" entry;
-            in
-            if m == null then
-              throw "nullkomma.r: Remotes entry `${entry}` must be `owner/repo@<40-character commit sha>` (GitHub, pinned to a commit)."
-            else
-              let
-                remote = describe (
-                  builtins.fetchTree {
-                    type = "github";
-                    owner = lib.elemAt m 2;
-                    repo = lib.elemAt m 3;
-                    rev = lib.elemAt m 4;
-                  }
-                );
-                alias = lib.elemAt m 0;
-              in
-              if alias != null && lib.removeSuffix "=" alias != remote.package then
-                throw "nullkomma.r: Remotes alias `${alias}` does not match `${remote.package}` in the fetched DESCRIPTION."
-              else
-                remote;
-
-          remotes = map parseRemote (rlib.remotesOf projectDcf);
-
-          base = pkgsR.rPackages;
           lookup =
             name:
             final.${rlib.attrName name}
-            or (throw "nullkomma.r: R package `${name}` is not in `rPackages` of nixpkgs; add it to `Remotes:` in DESCRIPTION or drop it from DESCRIPTION/extraPackages.");
-          remoteOverrides = lib.listToAttrs (
-            map (
-              r:
-              let
-                attr = rlib.attrName r.package;
-                inputs' = map lookup r.dependencies;
-              in
-              lib.nameValuePair attr (
-                if base ? ${attr} then
-                  base.${attr}.overrideAttrs (old: {
-                    pname = r.package;
-                    name = "r-${r.package}-${r.version}";
-                    inherit (r) src version;
-                    propagatedBuildInputs =
-                      inputs' ++ lib.filter (p: !(p ? rCommand)) (old.propagatedBuildInputs or [ ]);
-                    nativeBuildInputs = inputs' ++ lib.filter (p: !(p ? rCommand)) (old.nativeBuildInputs or [ ]);
-                  })
+            or (throw "nullkomma.r: R package `${name}` is not in nixpkgs' `rPackages`; remove it from `nullkomma.r.extraPackages`.");
+          # Unlike the rest of R's packages, the R package dependencies of these come from the lockfile.
+          withoutRPackages = lib.filter (p: !(p ? rCommand));
+          sourceOverrides = lib.mapAttrs' (
+            name: s:
+            let
+              attr = rlib.attrName name;
+              tree = builtins.fetchTree s.fetchTree;
+              src =
+                if s ? fetchurl then
+                  pkgsR.fetchurl s.fetchurl
+                else if s.subdir == "" then
+                  tree
                 else
-                  base.buildRPackage {
-                    pname = r.package;
-                    inherit (r) src version;
-                    propagatedBuildInputs = inputs';
-                    nativeBuildInputs = inputs';
-                  }
-              )
-            ) remotes
-          );
+                  "${tree}/${s.subdir}";
+              deps = map lookup s.dependencies;
+            in
+            lib.nameValuePair attr (
+              if base ? ${attr} then
+                base.${attr}.overrideAttrs (old: {
+                  pname = name;
+                  name = "r-${name}-${s.version}";
+                  inherit src;
+                  inherit (s) version;
+                  propagatedBuildInputs = deps ++ withoutRPackages (old.propagatedBuildInputs or [ ]);
+                  nativeBuildInputs = deps ++ withoutRPackages (old.nativeBuildInputs or [ ]);
+                })
+              else
+                base.buildRPackage {
+                  pname = name;
+                  inherit src;
+                  inherit (s) version;
+                  propagatedBuildInputs = deps;
+                  nativeBuildInputs = deps;
+                }
+            )
+          ) lock.sources;
           systemLibraries = lib.mapAttrs' (
             name: libs:
             let
               attr = rlib.attrName name;
             in
             lib.nameValuePair attr (
-              (remoteOverrides.${attr} or base.${attr}).overrideAttrs (old: {
+              (sourceOverrides.${attr} or base.${attr}).overrideAttrs (old: {
                 buildInputs = (old.buildInputs or [ ]) ++ libs;
               })
             )
           ) pcfg.buildInputs;
-          final = base.override { overrides = remoteOverrides // systemLibraries; };
-
-          names = lib.unique (dependencies ++ cfg.extraPackages ++ [ "languageserver" ]);
-          versionNames = lib.unique (names ++ lib.concatMap (r: r.dependencies) remotes);
-          versions = lib.listToAttrs (
-            map (name: lib.nameValuePair name (lib.getVersion (lookup name))) versionNames
-          );
-
-          # Validate version constraints in pure Nix
-          validateAllConstraints =
-            let
-              validProject =
-                if cfg.description != null then
-                  rlib.validateConstraints {
-                    dcf = projectDcf;
-                    inherit (cfg) fields;
-                    inherit versions;
-                  }
-                else
-                  true;
-              validRemotes = map (
-                r:
-                rlib.validateConstraints {
-                  inherit (r) dcf;
-                  fields = [
-                    "Depends"
-                    "Imports"
-                    "LinkingTo"
-                  ];
-                  inherit versions;
-                }
-              ) remotes;
-            in
-            validProject && lib.all (x: x == true) validRemotes;
-
-          uniqueRemotes = lib.length remotes == lib.length (lib.unique (map (r: r.package) remotes));
-          remoteOrder = lib.toposort (a: b: lib.elem a.package b.dependencies) remotes;
+          final = base.override { overrides = sourceOverrides // systemLibraries; };
         in
         {
           config.nullkomma.r = {
-            inherit dependencies;
-            package =
-              if !uniqueRemotes then
-                throw "nullkomma.r: duplicate package names in Remotes."
-              else if remoteOrder ? cycle then
-                throw "nullkomma.r: dependency cycle between Remotes."
-              else if !validateAllConstraints then
-                throw "nullkomma.r: version constraint validation failed."
-              else
-                pkgsR.rWrapper.override { packages = map lookup names; };
+            inherit lock;
+            packages = lib.unique (
+              lock.nixpkgs
+              ++ lib.attrNames lock.sources
+              ++ cfg.extraPackages
+              ++ [
+                "languageserver"
+                "pak"
+              ]
+            );
+            package = pkgsR.rWrapper.override { packages = map lookup pcfg.packages; };
           };
         };
     };

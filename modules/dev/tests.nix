@@ -7,17 +7,20 @@
     let
       nullkomma = inputs.self;
       # Like `builtins.getFlake`, but pure and with `nullkomma` pointing at this
-      # checkout; flake-parts' `debug` exposes the configuration to the tests.
-      callFlake =
-        src:
+      # checkout (plus `module`); flake-parts' `debug` exposes the configuration to the tests.
+      callFlakeWith =
+        module: src:
         let
           flake = import (src + "/flake.nix");
           debugged = nullkomma // {
             lib = nullkomma.lib // {
               mkFlake =
-                args: module:
+                args: consumer:
                 nullkomma.lib.mkFlake args {
-                  imports = [ module ];
+                  imports = [
+                    consumer
+                    module
+                  ];
                   debug = true;
                 };
             };
@@ -36,7 +39,13 @@
           };
         in
         self';
-      fixtures = lib.genAttrs [ "md" "r" "quarto" ] (name: callFlake ../../tests/fixtures/${name});
+      callFlake = callFlakeWith { };
+      fixtures = lib.genAttrs [ "md" "r" "r-remotes" "quarto" ] (
+        name: callFlake ../../tests/fixtures/${name}
+      );
+      withoutLockfile = callFlakeWith {
+        nullkomma.r.lockfile = ../../tests/fixtures/r/missing.lock;
+      } ../../tests/fixtures/r;
       templates = lib.mapAttrs (_: t: callFlake t.path) nullkomma.templates;
     in
     {
@@ -74,6 +83,7 @@
                     "md"
                     "quarto"
                     "r"
+                    "r-remotes"
                     "template-default"
                     "template-quarto"
                     "template-r"
@@ -192,12 +202,39 @@
                 ];
               };
             };
-            testRDependsOnDescription = {
-              expr = (perSystem fixtures.r).nullkomma.r.dependencies;
-              expected = [
-                "testthat"
-                "withr"
-              ];
+            testRPackagesFromLockfile = {
+              expr =
+                let
+                  r = (perSystem fixtures.r).nullkomma.r;
+                  remotes = (perSystem fixtures.r-remotes).nullkomma.r;
+                  has = package: flake: lib.elem package (perSystem flake).nullkomma.r.packages;
+                in
+                {
+                  testthat = has "testthat" fixtures.r;
+                  pak = map (has "pak") [
+                    fixtures.r
+                    fixtures.quarto
+                  ];
+                  sources = r.lock.sources;
+                  remotes = lib.mapAttrs (_: s: s.fetchTree.type or "url") remotes.lock.sources;
+                  withr = remotes.lock.sources.withr.fetchTree.rev;
+                  withoutLockfile =
+                    (builtins.tryEval (builtins.deepSeq (perSystem withoutLockfile).nullkomma.r.packages null)).success;
+                };
+              expected = {
+                testthat = true;
+                pak = [
+                  true
+                  true
+                ];
+                sources = { };
+                remotes = {
+                  digest = "url";
+                  withr = "github";
+                };
+                withr = "d82e4bc2d69a34f044ad205210e26207bfb8f3e0";
+                withoutLockfile = false;
+              };
             };
             testRPpmUrl = {
               expr = fixtures.r.debug.nullkomma.r.ppmUrl;
@@ -227,46 +264,126 @@
               expr = nullkomma.lib.r.attrName "data.table";
               expected = "data_table";
             };
-            testRLibParsers = {
+            testRLibReadLock = {
               expr =
                 let
-                  dcf = nullkomma.lib.r.parseDcf ''
-                    Package: example
-                    Version: 0.1
-                    Depends: R (>= 4.0)
-                    Imports: stats, withr (>= 3.0.0)
-                    Suggests:
-                        testthat
-                    Remotes: r-lib/withr@d82e4bc2d69a34f044ad205210e26207bfb8f3e0
-                  '';
+                  inherit (nullkomma.lib.r) defaultFields readLock;
+                  deps = {
+                    ref = "deps::.";
+                    type = "deps";
+                    dep_types = defaultFields;
+                  };
+                  entry =
+                    ref: type: package: extra:
+                    {
+                      inherit ref type package;
+                      version = "1.0";
+                      dependencies = [ ];
+                      metadata = { };
+                      sources = [ "https://example.com/${package}_1.0.tar.gz" ];
+                    }
+                    // extra;
+                  read =
+                    args: packages:
+                    readLock (
+                      {
+                        lock = {
+                          lockfile_version = 1;
+                          packages = [ deps ] ++ packages;
+                        };
+                        available = {
+                          data_table = { };
+                          glue = { };
+                          withr = { };
+                        };
+                      }
+                      // args
+                    );
+                  fails = args: packages: !(builtins.tryEval (builtins.deepSeq (read args packages) null)).success;
+                  github = entry "r-lib/withr/pkg@abc" "github" "withr" {
+                    metadata = {
+                      RemoteUsername = "r-lib";
+                      RemoteRepo = "withr";
+                      RemoteSha = "abc";
+                      RemoteSubdir = "pkg";
+                    };
+                  };
+                  url = entry "foo=url::https://example.com/foo_1.0.tar.gz" "url" "foo" { };
+                  missing = entry "foo" "standard" "foo" { };
+                  allow = {
+                    allowOffNixpkgs = true;
+                    hashes.foo = "sha256-AAAA";
+                  };
                 in
                 {
-                  package = dcf.Package;
-                  version = dcf.Version;
-                  deps = map (d: d.name) (
-                    nullkomma.lib.r.depsOf dcf [
-                      "Imports"
-                      "Suggests"
-                    ]
-                  );
-                  remotes = nullkomma.lib.r.remotesOf dcf;
-                  constraintPass = nullkomma.lib.r.validateConstraints {
-                    inherit dcf;
-                    fields = [ "Imports" ];
-                    versions = {
-                      withr = "3.0.3";
-                    };
+                  nixpkgs = read { } [
+                    (entry "data.table" "standard" "data.table" { })
+                    (entry "glue" "standard" "glue" { })
+                  ];
+                  offNixpkgs =
+                    (read allow [
+                      github
+                      url
+                    ]).sources;
+                  rejects = {
+                    github = fails { } [ github ];
+                    url = fails { } [ url ];
+                    missingFromNixpkgs = fails { } [ missing ];
+                    pinnedVersion = fails { } [ (entry "glue@1.6.0" "standard" "glue" { }) ];
+                    missingHash = fails { allowOffNixpkgs = true; } [ missing ];
+                    unsupported = fails allow [ (entry "gitlab::r-lib/foo" "gitlab" "foo" { }) ];
+                    format = fails {
+                      lock = {
+                        lockfile_version = 2;
+                        packages = [ deps ];
+                      };
+                    } [ ];
+                    fields = fails { fields = [ "Imports" ]; } [ ];
                   };
                 };
               expected = {
-                package = "example";
-                version = "0.1";
-                deps = [
-                  "withr"
-                  "testthat"
-                ];
-                remotes = [ "r-lib/withr@d82e4bc2d69a34f044ad205210e26207bfb8f3e0" ];
-                constraintPass = true;
+                nixpkgs = {
+                  nixpkgs = [
+                    "data.table"
+                    "glue"
+                  ];
+                  sources = { };
+                  refs = [
+                    "data.table"
+                    "glue"
+                  ];
+                };
+                offNixpkgs = {
+                  withr = {
+                    fetchTree = {
+                      type = "github";
+                      owner = "r-lib";
+                      repo = "withr";
+                      rev = "abc";
+                    };
+                    subdir = "pkg";
+                    version = "1.0";
+                    dependencies = [ ];
+                  };
+                  foo = {
+                    fetchurl = {
+                      urls = [ "https://example.com/foo_1.0.tar.gz" ];
+                      hash = "sha256-AAAA";
+                    };
+                    version = "1.0";
+                    dependencies = [ ];
+                  };
+                };
+                rejects = lib.genAttrs [
+                  "github"
+                  "url"
+                  "missingFromNixpkgs"
+                  "pinnedVersion"
+                  "missingHash"
+                  "unsupported"
+                  "format"
+                  "fields"
+                ] (_: true);
               };
             };
             testTemplatesAreFixtures = {
@@ -282,6 +399,13 @@
             # keep-sorted end
           };
           failures = lib.debug.runTests tests;
+          rLockFailure =
+            text:
+            pkgs.testers.testBuildFailure (
+              fixtures.r.checks.${system}.r-lock.overrideAttrs {
+                description = pkgs.writeText "DESCRIPTION" text;
+              }
+            );
           fixtureChecks = lib.concatMapAttrs (
             name: flake:
             lib.mapAttrs' (check: lib.nameValuePair "fixture-${name}-${check}") (
@@ -297,6 +421,25 @@
         in
         {
           checks = fixtureChecks // {
+            r-lock-rejects =
+              pkgs.runCommandLocal "nullkomma-r-lock-rejects"
+                {
+                  stale = rLockFailure ''
+                    Package: nullkommafixture
+                    Imports: digest
+                    Remotes: r-lib/withr@main
+                  '';
+                  unmet = rLockFailure ''
+                    Package: nullkommafixture
+                    Suggests: testthat (>= 99.0)
+                  '';
+                }
+                ''
+                  grep -q 'depends on digest, which the lockfile lacks' $stale/testBuildFailure.log
+                  grep -q 'Remotes: r-lib/withr@main`, which the lockfile lacks' $stale/testBuildFailure.log
+                  grep -q 'requires testthat (>= 99.0)' $unmet/testBuildFailure.log
+                  touch $out
+                '';
             file-initialization = pkgs.runCommandLocal "nullkomma-file-initialization" { } ''
               mkdir project
               cd project

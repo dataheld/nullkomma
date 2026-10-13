@@ -19,8 +19,10 @@ in
     };
     r = {
       path = ../templates/r;
-      description = "nullkomma R project: dependencies from DESCRIPTION, air, R CMD check";
-      inherit welcomeText;
+      description = "nullkomma R project: dependencies from DESCRIPTION locked by pak, air, R CMD check";
+      welcomeText = welcomeText + ''
+        5. `nix run .#r-lock` to lock DESCRIPTION's dependencies into `pkg.lock`; commit both
+      '';
     };
     quarto = {
       path = ../templates/quarto;

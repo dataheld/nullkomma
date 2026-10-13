@@ -106,7 +106,7 @@ Import only the ones a project needs; an aspect never adds anything to a project
 | Aspect             | Adds                                                                                                                                                                                                                                              |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `default`          | devshell, [treefmt](https://github.com/numtide/treefmt-nix) (Nix, Markdown, YAML, JSON, TOML, shell, GitHub Actions), tasks (`check`, `update`, `flake-checker`, `write-files`), initial `.gitignore`, `.envrc`, CI workflow and VS Code settings |
-| `r`                | R with all packages from `DESCRIPTION`, [air](https://posit-dev.github.io/air/) (and optionally [jarl](https://jarl.etiennebacher.com)), `checks.r-cmd-check`, VS Code extensions                                                                 |
+| `r`                | R with the packages of `DESCRIPTION` (locked by `nix run .#r-lock`), [air](https://posit-dev.github.io/air/) (and optionally [jarl](https://jarl.etiennebacher.com)), `checks.r-lock`, `checks.r-cmd-check`, VS Code extensions                   |
 | `quarto`           | Quarto, `packages.site` (if there is a `_quarto.yml`), tasks `render` and `preview`; with `r`, R chunks run with the project's R environment                                                                                                      |
 | `cloudflare-pages` | task `deploy` of `packages.site` to [Cloudflare Pages](https://pages.cloudflare.com), run by CI on pushes to the default branch                                                                                                                   |
 
@@ -131,12 +131,54 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-### R dependencies and snapshots
+### R dependencies
 
-Keep dependencies in `DESCRIPTION`, including version constraints.
-nullkomma sources R packages directly from official stable **Nixpkgs** (`nixpkgs-r`,
-pinned with nullkomma), providing rock-solid binary caches from `cache.nixos.org`,
+Declare R dependencies in `DESCRIPTION`, as usual (including `Remotes:` and version constraints).
+[pak](https://pak.r-lib.org) resolves them into its lockfile `pkg.lock`, which you commit next to `DESCRIPTION`:
+
+```sh
+nix run .#r-lock # after changing dependencies in DESCRIPTION, and after `nix flake update`
+git commit DESCRIPTION pkg.lock
+```
+
+Nix never parses `DESCRIPTION`; it reads `pkg.lock` as JSON, like
+[crane](https://crane.dev) reads `Cargo.lock` or [uv2nix](https://github.com/pyproject-nix/uv2nix) reads `uv.lock`.
+Evaluation fails without `pkg.lock`, and `checks.r-lock` fails if it is stale
+(a dependency or `Remotes:` entry of `DESCRIPTION` is missing from it)
+or if the R environment does not meet a version constraint of `DESCRIPTION`.
+
+**nixpkgs first.** The lockfile decides _which_ packages; stable **nixpkgs** (`nixpkgs-r`,
+pinned by nullkomma) decides their versions and builds them, providing rock-solid binary caches from `cache.nixos.org`,
 vetted build recipes, and deterministic linking against Nix-managed system libraries (e.g. BLAS/LAPACK, GDAL, HarfBuzz).
+`r-lock` resolves against the CRAN snapshot matching nixpkgs (see below), so the versions in `pkg.lock` approximate those of nixpkgs.
+pak and languageserver are always included; add dev-only packages with `nullkomma.r.extraPackages`.
+
+**Off nixpkgs (opt-in).** Packages nixpkgs does not provide fail evaluation unless the project opts in, like `allowUnfree`:
+pinned `Remotes:` (`owner/repo@ref`, `git::`, `url::`, `pkg@version`) and CRAN packages missing from nixpkgs.
+
+```dcf
+Imports: withr (>= 3.0.3.9000)
+Remotes: r-lib/withr@d82e4bc2d69a34f044ad205210e26207bfb8f3e0
+```
+
+```nix
+nullkomma.r.allowOffNixpkgs = true;
+nullkomma.r.hashes.somePackage = "sha256-…"; # only for packages fetched by URL: `nix store prefetch-file <url>`
+```
+
+Git sources are fetched at the commit in `pkg.lock` (pak pins mutable refs such as `@main` there);
+URL sources need a hash in `nullkomma.r.hashes`, because pak's lockfile does not hash them.
+Their R dependencies still come from nixpkgs. Packages already in nixpkgs keep their recipes' system-library
+customizations; others use `rPackages.buildRPackage`. Extra system libraries can be supplied with
+`perSystem = { pkgs, ... }: { nullkomma.r.buildInputs.myPackage = [ pkgs.gdal ]; };`.
+GitLab and `local::` references are not supported (use `git::`), and GitHub source availability is not guaranteed forever.
+
+**Why a lockfile?** Separating the human-edited manifest from machine-resolved pins is how pak, renv
+and Nix's language integrations work. Resolving `DESCRIPTION` in Nix would re-implement pak,
+import-from-derivation would slow evaluation and break `nix flake check --no-build`, and
+flake inputs per package would bloat the consumer's `flake.lock`.
+
+#### Snapshots
 
 nullkomma exposes the CRAN snapshot date corresponding to `nixpkgs-r`
 via `nullkomma.r.snapshot` (derived automatically from the locked input's commit date)
@@ -147,10 +189,9 @@ the date is detected automatically from the input ref when formatted as `YYYY-MM
 #### Non-Nix collaborators and `.Rprofile` (opt-in)
 
 For projects fully committed to Nix, **no `.Rprofile` is needed or created by default**.
-Dependencies are resolved through Nix flakes, and devshells ensure `R_LIBS_USER` points
-to an isolated directory per project.
+Non-Nix collaborators can install the locked packages with `pak::lockfile_install()`.
 
-If a project needs to remain reproducible-ish for non-Nix collaborators using standard R / `pak`,
+If they should also get packages from the matching snapshot when using `install.packages()` or `pak::pkg_install()`,
 opt in to `.Rprofile` generation in your `flake.nix`:
 
 ```nix
@@ -160,35 +201,9 @@ nullkomma.r.rprofile.enable = true;
 Running `nix run .#write-files` then writes an `.Rprofile` setting the CRAN repository to
 `nullkomma.r.ppmUrl` (e.g. `https://packagemanager.posit.co/cran/2026-10-07`), which can be committed to Git.
 
-#### Pinned GitHub remotes
-
-Pinned GitHub overrides are supported in `DESCRIPTION`, for example:
-
-```dcf
-Imports: withr (>= 3.0.3.9000)
-Remotes: r-lib/withr@d82e4bc2d69a34f044ad205210e26207bfb8f3e0
-```
-
-`github::owner/repo@<full-sha>` and `package=owner/repo@<full-sha>` also work.
-Existing CRAN recipes retain their system-library customizations; new packages
-use `rPackages.buildRPackage`. Extra system libraries can be supplied with
-`perSystem = { pkgs, ... }: { nullkomma.r.buildInputs.myPackage = [ pkgs.gdal ]; };`.
-Remote runtime/build dependencies and their version constraints are read from
-that source's DESCRIPTION. Native build hooks may still require a custom recipe.
-
-**Initial limits:** mutable refs are rejected, not automatically locked. Other
-pak references (GitLab, URLs, subdirectories, local packages, `Config/Needs`),
-transitive `Remotes`, dependency cycles and arbitrary constraint solving are not
-supported. Full pak-compatible resolution and locking mutable refs remain open
-work; this is not a universal DESCRIPTION resolver. GitHub source availability
-is not guaranteed forever. Pure GitHub fetching was tested with Determinate Nix
-3.21.9; older Nix versions may require additional source hashes.
-
-`DESCRIPTION` parsing, dependency extraction, and version constraint validation are implemented in **pure Nix** without Import-From-Derivation (IFD), keeping evaluation fast and compatible with `nix flake check --no-build`.
 `nix develop` creates a writable `R_LIBS_USER` outside the store for interactive
 `install.packages()`; these installations are **not Nix-reproducible** and may
-shadow pinned packages. Nix checks do not use that user library. Non-Nix users
-can use ordinary R/pak tooling without adopting nullkomma.
+shadow pinned packages. Nix checks do not use that user library.
 
 ### Initialized files
 
