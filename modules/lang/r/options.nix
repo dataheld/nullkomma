@@ -10,7 +10,15 @@
     let
       rlib = import ../../../lib/r.nix { inherit lib; };
       description = config.nullkomma.r.root + "/DESCRIPTION";
-      rprofile = config.nullkomma.r.root + "/.Rprofile";
+      defaultSnapshot =
+        if
+          inputs.nixpkgs-r ? sourceInfo
+          && inputs.nixpkgs-r.sourceInfo ? ref
+          && builtins.match "[0-9]{4}-[0-9]{2}-[0-9]{2}" inputs.nixpkgs-r.sourceInfo.ref != null
+        then
+          inputs.nixpkgs-r.sourceInfo.ref
+        else
+          (lib.importJSON ../../../lib/cran-snapshot.json).date;
     in
     {
       imports = [ inputs.self.flakeModules.default ];
@@ -28,18 +36,29 @@
           defaultText = lib.literalExpression ''root + "/DESCRIPTION" (if it exists)'';
           description = "R DESCRIPTION file: the single source of truth for R dependencies.";
         };
-        rprofile = lib.mkOption {
-          type = lib.types.nullOr lib.types.path;
-          default = if builtins.pathExists rprofile then rprofile else null;
-          defaultText = lib.literalExpression ''root + "/.Rprofile" (if it exists)'';
-          description = ''
-            Project `.Rprofile`. If it sets a CRAN snapshot date, e.g.
-            `options(repos = c(CRAN = "https://packagemanager.posit.co/cran/2026-01-05"))`,
-            R and packages come from the shipped rstats-on-nix revision for that date,
-            not directly from PPM; equivalence of the two package sets is not guaranteed.
-            Plain R and tools honoring `getOption("repos")` see the PPM repository.
-            The profile runs during evaluation in an isolated directory: keep it self-contained.
-          '';
+        snapshot = lib.mkOption {
+          type = lib.types.str;
+          default = defaultSnapshot;
+          defaultText = lib.literalExpression "CRAN snapshot date of nixpkgs-r";
+          description = "CRAN snapshot date corresponding to the package set in `nixpkgs-r`, for PPM and non-Nix interop.";
+        };
+        ppmUrl = lib.mkOption {
+          type = lib.types.str;
+          default = "https://packagemanager.posit.co/cran/${config.nullkomma.r.snapshot}";
+          defaultText = lib.literalExpression ''"https://packagemanager.posit.co/cran/''${snapshot}"'';
+          description = "Posit Package Manager (PPM) repository URL corresponding to `nullkomma.r.snapshot`.";
+        };
+        rprofile = {
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = ''
+              Whether to initialize a project `.Rprofile` via `write-files` setting
+              `options(repos = c(CRAN = nullkomma.r.ppmUrl))`.
+              Disabled by default: all-in-on-Nix projects do not need an `.Rprofile`.
+              Enable this if non-Nix collaborators need to install packages from a matching PPM snapshot.
+            '';
+          };
         };
         fields = lib.mkOption {
           type = lib.types.listOf lib.types.str;

@@ -133,29 +133,34 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 
 ### R dependencies and snapshots
 
-Keep dependencies in `DESCRIPTION`, including version constraints. Select the CRAN date
-in the project's ordinary `.Rprofile`, so non-Nix users can use the same setting:
+Keep dependencies in `DESCRIPTION`, including version constraints.
+nullkomma sources R packages directly from official stable **Nixpkgs** (`nixpkgs-r`,
+pinned with nullkomma), providing rock-solid binary caches from `cache.nixos.org`,
+vetted build recipes, and deterministic linking against Nix-managed system libraries (e.g. BLAS/LAPACK, GDAL, HarfBuzz).
 
-```r
-options(repos = c(CRAN = "https://packagemanager.posit.co/cran/2026-01-05"))
+nullkomma exposes the CRAN snapshot date corresponding to the package set in `nixpkgs-r`
+via `nullkomma.r.snapshot` (read from [`lib/cran-snapshot.json`](lib/cran-snapshot.json))
+and the equivalent Posit Package Manager (PPM) URL via `nullkomma.r.ppmUrl`.
+If you override `inputs.nullkomma.inputs.nixpkgs-r.url` (for instance pointing to `rstats-on-nix`),
+the date is detected automatically from the input ref when formatted as `YYYY-MM-DD`.
+
+#### Non-Nix collaborators and `.Rprofile` (opt-in)
+
+For projects fully committed to Nix, **no `.Rprofile` is needed or created by default**.
+Dependencies are resolved through Nix flakes, and devshells ensure `R_LIBS_USER` points
+to an isolated directory per project.
+
+If a project needs to remain reproducible-ish for non-Nix collaborators using standard R / `pak`,
+opt in to `.Rprofile` generation in your `flake.nix`:
+
+```nix
+nullkomma.r.rprofile.enable = true;
 ```
 
-nullkomma reads that setting with R and selects a pinned
-[rstats-on-nix/nixpkgs](https://github.com/rstats-on-nix/nixpkgs) revision from
-[`lib/r-snapshots.json`](lib/r-snapshots.json). Only listed dates are supported.
-This reuses nixpkgs' source hashes, dependency graph, R build recipes and curated
-system libraries; nullkomma does **not** fetch and resolve arbitrary PPM packages.
-The same calendar date is not a guarantee of identical PPM and nixpkgs package sets,
-nor of consistency after overrides. R checks the project's version constraints
-against selected versions, failing rather than silently ignoring mismatches.
+Running `nix run .#write-files` then writes an `.Rprofile` setting the CRAN repository to
+`nullkomma.r.ppmUrl` (e.g. `https://packagemanager.posit.co/cran/2026-03-16`), which can be committed to Git.
 
-The locked nullkomma revision freezes the date-to-commit table; the snapshot is
-**not an additional `flake.lock` node**. Updating nullkomma adds available dates,
-but does not advance your `.Rprofile` date. Maintenance appends new dates without
-changing existing pins (`python3 tools/update-r-snapshots.py`). Without a dated
-profile, R follows the locked `nixpkgs-r` input (by default the main nixpkgs input).
-An explicit `inputs.nullkomma.inputs.nixpkgs-r.url` remains an escape hatch when
-there is no profile date.
+#### Pinned GitHub remotes
 
 Pinned GitHub overrides are supported in `DESCRIPTION`, for example:
 
@@ -181,10 +186,7 @@ is not guaranteed forever. Pure GitHub fetching was tested with Determinate Nix
 
 R's `read.dcf`, `tools::package_dependencies` and version parser run inside small
 derivations (import from derivation). Evaluation needs a build-capable machine
-for the target system and IFD enabled, and may build both bootstrap and snapshot R.
-The profile executes in an isolated build directory, not the project directory:
-keep its repository setting self-contained and do not depend on other files,
-network access or installed packages. Ordinary R startup still loads it normally.
+for the target system and IFD enabled.
 `nix develop` creates a writable `R_LIBS_USER` outside the store for interactive
 `install.packages()`; these installations are **not Nix-reproducible** and may
 shadow pinned packages. Nix checks do not use that user library. Non-Nix users
@@ -193,8 +195,8 @@ can use ordinary R/pak tooling without adopting nullkomma.
 ### Initialized files
 
 Some files must live in the repo, so `nix run .#write-files` initializes missing
-`.gitignore`, `.envrc`, `.github/workflows/push.yml`, `.vscode/*.json`, and (for R) `.Rprofile` files.
-The initial R profile selects the latest shipped snapshot date; existing profiles are preserved.
+`.gitignore`, `.envrc`, `.github/workflows/push.yml`, and `.vscode/*.json` files
+(and `.Rprofile` only when `nullkomma.r.rprofile.enable = true`).
 Configure their initial contents in `flake.nix` (e.g. `nullkomma.gitignore`, `nullkomma.editor.vscode`).
 After initialization they belong to you: edit them directly. Re-running `write-files`
 preserves existing files, and there is no drift check or automatic overwrite on upgrades.

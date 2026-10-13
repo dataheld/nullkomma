@@ -1,6 +1,4 @@
-# R and its packages come from nixpkgs. The project's `.Rprofile` may pin a CRAN
-# snapshot date (a Posit Package Manager `repos` URL); then they come from the
-# rstats-on-nix/nixpkgs revision of that date (see `lib/r-snapshots.json`).
+# R and its packages come from nixpkgs (inputs.nixpkgs-r, defaulting to nullkomma's nixpkgs).
 # `Remotes:` in DESCRIPTION, pinned to a commit, are layered on top.
 { inputs, ... }:
 {
@@ -18,9 +16,14 @@
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption {
         options.nullkomma.r.snapshot = lib.mkOption {
-          type = lib.types.nullOr lib.types.str;
+          type = lib.types.str;
           readOnly = true;
-          description = "CRAN snapshot date set by `nullkomma.r.rprofile`, as read by R itself; null if none.";
+          description = "CRAN snapshot date corresponding to `nixpkgs-r`.";
+        };
+        options.nullkomma.r.ppmUrl = lib.mkOption {
+          type = lib.types.str;
+          readOnly = true;
+          description = "PPM repository URL corresponding to `nullkomma.r.snapshot`.";
         };
         options.nullkomma.r.dependencies = lib.mkOption {
           type = lib.types.listOf lib.types.str;
@@ -43,9 +46,9 @@
         { system, config, ... }:
         let
           pcfg = config.nullkomma.r;
-          boot = inputs.nixpkgs-r.legacyPackages.${system};
+          pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
 
-          # IFD: bootstrap R reads the profile; selected R reads package metadata.
+          # IFD: R's own parsers run in a derivation using the pinned R.
           runR =
             pkgs: script: files: args:
             builtins.readFile (
@@ -65,31 +68,8 @@
             );
           lines = text: lib.filter (l: l != "") (lib.splitString "\n" text);
 
-          snapshot =
-            if cfg.rprofile == null then
-              null
-            else
-              let
-                date = runR boot ../../../lib/rprofile-snapshot.R { rprofile = cfg.rprofile; } ''
-                  R_PROFILE_USER="$rprofile" Rscript ${../../../lib/rprofile-snapshot.R}
-                '';
-              in
-              if lines date == [ ] then null else lib.head (lines date);
-          snapshots = lib.importJSON ../../../lib/r-snapshots.json;
-          pkgsR =
-            if snapshot == null then
-              boot
-            else
-              import (builtins.fetchTree {
-                type = "github";
-                owner = "rstats-on-nix";
-                repo = "nixpkgs";
-                rev =
-                  snapshots.${snapshot} or (throw (
-                    "nullkomma.r: no rstats-on-nix snapshot for ${snapshot} (from ${toString cfg.rprofile}); "
-                    + "choose a date in lib/r-snapshots.json (available range: ${lib.head (lib.attrNames snapshots)} to ${lib.last (lib.attrNames snapshots)})."
-                  ));
-              }) { inherit system; };
+          snapshot = cfg.snapshot;
+          ppmUrl = cfg.ppmUrl;
 
           describe =
             src:
@@ -235,7 +215,7 @@
         in
         {
           config.nullkomma.r = {
-            inherit snapshot dependencies;
+            inherit snapshot ppmUrl dependencies;
             package =
               if !uniqueRemotes then
                 throw "nullkomma.r: duplicate package names in Remotes."
