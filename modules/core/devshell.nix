@@ -31,6 +31,7 @@
             nullkomma.devshell.packages = [
               config.treefmt.build.wrapper
               pkgs.flake-checker
+              pkgs.fh
               pkgs.git
               pkgs.nixd
             ];

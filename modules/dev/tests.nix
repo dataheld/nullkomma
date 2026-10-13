@@ -66,6 +66,7 @@
                 check =
                   (flake.schemas.checks.inventory flake.checks).children.${system}.children.treefmt.isFlakeCheck;
                 shell = (flake.schemas.devShells.inventory flake.devShells).children.${system}.children ? default;
+                fh = lib.elem pkgs.fh (perSystem flake).nullkomma.devshell.packages;
                 module =
                   (flake.schemas.flakeModules.inventory {
                     default = nullkomma.flakeModules.default;
@@ -88,6 +89,7 @@
                     app = true;
                     check = true;
                     shell = true;
+                    fh = true;
                     module = true;
                   });
             };

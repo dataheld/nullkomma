@@ -14,10 +14,5 @@
         };
         gitignore = [ ".claude/" ];
       };
-      perSystem =
-        { pkgs, ... }:
-        {
-          nullkomma.devshell.packages = [ pkgs.fh ];
-        };
     };
 }

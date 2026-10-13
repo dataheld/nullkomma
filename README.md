@@ -102,9 +102,9 @@ Each aspect is a flake-parts module in `flakeModules`.
 Import only the ones a project needs; an aspect never adds anything to a project that does not import it.
 The `default` aspect is imported automatically by `nullkomma.lib.mkFlake`.
 
-| Aspect    | Adds                                                                                                                                                                                                                                              |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `default` | devshell, [treefmt](https://github.com/numtide/treefmt-nix) (Nix, Markdown, YAML, JSON, TOML, shell, GitHub Actions), tasks (`check`, `update`, `flake-checker`, `write-files`), initial `.gitignore`, `.envrc`, CI workflow and VS Code settings |
+| Aspect    | Adds                                                                                                                                                                                                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `default` | devshell with the FlakeHub CLI (`fh`), [treefmt](https://github.com/numtide/treefmt-nix) (Nix, Markdown, YAML, JSON, TOML, shell, GitHub Actions), tasks (`check`, `update`, `flake-checker`, `write-files`), initial `.gitignore`, `.envrc`, CI workflow and VS Code settings |
 
 ### Knobs
 
