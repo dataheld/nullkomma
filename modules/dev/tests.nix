@@ -201,7 +201,7 @@
             };
             testRPpmUrl = {
               expr = fixtures.r.debug.nullkomma.r.ppmUrl;
-              expected = "https://packagemanager.posit.co/cran/2026-03-16";
+              expected = "https://packagemanager.posit.co/cran/2026-10-07";
             };
             testRProfileDisabledByDefault = {
               expr = (perSystem fixtures.r).nullkomma.files ? ".Rprofile";
@@ -209,7 +209,7 @@
             };
             testRSnapshot = {
               expr = fixtures.r.debug.nullkomma.r.snapshot;
-              expected = "2026-03-16";
+              expected = "2026-10-07";
             };
             testRHasAirAndCheck = {
               expr = {

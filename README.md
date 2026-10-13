@@ -138,8 +138,8 @@ nullkomma sources R packages directly from official stable **Nixpkgs** (`nixpkgs
 pinned with nullkomma), providing rock-solid binary caches from `cache.nixos.org`,
 vetted build recipes, and deterministic linking against Nix-managed system libraries (e.g. BLAS/LAPACK, GDAL, HarfBuzz).
 
-nullkomma exposes the CRAN snapshot date corresponding to the package set in `nixpkgs-r`
-via `nullkomma.r.snapshot` (read from [`lib/cran-snapshot.json`](lib/cran-snapshot.json))
+nullkomma exposes the CRAN snapshot date corresponding to `nixpkgs-r`
+via `nullkomma.r.snapshot` (derived automatically from the locked input's commit date)
 and the equivalent Posit Package Manager (PPM) URL via `nullkomma.r.ppmUrl`.
 If you override `inputs.nullkomma.inputs.nixpkgs-r.url` (for instance pointing to `rstats-on-nix`),
 the date is detected automatically from the input ref when formatted as `YYYY-MM-DD`.
@@ -158,7 +158,7 @@ nullkomma.r.rprofile.enable = true;
 ```
 
 Running `nix run .#write-files` then writes an `.Rprofile` setting the CRAN repository to
-`nullkomma.r.ppmUrl` (e.g. `https://packagemanager.posit.co/cran/2026-03-16`), which can be committed to Git.
+`nullkomma.r.ppmUrl` (e.g. `https://packagemanager.posit.co/cran/2026-10-07`), which can be committed to Git.
 
 #### Pinned GitHub remotes
 

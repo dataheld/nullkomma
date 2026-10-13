@@ -10,15 +10,20 @@
     let
       rlib = import ../../../lib/r.nix { inherit lib; };
       description = config.nullkomma.r.root + "/DESCRIPTION";
+      # Extract snapshot date directly from the flake input's sourceInfo.
+      # If nixpkgs-r has an explicit date ref (e.g. rstats-on-nix/YYYY-MM-DD), use it.
+      # Otherwise format the locked commit date (lastModifiedDate: "YYYYMMDDhhmmss" -> "YYYY-MM-DD").
+      sourceInfo = inputs.nixpkgs-r.sourceInfo or { };
       defaultSnapshot =
-        if
-          inputs.nixpkgs-r ? sourceInfo
-          && inputs.nixpkgs-r.sourceInfo ? ref
-          && builtins.match "[0-9]{4}-[0-9]{2}-[0-9]{2}" inputs.nixpkgs-r.sourceInfo.ref != null
-        then
-          inputs.nixpkgs-r.sourceInfo.ref
+        if sourceInfo ? ref && builtins.match "[0-9]{4}-[0-9]{2}-[0-9]{2}" sourceInfo.ref != null then
+          sourceInfo.ref
+        else if sourceInfo ? lastModifiedDate then
+          let
+            d = sourceInfo.lastModifiedDate;
+          in
+          "${builtins.substring 0 4 d}-${builtins.substring 4 2 d}-${builtins.substring 6 2 d}"
         else
-          (lib.importJSON ../../../lib/cran-snapshot.json).date;
+          "latest";
     in
     {
       imports = [ inputs.self.flakeModules.default ];

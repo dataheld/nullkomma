@@ -14,8 +14,6 @@ jobs:
       - uses: actions/checkout@v7
       - uses: DeterminateSystems/determinate-nix-action@v3
       - uses: DeterminateSystems/flake-checker-action@v14
-      - name: Update CRAN snapshot date
-        run: python3 tools/update-cran-snapshot.py
       - uses: DeterminateSystems/update-flake-lock@v29
         with:
           pr-title: Update flake.lock
