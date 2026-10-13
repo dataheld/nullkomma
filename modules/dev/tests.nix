@@ -200,11 +200,15 @@
               ];
             };
             testRPpmUrl = {
-              expr = (perSystem fixtures.r).nullkomma.r.ppmUrl;
+              expr = fixtures.r.debug.nullkomma.r.ppmUrl;
               expected = "https://packagemanager.posit.co/cran/2026-03-16";
             };
+            testRProfileDisabledByDefault = {
+              expr = (perSystem fixtures.r).nullkomma.files ? ".Rprofile";
+              expected = false;
+            };
             testRSnapshot = {
-              expr = (perSystem fixtures.r).nullkomma.r.snapshot;
+              expr = fixtures.r.debug.nullkomma.r.snapshot;
               expected = "2026-03-16";
             };
             testRHasAirAndCheck = {

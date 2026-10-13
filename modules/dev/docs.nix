@@ -57,7 +57,8 @@
               nullkomma.github.enable \
               nullkomma.r.extraPackages \
               nullkomma.r.rprofile \
-              perSystem.nullkomma.r.snapshot \
+              nullkomma.r.snapshot \
+              nullkomma.r.ppmUrl \
               perSystem.nullkomma.r.buildInputs \
               nullkomma.quarto.root \
               nullkomma.cloudflare-pages.project \

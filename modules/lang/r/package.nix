@@ -15,16 +15,6 @@
     in
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption {
-        options.nullkomma.r.snapshot = lib.mkOption {
-          type = lib.types.str;
-          readOnly = true;
-          description = "CRAN snapshot date corresponding to `nixpkgs-r`.";
-        };
-        options.nullkomma.r.ppmUrl = lib.mkOption {
-          type = lib.types.str;
-          readOnly = true;
-          description = "PPM repository URL corresponding to `nullkomma.r.snapshot`.";
-        };
         options.nullkomma.r.dependencies = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           readOnly = true;
@@ -67,9 +57,6 @@
                 ''
             );
           lines = text: lib.filter (l: l != "") (lib.splitString "\n" text);
-
-          snapshot = cfg.snapshot;
-          ppmUrl = cfg.ppmUrl;
 
           describe =
             src:
@@ -149,7 +136,7 @@
           lookup =
             name:
             final.${rlib.attrName name}
-            or (throw "nullkomma.r: R package `${name}` is not in `rPackages` of nixpkgs-r; pin a newer snapshot or drop it from DESCRIPTION/extraPackages.");
+            or (throw "nullkomma.r: R package `${name}` is not in `rPackages` of nixpkgs; add it to `Remotes:` in DESCRIPTION or drop it from DESCRIPTION/extraPackages.");
           remoteOverrides = lib.listToAttrs (
             map (
               r:
@@ -215,7 +202,7 @@
         in
         {
           config.nullkomma.r = {
-            inherit snapshot ppmUrl dependencies;
+            inherit dependencies;
             package =
               if !uniqueRemotes then
                 throw "nullkomma.r: duplicate package names in Remotes."
