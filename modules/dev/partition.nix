@@ -7,6 +7,7 @@
     "apps"
     "checks"
     "devShells"
+    "editor"
     "formatter"
     "packages"
     "schemas"

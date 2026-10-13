@@ -6,11 +6,6 @@
     "--stdin",
     "{file}"
   ],
-  "nix.hiddenLanguageServerErrors": [
-    "textDocument/definition",
-    "textDocument/completion",
-    "textDocument/documentHighlight"
-  ],
   "nix.serverPath": "nixd",
   "nix.serverSettings": {
     "nixd": {
@@ -25,6 +20,5 @@
   },
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
   "nixEnvSelector.suggestion": false,
-  "nixEnvSelector.useFlakes": true,
-  "notebook.defaultFormatter": "ibecker.treefmt-vscode"
+  "nixEnvSelector.useFlakes": true
 }

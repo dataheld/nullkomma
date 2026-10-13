@@ -11,6 +11,11 @@
     in
     {
       flake.schemas = inputs.flake-schemas.schemas // {
+        editor = {
+          version = 1;
+          doc = "Project editor settings and extension IDs for workspace files or managed editor profiles.";
+          inventory = children "project editor integration";
+        };
         flakeModules = {
           version = 1;
           doc = "Aspects as [flake-parts](https://flake.parts) modules; import them into `nullkomma.lib.mkFlake`.";

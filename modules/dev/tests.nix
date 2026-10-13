@@ -41,6 +41,9 @@
         md = callFlake ../../tests/fixtures/md;
       };
       customized = callFlakeWith {
+        nullkomma.editor.vscode.enable = false;
+        nullkomma.editor.vscode.extensions = [ "jnoortheen.nix-ide" ];
+        nullkomma.editor.vscode.settings."nix.serverPath" = lib.mkForce "project-nixd";
         perSystem =
           { pkgs, ... }:
           {
@@ -114,6 +117,30 @@
                 disabled = false;
                 enabled = true;
                 formatter = true;
+              };
+            };
+            testEditorDataWithoutWorkspaceFiles = {
+              expr = {
+                files = lib.filter (name: lib.hasPrefix ".vscode/" name) (
+                  lib.attrNames (perSystem customized).nullkomma.files
+                );
+                extensions = customized.editor.vscode.extensions;
+                settings = customized.editor.vscode.settings;
+                personal = customized.editor.vscode.settings ? "nix.hiddenLanguageServerErrors";
+                notebook = customized.editor.vscode.settings ? "notebook.defaultFormatter";
+              };
+              expected = {
+                files = [ ];
+                extensions = [
+                  "arrterian.nix-env-selector"
+                  "ibecker.treefmt-vscode"
+                  "jnoortheen.nix-ide"
+                ];
+                settings = fixtures.md.editor.vscode.settings // {
+                  "nix.serverPath" = "project-nixd";
+                };
+                personal = false;
+                notebook = false;
               };
             };
             testGitignoreReincludesManagedFiles = {

@@ -135,6 +135,43 @@ It runs native Nix checks and builds packages and development shells on each sup
 then publishes to FlakeHub when configured, after all checks pass.
 The scheduled `cron.yml` maintenance workflow exists only in nullkomma itself, not in consumers.
 
+### Editor ownership
+
+nullkomma owns **project** editor integration: formatter and language-server commands,
+workspace paths, and recommendations for extensions needed by the imported aspects.
+[lap](https://github.com/dataheld/lap) owns VS Code installation, extension installation,
+themes, keybindings, and personal preferences. `extensions.json` recommends extensions;
+it does not install them.
+
+Workspace files remain useful on both unmanaged and Home Manager-managed machines:
+they select the project's tools without changing the user's global defaults.
+The same evaluated project data is exported as `editor.vscode.settings` and
+`editor.vscode.extensions` (sorted, unique extension IDs), even when
+`nullkomma.editor.vscode.enable = false` disables workspace-file initialization.
+
+A Home Manager configuration importing lap can use a separate project profile:
+
+```nix
+programs.vscode.profiles.nullkomma = {
+  userSettings = inputs.nullkomma.editor.vscode.settings;
+  extensions = map (
+    id:
+    let
+      parts = lib.splitString "." id;
+    in
+    marketplace.${builtins.elemAt parts 0}.${builtins.elemAt parts 1}
+  ) inputs.nullkomma.editor.vscode.extensions;
+};
+```
+
+Here `marketplace` is the version-compatible `vscode-marketplace` package set from
+`nix-vscode-extensions`, as used by lap. For another project, consume **that project's**
+`editor.vscode`, so its imported language aspects and overrides are included.
+Select the profile when opening the project; do not merge project-specific commands
+into lap's global user defaults. Profiles containing workspace-relative paths must
+be used with the corresponding project open. Personal language-specific formatter
+overrides may still need project-specific workspace overrides.
+
 ## Updating
 
 ### Nix
