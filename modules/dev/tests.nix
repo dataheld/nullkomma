@@ -40,6 +40,15 @@
       fixtures = {
         md = callFlake ../../tests/fixtures/md;
       };
+      customized = callFlakeWith {
+        perSystem =
+          { pkgs, ... }:
+          {
+            nullkomma.devshell.packages = [ pkgs.hello ];
+            treefmt.programs.deadnix.enable = false;
+            treefmt.programs.typos.enable = true;
+          };
+      } ../../tests/fixtures/md;
       templates = lib.mapAttrs (_: t: callFlake t.path) nullkomma.templates;
     in
     {
@@ -92,6 +101,20 @@
                     fh = true;
                     module = true;
                   });
+            };
+            testConsumersCustomizeDefaults = {
+              expr = {
+                package = lib.elem pkgs.hello (perSystem customized).nullkomma.devshell.packages;
+                disabled = (perSystem customized).treefmt.programs.deadnix.enable;
+                enabled = (perSystem customized).treefmt.programs.typos.enable;
+                formatter = customized.formatter.${system} == (perSystem customized).treefmt.build.wrapper;
+              };
+              expected = {
+                package = true;
+                disabled = false;
+                enabled = true;
+                formatter = true;
+              };
             };
             testGitignoreReincludesManagedFiles = {
               expr =
@@ -151,6 +174,18 @@
         in
         {
           checks = fixtureChecks // {
+            formatting-rejects =
+              pkgs.runCommandLocal "nullkomma-formatting-rejects"
+                {
+                  failure = pkgs.testers.testBuildFailure (
+                    (perSystem fixtures.md).treefmt.build.check (pkgs.writeTextDir "flake.nix" "{foo=1;}\n")
+                  );
+                }
+                ''
+                  grep -qF 'diff --git a/flake.nix b/flake.nix' "$failure/testBuildFailure.log"
+                  grep -qF '+{ foo = 1; }' "$failure/testBuildFailure.log"
+                  touch $out
+                '';
             file-initialization = pkgs.runCommandLocal "nullkomma-file-initialization" { } ''
               mkdir project
               cd project

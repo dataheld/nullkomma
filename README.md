@@ -131,6 +131,8 @@ After initialization they belong to you: edit them directly. Re-running `write-f
 preserves existing files, and there is no drift check or automatic overwrite on upgrades.
 Commit them; the initial `.gitignore` re-includes these paths to override a global `core.excludesFile`.
 The CI stub calls nullkomma's reusable [`ci.yml`](.github/workflows/ci.yml).
+It runs native Nix checks and builds packages and development shells on each supported system,
+then publishes to FlakeHub when configured, after all checks pass.
 The scheduled `cron.yml` maintenance workflow exists only in nullkomma itself, not in consumers.
 
 ## Updating
