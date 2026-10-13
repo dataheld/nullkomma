@@ -38,64 +38,33 @@
           pcfg = config.nullkomma.r;
           pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
 
-          # IFD: R's own parsers run in a derivation using the pinned R.
-          runR =
-            pkgs: script: files: args:
-            builtins.readFile (
-              pkgs.runCommandLocal "r-${baseNameOf script}"
-                (
-                  {
-                    nativeBuildInputs = [ pkgs.R ];
-                  }
-                  // lib.mapAttrs (name: path: pkgs.writeText name (builtins.readFile path)) files
-                )
-                ''
-                  export HOME="$TMPDIR"
-                  {
-                    ${args}
-                  } > "$out"
-                ''
-            );
-          lines = text: lib.filter (l: l != "") (lib.splitString "\n" text);
+          projectDcf =
+            if cfg.description != null then rlib.parseDcf (builtins.readFile cfg.description) else { };
 
           describe =
             src:
             let
-              meta = lines (
-                runR pkgsR ../../../lib/description-meta.R { description = "${src}/DESCRIPTION"; } ''
-                  Rscript ${../../../lib/description-meta.R} "$description"
-                ''
-              );
+              dcf = rlib.parseDcf (builtins.readFile "${src}/DESCRIPTION");
             in
-            {
-              src =
-                if
-                  lines (
-                    runR pkgsR ../../../lib/description-remotes.R { description = "${src}/DESCRIPTION"; } ''
-                      Rscript --vanilla ${../../../lib/description-remotes.R} "$description"
-                    ''
-                  ) != [ ]
-                then
-                  throw "nullkomma.r: transitive Remotes are not supported; declare pinned overrides in the project's DESCRIPTION."
-                else
-                  src;
-              package = lib.elemAt meta 0;
-              version = lib.elemAt meta 1;
-              dependencies = depsOf "${src}/DESCRIPTION" [
-                "Depends"
-                "Imports"
-                "LinkingTo"
-              ];
-            };
-          depsOf =
-            file: fields:
-            lines (
-              runR pkgsR ../../../lib/description-deps.R { description = file; } ''
-                Rscript ${../../../lib/description-deps.R} "$description" ${lib.escapeShellArgs fields}
-              ''
-            );
+            if (rlib.remotesOf dcf) != [ ] then
+              throw "nullkomma.r: transitive Remotes are not supported; declare pinned overrides in the project's DESCRIPTION."
+            else
+              {
+                inherit src;
+                dcf = dcf;
+                package = dcf.Package or (throw "nullkomma.r: ${src}/DESCRIPTION is missing a `Package` field.");
+                version = dcf.Version or (throw "nullkomma.r: ${src}/DESCRIPTION is missing a `Version` field.");
+                dependencies = map (d: d.name) (
+                  rlib.depsOf dcf [
+                    "Depends"
+                    "Imports"
+                    "LinkingTo"
+                  ]
+                );
+              };
 
-          dependencies = lib.optionals (cfg.description != null) (depsOf cfg.description cfg.fields);
+          dependencies =
+            if cfg.description != null then map (d: d.name) (rlib.depsOf projectDcf cfg.fields) else [ ];
 
           # Only `owner/repo@<commit>` is accepted: a commit is the one reference
           # that cannot move, which is what makes the lock meaningful.
@@ -122,15 +91,8 @@
                 throw "nullkomma.r: Remotes alias `${alias}` does not match `${remote.package}` in the fetched DESCRIPTION."
               else
                 remote;
-          remotes = lib.optionals (cfg.description != null) (
-            map parseRemote (
-              lines (
-                runR pkgsR ../../../lib/description-remotes.R { description = cfg.description; } ''
-                  Rscript ${../../../lib/description-remotes.R} "$description"
-                ''
-              )
-            )
-          );
+
+          remotes = map parseRemote (rlib.remotesOf projectDcf);
 
           base = pkgsR.rPackages;
           lookup =
@@ -179,24 +141,37 @@
 
           names = lib.unique (dependencies ++ cfg.extraPackages ++ [ "languageserver" ]);
           versionNames = lib.unique (names ++ lib.concatMap (r: r.dependencies) remotes);
-          versions = pkgsR.writeText "r-selected-versions" (
-            lib.concatMapStrings (name: "${name}\t${lib.getVersion (lookup name)}\n") versionNames
+          versions = lib.listToAttrs (
+            map (name: lib.nameValuePair name (lib.getVersion (lookup name))) versionNames
           );
-          validate =
-            file: fields:
-            runR pkgsR ../../../lib/description-constraints.R { description = file; } ''
-              Rscript --vanilla ${../../../lib/description-constraints.R} "$description" ${versions} ${lib.escapeShellArgs fields}
-            '';
-          validation =
-            lib.optionals (cfg.description != null) [ (validate cfg.description cfg.fields) ]
-            ++ map (
-              r:
-              validate "${r.src}/DESCRIPTION" [
-                "Depends"
-                "Imports"
-                "LinkingTo"
-              ]
-            ) remotes;
+
+          # Validate version constraints in pure Nix
+          validateAllConstraints =
+            let
+              validProject =
+                if cfg.description != null then
+                  rlib.validateConstraints {
+                    dcf = projectDcf;
+                    inherit (cfg) fields;
+                    inherit versions;
+                  }
+                else
+                  true;
+              validRemotes = map (
+                r:
+                rlib.validateConstraints {
+                  inherit (r) dcf;
+                  fields = [
+                    "Depends"
+                    "Imports"
+                    "LinkingTo"
+                  ];
+                  inherit versions;
+                }
+              ) remotes;
+            in
+            validProject && lib.all (x: x == true) validRemotes;
+
           uniqueRemotes = lib.length remotes == lib.length (lib.unique (map (r: r.package) remotes));
           remoteOrder = lib.toposort (a: b: lib.elem a.package b.dependencies) remotes;
         in
@@ -208,8 +183,10 @@
                 throw "nullkomma.r: duplicate package names in Remotes."
               else if remoteOrder ? cycle then
                 throw "nullkomma.r: dependency cycle between Remotes."
+              else if !validateAllConstraints then
+                throw "nullkomma.r: version constraint validation failed."
               else
-                builtins.deepSeq validation (pkgsR.rWrapper.override { packages = map lookup names; });
+                pkgsR.rWrapper.override { packages = map lookup names; };
           };
         };
     };

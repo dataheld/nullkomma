@@ -227,6 +227,48 @@
               expr = nullkomma.lib.r.attrName "data.table";
               expected = "data_table";
             };
+            testRLibParsers = {
+              expr =
+                let
+                  dcf = nullkomma.lib.r.parseDcf ''
+                    Package: example
+                    Version: 0.1
+                    Depends: R (>= 4.0)
+                    Imports: stats, withr (>= 3.0.0)
+                    Suggests:
+                        testthat
+                    Remotes: r-lib/withr@d82e4bc2d69a34f044ad205210e26207bfb8f3e0
+                  '';
+                in
+                {
+                  package = dcf.Package;
+                  version = dcf.Version;
+                  deps = map (d: d.name) (
+                    nullkomma.lib.r.depsOf dcf [
+                      "Imports"
+                      "Suggests"
+                    ]
+                  );
+                  remotes = nullkomma.lib.r.remotesOf dcf;
+                  constraintPass = nullkomma.lib.r.validateConstraints {
+                    inherit dcf;
+                    fields = [ "Imports" ];
+                    versions = {
+                      withr = "3.0.3";
+                    };
+                  };
+                };
+              expected = {
+                package = "example";
+                version = "0.1";
+                deps = [
+                  "withr"
+                  "testthat"
+                ];
+                remotes = [ "r-lib/withr@d82e4bc2d69a34f044ad205210e26207bfb8f3e0" ];
+                constraintPass = true;
+              };
+            };
             testTemplatesAreFixtures = {
               expr = map builtins.readFile [
                 ../../templates/default/flake.nix
@@ -255,16 +297,6 @@
         in
         {
           checks = fixtureChecks // {
-            r-parsers = pkgs.runCommandLocal "nullkomma-r-parsers" { nativeBuildInputs = [ pkgs.R ]; } ''
-              export HOME="$TMPDIR"
-              printf 'Package: example\nVersion: 0.1\nDepends: R (>= 4.0)\nImports: stats, withr (>= 3.0.0)\n' > DESCRIPTION
-              printf 'withr\t3.0.3\n' > versions
-              Rscript --vanilla ${../../lib/description-constraints.R} DESCRIPTION versions Depends Imports
-              printf 'withr\t2.0.0\n' > versions
-              if Rscript --vanilla ${../../lib/description-constraints.R} DESCRIPTION versions Imports > error 2>&1; then exit 1; fi
-              grep -F 'selected version is 2.0.0' error
-              touch "$out"
-            '';
             file-initialization = pkgs.runCommandLocal "nullkomma-file-initialization" { } ''
               mkdir project
               cd project

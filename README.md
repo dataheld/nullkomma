@@ -184,9 +184,7 @@ work; this is not a universal DESCRIPTION resolver. GitHub source availability
 is not guaranteed forever. Pure GitHub fetching was tested with Determinate Nix
 3.21.9; older Nix versions may require additional source hashes.
 
-R's `read.dcf`, `tools::package_dependencies` and version parser run inside small
-derivations (import from derivation). Evaluation needs a build-capable machine
-for the target system and IFD enabled.
+`DESCRIPTION` parsing, dependency extraction, and version constraint validation are implemented in **pure Nix** without Import-From-Derivation (IFD), keeping evaluation fast and compatible with `nix flake check --no-build`.
 `nix develop` creates a writable `R_LIBS_USER` outside the store for interactive
 `install.packages()`; these installations are **not Nix-reproducible** and may
 shadow pinned packages. Nix checks do not use that user library. Non-Nix users
