@@ -1,0 +1,31 @@
+# Reusable CI of nullkomma projects, called by their push.yml.
+name: nullkomma CI
+on:
+  workflow_call:
+    inputs:
+      visibility:
+        description: FlakeHub visibility (public, unlisted or private); empty skips publishing.
+        type: string
+        default: ""
+jobs:
+  DeterminateCI:
+    uses: DeterminateSystems/ci/.github/workflows/workflow.yml@main
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      visibility: ${{ inputs.visibility }}
+      fail-fast: false
+      runner-map: |
+        {
+          "aarch64-darwin": "macos-latest",
+          "aarch64-linux": "ubuntu-24.04-arm",
+          "x86_64-linux": "ubuntu-latest"
+        }
+  flake-checker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/flake-checker-action@v14
+        with:
+          fail-mode: true
