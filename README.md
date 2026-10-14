@@ -245,17 +245,3 @@ check-fixtures    # end-to-end test
 
 New plugins should add a valid and a deliberately broken fixture, and check that
 the broken one fails with the real tool's error, not just any error.
-
-## Updating
-
-### Nix
-
-There are two separate aspects to updating the nix dependencies.
-
-1. There may be newer versions available _given_ the pinning in `flake.nix`.
-   This can be accomplished by running `update` locally and may change the `flake.lock`.
-   However such updates may break a project.
-1. The versions pinned in `flake.nix` (and the resulting `flake.lock`) itself may be out of date.
-   The [DeterminateSystems/flake-checker](https://github.com/DeterminateSystems/flake-checker) will fail if this is the case.
-   It runs on every push as well as periodically.
-   You can also run this locally using `flake-checker`.
