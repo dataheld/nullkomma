@@ -141,11 +141,11 @@ nullkomma keeps files in your repo to a minimum; features live in Nix instead.
 Some tools still need real files (Git needs `.gitignore`, GitHub needs
 workflows, editors need settings). Each such file is one of two kinds:
 
-|                             | **Source of truth** (committed, yours to edit) | **Generated from Nix** (Git-ignored, don't edit)   |
-| --------------------------- | ---------------------------------------------- | -------------------------------------------------- |
-| `nix flake init --template` | `flake.nix`, `.envrc`                          | (not possible)                                     |
-| `write-files`               | `.gitignore`, GitHub workflows                 |                                                    |
-| `generate-files`            |                                                | `.vscode/settings.json`, `.vscode/extensions.json` |
+|                             | **Source of truth** (committed, yours to edit) | **Generated from Nix** (Git-ignored, don't edit) |
+| --------------------------- | ---------------------------------------------- | ------------------------------------------------ |
+| `nix flake init --template` | `flake.nix`, `.envrc`                          | (not possible)                                   |
+| `write-files`               | `.gitignore`, GitHub workflows                 |                                                  |
+| `generate-files`            |                                                | `.vscode/*.json`, `.nvim.lua`                    |
 
 Templates can't take parameters, so anything that depends on your Nix
 configuration comes from `write-files` or `generate-files`.
@@ -185,38 +185,16 @@ keybindings and personal preferences belong to your user environment, e.g.
 
 ### Development Shell
 
-To bring the shell you are working in up to date with the _source_
-(`flake.nix`, etc.)
-of your repository:
-
-```sh
-direnv reload
-```
-
-Or if you have `nix-direnv` installed,:
-
-```sh
-nix-direnv-reload
-```
+After changing `flake.nix`, run `direnv reload` (or `nix-direnv-reload`) to
+update your shell.
 
 ## Design
 
-### Neutral interfaces between plugins
-
-Plugins connect through **shared contracts, not each other's implementation**.
-
-The framework owns these contracts; producers supply values and consumers use
-them without inspecting which plugin supplied them.
-Keep interfaces neutral with
-respect to language, build tool, CI provider and deployment destination.
-
-For example, `perSystem.nullkomma.site` is a static-site derivation whose output
-root contains `index.html`, exported as `packages.<system>.site`.
-A future Quarto
-plugin can supply it; a future Cloudflare deployment plugin can consume it.
-Neither should require the other: another site producer or deployment destination
-must be substitutable when it satisfies the same contract.
-These are architectural examples, not currently implemented plugins.
+Plugins never read each other's options. Values shared between plugins are
+framework options that any plugin may set or read. For example, `treefmt` sets
+`nullkomma.editor.formatCommand` and the `nix` language server uses it, without
+knowing which plugin set it. Another formatter plugin can replace `treefmt`
+without changing `nix`.
 
 ## Development
 
@@ -227,8 +205,8 @@ nullkomma is tested against small example projects ("fixtures") in
 All tests are in [`modules/dev/tests.nix`](modules/dev/tests.nix); projects using
 nullkomma don't inherit them.
 
-- **Unit tests** check the evaluated options and outputs of the fixtures
-  (e.g. which files a plugin writes, which tools land in the dev shell).
+- **Unit tests** check the evaluated configuration of the fixtures, e.g. that
+  every plugin can be switched off and that all off leaves just the framework.
 - **Build tests** run the real tools on the fixtures inside `nix flake check`:
   valid files must pass, and for every formatter/linter plugin a deliberately
   bad file (listed in `rejects`) must fail with that tool's error.

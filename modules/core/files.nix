@@ -100,10 +100,8 @@
           };
         in
         {
-          config = {
-            nullkomma.tasks.write-files = task "source";
-            nullkomma.tasks.generate-files = task "generated";
-          };
+          nullkomma.tasks.write-files = task "source";
+          nullkomma.tasks.generate-files = task "generated";
         };
     };
 }

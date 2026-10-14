@@ -1,60 +1,20 @@
 ---
 name: update-integration-matrix
-description: Keep README's plugin integration matrix aligned with nullkomma's implementation when adding, changing or removing plugins, tools, checks, templates, files, editor integration or CI behavior.
+description: Keep README's Plugins table aligned with nullkomma's implementation when adding, changing or removing plugins, tools, checks, templates, files, editor integration or CI behavior.
 ---
 
-# Updating the integration matrix
+# Updating the Plugins table
 
-Maintain `README.md`'s **Plugins and integrations** section from the
-implementation, not from proposals or assumptions about upstream tools.
-Keep the matrix curated; do not add a metadata registry or documentation generator.
+Update `README.md`'s **Plugins** table from the implementation, not from
+proposals or assumptions about upstream tools.
 
-## Procedure
-
-1. Read the current matrix and identify the affected exported `plugins`.
-   Follow contributions across all files defining each plugin, its
-   imported modules and any explicit interactions with other plugins.
-1. Trace the changed behavior through the shared interfaces linked below the
-   matrix. Separate consumer configuration from `modules/dev`'s internal
-   development environment and tests.
-1. Establish the defaults selected by `lib.defaultPlugins` and what enabling or
-   disabling each plugin adds/removes. Importing its definition does not enable it. When source
-   alone is insufficient, evaluate the existing consumer fixtures, using the
-   debug configuration pattern in `modules/dev/tests.nix` to inspect options.
-   Compare enabled and disabled configurations with the same system and overrides.
-   Do not add a public API just to inspect documentation.
-1. Update the affected cells with short descriptions of additions, not a full
-   inventory of inherited defaults. Identify the actual exported import in
-   each row. Keep integrations grouped in the existing columns; explain a new
-   column only when a genuinely distinct consumer concern warrants it.
-1. State conditions and limitations: default versus opt-in, project type,
-   platform availability, or combinations of imports. Leave a cell empty only for a
-   verified absence of an added integration, not unknown behavior. Do not put
-   speculative or unimplemented rows in the README.
-1. Check each changed claim against source and relevant consumer contracts.
-   Update behavioral tests when behavior changes; documentation edits alone do
-   not require new tests. Run the existing Markdown formatting checks and review
-   additions and removals before finishing.
-
-## Accuracy rules
-
-- A plugin is an exported module; a column is an integration it contributes to.
-  A source file is not necessarily an independently selectable plugin.
-- Mark formatter/linter coverage with ✅; tool names live in the source.
-  Treefmt support for a language does not mean nullkomma exports a project-type
-  plugin for that language.
-- Distinguish an exposed package from a check that actually builds/verifies it.
-  An extension point without a supplied implementation is not an active build.
-- Distinguish formatter/linter configuration, editor integration and an installed
-  language-server executable. An extension recommendation does not install it.
-- Distinguish template starters, source-of-truth files (`write-files`),
-  files generated from Nix (`generate-files`) and build artifacts.
-- Personal editor/user environment policy belongs outside nullkomma.
-- Check conditional behavior and explicit cross-plugin integration; option
-  merging is not proof that every combination works.
-- Do not fill an empty cell by implementing an unrequested feature.
-
-The matrix summarizes consumer defaults, not every possible configuration.
-This skill and the path-scoped reminder reduce drift; they do not provide a
-deterministic CI guarantee. Keep source links, behavioral tests and human review
-as the evidence for each claim.
+1. Find every `flake.plugins.<name>` definition for the affected plugins; one
+   plugin may span several files.
+1. Note what enabling the plugin adds. If the source is unclear, evaluate a
+   fixture the way `modules/dev/tests.nix` does and compare it enabled vs disabled.
+1. Update only the affected cells, briefly. Mark formatter/linter coverage with
+   ✅; tool names stay in the source. Leave a cell empty only when the plugin
+   adds nothing there. Never list unimplemented plugins.
+1. Keep the distinctions the columns make: a recommended extension is not an
+   installed tool; a source-of-truth file is not a generated one.
+1. Run `nix fmt` and review the diff.

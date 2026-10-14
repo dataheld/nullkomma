@@ -37,11 +37,6 @@
     in
     {
       options.nullkomma.github = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = false;
-          description = "Whether to enable GitHub Actions integration: workflow initialization and actionlint.";
-        };
         workflows = {
           source = lib.mkOption {
             type = lib.types.str;
@@ -76,11 +71,9 @@
           };
         };
       };
-      config.perSystem = {
-        treefmt.programs.actionlint.enable = lib.mkDefault cfg.enable;
-        nullkomma.files = lib.mkIf cfg.enable {
-          ".github/workflows/push.yml".text = ci;
-        };
+      config.perSystem = lib.mkIf cfg.enable {
+        treefmt.programs.actionlint.enable = lib.mkDefault true;
+        nullkomma.files.".github/workflows/push.yml".text = ci;
       };
     };
 }

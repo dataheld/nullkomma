@@ -2,21 +2,13 @@
 applyTo: modules/**/*.nix,templates/**,README.md,.github/workflows/ci.yml
 ---
 
-When changing consumer-facing integrations or their documentation, use
-[update-integration-matrix](../skills/update-integration-matrix/SKILL.md) to check
-and update README's **Plugins and integrations** matrix alongside the
-change. If behavior is unchanged, do not invent a matrix update.
+When changing what a plugin adds, use
+[update-integration-matrix](../skills/update-integration-matrix/SKILL.md) to keep
+README's **Plugins** table in sync. Leave the table alone if behavior is unchanged.
 
-Follow README's **Neutral interfaces between plugins** contract when connecting
-plugins. Put shared contracts in the framework; prefer standard flake outputs.
-Consumers must not inspect producer plugin flags or import a specific producer
-when a neutral artifact suffices. Document shape, selection, absence and
-validation; reject missing required inputs explicitly. Test interchangeable
-producers without unrelated plugins, plus real tool success/failure separately.
-Do not add speculative deployment/caching APIs or a universal artifact registry.
+Plugins never read each other's options or import each other (README's
+**Design**); shared values are framework options any plugin may set or read.
 
-Template variants are starting presets, not separate file-generation engines:
-select plugins/options in their flakes and retain `write-files` (source-of-truth
-files) and `generate-files` (Git-ignored files generated from Nix). Avoid duplicating
-configuration-derived files. Use the resolve-file-conflicts skill for upgrade
-conflicts; never force-replace edited source-of-truth files.
+Templates only select plugins and options; files that depend on configuration
+come from `write-files` or `generate-files`. Never overwrite an edited
+source-of-truth file; use the resolve-file-conflicts skill.

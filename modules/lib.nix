@@ -18,24 +18,18 @@
       "vscode"
       "yaml"
     ];
-    # Import definitions separately from the default plugin selection.
+    # flake-parts module: the framework and every plugin, with the default plugins enabled.
+    defaults = {
+      imports = [ inputs.self.framework ] ++ lib.attrValues inputs.self.plugins;
+      nullkomma = lib.genAttrs (inputs.self.lib.defaultPlugins ++ [ "devshell" ]) (_: {
+        enable = lib.mkDefault true;
+      });
+    };
     mkFlake =
       args: module:
       inputs.flake-parts.lib.mkFlake args {
         imports = [
-          inputs.self.framework
-        ]
-        ++ lib.attrValues inputs.self.plugins
-        ++ [
-          {
-            nullkomma =
-              lib.genAttrs inputs.self.lib.defaultPlugins (_: {
-                enable = lib.mkDefault true;
-              })
-              // {
-                devshell.enable = lib.mkDefault true;
-              };
-          }
+          inputs.self.lib.defaults
           module
         ];
       };

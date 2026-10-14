@@ -15,8 +15,9 @@
         key = "${toString moduleLocation}#plugins.${name}";
         _class = "flake";
         imports = [ module ];
+        options.nullkomma.${name}.enable = lib.mkEnableOption "the ${name} plugin";
       }
     );
-    description = "Composable project plugins with opt-in enable options; nullkomma.lib.mkFlake selects overridable defaults.";
+    description = "Optional project plugins, each switched by `nullkomma.<name>.enable`; nullkomma.lib.mkFlake selects overridable defaults.";
   };
 }

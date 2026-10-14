@@ -2,7 +2,8 @@
   flake.plugins.yaml =
     { config, lib, ... }:
     {
-      options.nullkomma.yaml.enable = lib.mkEnableOption "YAML project integration";
-      config.perSystem.treefmt.programs.yamlfmt.enable = lib.mkDefault config.nullkomma.yaml.enable;
+      config.perSystem.treefmt.programs.yamlfmt.enable = lib.mkIf config.nullkomma.yaml.enable (
+        lib.mkDefault true
+      );
     };
 }

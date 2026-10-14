@@ -3,14 +3,9 @@
     { config, lib, ... }:
     let
       cfg = config.nullkomma;
-      treefmtStdin = [
-        "treefmt"
-        "--stdin"
-        "{file}"
-      ];
+      format = cfg.editor.formatCommand;
     in
     {
-      options.nullkomma.nix.enable = lib.mkEnableOption "Nix project integration";
       config = lib.mkIf cfg.nix.enable {
         nullkomma.gitignore = [
           "result"
@@ -19,9 +14,7 @@
         nullkomma.editor.languageServers.nixd = {
           command = [ "nixd" ];
           filetypes = [ "nix" ];
-          settings = lib.optionalAttrs (cfg.treefmt.enable or false) {
-            nixd.formatting.command = treefmtStdin;
-          };
+          settings = lib.optionalAttrs (format != null) { nixd.formatting.command = format; };
         };
         nullkomma.editor.vscode = {
           extensions = [ "jnoortheen.nix-ide" ];
@@ -31,9 +24,7 @@
               "nix.serverPath" = "nixd";
               "nix.serverSettings" = cfg.editor.languageServers.nixd.settings;
             }
-            // lib.optionalAttrs (cfg.treefmt.enable or false) {
-              "nix.formatterPath" = treefmtStdin;
-            }
+            // lib.optionalAttrs (format != null) { "nix.formatterPath" = format; }
           );
         };
         perSystem =

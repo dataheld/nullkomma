@@ -2,8 +2,8 @@
   flake.plugins.keepSorted =
     { config, lib, ... }:
     {
-      options.nullkomma.keepSorted.enable = lib.mkEnableOption "keep-sorted integration";
-      config.perSystem.treefmt.programs.keep-sorted.enable =
-        lib.mkDefault config.nullkomma.keepSorted.enable;
+      config.perSystem.treefmt.programs.keep-sorted.enable = lib.mkIf config.nullkomma.keepSorted.enable (
+        lib.mkDefault true
+      );
     };
 }

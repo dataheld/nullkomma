@@ -2,7 +2,6 @@
   flake.plugins.flakehub =
     { config, lib, ... }:
     {
-      options.nullkomma.flakehub.enable = lib.mkEnableOption "FlakeHub CLI integration";
       config.perSystem =
         { pkgs, ... }:
         {

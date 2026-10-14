@@ -2,10 +2,9 @@
   flake.plugins.shell =
     { config, lib, ... }:
     {
-      options.nullkomma.shell.enable = lib.mkEnableOption "shell script integration";
-      config.perSystem.treefmt.programs = {
-        shellcheck.enable = lib.mkDefault config.nullkomma.shell.enable;
-        shfmt.enable = lib.mkDefault config.nullkomma.shell.enable;
+      config.perSystem.treefmt.programs = lib.mkIf config.nullkomma.shell.enable {
+        shellcheck.enable = lib.mkDefault true;
+        shfmt.enable = lib.mkDefault true;
       };
     };
 }

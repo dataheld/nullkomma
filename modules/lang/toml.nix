@@ -2,7 +2,8 @@
   flake.plugins.toml =
     { config, lib, ... }:
     {
-      options.nullkomma.toml.enable = lib.mkEnableOption "TOML project integration";
-      config.perSystem.treefmt.programs.toml-sort.enable = lib.mkDefault config.nullkomma.toml.enable;
+      config.perSystem.treefmt.programs.toml-sort.enable = lib.mkIf config.nullkomma.toml.enable (
+        lib.mkDefault true
+      );
     };
 }

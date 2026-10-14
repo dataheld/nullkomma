@@ -2,16 +2,8 @@
 # plugins (`vscode`, `neovim`) write them out as generated files.
 {
   flake.framework =
-    { config, lib, ... }:
-    let
-      cfg = config.nullkomma.editor;
-    in
+    { lib, ... }:
     {
-      options.flake.editor = lib.mkOption {
-        type = lib.types.lazyAttrsOf lib.types.raw;
-        default = { };
-        description = "Evaluated project editor integration data.";
-      };
       options.nullkomma.editor.languageServers = lib.mkOption {
         type = lib.types.attrsOf (
           lib.types.submodule {
@@ -35,6 +27,11 @@
         default = { };
         description = "Editor-neutral language servers; plugins add theirs here.";
       };
+      options.nullkomma.editor.formatCommand = lib.mkOption {
+        type = lib.types.nullOr (lib.types.listOf lib.types.str);
+        default = null;
+        description = "Command formatting stdin as the file `{file}`, used by language servers when set.";
+      };
       options.nullkomma.editor.vscode = {
         extensions = lib.mkOption {
           type = lib.types.listOf lib.types.str;
@@ -47,35 +44,29 @@
           description = "Project-specific VS Code settings; plugins merge here. Personal preferences belong elsewhere.";
         };
       };
-      config.flake.editor = {
-        inherit (cfg) languageServers;
-        vscode = {
-          extensions = lib.sort lib.lessThan (lib.unique cfg.vscode.extensions);
-          inherit (cfg.vscode) settings;
-        };
-      };
     };
   flake.plugins.vscode =
     { config, lib, ... }:
     {
-      options.nullkomma.vscode.enable = lib.mkEnableOption "VS Code workspace files";
       config.perSystem =
         { pkgs, ... }:
         let
           json = pkgs.formats.json { };
-          data = config.flake.editor.vscode;
+          cfg = config.nullkomma.editor.vscode;
         in
         {
           nullkomma.files = lib.mkIf config.nullkomma.vscode.enable {
             ".vscode/extensions.json" = {
               mode = lib.mkDefault "generated";
               commentPrefix = "//";
-              source = json.generate "vscode-extensions.json" { recommendations = data.extensions; };
+              source = json.generate "vscode-extensions.json" {
+                recommendations = lib.sort lib.lessThan (lib.unique cfg.extensions);
+              };
             };
             ".vscode/settings.json" = {
               mode = lib.mkDefault "generated";
               commentPrefix = "//";
-              source = json.generate "vscode-settings.json" data.settings;
+              source = json.generate "vscode-settings.json" cfg.settings;
             };
           };
         };
@@ -83,7 +74,6 @@
   flake.plugins.neovim =
     { config, lib, ... }:
     {
-      options.nullkomma.neovim.enable = lib.mkEnableOption "Neovim project config (`.nvim.lua`, needs `exrc`)";
       config.perSystem.nullkomma.files.".nvim.lua" = lib.mkIf config.nullkomma.neovim.enable {
         mode = lib.mkDefault "generated";
         commentPrefix = "--";

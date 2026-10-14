@@ -2,7 +2,6 @@
   flake.plugins.direnv =
     { config, lib, ... }:
     {
-      options.nullkomma.direnv.enable = lib.mkEnableOption "direnv project integration";
       config = lib.mkIf config.nullkomma.direnv.enable {
         nullkomma.gitignore = [ ".direnv/" ];
         nullkomma.editor.vscode = {

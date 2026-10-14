@@ -36,14 +36,8 @@
           cfg = config.nullkomma.devshell;
         in
         {
-          config = {
-            devShells = lib.mkIf enabled {
-              default = lib.mkDefault (
-                pkgs.mkShell {
-                  inherit (cfg) packages env shellHook;
-                }
-              );
-            };
+          devShells = lib.mkIf enabled {
+            default = lib.mkDefault (pkgs.mkShell { inherit (cfg) packages env shellHook; });
           };
         };
     };

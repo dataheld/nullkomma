@@ -5,18 +5,10 @@
     { ... }:
     let
       isModule = m: builtins.isAttrs m || builtins.isFunction m;
-      children = what: output: {
-        children = builtins.mapAttrs (_: _: { inherit what; }) output;
-      };
     in
     {
       flake.schemas = inputs.flake-schemas.schemas // {
         inherit (inputs.up.exportedSchemas) taskRunners;
-        editor = {
-          version = 1;
-          doc = "Project editor settings and extension IDs for workspace files or managed editor profiles.";
-          inventory = children "project editor integration";
-        };
         plugins = {
           version = 1;
           doc = "Optional project plugins as [flake-parts](https://flake.parts) modules. nullkomma.lib.mkFlake selects overridable defaults.";
@@ -37,7 +29,7 @@
         };
         lib = {
           version = 1;
-          doc = "Nix library: `mkFlake`, `importTree` and `defaultPlugins`.";
+          doc = "Nix library: `mkFlake`, `defaults`, `importTree` and `defaultPlugins`.";
           inventory = output: {
             children = builtins.mapAttrs (_: v: {
               what = if builtins.isFunction v then "function" else "library";

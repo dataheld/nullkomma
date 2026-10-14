@@ -14,7 +14,6 @@
       ignores = lib.unique config.nullkomma.gitignore;
     in
     {
-      options.nullkomma.git.enable = lib.mkEnableOption "Git project integration";
       config = lib.mkIf config.nullkomma.git.enable {
         perSystem =
           { config, pkgs, ... }:

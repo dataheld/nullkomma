@@ -11,23 +11,22 @@
     };
   flake.plugins.treefmt =
     { config, lib, ... }:
-    let
-      enabled = config.nullkomma.treefmt.enable;
-    in
     {
-      options.nullkomma.treefmt.enable = lib.mkEnableOption "treefmt integration";
-      config = {
-        nullkomma.editor.vscode = lib.mkIf enabled {
-          extensions = [ "ibecker.treefmt-vscode" ];
-          settings."editor.defaultFormatter" = lib.mkDefault "ibecker.treefmt-vscode";
+      config = lib.mkIf config.nullkomma.treefmt.enable {
+        nullkomma.editor = {
+          formatCommand = [
+            "treefmt"
+            "--stdin"
+            "{file}"
+          ];
+          vscode.extensions = [ "ibecker.treefmt-vscode" ];
+          vscode.settings."editor.defaultFormatter" = lib.mkDefault "ibecker.treefmt-vscode";
         };
         perSystem =
           { config, ... }:
           {
-            treefmt = {
-              settings.excludes = lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files);
-            };
-            nullkomma.devshell.packages = lib.mkIf enabled [ config.treefmt.build.wrapper ];
+            treefmt.settings.excludes = lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files);
+            nullkomma.devshell.packages = [ config.treefmt.build.wrapper ];
           };
       };
     };

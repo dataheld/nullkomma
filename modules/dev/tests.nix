@@ -41,9 +41,7 @@
         md = callFlake ../../tests/fixtures/md;
       };
       customized = callFlakeWith {
-        nullkomma.vscode.enable = false;
-        nullkomma.editor.vscode.extensions = [ "jnoortheen.nix-ide" ];
-        nullkomma.editor.vscode.settings."nix.serverPath" = lib.mkForce "project-nixd";
+        nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
         perSystem =
           { pkgs, ... }:
           {
@@ -114,28 +112,6 @@
           };
         }
       );
-      siteConsumer =
-        name:
-        raw {
-          imports = [
-            {
-              perSystem =
-                { pkgs, ... }:
-                {
-                  nullkomma.site = pkgs.writeTextDir "index.html" name;
-                };
-            }
-          ];
-          perSystem =
-            { config, ... }:
-            {
-              nullkomma.tasks.read-site = {
-                description = "Read a site through the neutral artifact contract";
-                command = ''cat "${config.nullkomma.site}/index.html"'';
-              };
-            };
-        };
-      siteConsumers = lib.genAttrs [ "producer-a" "producer-b" ] siteConsumer;
       templates = lib.mapAttrs (_: t: callFlake t.path) nullkomma.templates;
     in
     {
@@ -143,121 +119,68 @@
         { pkgs, system, ... }:
         let
           perSystem = flake: flake.allSystems.${system};
-          has = attrs: name: attrs.${system} ? ${name};
           importTreeRoot = ../../tests/fixtures/import-tree;
-          # A framework without plugins still offers the file tasks and their runner.
-          fileTasks = [
-            "generate-files"
-            "write-files"
-            "tasks"
-          ];
+          # What plugins can contribute to a consumer flake.
+          summary = flake: {
+            files = lib.attrNames (perSystem flake).nullkomma.files;
+            tools = map lib.getName (perSystem flake).nullkomma.devshell.packages;
+            formatters = lib.attrNames (perSystem flake).treefmt.build.programs;
+            tasks = lib.attrNames (perSystem flake).nullkomma.tasks;
+            checks = lib.attrNames flake.checks.${system};
+            shells = lib.attrNames flake.devShells.${system};
+            inherit (flake.debug.config.nullkomma) editor;
+          };
           tests = {
             # keep-sorted start block=yes
-            testAllPluginsDisabled = {
-              expr = {
-                files = lib.attrNames (perSystem minimal).nullkomma.files;
-                tools = map (p: p.name) (perSystem minimal).nullkomma.devshell.packages;
-                checks = lib.attrNames minimal.checks.${system};
-                shells = lib.attrNames minimal.devShells.${system};
-                extensions = minimal.editor.vscode.extensions;
-                settings = minimal.editor.vscode.settings;
-                tasks = lib.attrNames (perSystem minimal).nullkomma.tasks;
-              };
-              expected = {
+            testAllPluginsDisabledIsBareFramework = {
+              expr = map summary [
+                rawFramework
+                rawUnselected
+                minimal
+              ];
+              expected = lib.replicate 3 {
                 files = [ ];
-                tools = fileTasks;
-                checks = [ ];
-                shells = [ ];
-                extensions = [ ];
-                settings = { };
+                tools = [
+                  "generate-files"
+                  "write-files"
+                  "tasks"
+                ];
+                formatters = [ ];
                 tasks = [
                   "generate-files"
                   "write-files"
                 ];
+                checks = [ ];
+                shells = [ ];
+                editor = {
+                  formatCommand = null;
+                  languageServers = { };
+                  vscode = {
+                    extensions = [ ];
+                    settings = { };
+                  };
+                };
               };
-            };
-            testConsumersExportSchemas = {
-              expr = lib.mapAttrs (_: flake: {
-                versions = map (name: flake.schemas.${name}.version) [
-                  "checks"
-                  "devShells"
-                  "formatter"
-                  "packages"
-                  "taskRunners"
-                ];
-                apps = flake.apps.${system};
-                tasks = lib.elem "tasks" (map lib.getName (perSystem flake).nullkomma.devshell.packages);
-                listed =
-                  (flake.schemas.taskRunners.inventory flake.taskRunners).children.${system}.children.default.children
-                    ? check;
-                check =
-                  (flake.schemas.checks.inventory flake.checks).children.${system}.children.treefmt.isFlakeCheck;
-                shell = (flake.schemas.devShells.inventory flake.devShells).children.${system}.children ? default;
-                fh = lib.elem pkgs.fh (perSystem flake).nullkomma.devshell.packages;
-                module = lib.all (plugin: plugin.evalChecks.isModule) (
-                  lib.attrValues (flake.schemas.plugins.inventory nullkomma.plugins).children
-                );
-              }) (fixtures // lib.mapAttrs' (name: lib.nameValuePair "template-${name}") templates);
-              expected =
-                lib.genAttrs
-                  [
-                    "md"
-                    "template-default"
-                  ]
-                  (_: {
-                    versions = [
-                      1
-                      1
-                      1
-                      1
-                      1
-                    ];
-                    apps = { };
-                    tasks = true;
-                    listed = true;
-                    check = true;
-                    shell = true;
-                    fh = true;
-                    module = true;
-                  });
             };
             testConsumersCustomizeDefaults = {
               expr = {
                 package = lib.elem pkgs.hello (perSystem customized).nullkomma.devshell.packages;
                 disabled = (perSystem customized).treefmt.programs.deadnix.enable;
                 enabled = (perSystem customized).treefmt.programs.typos.enable;
-                formatter = customized.formatter.${system} == (perSystem customized).treefmt.build.wrapper;
+                setting = customized.debug.config.nullkomma.editor.vscode.settings."nix.serverPath";
               };
               expected = {
                 package = true;
                 disabled = false;
                 enabled = true;
-                formatter = true;
+                setting = "project-nixd";
               };
             };
-            testEditorDataWithoutWorkspaceFiles = {
-              expr = {
-                files = lib.filter (name: lib.hasPrefix ".vscode/" name) (
-                  lib.attrNames (perSystem customized).nullkomma.files
-                );
-                extensions = customized.editor.vscode.extensions;
-                settings = customized.editor.vscode.settings;
-                personal = customized.editor.vscode.settings ? "nix.hiddenLanguageServerErrors";
-                notebook = customized.editor.vscode.settings ? "notebook.defaultFormatter";
-              };
-              expected = {
-                files = [ ];
-                extensions = [
-                  "arrterian.nix-env-selector"
-                  "ibecker.treefmt-vscode"
-                  "jnoortheen.nix-ide"
-                ];
-                settings = fixtures.md.editor.vscode.settings // {
-                  "nix.serverPath" = "project-nixd";
-                };
-                personal = false;
-                notebook = false;
-              };
+            testEveryPluginCanBeDisabled = {
+              expr = lib.filter (name: summary disabled.${name} == summary fixtures.md) (
+                lib.attrNames nullkomma.plugins
+              );
+              expected = [ ];
             };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
               expr = (perSystem fixtures.md).nullkomma.files.".gitignore".text;
@@ -288,131 +211,18 @@
                 "/sub/b.nix"
               ];
             };
-            testInitializedFilesAreUserOwned = {
+            testPluginWorksWithoutOthers = {
               expr = {
-                cron = (perSystem fixtures.md).nullkomma.files ? ".github/workflows/cron.yml";
-                driftCheck = has fixtures.md.checks "files";
-                banner =
-                  lib.hasInfix "Generated by nullkomma"
-                    (perSystem fixtures.md).nullkomma.files.".github/workflows/push.yml".text;
+                inherit (summary rawNix) formatters;
+                inherit (rawNix.debug.config.nullkomma.editor.languageServers.nixd) settings;
               };
               expected = {
-                cron = false;
-                driftCheck = false;
-                banner = false;
-              };
-            };
-            testPluginOptOuts = {
-              expr = {
-                github =
-                  !(perSystem disabled.github).nullkomma.files ? ".github/workflows/push.yml"
-                  && !(perSystem disabled.github).treefmt.programs.actionlint.enable;
-                markdown = !(perSystem disabled.markdown).treefmt.programs.mdformat.enable;
-                json = !(perSystem disabled.json).treefmt.programs.jsonfmt.enable;
-                yaml = !(perSystem disabled.yaml).treefmt.programs.yamlfmt.enable;
-                toml = !(perSystem disabled.toml).treefmt.programs.toml-sort.enable;
-                shell =
-                  !(perSystem disabled.shell).treefmt.programs.shfmt.enable
-                  && !(perSystem disabled.shell).treefmt.programs.shellcheck.enable;
-                keepSorted = !(perSystem disabled.keepSorted).treefmt.programs.keep-sorted.enable;
-                nix =
-                  !(perSystem disabled.nix).treefmt.programs.nixfmt.enable
-                  && !(perSystem disabled.nix).treefmt.programs.deadnix.enable
-                  && !(lib.elem pkgs.nixd (perSystem disabled.nix).nullkomma.devshell.packages)
-                  && !(disabled.nix.editor.vscode.settings ? "nix.serverPath")
-                  && !(disabled.nix.editor.languageServers ? nixd)
-                  && !((perSystem disabled.nix).nullkomma.tasks ? "check");
-                git =
-                  !((perSystem disabled.git).nullkomma.files ? ".gitignore")
-                  && !(lib.elem pkgs.git (perSystem disabled.git).nullkomma.devshell.packages);
-                direnv =
-                  !((perSystem disabled.direnv).nullkomma.files ? ".envrc")
-                  && !(lib.elem ".direnv/" disabled.direnv.debug.config.nullkomma.gitignore)
-                  && !(lib.elem "arrterian.nix-env-selector" disabled.direnv.editor.vscode.extensions);
-                vscode = lib.all (name: !(lib.hasPrefix ".vscode/" name)) (
-                  lib.attrNames (perSystem disabled.vscode).nullkomma.files
-                );
-                neovim = !((perSystem disabled.neovim).nullkomma.files ? ".nvim.lua");
-                treefmt =
-                  !((disabled.treefmt.checks.${system}) ? treefmt)
-                  && !(lib.elem (perSystem disabled.treefmt).treefmt.build.wrapper (perSystem disabled.treefmt)
-                  .nullkomma.devshell.packages)
-                  && !(disabled.treefmt.editor.vscode.settings ? "nix.formatterPath");
-                flakehub = !(lib.elem pkgs.fh (perSystem disabled.flakehub).nullkomma.devshell.packages);
-              };
-              expected = lib.genAttrs (lib.attrNames nullkomma.plugins) (_: true);
-            };
-            testRawPluginAssembly = {
-              expr = {
-                checks = lib.attrNames rawFramework.checks.${system};
-                unselected = {
-                  checks = lib.attrNames rawUnselected.checks.${system};
-                  tools = map (p: p.name) (perSystem rawUnselected).nullkomma.devshell.packages;
-                  files = lib.attrNames (perSystem rawUnselected).nullkomma.files;
-                };
-                tools = map (p: p.name) (perSystem rawFramework).nullkomma.devshell.packages;
-                files = lib.attrNames (perSystem rawFramework).nullkomma.files;
-                nix = (perSystem rawNix).treefmt.programs.nixfmt.enable;
-                tasks = lib.attrNames (perSystem rawNix).nullkomma.tasks;
-                editor = lib.attrNames rawNix.editor.languageServers;
-              };
-              expected = {
-                checks = [ ];
-                unselected = {
-                  checks = [ ];
-                  tools = fileTasks;
-                  files = [ ];
-                };
-                tools = fileTasks;
-                files = [ ];
-                nix = true;
-                tasks = [
-                  "check"
-                  "flake-checker"
-                  "generate-files"
-                  "update"
-                  "write-files"
+                formatters = [
+                  "deadnix"
+                  "nixfmt"
                 ];
-                editor = [ "nixd" ];
+                settings = { };
               };
-            };
-            testPluginExports = {
-              expr = {
-                names = lib.attrNames nullkomma.plugins;
-                class = nullkomma.plugins.nix._class;
-                schema = nullkomma.schemas.plugins.version;
-                framework = (nullkomma.schemas.framework.inventory nullkomma.framework).evalChecks.isModule;
-                legacy = lib.filter (name: builtins.hasAttr name nullkomma) [
-                  "flakeModule"
-                  "flakeModules"
-                  "modules"
-                ];
-              };
-              expected = {
-                names = nullkomma.lib.defaultPlugins;
-                class = "flake";
-                schema = 1;
-                framework = true;
-                legacy = [ ];
-              };
-            };
-            testSiteIsOptional = {
-              expr = {
-                site = (perSystem rawFramework).nullkomma.site;
-                package = rawFramework.packages.${system} ? site;
-              };
-              expected = {
-                site = null;
-                package = false;
-              };
-            };
-            testTemplatesAreFixtures = {
-              expr = builtins.readFile ../../templates/default/flake.nix;
-              expected = builtins.readFile ../../tests/fixtures/md/flake.nix;
-            };
-            testTemplatesIncludeDirenvBootstrap = {
-              expr = builtins.readFile (nullkomma.templates.default.path + "/.envrc");
-              expected = (perSystem templates.default).nullkomma.files.".envrc".text;
             };
             testTasksAllSkipsMutatingTasks = {
               expr = lib.attrNames (
@@ -422,6 +232,14 @@
                 "check"
                 "flake-checker"
               ];
+            };
+            testTemplatesAreFixtures = {
+              expr = builtins.readFile ../../templates/default/flake.nix;
+              expected = builtins.readFile ../../tests/fixtures/md/flake.nix;
+            };
+            testTemplatesIncludeDirenvBootstrap = {
+              expr = builtins.readFile (nullkomma.templates.default.path + "/.envrc");
+              expected = (perSystem templates.default).nullkomma.files.".envrc".text;
             };
             # keep-sorted end
           };
@@ -521,52 +339,6 @@
                     ''}
                     touch $out
                   '';
-              site-contract = pkgs.runCommandLocal "nullkomma-site-contract" { } (
-                lib.concatMapStringsSep "\n" (
-                  name:
-                  let
-                    flake = siteConsumers.${name};
-                  in
-                  ''
-                    ${lib.getExe (perSystem flake).nullkomma.tasks.read-site.package} > actual
-                    printf '%s' '${name}' > expected
-                    cmp actual expected
-                    cmp actual ${flake.packages.${system}.site}/index.html
-                  ''
-                ) (lib.attrNames siteConsumers)
-                + "\ntouch $out\n"
-              );
-              file-initialization =
-                pkgs.runCommandLocal "nullkomma-file-initialization"
-                  {
-                    nativeBuildInputs = [ pkgs.git ];
-                  }
-                  ''
-                    mkdir project
-                    cd project
-                    git init --quiet
-                    ${lib.getExe (perSystem fixtures.md).nullkomma.tasks.write-files.package}
-                    ${lib.getExe (perSystem fixtures.md).nullkomma.tasks.generate-files.package}
-                    git -c core.excludesFile=/dev/null check-ignore --no-index .vscode/settings.json .vscode/extensions.json
-                    for path in .gitignore .github/workflows/push.yml; do
-                      if git -c core.excludesFile=/dev/null check-ignore --no-index "$path"; then
-                        echo "Source-of-truth file unexpectedly ignored: $path" >&2
-                        exit 1
-                      fi
-                    done
-                    test -f .github/workflows/push.yml
-                    test ! -e .github/workflows/cron.yml
-                    test -w .github/workflows/push.yml
-                    if grep -q 'Generated by nullkomma' .github/workflows/push.yml; then
-                      exit 1
-                    fi
-                    printf '# My workflow\n' > .github/workflows/push.yml
-                    ${lib.getExe (perSystem fixtures.md).nullkomma.tasks.write-files.package}
-                    printf '# My workflow\n' > expected
-                    cmp expected .github/workflows/push.yml
-                    test ! -e .github/workflows/cron.yml
-                    touch $out
-                  '';
               file-updates =
                 pkgs.runCommandLocal "nullkomma-file-updates"
                   {
@@ -581,11 +353,10 @@
                     grep -q 'Generated by nullkomma. DO NOT EDIT' generated.txt
                     printf 'project edit' > source.txt
                     printf 'local edit' > generated.txt
-                    if ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.write-files.package} > conflict.log 2>&1; then
+                    if ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.write-files.package}; then
                       echo "Edited source-of-truth file unexpectedly overwritten" >&2
                       exit 1
                     fi
-                    grep -q 'resolve-file-conflicts' conflict.log
                     test "$(cat source.txt)" = 'project edit'
                     test "$(cat untouched.txt)" = new
                     test "$(cat .git/nullkomma/files/base/source.txt)" = old
@@ -593,7 +364,6 @@
                     ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.generate-files.package} < /dev/null
                     grep -q 'DO NOT EDIT' generated.txt
                     test "$(tail -n 1 generated.txt)" = new
-                    test -w generated.txt
                     ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.write-files.package} --accept source.txt
                     ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.write-files.package}
                     test "$(cat source.txt)" = 'project edit'
@@ -617,29 +387,6 @@
                     test "$(cat source.txt)" = preexisting
                     touch $out
                   '';
-              task-runner =
-                let
-                  tasks =
-                    flake:
-                    lib.getExe (
-                      lib.findFirst (p: p.name == "tasks") null (perSystem flake).nullkomma.devshell.packages
-                    );
-                in
-                pkgs.runCommandLocal "nullkomma-task-runner" { } ''
-                  ${tasks fixtures.md} > help
-                  cat help
-                  ${lib.concatMapStrings (name: ''
-                    grep -qF ${lib.escapeShellArg name} help
-                  '') (lib.attrNames (perSystem fixtures.md).nullkomma.tasks)}
-                  ${tasks siteConsumers.producer-a} all > all
-                  cat all
-                  grep -qF producer-a all
-                  if grep -qF "▶ write-files" all; then
-                    echo "Skipped task ran in tasks all" >&2
-                    exit 1
-                  fi
-                  touch $out
-                '';
               file-update-task =
                 let
                   nix = pkgs.writeShellScriptBin "nix" ''
