@@ -6,11 +6,10 @@
   outputs =
     inputs:
     inputs.nullkomma.lib.mkFlake { inherit inputs; } {
-      nullkomma.bats.enable = true;
       perSystem =
         { pkgs, ... }:
         {
-          nullkomma.bats = {
+          nullkomma.shell.bats = {
             packages = [ pkgs.jq ];
             libraries = with pkgs.bats.libraries; [
               bats-assert

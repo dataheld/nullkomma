@@ -43,9 +43,11 @@
       callFlake = callFlakeWith { };
       fixtures = {
         md = callFlake ../../tests/fixtures/md;
-        bats = callFlake ../../tests/fixtures/bats;
+        shell = callFlake ../../tests/fixtures/shell;
       };
-      batsFailing = callFlakeWith { nullkomma.bats.testDir = "failing"; } ../../tests/fixtures/bats;
+      batsFailing = callFlakeWith {
+        nullkomma.shell.bats.testDir = "failing";
+      } ../../tests/fixtures/shell;
       customized = callFlakeWith {
         nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
         perSystem =
@@ -68,16 +70,12 @@
           };
         };
       } ../../tests/fixtures/md;
-      # Opt-in plugins are off by default, so compare against everything on.
-      allExcept =
+      disabled = lib.genAttrs (lib.attrNames plugins) (
         name:
         callFlakeWith {
-          nullkomma = lib.genAttrs (lib.attrNames plugins) (other: {
-            enable = other != name;
-          });
-        } ../../tests/fixtures/md;
-      allEnabled = allExcept null;
-      disabled = lib.genAttrs (lib.attrNames plugins) allExcept;
+          nullkomma.${name}.enable = false;
+        } ../../tests/fixtures/md
+      );
       minimal = callFlakeWith {
         nullkomma =
           lib.genAttrs (lib.attrNames plugins) (_: {
@@ -221,7 +219,7 @@
               };
             };
             testEveryPluginCanBeDisabled = {
-              expr = lib.filter (name: summary disabled.${name} == summary allEnabled) (lib.attrNames plugins);
+              expr = lib.filter (name: summary disabled.${name} == summary fixtures.md) (lib.attrNames plugins);
               expected = [ ];
             };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
