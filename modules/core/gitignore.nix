@@ -1,5 +1,5 @@
 {
-  flake.flakeModules.default =
+  flake.plugins.base =
     { config, lib, ... }:
     let
       ignores = lib.unique config.nullkomma.gitignore;
@@ -8,7 +8,7 @@
       options.nullkomma.gitignore = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ ];
-        description = "Lines of the initial `.gitignore`; every aspect appends here.";
+        description = "Lines of the initial `.gitignore`; every plugin appends here.";
       };
       config = {
         nullkomma.gitignore = [

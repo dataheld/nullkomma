@@ -1,5 +1,5 @@
 {
-  flake.flakeModules.default =
+  flake.plugins.base =
     { flake-parts-lib, lib, ... }:
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption {
@@ -7,7 +7,7 @@
           packages = lib.mkOption {
             type = lib.types.listOf lib.types.package;
             default = [ ];
-            description = "Packages on `PATH` in `devShells.default`; every aspect appends here.";
+            description = "Packages on `PATH` in `devShells.default`; every plugin appends here.";
           };
           env = lib.mkOption {
             type = lib.types.attrsOf lib.types.str;

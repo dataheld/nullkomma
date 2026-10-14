@@ -1,7 +1,7 @@
 # Consumers need no nixpkgs input: nullkomma's curated pin is the default `pkgs`.
 { inputs, ... }:
 {
-  flake.flakeModules.default =
+  flake.plugins.base =
     { lib, ... }:
     {
       systems = lib.mkDefault [

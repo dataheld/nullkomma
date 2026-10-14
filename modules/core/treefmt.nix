@@ -1,6 +1,6 @@
 { inputs, ... }:
 {
-  flake.flakeModules.default =
+  flake.plugins.base =
     { lib, ... }:
     {
       imports = [ inputs.treefmt-nix.flakeModule ];

@@ -1,7 +1,7 @@
 # Consumers inherit output schemas without declaring another input.
 { inputs, ... }:
 {
-  flake.flakeModules.default =
+  flake.plugins.base =
     { ... }:
     let
       isModule = m: builtins.isAttrs m || builtins.isFunction m;
@@ -16,29 +16,14 @@
           doc = "Project editor settings and extension IDs for workspace files or managed editor profiles.";
           inventory = children "project editor integration";
         };
-        flakeModules = {
+        plugins = {
           version = 1;
-          doc = "Aspects as [flake-parts](https://flake.parts) modules; import them into `nullkomma.lib.mkFlake`.";
+          doc = "Project plugins as [flake-parts](https://flake.parts) modules; import them into `nullkomma.lib.mkFlake`. The base plugin is imported automatically.";
           inventory = output: {
             children = builtins.mapAttrs (_: module: {
-              what = "flake-parts module";
+              what = "project plugin";
               evalChecks.isModule = isModule module;
             }) output;
-          };
-        };
-        flakeModule = {
-          version = 1;
-          doc = "Alias of `flakeModules.default`.";
-          inventory = module: {
-            what = "flake-parts module";
-            evalChecks.isModule = isModule module;
-          };
-        };
-        modules = {
-          version = 1;
-          doc = "Modules by class (`modules.<class>.<name>`), as defined by flake-parts.";
-          inventory = output: {
-            children = builtins.mapAttrs (class: children "${class} module") output;
           };
         };
         lib = {

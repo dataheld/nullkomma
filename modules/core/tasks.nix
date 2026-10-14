@@ -1,6 +1,6 @@
 # Named tasks become `apps.<name>` (`nix run .#<name>`); `nix run` lists them.
 {
-  flake.flakeModules.default =
+  flake.plugins.base =
     { flake-parts-lib, lib, ... }:
     let
       taskModule = {

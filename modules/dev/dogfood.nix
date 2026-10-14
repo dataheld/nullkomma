@@ -3,7 +3,7 @@
   partitions.dev.module =
     { inputs, ... }:
     {
-      imports = [ inputs.self.flakeModules.default ];
+      imports = [ inputs.self.plugins.base ];
       nullkomma = {
         github = {
           workflows = {

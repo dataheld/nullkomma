@@ -2,12 +2,12 @@
 {
   flake.lib = {
     importTree = import ../lib/import-tree.nix lib;
-    # `flake-parts.lib.mkFlake`, with `flakeModules.default` already imported.
+    # `flake-parts.lib.mkFlake`, with `plugins.base` already imported.
     mkFlake =
       args: module:
       inputs.flake-parts.lib.mkFlake args {
         imports = [
-          inputs.self.flakeModules.default
+          inputs.self.plugins.base
           module
         ];
       };

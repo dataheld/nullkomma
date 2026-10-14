@@ -1,7 +1,7 @@
 # Thin GitHub Actions stubs that call nullkomma's reusable workflows, so CI logic
 # is upgraded centrally (.github/workflows/{ci,maintenance}.yml in this repo).
 {
-  flake.flakeModules.default =
+  flake.plugins.base =
     { config, lib, ... }:
     let
       cfg = config.nullkomma.github;

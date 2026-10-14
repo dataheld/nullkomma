@@ -79,10 +79,7 @@
                   (flake.schemas.checks.inventory flake.checks).children.${system}.children.treefmt.isFlakeCheck;
                 shell = (flake.schemas.devShells.inventory flake.devShells).children.${system}.children ? default;
                 fh = lib.elem pkgs.fh (perSystem flake).nullkomma.devshell.packages;
-                module =
-                  (flake.schemas.flakeModules.inventory {
-                    default = nullkomma.flakeModules.default;
-                  }).children.default.evalChecks.isModule;
+                module = (flake.schemas.plugins.inventory nullkomma.plugins).children.base.evalChecks.isModule;
               }) (fixtures // lib.mapAttrs' (name: lib.nameValuePair "template-${name}") templates);
               expected =
                 lib.genAttrs
@@ -180,6 +177,24 @@
                 cron = false;
                 driftCheck = false;
                 banner = false;
+              };
+            };
+            testPluginExports = {
+              expr = {
+                names = lib.attrNames nullkomma.plugins;
+                class = nullkomma.plugins.base._class;
+                schema = nullkomma.schemas.plugins.version;
+                legacy = lib.filter (name: builtins.hasAttr name nullkomma) [
+                  "flakeModule"
+                  "flakeModules"
+                  "modules"
+                ];
+              };
+              expected = {
+                names = [ "base" ];
+                class = "flake";
+                schema = 1;
+                legacy = [ ];
               };
             };
             testTemplatesAreFixtures = {

@@ -1,5 +1,5 @@
 {
-  flake.flakeModules.default =
+  flake.plugins.base =
     { config, lib, ... }:
     let
       cfg = config.nullkomma.editor.vscode;
@@ -19,12 +19,12 @@
         extensions = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           default = [ ];
-          description = "Project-relevant VS Code extension IDs; every aspect appends here. Installation and user preferences belong to the user environment.";
+          description = "Project-relevant VS Code extension IDs; every plugin appends here. Installation and user preferences belong to the user environment.";
         };
         settings = lib.mkOption {
           type = lib.types.attrsOf lib.types.anything;
           default = { };
-          description = "Project-specific VS Code workspace settings; every aspect merges into these. Do not put personal editor preferences here.";
+          description = "Project-specific VS Code workspace settings; every plugin merges into these. Do not put personal editor preferences here.";
         };
       };
       config = {

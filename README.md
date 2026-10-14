@@ -78,21 +78,23 @@ nix run
 
 Then, as usual: `nix develop`, `nix fmt`, `nix flake check`, `nix flake show`.
 
-### Project types and capabilities
+### Plugins and integrations
 
-An **aspect** is a project/language/tool bundle exported as a flake-parts module
-in `flakeModules`. A bundle can contribute to several **capabilities**: the
+A **plugin** is a project/language/tool bundle exported as a flake-parts module
+in `plugins`. A plugin can contribute to several **integrations**: the
 columns below. These are shared configuration interfaces, not separate imports
 or feature switches.
 
-Every project gets the `default` baseline through `nullkomma.lib.mkFlake`.
-Additional project-type rows describe only what their imports add to that
-baseline. Currently only `default` is available; language-specific rows belong
+Every project gets the `base` plugin through `nullkomma.lib.mkFlake`.
+Additional plugin rows describe only what their imports add to that
+baseline. Currently only `base` is available; language-specific rows belong
 here once their modules are implemented.
+Plugins are explicitly imported Nix modules, not runtime plugins or automatically
+discovered project types.
 
-| Project type / import                            | Development environment                   | Formatting / linting                        | Builds / checks                              | Tasks / CI                                                            | Project files                                  | Editor / LSP                                                  |
-| ------------------------------------------------ | ----------------------------------------- | ------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
-| All projects: `flakeModules.default` (automatic) | `fh`, Git, `nixd`, treefmt, flake-checker | Nix + common repository formats via treefmt | Formatting check; no language-specific build | `check`, `update`, `flake-checker`, `write-files`; reusable GitHub CI | `.envrc`, `.gitignore`, CI stub, VS Code files | Nix LSP + treefmt settings; project extension recommendations |
+| Plugin / import                          | Development environment                   | Formatting / linting                        | Builds / checks                              | Tasks / CI                                                            | Project files                                  | Editor / LSP                                                  |
+| ---------------------------------------- | ----------------------------------------- | ------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
+| All projects: `plugins.base` (automatic) | `fh`, Git, `nixd`, treefmt, flake-checker | Nix + common repository formats via treefmt | Formatting check; no language-specific build | `check`, `update`, `flake-checker`, `write-files`; reusable GitHub CI | `.envrc`, `.gitignore`, CI stub, VS Code files | Nix LSP + treefmt settings; project extension recommendations |
 
 This describes defaults, not every possible consumer override:
 
@@ -117,7 +119,7 @@ The columns map directly to the implementation:
 Modules compose these contributions through Nix option merging; no separate
 matrix framework is involved. Explicit integrations and tests are still needed
 where project types interact. nullkomma's internal development tests are not
-consumer capabilities.
+consumer integrations.
 
 ### Knobs
 
@@ -162,7 +164,7 @@ Commit them; the initial `.gitignore` re-includes these paths to override a glob
 ### Editor ownership
 
 nullkomma owns **project-specific** editor features: formatter and language-server commands,
-workspace paths, and recommendations for extensions needed by the imported aspects.
+workspace paths, and recommendations for extensions needed by the imported plugins.
 [lap](https://github.com/dataheld/lap) owns VS Code installation, extension installation,
 themes, keybindings, and personal preferences. `extensions.json` recommends extensions;
 it does not install them.
@@ -189,7 +191,7 @@ derivation builders: no nested Nix daemon, recursive builds or import-from-deriv
 is needed. Fixtures use the checkout's locked dependencies, not the published
 nullkomma release.
 
-New language aspects should add small successful and deliberately broken fixtures.
+New language plugins should add small successful and deliberately broken fixtures.
 The successful fixture must exercise the actual build and verify meaningful output;
 the broken fixture must fail at the intended stage with its expected diagnostic.
 Do not compare an output with itself or substitute a dummy failing builder for the

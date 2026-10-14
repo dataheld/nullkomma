@@ -1,6 +1,6 @@
 # Initialize repository files once; existing files belong to the user.
 {
-  flake.flakeModules.default =
+  flake.plugins.base =
     { flake-parts-lib, lib, ... }:
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption (
