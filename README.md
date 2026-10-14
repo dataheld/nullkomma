@@ -97,22 +97,22 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-| Plugin       | Dev shell           | Format / lint | Tasks / CI                              | Files                            | Editor                                 |
-| ------------ | ------------------- | ------------- | --------------------------------------- | -------------------------------- | -------------------------------------- |
-| `nix`        | nixd, flake-checker | ✅            | `check`, `update`, `flake-checker`      | ignores `result`                 | nixd language server; VS Code: Nix IDE |
-| `markdown`   |                     | ✅            |                                         |                                  |                                        |
-| `json`       |                     | ✅            |                                         |                                  |                                        |
-| `yaml`       |                     | ✅            |                                         |                                  |                                        |
-| `toml`       |                     | ✅            |                                         |                                  |                                        |
-| `shell`      |                     | ✅            |                                         |                                  |                                        |
-| `github`     |                     | ✅ workflows  | reusable CI                             | `.github/workflows/push.yml`     |                                        |
-| `keepSorted` |                     | ✅            |                                         |                                  |                                        |
-| `treefmt`    | treefmt             | runs all ✅   | `nix fmt`, checked in `nix flake check` |                                  | VS Code: treefmt extension             |
-| `git`        | git                 |               |                                         | `.gitignore`                     |                                        |
-| `direnv`     |                     |               |                                         | `.envrc`, ignores `.direnv/`     | VS Code: Nix environment selector      |
-| `vscode`     |                     |               |                                         | `.vscode/` (generated from Nix)  | writes the Editor column for VS Code   |
-| `neovim`     |                     |               |                                         | `.nvim.lua` (generated from Nix) | writes language servers for Neovim     |
-| `flakehub`   | `fh`                |               |                                         |                                  |                                        |
+| Plugin       | Dev shell            | Format / lint | Tasks / CI                              | Files                            | Editor                                  |
+| ------------ | -------------------- | ------------- | --------------------------------------- | -------------------------------- | --------------------------------------- |
+| `nix`        | nixd, flake-checker  | ✅            | `check`, `update`, `flake-checker`      | ignores `result`                 | nixd language server; VS Code: Nix IDE  |
+| `markdown`   | marksman             | ✅            |                                         |                                  | marksman language server                |
+| `json`       | JSON language server | ✅            |                                         |                                  | JSON language server                    |
+| `yaml`       | yaml-language-server | ✅            |                                         |                                  | YAML language server; VS Code: YAML     |
+| `toml`       |                      | ✅            |                                         |                                  |                                         |
+| `shell`      | bash-language-server | ✅            |                                         |                                  | bash language server; VS Code: Bash IDE |
+| `github`     |                      | ✅ workflows  | reusable CI                             | `.github/workflows/push.yml`     |                                         |
+| `keepSorted` |                      | ✅            |                                         |                                  |                                         |
+| `treefmt`    | treefmt              | runs all ✅   | `nix fmt`, checked in `nix flake check` |                                  | VS Code: treefmt extension              |
+| `git`        | git                  |               |                                         | `.gitignore`                     |                                         |
+| `direnv`     |                      |               |                                         | `.envrc`, ignores `.direnv/`     | VS Code: Nix environment selector       |
+| `vscode`     |                      |               |                                         | `.vscode/` (generated from Nix)  | writes the Editor column for VS Code    |
+| `neovim`     |                      |               |                                         | `.nvim.lua` (generated from Nix) | writes language servers for Neovim      |
+| `flakehub`   | `fh`                 |               |                                         |                                  |                                         |
 
 ✅ means the plugin's files are formatted/linted by `nix fmt` and checked by
 `nix flake check` (via treefmt). The exact tools are in the plugin's source.

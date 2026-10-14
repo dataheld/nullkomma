@@ -339,6 +339,16 @@
                     ''}
                     touch $out
                   '';
+              # Every language server an editor is told to start is in the dev shell.
+              language-servers =
+                pkgs.runCommandLocal "nullkomma-language-servers"
+                  { nativeBuildInputs = (perSystem fixtures.md).nullkomma.devshell.packages; }
+                  ''
+                    ${lib.concatMapStrings (s: ''
+                      command -v ${lib.escapeShellArg (lib.head s.command)}
+                    '') (lib.attrValues fixtures.md.debug.config.nullkomma.editor.languageServers)}
+                    touch $out
+                  '';
               file-updates =
                 pkgs.runCommandLocal "nullkomma-file-updates"
                   {
