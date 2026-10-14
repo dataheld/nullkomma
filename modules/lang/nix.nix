@@ -34,6 +34,7 @@
             treefmt.programs = {
               nixfmt.enable = lib.mkDefault true;
               deadnix.enable = lib.mkDefault true;
+              nixf-diagnose.enable = lib.mkDefault true;
             };
             nullkomma.tasks = {
               check = {

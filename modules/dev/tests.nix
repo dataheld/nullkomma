@@ -219,6 +219,7 @@
               expected = {
                 formatters = [
                   "deadnix"
+                  "nixf-diagnose"
                   "nixfmt"
                 ];
                 settings = { };

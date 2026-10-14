@@ -107,6 +107,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 | `shell`      | bash-language-server | ✅            |                                         |                                  | bash language server; VS Code: Bash IDE |
 | `github`     |                      | ✅ workflows  | reusable CI                             | `.github/workflows/push.yml`     |                                         |
 | `keepSorted` |                      | ✅            |                                         |                                  |                                         |
+| `typos`      |                      | ✅ spelling   |                                         |                                  |                                         |
 | `treefmt`    | treefmt              | runs all ✅   | `nix fmt`, checked in `nix flake check` |                                  | VS Code: treefmt extension              |
 | `git`        | git                  |               |                                         | `.gitignore`                     |                                         |
 | `direnv`     |                      |               |                                         | `.envrc`, ignores `.direnv/`     | VS Code: Nix environment selector       |

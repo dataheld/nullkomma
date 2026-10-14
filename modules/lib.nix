@@ -15,6 +15,7 @@
       "shell"
       "toml"
       "treefmt"
+      "typos"
       "vscode"
       "yaml"
     ];
