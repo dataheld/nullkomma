@@ -46,8 +46,8 @@ Keep the matrix curated; do not add a metadata registry or documentation generat
   An extension point without a supplied implementation is not an active build.
 - Distinguish formatter/linter configuration, editor integration and an installed
   language-server executable. An extension recommendation does not install it.
-- Distinguish files copied by templates, files initialized if missing, user-owned
-  project configuration and artifacts generated during a build.
+- Distinguish template starters, baseline-updated shared files (`write-files`),
+  ignored Nix-owned derivatives (`generate-files`) and build artifacts.
 - Personal editor/user environment policy belongs outside nullkomma.
 - Check conditional behavior and explicit cross-plugin integration; option
   merging is not proof that every combination works.

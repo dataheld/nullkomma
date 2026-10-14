@@ -54,8 +54,14 @@
                 command = ''exec flake-checker "$@"'';
               };
               update = {
-                description = "Update flake.lock (prefer the scheduled maintenance workflow)";
-                command = ''exec nix flake update "$@"'';
+                description = "Update flake.lock, then refresh shared and generated files using the updated flake";
+                command = ''
+                  nix flake update "$@"
+                  status=0
+                  nix run .#write-files || status=1
+                  nix run .#generate-files || status=1
+                  exit "$status"
+                '';
               };
             };
           };

@@ -55,6 +55,7 @@ When making changes, adhere to [aoshima's charter](https://github.com/dataheld/a
    ```sh
    git add flake.nix .envrc
    nix run .#write-files
+   nix run .#generate-files
    ```
 
 1. (one-time only) Inside the repo, run `direnv allow`.
@@ -133,9 +134,9 @@ options. Importing a definition alone does not enable it.
 
 This describes defaults, not every possible consumer override:
 
-- The template supplies `.envrc`; `write-files` can initialize it and the other
-  selected files if missing. Opting out does not delete files already copied by
-  a template or initialized earlier. Existing files remain user-owned (see [Boilerplate Files](#boilerplate-files)).
+- The template supplies `.envrc`; `write-files` handles shared files and
+  `generate-files` handles local derivatives. Opting out does not delete
+  existing files (see [Boilerplate Files](#boilerplate-files)).
 - Extensions are recommended, not installed (see [Editor ownership](#editor-ownership)).
 - CI runs checks and builds exposed packages/devshells. FlakeHub publishing is
   opt-in via `nullkomma.github.ci.inputs.visibility`.
@@ -219,35 +220,55 @@ There are however some exceptions to this design goal:
    we avoid doing that if the native project files are a well-established and superior API.
    (Because such project files for dependencies often allow floating references, a separate, language-specific `*.lock` file is then also added to the source.)
 
-Templates bootstrap the project; `nix run .#write-files` is the authoritative
-configuration-aware initializer for plugin-contributed files. It stays a separate
-command, including when using a template preset.
+There are two independent questions: **how a file is created** and **where its
+source of truth lives**.
 
-Future language/project templates can preselect plugins and sensible options in
-`flake.nix`, so getting started does not require configuring each integration by
-hand. They should reuse the same plugin definitions and file initializer, not
-maintain their own copies of CI workflows, editor settings or other
-configuration-derived files. The current template also ships `.envrc` for early
-shell activation; its content is tested against the initializer's version.
+| Creation                    | Shared, project-owned (commit it)                                           | Local, Nix-owned (Git-ignored)                      |
+| --------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------- |
+| `nix flake init --template` | Starter `flake.nix`, `.envrc`, future language starter files                | Not used by our template policy                     |
+| Evaluated Nix configuration | `nix run .#write-files`: workflows, `.gitignore`, other shared initializers | `nix run .#generate-files`: VS Code workspace files |
 
-After initialization, these files belong to you: edit them directly.
-Re-running `write-files` preserves existing files, and there is no drift check or automatic overwrite on upgrades.
-Commit the project files you want to share; nullkomma does not override your personal Git ignore rules.
+Templates cannot accept project parameters. Future R/Quarto presets can select
+plugins and options in their starter flakes, but must reuse these file commands
+rather than duplicate configuration-derived content. Both commands stay separate
+from template initialization.
 
-Files can instead be local-only: set
-`perSystem.nullkomma.files."<path>".gitignore = true` to add a root-relative
-ignore pattern to the initial `.gitignore` when the Git plugin is enabled.
-VS Code's settings and extension recommendations default to this policy;
-override their `gitignore` flags to `false` if you want to share them.
-GitHub workflows, `.gitignore` and other files default to not being ignored.
+**Shared files** (`perSystem.nullkomma.files."<path>".mode = "shared"`, the
+default) become project-owned. Edit them and commit them. `write-files` remembers
+the last upstream initializer as a baseline in local Git metadata. It updates a
+file automatically only if it still matches that baseline (or already matches
+the new initializer). When upstream changes and the project file differs, it
+preserves the project file, saves an incoming candidate and exits unsuccessfully
+with instructions for the [resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
+Unrelated project edits are not conflicts when upstream is unchanged.
+An existing, different file without a baseline also requires review; a new clone
+does not have the previous clone's local baseline. After reviewing/resolving a
+file, `write-files --accept-shared <path>` acknowledges the new initializer
+without overwriting the project content (pass these arguments after `--` to `nix run`).
 
-Ignored files still follow initialize-once ownership: edits are preserved, but
-configuration changes do not refresh an existing copy. Delete a local copy
-deliberately and rerun `write-files` to recreate it. Nix builds must consume the
-store-backed configuration directly, never depend on an ignored workspace file.
-Existing `.gitignore` files are not updated; add the patterns yourself when
-adopting this policy. Already tracked files remain tracked until you explicitly
-remove them from Git's index.
+**Generated files** (`mode = "generated"`) remain Nix-owned. Do not edit them:
+change the Nix options instead. `generate-files` writes an ownership warning
+using the file's declared `commentPrefix` (`//` for VS Code's JSONC), makes the
+local copy read-only, and adds
+root-relative patterns to `.git/info/exclude`, independently of the Git plugin.
+It prompts before replacing different existing content; `--yes` explicitly
+authorizes unattended replacement. Noninteractive runs without consent fail
+rather than silently skip stale files. Tracked files and symlink targets are
+rejected; migration requires deliberately moving useful edits into Nix and
+untracking the file. Strict formats without comment support must not use this
+mode until an appropriate warning representation is designed.
+
+VS Code files default to generated mode; workflows and `.gitignore` default to
+shared mode. Git ignore status alone never grants overwrite permission.
+Builds must consume store-backed sources, not ignored workspace copies.
+Disabled/removed files are not deleted automatically.
+
+`nix run .#update` updates the lock file, then re-evaluates both file commands
+against the updated flake, reporting conflicts and requesting replacement
+consent. After a direct `nix flake update`, a bot update or pulling a changed lock
+file, run `write-files` and `generate-files` yourself: Nix provides no universal
+post-update hook. Baselines and local excludes are not committed; review shared
+file changes normally.
 
 ### Editor ownership
 

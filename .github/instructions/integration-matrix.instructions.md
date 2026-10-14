@@ -16,5 +16,7 @@ producers without unrelated plugins, plus real tool success/failure separately.
 Do not add speculative deployment/caching APIs or a universal artifact registry.
 
 Template variants are starting presets, not separate file-generation engines:
-select plugins/options in their flakes and retain `nix run .#write-files` as the
-configuration-aware initializer. Avoid duplicating configuration-derived files.
+select plugins/options in their flakes and retain `write-files` (shared files)
+and `generate-files` (ignored Nix-owned derivatives). Avoid duplicating
+configuration-derived files. Use the resolve-file-conflicts skill for upgrade
+conflicts; never force-replace edited shared files.
