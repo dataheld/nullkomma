@@ -5,6 +5,10 @@
     { inputs, lib, ... }:
     let
       nullkomma = inputs.self;
+      plugins = removeAttrs nullkomma.flakeModules [
+        "default"
+        "framework"
+      ];
       callFlakeWith =
         module: src:
         let
@@ -62,7 +66,7 @@
           };
         };
       } ../../tests/fixtures/md;
-      disabled = lib.genAttrs (lib.attrNames nullkomma.plugins) (
+      disabled = lib.genAttrs (lib.attrNames plugins) (
         name:
         callFlakeWith {
           nullkomma.${name}.enable = false;
@@ -70,7 +74,7 @@
       );
       minimal = callFlakeWith {
         nullkomma =
-          lib.genAttrs (lib.attrNames nullkomma.plugins) (_: {
+          lib.genAttrs (lib.attrNames plugins) (_: {
             enable = false;
           })
           // {
@@ -85,17 +89,17 @@
           }
           {
             imports = [
-              nullkomma.framework
+              nullkomma.flakeModules.framework
               module
             ];
             debug = true;
           };
       rawFramework = raw { };
       rawUnselected = raw {
-        imports = lib.attrValues nullkomma.plugins;
+        imports = lib.attrValues plugins;
       };
       rawNix = raw {
-        imports = [ nullkomma.plugins.nix ];
+        imports = [ plugins.nix ];
         nullkomma.nix.enable = true;
       };
       fileVersions = lib.genAttrs [ "old" "new" ] (
@@ -114,8 +118,25 @@
       );
       agentPluginManifest = builtins.fromJSON (builtins.readFile ../../plugin.json);
       templates = lib.mapAttrs (_: t: callFlake t.path) nullkomma.templates;
+      # Every way to import nullkomma at once; keys make the module system import each once.
+      overlapping = callFlakeWith {
+        imports = [
+          nullkomma.flakeModules.framework
+          nullkomma.flakeModules.nix
+          nullkomma.modules.flake.nix
+          nullkomma.modules.flake.default
+        ];
+      } ../../tests/fixtures/md;
     in
     {
+      imports = [ inputs.nix-unit.modules.flake.default ];
+      flake.schemas.tests = {
+        version = 1;
+        doc = "[nix-unit](https://github.com/nix-community/nix-unit) tests, run by `checks.<system>.nix-unit`.";
+        inventory = output: {
+          children = builtins.mapAttrs (_: _: { what = "nix-unit test suite"; }) output;
+        };
+      };
       perSystem =
         { pkgs, system, ... }:
         let
@@ -194,9 +215,7 @@
               };
             };
             testEveryPluginCanBeDisabled = {
-              expr = lib.filter (name: summary disabled.${name} == summary fixtures.md) (
-                lib.attrNames nullkomma.plugins
-              );
+              expr = lib.filter (name: summary disabled.${name} == summary fixtures.md) (lib.attrNames plugins);
               expected = [ ];
             };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
@@ -228,6 +247,22 @@
                 "/sub/b.nix"
               ];
             };
+            testImportingModulesTwiceIsHarmless =
+              let
+                # Import order may change list order, not contents.
+                normalize =
+                  v:
+                  if lib.isList v then
+                    lib.sort lib.lessThan v
+                  else if lib.isAttrs v then
+                    lib.mapAttrs (_: normalize) v
+                  else
+                    v;
+              in
+              {
+                expr = normalize (summary overlapping);
+                expected = normalize (summary fixtures.md);
+              };
             testPluginWorksWithoutOthers = {
               expr = {
                 inherit (summary rawNix) formatters;
@@ -261,7 +296,6 @@
             };
             # keep-sorted end
           };
-          failures = lib.debug.runTests tests;
           fixtureChecks = lib.concatMapAttrs (
             name: flake:
             lib.mapAttrs' (check: lib.nameValuePair "fixture-${name}-${check}") (
@@ -292,6 +326,21 @@
           };
         in
         {
+          # Sandboxed: nix-unit re-evaluates this flake, fetching dev inputs (../../dev).
+          nix-unit = {
+            package = pkgs.nix-unit;
+            inputs = {
+              inherit (inputs)
+                flake-parts
+                flake-schemas
+                nixpkgs
+                treefmt-nix
+                up
+                ;
+            };
+            allowNetwork = true;
+            inherit tests;
+          };
           nullkomma.tasks.check-fixtures = {
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
             packages = [
@@ -463,17 +512,49 @@
                     cmp calls expected
                     touch $out
                   '';
-              unit = pkgs.runCommandLocal "nullkomma-unit-tests" { } (
-                if failures == [ ] then
-                  "touch $out"
-                else
-                  ''
-                    cat >&2 <<'EOF'
-                    ${lib.generators.toPretty { } failures}
-                    EOF
-                    exit 1
-                  ''
-              );
+              # Renders nullkomma's options the way https://flake.parts does for listed modules:
+              # without `pkgs`, `systems` or `self`, so computed defaults need a `defaultText`.
+              options-doc =
+                let
+                  unavailable =
+                    what: throw "${what} is not available when rendering option docs; add a `defaultText`.";
+                  docs =
+                    inputs.flake-parts.lib.evalFlakeModule
+                      {
+                        inputs = {
+                          inherit (inputs) nixpkgs;
+                          self.outPath = unavailable "`self.outPath`";
+                        };
+                      }
+                      {
+                        imports = [
+                          nullkomma.flakeModules.default
+                          (
+                            { flake-parts-lib, ... }:
+                            {
+                              options.perSystem = flake-parts-lib.mkPerSystemOption {
+                                _module.args.pkgs = lib.mapAttrs (name: _: unavailable "`pkgs.${name}`") pkgs // {
+                                  _type = "pkgs";
+                                  inherit lib;
+                                  inherit (pkgs) formats;
+                                };
+                              };
+                            }
+                          )
+                        ];
+                        systems = [ (unavailable "`systems`") ];
+                      };
+                in
+                (pkgs.nixosOptionsDoc {
+                  inherit (docs) options;
+                  transformOptions =
+                    opt:
+                    opt
+                    // {
+                      visible = opt.visible && lib.any (lib.hasPrefix (toString ../..)) opt.declarations;
+                    };
+                  warningsAreErrors = true;
+                }).optionsCommonMark;
             };
         };
     };

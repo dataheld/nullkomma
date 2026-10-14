@@ -1,5 +1,5 @@
 {
-  flake.plugins.markdown =
+  plugins.markdown =
     { config, lib, ... }:
     {
       config = lib.mkIf config.nullkomma.markdown.enable {

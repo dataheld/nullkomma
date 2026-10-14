@@ -1,5 +1,5 @@
 {
-  flake.plugins.yaml =
+  plugins.yaml =
     { config, lib, ... }:
     {
       config = lib.mkIf config.nullkomma.yaml.enable {

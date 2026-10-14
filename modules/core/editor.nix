@@ -1,7 +1,7 @@
 # Editor data lives in Nix: language servers are editor-neutral, and editor
 # plugins (`vscode`, `neovim`) write them out as generated files.
 {
-  flake.framework =
+  framework =
     { lib, ... }:
     {
       options.nullkomma.editor.languageServers = lib.mkOption {
@@ -45,7 +45,7 @@
         };
       };
     };
-  flake.plugins.vscode =
+  plugins.vscode =
     { config, lib, ... }:
     {
       config.perSystem =
@@ -71,7 +71,7 @@
           };
         };
     };
-  flake.plugins.neovim =
+  plugins.neovim =
     { config, lib, ... }:
     {
       config.perSystem.nullkomma.files.".nvim.lua" = lib.mkIf config.nullkomma.neovim.enable {

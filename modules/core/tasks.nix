@@ -2,17 +2,23 @@
 # the `tasks` runner (DeterminateSystems/up) lists them and runs them without arguments.
 { inputs, ... }:
 {
-  flake.framework =
+  framework =
     { flake-parts-lib, lib, ... }:
     {
+      imports = [
+        (inputs.flake-parts.lib.mkTransposedPerSystemModule {
+          name = "taskRunners";
+          option = lib.mkOption {
+            type = lib.types.lazyAttrsOf lib.types.package;
+            default = { };
+            description = "[up](https://github.com/DeterminateSystems/up) task runners, exported as `taskRunners.<system>`.";
+          };
+          file = ./tasks.nix;
+        })
+      ];
       options.perSystem = flake-parts-lib.mkPerSystemOption (
         { pkgs, ... }:
         {
-          options.taskRunners = lib.mkOption {
-            type = lib.types.lazyAttrsOf lib.types.package;
-            default = { };
-            description = "up task runners, exported as `taskRunners.<system>`.";
-          };
           options.nullkomma.tasks = lib.mkOption {
             type = lib.types.attrsOf (
               lib.types.submodule (
@@ -55,7 +61,6 @@
           };
         }
       );
-      config.transposition.taskRunners = { };
       config.perSystem =
         { config, pkgs, ... }:
         let

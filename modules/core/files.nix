@@ -1,7 +1,7 @@
 # Files are either a source of truth (written once, then edited and committed)
 # or generated from Nix (overwritten on every run and Git-ignored).
 {
-  flake.framework =
+  framework =
     { flake-parts-lib, lib, ... }:
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption (
