@@ -41,6 +41,10 @@ When making changes, adhere to [aoshima's charter](https://github.com/dataheld/a
 
 1. For automatic flake-shell activation, provide [direnv](https://direnv.net) and [nix-direnv](https://github.com/nix-community/nix-direnv) in your user environment (managed via [lap](https://github.com/dataheld/lap) or installed manually).
 
+   > [!TIP]
+   > `nix-`/`direnv` can be a bit chatty on launch.
+   > Set [`hide_env_diff=true`](https://direnv.net/man/direnv.toml.1.html) to quiet it down.
+
 1. In your project, add a `flake.nix` from the `default` template:
 
    ```sh
@@ -82,20 +86,15 @@ tasks check    # run one task
 tasks all      # run all tasks not marked `skip` (mutating tasks are skipped)
 ```
 
-Tasks are dev-time only: they are not flake `apps`, but `nix flake show` lists
-them under up's `taskRunners` output. A task is declared in
-`perSystem.nullkomma.tasks.<name>` with `description`, `command` and `packages`;
-other [up task attributes](https://github.com/DeterminateSystems/up#task-attributes)
-(`skip`, `raw`, `confirm`, …) pass through to the runner.
-
-Then, as usual: `nix develop`, `nix fmt`, `nix flake check`, `nix flake show`.
-
 ### Plugins and integrations
 
 A **plugin** is a project/language/tool bundle exported as a flake-parts module
-in `plugins`. A plugin can contribute to several **integrations**: the
-columns below. These are shared configuration interfaces, not separate imports
-or feature switches.
+in `plugins`.
+Plugins are the rows in the table below.
+
+A plugin can contribute to several **integrations**.
+Integrations are the columns in the table below,
+and constitute shared configuration interfaces.
 
 All plugins are optional. `nullkomma.lib.mkFlake` imports their definitions and
 enables the usual defaults using `mkDefault`; callers only need to specify
@@ -108,12 +107,6 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-Disabling GitHub removes its workflow initialization **and** actionlint default.
-Disabling Markdown removes its mdformat default. Explicit treefmt overrides
-remain available if you want a tool without its plugin.
-`lib.defaultPlugins` lists the defaults; newly exported plugins are not
-automatically added to that policy. Plugins are Nix modules, not runtime plugins
-or automatically discovered project types.
 
 | Plugin (`plugins.<name>`) | Development environment | Formatting / linting    | Builds / checks  | Tasks / CI                         | Project files                        | Editor / LSP                                     |
 | ------------------------- | ----------------------- | ----------------------- | ---------------- | ---------------------------------- | ------------------------------------ | ------------------------------------------------ |
@@ -131,77 +124,7 @@ or automatically discovered project types.
 | `editor`                  | None                    | None                    | None             | None                               | Local VS Code files, ignore patterns | Publishes contributions from enabled plugins     |
 | `flakehub`                | FlakeHub CLI (`fh`)     | None                    | None             | None                               | None                                 | None                                             |
 
-Each cell describes that plugin's contributions, not everything inherited from
-other enabled plugins. All listed plugins are currently enabled by default.
-Editor contributions require `nullkomma.editor.enable`; formatter tools reach
-the shell and checks through the treefmt plugin.
-
-The separate `framework` module supplies shared options and output construction,
-not tool choices. `lib.mkFlake` also enables the project devshell by default;
-disable its output with `nullkomma.devshell.enable = false`.
-For explicit assembly without default selection, use flake-parts directly,
-import `nullkomma.framework` and the desired plugin definitions, and enable their
-options. Importing a definition alone does not enable it.
-
-This describes defaults, not every possible consumer override:
-
-- The template supplies `.envrc`; `write-files` handles shared files and
-  `generate-files` handles local derivatives. Opting out does not delete
-  existing files (see [Boilerplate Files](#boilerplate-files)).
-- Extensions are recommended, not installed (see [Editor ownership](#editor-ownership)).
-- CI runs checks and builds exposed packages/devshells. FlakeHub publishing is
-  opt-in via `nullkomma.github.ci.inputs.visibility`.
-- The generic `nullkomma.site` interface does not render a site by itself:
-  `packages.site` exists only when a module supplies a site.
-
-The columns map directly to the implementation:
-
-- **Development environment:** [`perSystem.nullkomma.devshell`](modules/core/devshell.nix) contributes to `devShells.<system>.default`.
-- **Formatting / linting:** [`perSystem.treefmt`](modules/core/treefmt.nix) supplies `formatter.<system>` and `checks.<system>.treefmt`.
-- **Builds / checks:** flake-parts' `perSystem.packages` and `perSystem.checks`; [`perSystem.nullkomma.site`](modules/core/site.nix) can supply `packages.<system>.site`.
-- **Tasks / CI:** [`perSystem.nullkomma.tasks`](modules/core/tasks.nix) supplies devshell commands, the `tasks` runner and `taskRunners.<system>`; [`nullkomma.github`](modules/tools/github.nix) configures the [reusable CI](.github/workflows/ci.yml).
-- **Project files:** [`perSystem.nullkomma.files`](modules/core/files.nix), [`nullkomma.gitignore`](modules/core/gitignore.nix) and [template contents](templates/default).
-- **Editor / LSP:** [`nullkomma.editor.vscode`](modules/core/editor.nix) supplies project settings, extension recommendations and `editor.vscode`; the devshell supplies server executables.
-
-Modules compose these contributions through Nix option merging; no separate
-matrix framework is involved. Explicit integrations and tests are still needed
-where project types interact. nullkomma's internal development tests are not
-consumer integrations.
-
-### Neutral interfaces between plugins
-
-Plugins connect through **shared contracts, not each other's implementation**.
-The framework owns these contracts; producers supply values and consumers use
-them without inspecting which plugin supplied them. Keep interfaces neutral with
-respect to language, build tool, CI provider and deployment destination.
-
-For example, `perSystem.nullkomma.site` is a static-site derivation whose output
-root contains `index.html`, exported as `packages.<system>.site`. A future Quarto
-plugin can supply it; a future Cloudflare deployment plugin can consume it.
-Neither should require the other: another site producer or deployment destination
-must be substitutable when it satisfies the same contract. CI can invoke the
-deployment task (a `nullkomma.tasks` command) rather than reimplement deployment.
-These are architectural examples, not currently implemented plugins.
-
-The same rule applies beyond sites: executable deployment should consume a
-documented executable artifact, and caching should consume explicit store paths
-or standard flake outputs, not a list of recognized language plugins.
-Prefer existing Nix interfaces (`packages`, `checks`, `apps`) before adding a
-nullkomma-specific option. Add a new shared interface only for a concrete need,
-with documented output shape, selection/cardinality, absent-value behavior and
-validation responsibilities. Do not invent a universal artifact registry.
-
-Consumers must fail clearly when a required artifact is missing or invalid;
-absence must not produce a successful no-op. Producers verify their actual
-outputs, and consumers verify any additional requirements they impose.
-Test substitution through the shared interface and real tool behavior separately:
-module merging or a synthetic artifact alone does not prove deployment works.
-Keep genuinely tool-specific combinations explicit, but do not create a
-producer-by-provider implementation for behavior that can use a neutral contract.
-
-Planned: long-running development processes (e.g. a Quarto `preview`) will use
-the same pattern, through a neutral `nullkomma.processes` option that a `dev`
-command runs as an [up process tree](https://github.com/DeterminateSystems/up).
+All listed plugins are currently enabled by default..
 
 ### Knobs
 
@@ -235,34 +158,32 @@ There are however some exceptions to this design goal:
    we avoid doing that if the native project files are a well-established and superior API.
    (Because such project files for dependencies often allow floating references, a separate, language-specific `*.lock` file is then also added to the source.)
 
-There are two independent questions: **how a file is created** and **where its
-source of truth lives**.
+There are two independent questions:
+**how a file is created** and **where its source of truth lives**.
 
 | Creation                    | Shared, project-owned (commit it)                                 | Local, Nix-owned (Git-ignored)            |
 | --------------------------- | ----------------------------------------------------------------- | ----------------------------------------- |
-| `nix flake init --template` | Starter `flake.nix`, `.envrc`, future language starter files      | Not used by our template policy           |
+| `nix flake init --template` | Starter `flake.nix`, `.envrc`, future language starter files      |           |
 | Evaluated Nix configuration | `write-files`: workflows, `.gitignore`, other shared initializers | `generate-files`: VS Code workspace files |
 
-Templates cannot accept project parameters. Future R/Quarto presets can select
-plugins and options in their starter flakes, but must reuse these file commands
-rather than duplicate configuration-derived content. Both commands stay separate
-from template initialization.
-
 **Shared files** (`perSystem.nullkomma.files."<path>".mode = "shared"`, the
-default) become project-owned. Edit them and commit them. `write-files` remembers
-the last upstream initializer as a baseline in local Git metadata. It updates a
-file automatically only if it still matches that baseline (or already matches
-the new initializer). When upstream changes and the project file differs, it
-preserves the project file, saves an incoming candidate and exits unsuccessfully
+default) become project-owned.
+Edit them and commit them.
+`write-files` remembers the last upstream initializer as a baseline in local Git metadata.
+It updates a file automatically only if it still matches that baseline (or already matches
+the new initializer).
+When upstream changes and the project file differs,
+it preserves the project file, saves an incoming candidate and exits unsuccessfully
 with instructions for the [resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
+
 Unrelated project edits are not conflicts when upstream is unchanged.
 An existing, different file without a baseline also requires review; a new clone
-does not have the previous clone's local baseline. After reviewing/resolving a
-file, `write-files --accept-shared <path>` acknowledges the new initializer
-without overwriting the project content
+does not have the previous clone's local baseline.
 
-**Generated files** (`mode = "generated"`) remain Nix-owned. Do not edit them:
-change the Nix options instead. `generate-files` writes an ownership warning
+**Generated files** (`mode = "generated"`) remain Nix-owned.
+Do not edit them:
+change the Nix options instead.
+`generate-files` writes an ownership warning
 using the file's declared `commentPrefix` (`//` for VS Code's JSONC), makes the
 local copy read-only, and adds
 root-relative patterns to `.git/info/exclude`, independently of the Git plugin.
@@ -293,7 +214,44 @@ workspace paths, and recommendations for extensions needed by the imported plugi
 themes, keybindings, and personal preferences. `extensions.json` recommends extensions;
 it does not install them.
 
-## Testing nullkomma
+### Development Shell
+
+To bring the shell you are working in up to date with the _source_
+(`flake.nix`, etc.)
+of your repository:
+
+```sh
+direnv reload
+```
+
+Or if you have `nix-direnv` installed,:
+
+```sh
+nix-direnv-reload
+```
+
+## Design
+
+### Neutral interfaces between plugins
+
+Plugins connect through **shared contracts, not each other's implementation**.
+
+The framework owns these contracts; producers supply values and consumers use
+them without inspecting which plugin supplied them.
+Keep interfaces neutral with
+respect to language, build tool, CI provider and deployment destination.
+
+For example, `perSystem.nullkomma.site` is a static-site derivation whose output
+root contains `index.html`, exported as `packages.<system>.site`.
+A future Quarto
+plugin can supply it; a future Cloudflare deployment plugin can consume it.
+Neither should require the other: another site producer or deployment destination
+must be substitutable when it satisfies the same contract.
+These are architectural examples, not currently implemented plugins.
+
+## Development
+
+### Testing nullkomma
 
 Tests of nullkomma itself live in the development partition; consumers do not
 inherit them. Use three complementary layers:
@@ -347,24 +305,3 @@ There are two separate aspects to updating the nix dependencies.
    The [DeterminateSystems/flake-checker](https://github.com/DeterminateSystems/flake-checker) will fail if this is the case.
    It runs on every push as well as periodically.
    You can also run this locally using `flake-checker`.
-
-### Development Shell
-
-To bring the shell you are working in up to date with the _source_
-(`flake.nix`, etc.)
-of your repository:
-
-```sh
-direnv reload
-```
-
-Or if you have `nix-direnv` installed,:
-
-```sh
-nix-direnv-reload
-```
-
-## Issues
-
-`nix-`/`direnv` can be a bit chatty on launch.
-Set [`hide_env_diff=true`](https://direnv.net/man/direnv.toml.1.html) to quiet it down.
