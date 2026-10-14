@@ -16,7 +16,7 @@
       options.nullkomma.shell.bats.testDir = lib.mkOption {
         type = lib.types.str;
         default = "test";
-        description = "Directory with the [bats](https://bats-core.readthedocs.io) tests, relative to the project root. If it exists, they run in the `test` task and `nix flake check`.";
+        description = "Directory with the [bats](https://bats-core.readthedocs.io) tests, relative to the project root. If it exists, they become the `bats` test.";
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption {
         options.nullkomma.shell.bats = {
@@ -24,7 +24,7 @@
             type = lib.types.listOf lib.types.package;
             default = [ ];
             example = lib.literalExpression "[ pkgs.jq pkgs.curl ]";
-            description = "Packages on `PATH` while the bats tests run, in the `test` task and the check.";
+            description = "Packages on `PATH` while the bats tests run.";
           };
           libraries = lib.mkOption {
             type = lib.types.listOf lib.types.package;
@@ -70,28 +70,10 @@
               });
             }
             (lib.mkIf hasTests {
-              nullkomma.tasks.test = {
-                description = "Run the bats tests (arguments go to bats)";
-                packages = [
-                  bats
-                  pkgs.git
-                ]
-                ++ cfg.packages;
-                command = ''
-                  root="$(git rev-parse --show-toplevel)"
-                  exec bats "$@" "$root"/${lib.escapeShellArg testDir}
-                '';
+              nullkomma.tests.bats = {
+                packages = [ bats ] ++ cfg.packages;
+                command = ''bats "$@" ${lib.escapeShellArg testDir}'';
               };
-              # Sandboxed, against the flake's source, with shebangs patched.
-              checks.bats = pkgs.runCommand "bats" { nativeBuildInputs = [ bats ] ++ cfg.packages; } ''
-                cp -r ${self} src
-                chmod -R u+w src
-                patchShebangs --build src >/dev/null
-                export HOME="$PWD/home" XDG_CACHE_HOME="$PWD/cache" XDG_CONFIG_HOME="$PWD/config"
-                mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
-                bats --formatter tap src/${lib.escapeShellArg testDir}
-                touch $out
-              '';
             })
           ];
       };

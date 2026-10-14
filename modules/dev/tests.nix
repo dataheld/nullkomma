@@ -102,6 +102,7 @@
       rawUnselected = raw {
         imports = lib.attrValues plugins;
       };
+      rawTest = raw { perSystem.nullkomma.tests.custom.command = "true"; };
       rawNix = raw {
         imports = [ plugins.nix ];
         nullkomma.nix.enable = true;
@@ -298,6 +299,19 @@
               expr = builtins.readFile (nullkomma.templates.default.path + "/.envrc");
               expected = (perSystem templates.default).nullkomma.files.".envrc".text;
             };
+            testTestsBecomeTaskAndCheck = {
+              expr = {
+                inherit (summary rawTest) tasks checks;
+              };
+              expected = {
+                tasks = [
+                  "generate-files"
+                  "test"
+                  "write-files"
+                ];
+                checks = [ "test-custom" ];
+              };
+            };
             # keep-sorted end
           };
           fixtureChecks = lib.concatMapAttrs (
@@ -401,7 +415,7 @@
             // {
               bats-rejects-failing-tests = pkgs.testers.testBuildFailure' {
                 name = "nullkomma-bats-rejects-failing-tests";
-                drv = batsFailing.checks.${system}.bats;
+                drv = batsFailing.checks.${system}.test-bats;
                 expectedBuilderExitCode = 1;
                 expectedBuilderLogEntries = [ "not ok 1 fails on purpose" ];
               };
