@@ -1,5 +1,5 @@
 {
-  flake.plugins.direnv =
+  plugins.direnv =
     { config, lib, ... }:
     {
       config = lib.mkIf config.nullkomma.direnv.enable {

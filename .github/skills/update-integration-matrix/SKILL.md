@@ -8,7 +8,7 @@ description: Keep README's Plugins table aligned with nullkomma's implementation
 Update `README.md`'s **Plugins** table from the implementation, not from
 proposals or assumptions about upstream tools.
 
-1. Find every `flake.plugins.<name>` definition for the affected plugins; one
+1. Find every `plugins.<name>` definition for the affected plugins; one
    plugin may span several files.
 1. Note what enabling the plugin adds. If the source is unclear, evaluate a
    fixture the way `modules/dev/tests.nix` does and compare it enabled vs disabled.

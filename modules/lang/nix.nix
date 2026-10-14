@@ -1,5 +1,5 @@
 {
-  flake.plugins.nix =
+  plugins.nix =
     { config, lib, ... }:
     let
       cfg = config.nullkomma;

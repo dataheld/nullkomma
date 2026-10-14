@@ -1,5 +1,20 @@
-{ inputs, lib, ... }:
 {
+  config,
+  inputs,
+  lib,
+  ...
+}:
+let
+  inherit (config.flake) flakeModules;
+in
+{
+  # The framework and every plugin, with the default plugins enabled.
+  flake.flakeModules.default = {
+    imports = map (name: flakeModules.${name}) ([ "framework" ] ++ lib.attrNames config.plugins);
+    nullkomma = lib.genAttrs (config.flake.lib.defaultPlugins ++ [ "devshell" ]) (_: {
+      enable = lib.mkDefault true;
+    });
+  };
   flake.lib = {
     importTree = import ../lib/import-tree.nix lib;
     defaultPlugins = [
@@ -19,18 +34,11 @@
       "vscode"
       "yaml"
     ];
-    # flake-parts module: the framework and every plugin, with the default plugins enabled.
-    defaults = {
-      imports = [ inputs.self.framework ] ++ lib.attrValues inputs.self.plugins;
-      nullkomma = lib.genAttrs (inputs.self.lib.defaultPlugins ++ [ "devshell" ]) (_: {
-        enable = lib.mkDefault true;
-      });
-    };
     mkFlake =
       args: module:
       inputs.flake-parts.lib.mkFlake args {
         imports = [
-          inputs.self.lib.defaults
+          flakeModules.default
           module
         ];
       };

@@ -86,8 +86,10 @@ tasks all      # run all tasks that don't change files
 
 ### Plugins
 
-Everything nullkomma adds comes from **plugins** (exported as flake-parts modules
-in `plugins`). All plugins are optional; `nullkomma.lib.mkFlake` enables the
+Everything nullkomma adds comes from **plugins**, exported as flake-parts modules
+`flakeModules.<plugin>` next to the shared `flakeModules.framework`.
+All plugins are optional; `nullkomma.lib.mkFlake` (or importing
+`flakeModules.default` into your own `flake-parts.lib.mkFlake`) enables the
 ones below by default, so you only list exceptions:
 
 ```nix
@@ -197,6 +199,11 @@ without changing `nix`.
 
 ## Development
 
+Before building something, check [flake.parts](https://flake.parts) for an
+existing module; see [AGENTS.md](AGENTS.md). Inputs only nullkomma's own
+development needs go in [`dev/flake.nix`](dev/flake.nix), so they stay out of
+projects' `flake.lock`.
+
 ### Testing nullkomma
 
 nullkomma is tested against small example projects ("fixtures") in
@@ -204,8 +211,11 @@ nullkomma is tested against small example projects ("fixtures") in
 All tests are in [`modules/dev/tests.nix`](modules/dev/tests.nix); projects using
 nullkomma don't inherit them.
 
-- **Unit tests** check the evaluated configuration of the fixtures, e.g. that
-  every plugin can be switched off and that all off leaves just the framework.
+- **Unit tests** ([nix-unit](https://github.com/nix-community/nix-unit)) check
+  the evaluated configuration of the fixtures, e.g. that every plugin can be
+  switched off and that all off leaves just the framework.
+- **Docs test:** `options-doc` renders every option the way
+  [flake.parts](https://flake.parts) would, so each needs a description.
 - **Build tests** run the real tools on the fixtures inside `nix flake check`:
   valid files must pass, and for every formatter/linter plugin a deliberately
   bad file (listed in `rejects`) must fail with that tool's error.
@@ -216,7 +226,7 @@ nullkomma don't inherit them.
   how a real project fetches and uses nullkomma. CI runs it on every push.
 
 ```sh
-nix flake check   # unit and build tests
+nix flake check   # unit, docs and build tests
 check-fixtures    # end-to-end test
 ```
 

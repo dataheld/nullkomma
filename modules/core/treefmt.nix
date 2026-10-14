@@ -1,15 +1,18 @@
 { inputs, ... }:
 {
-  flake.framework =
+  framework =
     { config, lib, ... }:
     {
+      # Imported by the framework so any plugin can set `treefmt.programs`. Only the
+      # `treefmt` plugin turns on `nix fmt` and the check; reading its option with
+      # `or false` avoids priority tricks and works when the plugin isn't imported.
       imports = [ inputs.treefmt-nix.flakeModule ];
       perSystem.treefmt = {
         flakeFormatter = lib.mkDefault (config.nullkomma.treefmt.enable or false);
         flakeCheck = lib.mkDefault (config.nullkomma.treefmt.enable or false);
       };
     };
-  flake.plugins.treefmt =
+  plugins.treefmt =
     { config, lib, ... }:
     {
       config = lib.mkIf config.nullkomma.treefmt.enable {

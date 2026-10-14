@@ -1,23 +1,32 @@
-# Several files can contribute to one importable plugin.
-{ lib, moduleLocation, ... }:
+# nullkomma's own building blocks, published as flake-parts modules
+# (https://flake.parts/options/flake-parts-flakeModules): `flakeModules.<plugin>`,
+# `flakeModules.framework` and `flakeModules.default`, also as `modules.flake.*`.
+# `framework` and `plugins` are internal to this flake; several files can contribute to one.
 {
-  options.flake.framework = lib.mkOption {
+  config,
+  inputs,
+  lib,
+  ...
+}:
+{
+  imports = [ inputs.flake-parts.flakeModules.flakeModules ];
+  options.framework = lib.mkOption {
     type = lib.types.deferredModule;
     default = { };
-    description = "Shared nullkomma option and output plumbing, without plugin selection.";
+    description = "Shared nullkomma option and output plumbing, without plugin selection; exported as `flakeModules.framework`.";
   };
-  options.flake.plugins = lib.mkOption {
+  options.plugins = lib.mkOption {
     type = lib.types.lazyAttrsOf lib.types.deferredModule;
     default = { };
     apply = lib.mapAttrs (
       name: module: {
-        _file = "${toString moduleLocation}#plugins.${name}";
-        key = "${toString moduleLocation}#plugins.${name}";
-        _class = "flake";
         imports = [ module ];
         options.nullkomma.${name}.enable = lib.mkEnableOption "the ${name} plugin";
       }
     );
-    description = "Optional project plugins, each switched by `nullkomma.<name>.enable`; nullkomma.lib.mkFlake selects overridable defaults.";
+    description = "Optional project plugins, each switched by `nullkomma.<name>.enable`; exported as `flakeModules.<name>`.";
+  };
+  config.flake.flakeModules = config.plugins // {
+    inherit (config) framework;
   };
 }

@@ -1,5 +1,5 @@
 {
-  flake.framework =
+  framework =
     { lib, ... }:
     {
       options.nullkomma.gitignore = lib.mkOption {
@@ -8,7 +8,7 @@
         description = "Lines of the initial `.gitignore`; plugins append here. Generated files are added automatically.";
       };
     };
-  flake.plugins.git =
+  plugins.git =
     { config, lib, ... }:
     let
       ignores = lib.unique config.nullkomma.gitignore;

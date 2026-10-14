@@ -1,5 +1,5 @@
 {
-  flake.plugins.flakehub =
+  plugins.flakehub =
     { config, lib, ... }:
     {
       config.perSystem =

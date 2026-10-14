@@ -1,5 +1,5 @@
 {
-  flake.framework =
+  framework =
     {
       config,
       flake-parts-lib,

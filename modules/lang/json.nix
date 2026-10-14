@@ -1,5 +1,5 @@
 {
-  flake.plugins.json =
+  plugins.json =
     { config, lib, ... }:
     {
       config = lib.mkIf config.nullkomma.json.enable {

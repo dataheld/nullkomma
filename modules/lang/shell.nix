@@ -1,5 +1,5 @@
 {
-  flake.plugins.shell =
+  plugins.shell =
     { config, lib, ... }:
     {
       config = lib.mkIf config.nullkomma.shell.enable {
