@@ -78,15 +78,46 @@ nix run
 
 Then, as usual: `nix develop`, `nix fmt`, `nix flake check`, `nix flake show`.
 
-### Aspects
+### Project types and capabilities
 
-Each aspect is a flake-parts module in `flakeModules`.
-Import only the ones a project needs.
-The `default` aspect is imported automatically by `nullkomma.lib.mkFlake`.
+An **aspect** is a project/language/tool bundle exported as a flake-parts module
+in `flakeModules`. A bundle can contribute to several **capabilities**: the
+columns below. These are shared configuration interfaces, not separate imports
+or feature switches.
 
-| Aspect    | Adds                                                                                                                                                                                                                                                                           |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `default` | devshell with the FlakeHub CLI (`fh`), [treefmt](https://github.com/numtide/treefmt-nix) (Nix, Markdown, YAML, JSON, TOML, shell, GitHub Actions), tasks (`check`, `update`, `flake-checker`, `write-files`), initial `.gitignore`, `.envrc`, CI workflow and VS Code settings |
+Every project gets the `default` baseline through `nullkomma.lib.mkFlake`.
+Additional project-type rows describe only what their imports add to that
+baseline. Currently only `default` is available; language-specific rows belong
+here once their modules are implemented.
+
+| Project type / import                            | Development environment                   | Formatting / linting                        | Builds / checks                              | Tasks / CI                                                            | Project files                                  | Editor / LSP                                                  |
+| ------------------------------------------------ | ----------------------------------------- | ------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
+| All projects: `flakeModules.default` (automatic) | `fh`, Git, `nixd`, treefmt, flake-checker | Nix + common repository formats via treefmt | Formatting check; no language-specific build | `check`, `update`, `flake-checker`, `write-files`; reusable GitHub CI | `.envrc`, `.gitignore`, CI stub, VS Code files | Nix LSP + treefmt settings; project extension recommendations |
+
+This describes defaults, not every possible consumer override:
+
+- Common repository formats are Markdown, YAML, JSON, TOML, shell and GitHub Actions.
+- The template supplies `.envrc`; `write-files` can initialize it and the other
+  listed files if missing. Existing files remain user-owned (see [Boilerplate Files](#boilerplate-files)).
+- Extensions are recommended, not installed (see [Editor ownership](#editor-ownership)).
+- CI runs checks and builds exposed packages/devshells. FlakeHub publishing is
+  opt-in via `nullkomma.github.ci.inputs.visibility`.
+- The generic `nullkomma.site` interface does not render a site by itself:
+  `packages.site` exists only when a module supplies a site.
+
+The columns map directly to the implementation:
+
+- **Development environment:** [`perSystem.nullkomma.devshell`](modules/core/devshell.nix) contributes to `devShells.<system>.default`.
+- **Formatting / linting:** [`perSystem.treefmt`](modules/core/treefmt.nix) supplies `formatter.<system>` and `checks.<system>.treefmt`.
+- **Builds / checks:** flake-parts' `perSystem.packages` and `perSystem.checks`; [`perSystem.nullkomma.site`](modules/core/site.nix) can supply `packages.<system>.site`.
+- **Tasks / CI:** [`perSystem.nullkomma.tasks`](modules/core/tasks.nix) supplies `apps.<system>`; [`nullkomma.github`](modules/core/github.nix) configures the [reusable CI](.github/workflows/ci.yml).
+- **Project files:** [`perSystem.nullkomma.files`](modules/core/files.nix), [`nullkomma.gitignore`](modules/core/gitignore.nix) and [template contents](templates/default).
+- **Editor / LSP:** [`nullkomma.editor.vscode`](modules/core/editor.nix) supplies project settings, extension recommendations and `editor.vscode`; the devshell supplies server executables.
+
+Modules compose these contributions through Nix option merging; no separate
+matrix framework is involved. Explicit integrations and tests are still needed
+where project types interact. nullkomma's internal development tests are not
+consumer capabilities.
 
 ### Knobs
 
@@ -114,11 +145,11 @@ Instead, such features are abstracted away in the above nix modules.
 There are however some exceptions to this design goal:
 
 1. Some tooling in the interactive development environment expects local files to work properly.
-  For example, `git` needs a local `.gitignore`, GitHub Actions needs a local `.github/workflows/push.yml` and editors might need local files for extensions and settings (see `.vscode/`).
+   For example, `git` needs a local `.gitignore`, GitHub Actions needs a local `.github/workflows/push.yml` and editors might need local files for extensions and settings (see `.vscode/`).
 1. Some languages have their own rich conventions of project files, to, for example, declare dependencies (R's `DESCRIPTION`, or python's `requirement.txt`).
-  While nullkomma could abstract these away in a module and write them out as an artifact,
-  we avoid doing that if the native project files are a well-established and superior API.
-  (Because such project files for dependencies often allow floating references, a separate, language-specific `*.lock` file is then also added to the source.)
+   While nullkomma could abstract these away in a module and write them out as an artifact,
+   we avoid doing that if the native project files are a well-established and superior API.
+   (Because such project files for dependencies often allow floating references, a separate, language-specific `*.lock` file is then also added to the source.)
 
 If these files are not parametrised, they will be come via `nix flake init --template` (see above).
 
