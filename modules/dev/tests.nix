@@ -411,6 +411,15 @@
               expr = builtins.readFile (nullkomma.templates.default.path + "/.envrc");
               expected = (perSystem templates.default).nullkomma.files.".envrc".text;
             };
+            testTasksAllSkipsMutatingTasks = {
+              expr = lib.attrNames (
+                lib.filterAttrs (_: t: !(t.skip or false)) (perSystem fixtures.md).nullkomma.tasks
+              );
+              expected = [
+                "check"
+                "flake-checker"
+              ];
+            };
             # keep-sorted end
           };
           failures = lib.debug.runTests tests;
