@@ -23,8 +23,8 @@ jobs:
       - name: Discover supported systems
         id: systems
         run: |
-          matrix=$(nix eval --json .#devShells --apply '
-            shells: {
+          matrix=$(nix eval --json .#checks --apply '
+            checks: {
               include = builtins.map (system: {
                 inherit system;
                 runner = builtins.getAttr system {
@@ -32,7 +32,7 @@ jobs:
                   aarch64-linux = "ubuntu-24.04-arm";
                   x86_64-linux = "ubuntu-latest";
                 };
-              }) (builtins.attrNames shells);
+              }) (builtins.attrNames checks);
             }')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
   build:

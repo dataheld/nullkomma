@@ -1,38 +1,34 @@
 { inputs, ... }:
 {
-  flake.plugins.base =
-    { lib, ... }:
+  flake.framework =
+    { config, lib, ... }:
     {
       imports = [ inputs.treefmt-nix.flakeModule ];
-      perSystem =
-        { config, ... }:
-        {
-          treefmt = {
-            programs = {
-              # keep-sorted start block=yes
-              actionlint.enable = lib.mkDefault true;
-              deadnix.enable = lib.mkDefault true;
-              jsonfmt.enable = lib.mkDefault true;
-              keep-sorted.enable = lib.mkDefault true;
-              mdformat = {
-                enable = lib.mkDefault true;
-                plugins = lib.mkDefault (ps: [
-                  ps.mdformat-footnote
-                  ps.mdformat-frontmatter
-                  ps.mdformat-gfm
-                  ps.mdformat-gfm-alerts
-                ]);
-              };
-              nixfmt.enable = lib.mkDefault true;
-              shellcheck.enable = lib.mkDefault true;
-              shfmt.enable = lib.mkDefault true;
-              toml-sort.enable = lib.mkDefault true;
-              yamlfmt.enable = lib.mkDefault true;
-              # keep-sorted end
-            };
-            # Generated files are formatted by their generator, not by treefmt.
-            settings.excludes = lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files);
-          };
+      perSystem.treefmt = {
+        flakeFormatter = lib.mkDefault (config.nullkomma.treefmt.enable or false);
+        flakeCheck = lib.mkDefault (config.nullkomma.treefmt.enable or false);
+      };
+    };
+  flake.plugins.treefmt =
+    { config, lib, ... }:
+    let
+      enabled = config.nullkomma.treefmt.enable;
+    in
+    {
+      options.nullkomma.treefmt.enable = lib.mkEnableOption "treefmt integration";
+      config = {
+        nullkomma.editor.vscode = lib.mkIf (enabled && (config.nullkomma.editor.enable or false)) {
+          extensions = [ "ibecker.treefmt-vscode" ];
+          settings."editor.defaultFormatter" = lib.mkDefault "ibecker.treefmt-vscode";
         };
+        perSystem =
+          { config, ... }:
+          {
+            treefmt = {
+              settings.excludes = lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files);
+            };
+            nullkomma.devshell.packages = lib.mkIf enabled [ config.treefmt.build.wrapper ];
+          };
+      };
     };
 }

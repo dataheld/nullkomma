@@ -1,5 +1,5 @@
 # Dogfooding and tests are evaluated only in the `dev` partition.
-# Schemas come from the shared base plugin imported by dogfooding.
+# Schemas come from the shared framework imported by dogfooding.
 { inputs, lib, ... }:
 {
   imports = [ inputs.flake-parts.flakeModules.partitions ];

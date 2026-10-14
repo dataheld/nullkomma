@@ -1,6 +1,6 @@
 # Extension point for modules that provide a static site.
 {
-  flake.plugins.base =
+  flake.framework =
     { flake-parts-lib, lib, ... }:
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption {

@@ -1,7 +1,7 @@
 # Consumers inherit output schemas without declaring another input.
 { inputs, ... }:
 {
-  flake.plugins.base =
+  flake.framework =
     { ... }:
     let
       isModule = m: builtins.isAttrs m || builtins.isFunction m;
@@ -18,7 +18,7 @@
         };
         plugins = {
           version = 1;
-          doc = "Project plugins as [flake-parts](https://flake.parts) modules; import them into `nullkomma.lib.mkFlake`. The base plugin is imported automatically.";
+          doc = "Optional project plugins as [flake-parts](https://flake.parts) modules. nullkomma.lib.mkFlake selects overridable defaults.";
           inventory = output: {
             children = builtins.mapAttrs (_: module: {
               what = "project plugin";
@@ -26,9 +26,17 @@
             }) output;
           };
         };
+        framework = {
+          version = 1;
+          doc = "Shared nullkomma option and output plumbing.";
+          inventory = module: {
+            what = "flake-parts module";
+            evalChecks.isModule = isModule module;
+          };
+        };
         lib = {
           version = 1;
-          doc = "Nix library: `mkFlake` and `importTree`.";
+          doc = "Nix library: `mkFlake`, `importTree` and `defaultPlugins`.";
           inventory = output: {
             children = builtins.mapAttrs (_: v: {
               what = if builtins.isFunction v then "function" else "library";

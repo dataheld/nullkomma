@@ -85,22 +85,57 @@ in `plugins`. A plugin can contribute to several **integrations**: the
 columns below. These are shared configuration interfaces, not separate imports
 or feature switches.
 
-Every project gets the `base` plugin through `nullkomma.lib.mkFlake`.
-Additional plugin rows describe only what their imports add to that
-baseline. Currently only `base` is available; language-specific rows belong
-here once their modules are implemented.
-Plugins are explicitly imported Nix modules, not runtime plugins or automatically
-discovered project types.
+All plugins are optional. `nullkomma.lib.mkFlake` imports their definitions and
+enables the usual defaults using `mkDefault`; callers only need to specify
+exceptions, for example:
 
-| Plugin / import                          | Development environment                   | Formatting / linting                        | Builds / checks                              | Tasks / CI                                                            | Project files                                  | Editor / LSP                                                  |
-| ---------------------------------------- | ----------------------------------------- | ------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
-| All projects: `plugins.base` (automatic) | `fh`, Git, `nixd`, treefmt, flake-checker | Nix + common repository formats via treefmt | Formatting check; no language-specific build | `check`, `update`, `flake-checker`, `write-files`; reusable GitHub CI | `.envrc`, `.gitignore`, CI stub, VS Code files | Nix LSP + treefmt settings; project extension recommendations |
+```nix
+inputs.nullkomma.lib.mkFlake { inherit inputs; } {
+  nullkomma.github.enable = false;
+  nullkomma.markdown.enable = false;
+}
+```
+
+Disabling GitHub removes its workflow initialization **and** actionlint default.
+Disabling Markdown removes its mdformat default. Explicit treefmt overrides
+remain available if you want a tool without its plugin.
+`lib.defaultPlugins` lists the defaults; newly exported plugins are not
+automatically added to that policy. Plugins are Nix modules, not runtime plugins
+or automatically discovered project types.
+
+| Plugin (`plugins.<name>`) | Development environment | Formatting / linting    | Builds / checks  | Tasks / CI                         | Project files            | Editor / LSP                                     |
+| ------------------------- | ----------------------- | ----------------------- | ---------------- | ---------------------------------- | ------------------------ | ------------------------------------------------ |
+| `nix`                     | nixd, flake-checker     | nixfmt, deadnix         | Via treefmt      | `check`, `update`, `flake-checker` | Nix build ignores        | Nix IDE recommendation and nixd settings         |
+| `markdown`                | Via treefmt             | mdformat                | Via treefmt      | None                               | None                     | None                                             |
+| `json`                    | Via treefmt             | jsonfmt                 | Via treefmt      | None                               | None                     | None                                             |
+| `yaml`                    | Via treefmt             | yamlfmt                 | Via treefmt      | None                               | None                     | None                                             |
+| `toml`                    | Via treefmt             | toml-sort               | Via treefmt      | None                               | None                     | None                                             |
+| `shell`                   | Via treefmt             | shfmt, shellcheck       | Via treefmt      | None                               | None                     | None                                             |
+| `github`                  | Via treefmt             | actionlint              | Via treefmt      | Reusable GitHub CI                 | CI stub                  | None                                             |
+| `keepSorted`              | Via treefmt             | keep-sorted             | Via treefmt      | None                               | None                     | None                                             |
+| `treefmt`                 | treefmt wrapper         | Combines selected tools | Formatting check | `nix fmt`                          | None                     | Treefmt recommendation/settings                  |
+| `git`                     | Git                     | None                    | None             | None                               | Initial `.gitignore`     | None                                             |
+| `direnv`                  | User supplies direnv    | None                    | None             | Shell activation                   | `.envrc`, direnv ignores | Nix environment selector recommendation/settings |
+| `editor`                  | None                    | None                    | None             | None                               | VS Code files            | Publishes contributions from enabled plugins     |
+| `flakehub`                | FlakeHub CLI (`fh`)     | None                    | None             | None                               | None                     | None                                             |
+
+Each cell describes that plugin's contributions, not everything inherited from
+other enabled plugins. All listed plugins are currently enabled by default.
+Editor contributions require `nullkomma.editor.enable`; formatter tools reach
+the shell and checks through the treefmt plugin.
+
+The separate `framework` module supplies shared options and output construction,
+not tool choices. `lib.mkFlake` also enables the project devshell by default;
+disable its output with `nullkomma.devshell.enable = false`.
+For explicit assembly without default selection, use flake-parts directly,
+import `nullkomma.framework` and the desired plugin definitions, and enable their
+options. Importing a definition alone does not enable it.
 
 This describes defaults, not every possible consumer override:
 
-- Common repository formats are Markdown, YAML, JSON, TOML, shell and GitHub Actions.
 - The template supplies `.envrc`; `write-files` can initialize it and the other
-  listed files if missing. Existing files remain user-owned (see [Boilerplate Files](#boilerplate-files)).
+  selected files if missing. Opting out does not delete files already copied by
+  a template or initialized earlier. Existing files remain user-owned (see [Boilerplate Files](#boilerplate-files)).
 - Extensions are recommended, not installed (see [Editor ownership](#editor-ownership)).
 - CI runs checks and builds exposed packages/devshells. FlakeHub publishing is
   opt-in via `nullkomma.github.ci.inputs.visibility`.
@@ -112,7 +147,7 @@ The columns map directly to the implementation:
 - **Development environment:** [`perSystem.nullkomma.devshell`](modules/core/devshell.nix) contributes to `devShells.<system>.default`.
 - **Formatting / linting:** [`perSystem.treefmt`](modules/core/treefmt.nix) supplies `formatter.<system>` and `checks.<system>.treefmt`.
 - **Builds / checks:** flake-parts' `perSystem.packages` and `perSystem.checks`; [`perSystem.nullkomma.site`](modules/core/site.nix) can supply `packages.<system>.site`.
-- **Tasks / CI:** [`perSystem.nullkomma.tasks`](modules/core/tasks.nix) supplies `apps.<system>`; [`nullkomma.github`](modules/core/github.nix) configures the [reusable CI](.github/workflows/ci.yml).
+- **Tasks / CI:** [`perSystem.nullkomma.tasks`](modules/core/tasks.nix) supplies `apps.<system>`; [`nullkomma.github`](modules/tools/github.nix) configures the [reusable CI](.github/workflows/ci.yml).
 - **Project files:** [`perSystem.nullkomma.files`](modules/core/files.nix), [`nullkomma.gitignore`](modules/core/gitignore.nix) and [template contents](templates/default).
 - **Editor / LSP:** [`nullkomma.editor.vscode`](modules/core/editor.nix) supplies project settings, extension recommendations and `editor.vscode`; the devshell supplies server executables.
 

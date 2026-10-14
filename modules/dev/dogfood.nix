@@ -1,9 +1,23 @@
 # nullkomma uses nullkomma for its own development environment.
 {
   partitions.dev.module =
-    { inputs, ... }:
+    { inputs, lib, ... }:
     {
-      imports = [ inputs.self.plugins.base ];
+      imports = [
+        inputs.self.framework
+      ]
+      ++ lib.attrValues inputs.self.plugins
+      ++ [
+        {
+          nullkomma =
+            lib.genAttrs inputs.self.lib.defaultPlugins (_: {
+              enable = lib.mkDefault true;
+            })
+            // {
+              devshell.enable = lib.mkDefault true;
+            };
+        }
+      ];
       nullkomma = {
         github = {
           workflows = {

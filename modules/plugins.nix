@@ -1,6 +1,11 @@
 # Several files can contribute to one importable plugin.
 { lib, moduleLocation, ... }:
 {
+  options.flake.framework = lib.mkOption {
+    type = lib.types.deferredModule;
+    default = { };
+    description = "Shared nullkomma option and output plumbing, without plugin selection.";
+  };
   options.flake.plugins = lib.mkOption {
     type = lib.types.lazyAttrsOf lib.types.deferredModule;
     default = { };
@@ -12,6 +17,6 @@
         imports = [ module ];
       }
     );
-    description = "Composable project plugins; import into nullkomma.lib.mkFlake. The base plugin is imported automatically.";
+    description = "Composable project plugins with opt-in enable options; nullkomma.lib.mkFlake selects overridable defaults.";
   };
 }

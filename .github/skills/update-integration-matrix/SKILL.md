@@ -17,10 +17,11 @@ Keep the matrix curated; do not add a metadata registry or documentation generat
 1. Trace the changed behavior through the shared interfaces linked below the
    matrix. Separate consumer configuration from `modules/dev`'s internal
    development environment and tests.
-1. Establish the `base` plugin's baseline and what an optional import adds. When source
+1. Establish the defaults selected by `lib.defaultPlugins` and what enabling or
+   disabling each plugin adds/removes. Importing its definition does not enable it. When source
    alone is insufficient, evaluate the existing consumer fixtures, using the
    debug configuration pattern in `modules/dev/tests.nix` to inspect options.
-   Compare baseline and baseline-plus-import with the same system and overrides.
+   Compare enabled and disabled configurations with the same system and overrides.
    Do not add a public API just to inspect documentation.
 1. Update the affected cells with short descriptions of additions, not a full
    inventory of inherited defaults. Identify the actual exported import in

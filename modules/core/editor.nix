@@ -1,5 +1,5 @@
 {
-  flake.plugins.base =
+  flake.framework =
     { config, lib, ... }:
     let
       cfg = config.nullkomma.editor.vscode;
@@ -14,62 +14,41 @@
         enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Whether to initialize project workspace files. Project editor data remains available through `editor.vscode` when disabled.";
+          description = "Whether to initialize workspace files when the editor plugin is enabled. Editor data remains available when disabled.";
         };
         extensions = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           default = [ ];
-          description = "Project-relevant VS Code extension IDs; every plugin appends here. Installation and user preferences belong to the user environment.";
+          description = "Project-relevant VS Code extension IDs; plugins append here. User installation belongs to the user environment.";
         };
         settings = lib.mkOption {
           type = lib.types.attrsOf lib.types.anything;
           default = { };
-          description = "Project-specific VS Code workspace settings; every plugin merges into these. Do not put personal editor preferences here.";
+          description = "Project-specific VS Code settings; plugins merge here. Personal preferences belong elsewhere.";
         };
       };
-      config = {
-        flake.editor.vscode = {
-          extensions = lib.sort lib.lessThan (lib.unique cfg.extensions);
-          settings = cfg.settings;
-        };
-        nullkomma.editor.vscode = {
-          extensions = [
-            "arrterian.nix-env-selector"
-            "ibecker.treefmt-vscode"
-            "jnoortheen.nix-ide"
-          ];
-          settings = lib.mapAttrs (_: lib.mkDefault) {
-            "nixEnvSelector.nixFile" = "\${workspaceFolder}/flake.nix";
-            "nixEnvSelector.useFlakes" = true;
-            "nixEnvSelector.suggestion" = false;
-            "nix.enableLanguageServer" = true;
-            "nix.serverPath" = "nixd";
-            "nix.serverSettings".nixd.formatting.command = [
-              "treefmt"
-              "--stdin"
-              "{file}"
-            ];
-            "nix.formatterPath" = [
-              "treefmt"
-              "--stdin"
-              "{file}"
-            ];
-            "editor.defaultFormatter" = "ibecker.treefmt-vscode";
-          };
-        };
-        perSystem =
-          { pkgs, ... }:
-          let
-            json = pkgs.formats.json { };
-          in
-          {
-            nullkomma.files = lib.mkIf cfg.enable {
-              ".vscode/extensions.json".source = json.generate "vscode-extensions.json" {
-                recommendations = config.flake.editor.vscode.extensions;
-              };
-              ".vscode/settings.json".source = json.generate "vscode-settings.json" cfg.settings;
+      config.flake.editor.vscode = {
+        extensions = lib.sort lib.lessThan (lib.unique cfg.extensions);
+        settings = cfg.settings;
+      };
+    };
+  flake.plugins.editor =
+    { config, lib, ... }:
+    {
+      options.nullkomma.editor.enable = lib.mkEnableOption "project editor integration";
+      config.perSystem =
+        { pkgs, ... }:
+        let
+          cfg = config.nullkomma.editor.vscode;
+          json = pkgs.formats.json { };
+        in
+        {
+          nullkomma.files = lib.mkIf (config.nullkomma.editor.enable && cfg.enable) {
+            ".vscode/extensions.json".source = json.generate "vscode-extensions.json" {
+              recommendations = config.flake.editor.vscode.extensions;
             };
+            ".vscode/settings.json".source = json.generate "vscode-settings.json" cfg.settings;
           };
-      };
+        };
     };
 }

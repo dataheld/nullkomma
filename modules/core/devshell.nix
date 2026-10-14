@@ -1,7 +1,16 @@
 {
-  flake.plugins.base =
-    { flake-parts-lib, lib, ... }:
+  flake.framework =
     {
+      config,
+      flake-parts-lib,
+      lib,
+      ...
+    }:
+    let
+      enabled = config.nullkomma.devshell.enable;
+    in
+    {
+      options.nullkomma.devshell.enable = lib.mkEnableOption "the project development shell";
       options.perSystem = flake-parts-lib.mkPerSystemOption {
         options.nullkomma.devshell = {
           packages = lib.mkOption {
@@ -28,18 +37,13 @@
         in
         {
           config = {
-            nullkomma.devshell.packages = [
-              config.treefmt.build.wrapper
-              pkgs.flake-checker
-              pkgs.fh
-              pkgs.git
-              pkgs.nixd
-            ];
-            devShells.default = lib.mkDefault (
-              pkgs.mkShell {
-                inherit (cfg) packages env shellHook;
-              }
-            );
+            devShells = lib.mkIf enabled {
+              default = lib.mkDefault (
+                pkgs.mkShell {
+                  inherit (cfg) packages env shellHook;
+                }
+              );
+            };
           };
         };
     };

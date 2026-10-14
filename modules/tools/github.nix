@@ -1,7 +1,7 @@
 # Thin GitHub Actions stubs that call nullkomma's reusable workflows, so CI logic
 # is upgraded centrally (.github/workflows/{ci,maintenance}.yml in this repo).
 {
-  flake.plugins.base =
+  flake.plugins.github =
     { config, lib, ... }:
     let
       cfg = config.nullkomma.github;
@@ -39,8 +39,8 @@
       options.nullkomma.github = {
         enable = lib.mkOption {
           type = lib.types.bool;
-          default = true;
-          description = "Whether to initialize `.github/workflows/push.yml`.";
+          default = false;
+          description = "Whether to enable GitHub Actions integration: workflow initialization and actionlint.";
         };
         workflows = {
           source = lib.mkOption {
@@ -76,8 +76,11 @@
           };
         };
       };
-      config.perSystem.nullkomma.files = lib.mkIf cfg.enable {
-        ".github/workflows/push.yml".text = ci;
+      config.perSystem = {
+        treefmt.programs.actionlint.enable = lib.mkDefault cfg.enable;
+        nullkomma.files = lib.mkIf cfg.enable {
+          ".github/workflows/push.yml".text = ci;
+        };
       };
     };
 }

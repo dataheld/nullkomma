@@ -1,6 +1,6 @@
 # Named tasks become `apps.<name>` (`nix run .#<name>`); `nix run` lists them.
 {
-  flake.plugins.base =
+  flake.framework =
     { flake-parts-lib, lib, ... }:
     let
       taskModule = {
@@ -60,21 +60,6 @@
         in
         {
           config = {
-            nullkomma.tasks = {
-              check = {
-                description = "Evaluate and build all checks (nix flake check)";
-                command = ''exec nix flake check "$@"'';
-              };
-              flake-checker = {
-                description = "Check flake.lock for outdated or non-upstream Nixpkgs";
-                runtimeInputs = [ pkgs.flake-checker ];
-                command = ''exec flake-checker "$@"'';
-              };
-              update = {
-                description = "Update flake.lock (prefer the scheduled maintenance workflow)";
-                command = ''exec nix flake update "$@"'';
-              };
-            };
             apps = lib.mapAttrs toApp cfg // {
               default = lib.mkDefault {
                 type = "app";
