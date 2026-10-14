@@ -413,6 +413,25 @@
               }
             )
           ) fixtures;
+          # One invalid file per formatter, checked by both the derivation and the real CLI.
+          rejects = {
+            nix = {
+              file = "unformatted.nix";
+              content = "{foo=1;}\n";
+              expect = [
+                "diff --git a/unformatted.nix b/unformatted.nix"
+                "+{ foo = 1; }"
+              ];
+            };
+            markdown = {
+              file = "unformatted.md";
+              content = "# Title\n* item\n";
+              expect = [
+                "diff --git a/unformatted.md b/unformatted.md"
+                "+- item"
+              ];
+            };
+          };
         in
         {
           nullkomma.tasks.check-fixtures = {
@@ -425,186 +444,201 @@
             command = ''
               root="$(git rev-parse --show-toplevel)"
               scratch="$(mktemp -d)"
-              trap 'rm -f "$scratch/project/flake.nix" "$scratch/project/README.md" "$scratch/project/unformatted.nix" "$scratch/failure.log"; rmdir "$scratch/project" "$scratch"' EXIT
+              trap 'rm -rf "$scratch"' EXIT
               mkdir "$scratch/project"
               cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
-              nix flake check "path:$scratch/project" \
-                --override-input nullkomma "path:$root" \
-                --no-write-lock-file --print-build-logs
+              check() {
+                nix flake check "path:$scratch/project" \
+                  --override-input nullkomma "path:$root" \
+                  --no-write-lock-file --print-build-logs
+              }
+              check
+            ''
+            + lib.concatMapStrings (case: ''
 
-              printf '{foo=1;}\n' > "$scratch/project/unformatted.nix"
-              if nix flake check "path:$scratch/project" \
-                --override-input nullkomma "path:$root" \
-                --no-write-lock-file --print-build-logs > "$scratch/failure.log" 2>&1; then
-                echo "Invalid consumer unexpectedly passed nix flake check" >&2
+              printf %s ${lib.escapeShellArg case.content} > "$scratch/project/${case.file}"
+              if check > "$scratch/failure.log" 2>&1; then
+                echo "Consumer with invalid ${case.file} unexpectedly passed nix flake check" >&2
                 exit 1
               fi
               cat "$scratch/failure.log"
-              grep -qF 'diff --git a/unformatted.nix b/unformatted.nix' "$scratch/failure.log"
-              grep -qF '+{ foo = 1; }' "$scratch/failure.log"
-            '';
+              ${lib.concatMapStrings (entry: ''
+                grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log"
+              '') case.expect}
+              rm "$scratch/project/${case.file}"
+            '') (lib.attrValues rejects);
           };
-          checks = fixtureChecks // {
-            site-contract = pkgs.runCommandLocal "nullkomma-site-contract" { } (
-              lib.concatMapStringsSep "\n" (
-                name:
-                let
-                  flake = siteConsumers.${name};
-                in
-                ''
-                  ${flake.apps.${system}.read-site.program} > actual
-                  printf '%s' '${name}' > expected
-                  cmp actual expected
-                  cmp actual ${flake.packages.${system}.site}/index.html
-                ''
-              ) (lib.attrNames siteConsumers)
-              + "\ntouch $out\n"
-            );
-            formatting-rejects = pkgs.testers.testBuildFailure' {
-              name = "nullkomma-formatting-rejects";
-              drv = (perSystem fixtures.md).treefmt.build.check (pkgs.writeTextDir "flake.nix" "{foo=1;}\n");
-              expectedBuilderExitCode = 1;
-              expectedBuilderLogEntries = [
-                "diff --git a/flake.nix b/flake.nix"
-                "+{ foo = 1; }"
-              ];
-            };
-            file-initialization =
-              pkgs.runCommandLocal "nullkomma-file-initialization"
-                {
-                  nativeBuildInputs = [ pkgs.git ];
+          checks =
+            fixtureChecks
+            // lib.mapAttrs' (
+              name: case:
+              lib.nameValuePair "formatting-rejects-${name}" (
+                pkgs.testers.testBuildFailure' {
+                  name = "nullkomma-formatting-rejects-${name}";
+                  drv = (perSystem fixtures.md).treefmt.build.check (
+                    pkgs.runCommandLocal "unformatted-${name}" { } ''
+                      mkdir $out
+                      printf '{ }\n' > $out/flake.nix
+                      printf %s ${lib.escapeShellArg case.content} > $out/${case.file}
+                    ''
+                  );
+                  expectedBuilderExitCode = 1;
+                  expectedBuilderLogEntries = case.expect;
                 }
-                ''
-                  mkdir project
-                  cd project
-                  git init --quiet
-                  ${fixtures.md.apps.${system}.write-files.program}
-                  ${fixtures.md.apps.${system}.generate-files.program}
-                  git -c core.excludesFile=/dev/null check-ignore --no-index .vscode/settings.json .vscode/extensions.json
-                  for path in .gitignore .github/workflows/push.yml; do
-                    if git -c core.excludesFile=/dev/null check-ignore --no-index "$path"; then
-                      echo "Shared file unexpectedly ignored: $path" >&2
+              )
+            ) rejects
+            // {
+              site-contract = pkgs.runCommandLocal "nullkomma-site-contract" { } (
+                lib.concatMapStringsSep "\n" (
+                  name:
+                  let
+                    flake = siteConsumers.${name};
+                  in
+                  ''
+                    ${flake.apps.${system}.read-site.program} > actual
+                    printf '%s' '${name}' > expected
+                    cmp actual expected
+                    cmp actual ${flake.packages.${system}.site}/index.html
+                  ''
+                ) (lib.attrNames siteConsumers)
+                + "\ntouch $out\n"
+              );
+              file-initialization =
+                pkgs.runCommandLocal "nullkomma-file-initialization"
+                  {
+                    nativeBuildInputs = [ pkgs.git ];
+                  }
+                  ''
+                    mkdir project
+                    cd project
+                    git init --quiet
+                    ${fixtures.md.apps.${system}.write-files.program}
+                    ${fixtures.md.apps.${system}.generate-files.program}
+                    git -c core.excludesFile=/dev/null check-ignore --no-index .vscode/settings.json .vscode/extensions.json
+                    for path in .gitignore .github/workflows/push.yml; do
+                      if git -c core.excludesFile=/dev/null check-ignore --no-index "$path"; then
+                        echo "Shared file unexpectedly ignored: $path" >&2
+                        exit 1
+                      fi
+                    done
+                    test -f .github/workflows/push.yml
+                    test ! -e .github/workflows/cron.yml
+                    test -w .github/workflows/push.yml
+                    if grep -q 'Generated by nullkomma' .github/workflows/push.yml; then
                       exit 1
                     fi
-                  done
-                  test -f .github/workflows/push.yml
-                  test ! -e .github/workflows/cron.yml
-                  test -w .github/workflows/push.yml
-                  if grep -q 'Generated by nullkomma' .github/workflows/push.yml; then
+                    printf '# My workflow\n' > .github/workflows/push.yml
+                    ${fixtures.md.apps.${system}.write-files.program}
+                    printf '# My workflow\n' > expected
+                    cmp expected .github/workflows/push.yml
+                    test ! -e .github/workflows/cron.yml
+                    touch $out
+                  '';
+              file-updates =
+                pkgs.runCommandLocal "nullkomma-file-updates"
+                  {
+                    nativeBuildInputs = [ pkgs.git ];
+                  }
+                  ''
+                    mkdir project
+                    cd project
+                    git init --quiet
+                    ${fileVersions.old.apps.${system}.write-files.program}
+                    ${fileVersions.old.apps.${system}.generate-files.program}
+                    grep -q 'Generated by nullkomma. DO NOT EDIT' local.txt
+                    test "$(stat -c %a local.txt)" = 444
+                    git -c core.excludesFile=/dev/null check-ignore local.txt
+                    printf 'project edit' > shared.txt
+                    chmod u+w local.txt
+                    printf 'local edit' > local.txt
+                    if ${fileVersions.new.apps.${system}.write-files.program} > conflict.log 2>&1; then
+                      echo "Edited shared file unexpectedly overwritten" >&2
+                      exit 1
+                    fi
+                    grep -q 'resolve-file-conflicts' conflict.log
+                    test "$(cat shared.txt)" = 'project edit'
+                    test "$(cat untouched.txt)" = new
+                    test "$(cat .git/nullkomma/files/base/shared.txt)" = old
+                    test "$(cat .git/nullkomma/files/incoming/shared.txt)" = new
+                    if ${fileVersions.new.apps.${system}.generate-files.program} < /dev/null; then
+                      echo "Generated file overwritten without consent" >&2
+                      exit 1
+                    fi
+                    test "$(cat local.txt)" = 'local edit'
+                    ${fileVersions.new.apps.${system}.generate-files.program} --yes
+                    grep -q 'DO NOT EDIT' local.txt
+                    test "$(tail -n 1 local.txt)" = new
+                    ${fileVersions.new.apps.${system}.write-files.program} --accept-shared shared.txt
+                    ${fileVersions.new.apps.${system}.write-files.program}
+                    test "$(cat shared.txt)" = 'project edit'
+                    test "$(cat .git/nullkomma/files/base/shared.txt)" = new
+                    test ! -f .git/nullkomma/files/incoming/shared.txt
+                    git add -f local.txt
+                    if ${fileVersions.new.apps.${system}.generate-files.program} --yes; then
+                      echo "Tracked generated file was not rejected" >&2
+                      exit 1
+                    fi
+                    mkdir ../unknown
+                    cd ../unknown
+                    git init --quiet
+                    printf 'preexisting' > shared.txt
+                    if ${fileVersions.new.apps.${system}.write-files.program}; then
+                      echo "Unknown shared file was not reported" >&2
+                      exit 1
+                    fi
+                    test "$(cat shared.txt)" = preexisting
+                    test ! -f .git/nullkomma/files/base/shared.txt
+                    ln -s shared.txt local.txt
+                    if ${fileVersions.new.apps.${system}.generate-files.program} --yes; then
+                      echo "Symlink target was not rejected" >&2
+                      exit 1
+                    fi
+                    test "$(cat shared.txt)" = preexisting
+                    touch $out
+                  '';
+              file-update-task =
+                let
+                  nix = pkgs.writeShellScriptBin "nix" ''
+                    printf '%s\n' "$*" >> "$NULLKOMMA_TEST_LOG"
+                    case "$*" in
+                      "flake update fail") exit 7 ;;
+                      "run .#write-files") exit 1 ;;
+                    esac
+                  '';
+                in
+                pkgs.runCommandLocal "nullkomma-file-update-task"
+                  {
+                    nativeBuildInputs = [ nix ];
+                  }
+                  ''
+                    export NULLKOMMA_TEST_LOG="$PWD/calls"
+                    if ${fixtures.md.apps.${system}.update.program} nullkomma; then
+                      echo "Update did not propagate file conflicts" >&2
+                      exit 1
+                    fi
+                    printf '%s\n' 'flake update nullkomma' 'run .#write-files' 'run .#generate-files' > expected
+                    cmp calls expected
+                    : > calls
+                    if ${fixtures.md.apps.${system}.update.program} fail; then
+                      echo "Failed lock update was not propagated" >&2
+                      exit 1
+                    fi
+                    printf '%s\n' 'flake update fail' > expected
+                    cmp calls expected
+                    touch $out
+                  '';
+              unit = pkgs.runCommandLocal "nullkomma-unit-tests" { } (
+                if failures == [ ] then
+                  "touch $out"
+                else
+                  ''
+                    cat >&2 <<'EOF'
+                    ${lib.generators.toPretty { } failures}
+                    EOF
                     exit 1
-                  fi
-                  printf '# My workflow\n' > .github/workflows/push.yml
-                  ${fixtures.md.apps.${system}.write-files.program}
-                  printf '# My workflow\n' > expected
-                  cmp expected .github/workflows/push.yml
-                  test ! -e .github/workflows/cron.yml
-                  touch $out
-                '';
-            file-updates =
-              pkgs.runCommandLocal "nullkomma-file-updates"
-                {
-                  nativeBuildInputs = [ pkgs.git ];
-                }
-                ''
-                  mkdir project
-                  cd project
-                  git init --quiet
-                  ${fileVersions.old.apps.${system}.write-files.program}
-                  ${fileVersions.old.apps.${system}.generate-files.program}
-                  grep -q 'Generated by nullkomma. DO NOT EDIT' local.txt
-                  test "$(stat -c %a local.txt)" = 444
-                  git -c core.excludesFile=/dev/null check-ignore local.txt
-                  printf 'project edit' > shared.txt
-                  chmod u+w local.txt
-                  printf 'local edit' > local.txt
-                  if ${fileVersions.new.apps.${system}.write-files.program} > conflict.log 2>&1; then
-                    echo "Edited shared file unexpectedly overwritten" >&2
-                    exit 1
-                  fi
-                  grep -q 'resolve-file-conflicts' conflict.log
-                  test "$(cat shared.txt)" = 'project edit'
-                  test "$(cat untouched.txt)" = new
-                  test "$(cat .git/nullkomma/files/base/shared.txt)" = old
-                  test "$(cat .git/nullkomma/files/incoming/shared.txt)" = new
-                  if ${fileVersions.new.apps.${system}.generate-files.program} < /dev/null; then
-                    echo "Generated file overwritten without consent" >&2
-                    exit 1
-                  fi
-                  test "$(cat local.txt)" = 'local edit'
-                  ${fileVersions.new.apps.${system}.generate-files.program} --yes
-                  grep -q 'DO NOT EDIT' local.txt
-                  test "$(tail -n 1 local.txt)" = new
-                  ${fileVersions.new.apps.${system}.write-files.program} --accept-shared shared.txt
-                  ${fileVersions.new.apps.${system}.write-files.program}
-                  test "$(cat shared.txt)" = 'project edit'
-                  test "$(cat .git/nullkomma/files/base/shared.txt)" = new
-                  test ! -f .git/nullkomma/files/incoming/shared.txt
-                  git add -f local.txt
-                  if ${fileVersions.new.apps.${system}.generate-files.program} --yes; then
-                    echo "Tracked generated file was not rejected" >&2
-                    exit 1
-                  fi
-                  mkdir ../unknown
-                  cd ../unknown
-                  git init --quiet
-                  printf 'preexisting' > shared.txt
-                  if ${fileVersions.new.apps.${system}.write-files.program}; then
-                    echo "Unknown shared file was not reported" >&2
-                    exit 1
-                  fi
-                  test "$(cat shared.txt)" = preexisting
-                  test ! -f .git/nullkomma/files/base/shared.txt
-                  ln -s shared.txt local.txt
-                  if ${fileVersions.new.apps.${system}.generate-files.program} --yes; then
-                    echo "Symlink target was not rejected" >&2
-                    exit 1
-                  fi
-                  test "$(cat shared.txt)" = preexisting
-                  touch $out
-                '';
-            file-update-task =
-              let
-                nix = pkgs.writeShellScriptBin "nix" ''
-                  printf '%s\n' "$*" >> "$NULLKOMMA_TEST_LOG"
-                  case "$*" in
-                    "flake update fail") exit 7 ;;
-                    "run .#write-files") exit 1 ;;
-                  esac
-                '';
-              in
-              pkgs.runCommandLocal "nullkomma-file-update-task"
-                {
-                  nativeBuildInputs = [ nix ];
-                }
-                ''
-                  export NULLKOMMA_TEST_LOG="$PWD/calls"
-                  if ${fixtures.md.apps.${system}.update.program} nullkomma; then
-                    echo "Update did not propagate file conflicts" >&2
-                    exit 1
-                  fi
-                  printf '%s\n' 'flake update nullkomma' 'run .#write-files' 'run .#generate-files' > expected
-                  cmp calls expected
-                  : > calls
-                  if ${fixtures.md.apps.${system}.update.program} fail; then
-                    echo "Failed lock update was not propagated" >&2
-                    exit 1
-                  fi
-                  printf '%s\n' 'flake update fail' > expected
-                  cmp calls expected
-                  touch $out
-                '';
-            unit = pkgs.runCommandLocal "nullkomma-unit-tests" { } (
-              if failures == [ ] then
-                "touch $out"
-              else
-                ''
-                  cat >&2 <<'EOF'
-                  ${lib.generators.toPretty { } failures}
-                  EOF
-                  exit 1
-                ''
-            );
-          };
+                  ''
+              );
+            };
         };
     };
 }

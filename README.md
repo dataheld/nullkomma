@@ -295,6 +295,11 @@ inherit them. Use three complementary layers:
   in-process fixture evaluator does not cover. nullkomma's own CI runs it before
   the reusable build/publish workflow.
 
+Each formatter/linter plugin adds one invalid file to `rejects` in
+`modules/dev/tests.nix`; both the build contract (`formatting-rejects-<plugin>`)
+and the CLI integration test assert that it fails with that tool's diff, while the
+valid fixture passes.
+
 Run the build contracts with `nix flake check`. CLI integration runs outside
 derivation builders: no nested Nix daemon, recursive builds or import-from-derivation
 is needed. Fixtures use the checkout's locked dependencies, not the published
