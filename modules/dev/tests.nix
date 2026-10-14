@@ -103,6 +103,14 @@
         imports = lib.attrValues plugins;
       };
       rawTest = raw { perSystem.nullkomma.tests.custom.command = "true"; };
+      rawNixUnit = raw {
+        imports = [ plugins.nix ];
+        nullkomma.nix.enable = true;
+        perSystem.nullkomma.nix.unit.tests.testTrue = {
+          expr = true;
+          expected = true;
+        };
+      };
       rawNix = raw {
         imports = [ plugins.nix ];
         nullkomma.nix.enable = true;
@@ -134,14 +142,6 @@
       } ../../tests/fixtures/md;
     in
     {
-      imports = [ inputs.nix-unit.modules.flake.default ];
-      flake.schemas.tests = {
-        version = 1;
-        doc = "[nix-unit](https://github.com/nix-community/nix-unit) tests, run by `checks.<system>.nix-unit`.";
-        inventory = output: {
-          children = builtins.mapAttrs (_: _: { what = "nix-unit test suite"; }) output;
-        };
-      };
       perSystem =
         { pkgs, system, ... }:
         let
@@ -268,6 +268,20 @@
                 expr = normalize (summary overlapping);
                 expected = normalize (summary fixtures.md);
               };
+            testNixUnitTestsBecomeTest = {
+              expr = {
+                checks = lib.filter (lib.hasPrefix "test-") (summary rawNixUnit).checks;
+                tests = lib.attrNames rawNixUnit.tests.systems.${system};
+                schema = rawNixUnit.schemas ? tests;
+                withoutTests = rawNix ? tests;
+              };
+              expected = {
+                checks = [ "test-nix-unit" ];
+                tests = [ "testTrue" ];
+                schema = true;
+                withoutTests = false;
+              };
+            };
             testPluginWorksWithoutOthers = {
               expr = {
                 inherit (summary rawNix) formatters;
@@ -344,21 +358,8 @@
           };
         in
         {
-          # Sandboxed: nix-unit re-evaluates this flake, fetching dev inputs (../../dev).
-          nix-unit = {
-            package = pkgs.nix-unit;
-            inputs = {
-              inherit (inputs)
-                flake-parts
-                flake-schemas
-                nixpkgs
-                treefmt-nix
-                up
-                ;
-            };
-            allowNetwork = true;
-            inherit tests;
-          };
+          # Sandboxed: nix-unit re-evaluates this flake with its inputs passed in.
+          nullkomma.nix.unit.tests = tests;
           nullkomma.tasks.check-fixtures = {
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
             packages = [
