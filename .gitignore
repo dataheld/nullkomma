@@ -1,6 +1,4 @@
 .direnv/
 result
-/.quarto/
-**/*.quarto_ipynb
-_site/
+result-*
 .claude/

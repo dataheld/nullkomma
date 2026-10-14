@@ -12,7 +12,7 @@ extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌
 
 ## Scope
 
-nullkomma is **per-project** Nix scaffolding: flakes, templates, devshells, formatters/checks, Makefile helpers, and the CI patterns those templates ship.
+nullkomma is **per-project** Nix scaffolding for devshells, formatters, checks, tasks, CI and editor settings, packaged as composable [flake-parts](https://flake.parts) modules.
 
 It is **not**:
 
@@ -23,18 +23,12 @@ It is **not**:
 | User environment policy (home-manager, shell ergonomics) | [dataheld/lap](https://github.com/dataheld/lap)         |
 | Agentic coding app / runtime                             | [dataheld/gittens](https://github.com/dataheld/gittens) |
 
-Separation tracker: [dataheld/aoshima#227](https://github.com/dataheld/aoshima/issues/227).
-
 ## Charter
 
 This repo contributes to the broader IT infrastructure laid out in [aoshima](https://github.com/dataheld/aoshima).
 When making changes, adhere to [aoshima's charter](https://github.com/dataheld/aoshima#charter).
 
 ## Installing
-
-> [!NOTE]
-> This is not another flake or development framework.
-> It is much less; just the set of composable nix flakes and modules that I use for my projects.
 
 > [!TIP]
 > The steps below are **system / user** prerequisites.
@@ -43,15 +37,30 @@ When making changes, adhere to [aoshima's charter](https://github.com/dataheld/a
 1. Install Nix (the package manager).
    The [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer) is recommended.
 
-For automatic flake-shell activation, provide [direnv](https://direnv.net) and [nix-direnv](https://github.com/nix-community/nix-direnv) in your user environment (managed via [lap](https://github.com/dataheld/lap) or installed manually).
+1. For automatic flake-shell activation, provide [direnv](https://direnv.net) and [nix-direnv](https://github.com/nix-community/nix-direnv) in your user environment (managed via [lap](https://github.com/dataheld/lap) or installed manually).
 
-1. Add the necessary boilerplate files.
+   > [!TIP]
+   > `nix-`/`direnv` can be a bit chatty on launch.
+   > Set [`hide_env_diff=true`](https://direnv.net/man/direnv.toml.1.html) to quiet it down.
+
+1. In your project, add a `flake.nix` from the `default` template:
 
    ```sh
    nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
    ```
 
-1. (one-time only) Inside the repo, run `direnv allow`
+   The template also includes `.envrc` containing `use flake`.
+   Existing files are preserved.
+
+1. Initialize remaining missing files (see below):
+
+   ```sh
+   git add flake.nix .envrc
+   nix develop --command write-files
+   nix develop --command generate-files
+   ```
+
+1. (one-time only) Inside the repo, run `direnv allow`.
 
 > [!TIP]
 > Windows is not supported by Nix,
@@ -62,49 +71,154 @@ From now on, whenever you change into the directory of your project,
 all the necessary dependencies etc. will be ready.
 The first time you enter the directory, this might take some time.
 
-## Building
+## Using
 
-All build-targets are self-documented:
+Project tasks are plain commands in the development shell (they accept
+arguments, e.g. `write-files --accept <path>`). The
+[DeterminateSystems/up](https://github.com/DeterminateSystems/up) runner lists
+them and runs them without arguments:
 
 ```sh
-make help
+tasks          # list tasks
+tasks check    # run one task
+tasks all      # run all tasks that don't change files
 ```
 
-## Updating
+### Plugins
 
-### Nix
+Everything nullkomma adds comes from **plugins** (exported as flake-parts modules
+in `plugins`). All plugins are optional; `nullkomma.lib.mkFlake` enables the
+ones below by default, so you only list exceptions:
 
-There are two separate aspects to updating the nix dependencies.
+```nix
+inputs.nullkomma.lib.mkFlake { inherit inputs; } {
+  nullkomma.github.enable = false;
+  nullkomma.markdown.enable = false;
+}
+```
 
-1. There may be newer versions available _given_ the pinning in `flake.nix`.
-   This can be accomplished by running `make update-flake` locally and may change the `flake.lock`.
-   However such updates may break a project.
-   It is therefore recommended **to only run this in CI**,
-   using the periodically scheduled `nix_maintenance.yml` job.
-   It will automatically open pull requests if there are updates available.
-   Users can then inspect whether the updated project still passes all tests.
-1. The versions pinned in `flake.nix` (and the resulting `flake.lock`) itself may be out of date.
-   The [DeterminateSystems/flake-checker](https://github.com/DeterminateSystems/flake-checker) will fail if this is the case.
-   It runs on every push as well as periodically.
-   You can also run this locally using `make check-flake-checker`.
+| Plugin       | Dev shell            | Format / lint | Tasks / CI                              | Files                            | Editor                                  |
+| ------------ | -------------------- | ------------- | --------------------------------------- | -------------------------------- | --------------------------------------- |
+| `nix`        | nixd, flake-checker  | ✅            | `check`, `update`, `flake-checker`      | ignores `result`                 | nixd language server; VS Code: Nix IDE  |
+| `markdown`   | marksman             | ✅            |                                         |                                  | marksman language server                |
+| `json`       | JSON language server | ✅            |                                         |                                  | JSON language server                    |
+| `yaml`       | yaml-language-server | ✅            |                                         |                                  | YAML language server; VS Code: YAML     |
+| `toml`       |                      | ✅            |                                         |                                  |                                         |
+| `shell`      | bash-language-server | ✅            |                                         |                                  | bash language server; VS Code: Bash IDE |
+| `github`     |                      | ✅ workflows  | reusable CI                             | `.github/workflows/push.yml`     |                                         |
+| `keepSorted` |                      | ✅            |                                         |                                  |                                         |
+| `typos`      |                      | ✅ spelling   |                                         |                                  |                                         |
+| `treefmt`    | treefmt              | runs all ✅   | `nix fmt`, checked in `nix flake check` |                                  | VS Code: treefmt extension              |
+| `git`        | git                  |               |                                         | `.gitignore`                     |                                         |
+| `direnv`     |                      |               |                                         | `.envrc`, ignores `.direnv/`     | VS Code: Nix environment selector       |
+| `vscode`     |                      |               |                                         | `.vscode/` (generated from Nix)  | writes the Editor column for VS Code    |
+| `neovim`     |                      |               |                                         | `.nvim.lua` (generated from Nix) | writes language servers for Neovim      |
+| `flakehub`   | `fh`                 |               |                                         |                                  |                                         |
+
+✅ means the plugin's files are formatted/linted by `nix fmt` and checked by
+`nix flake check` (via treefmt). The exact tools are in the plugin's source.
+
+### Knobs
+
+Options live under `nullkomma.*`, for example:
+
+```nix
+inputs.nullkomma.lib.mkFlake { inherit inputs; } {
+  nullkomma.github.ci.inputs.visibility = "public"; # publish to FlakeHub
+  perSystem =
+    { pkgs, ... }:
+    {
+      nullkomma.devshell.packages = [ pkgs.hello ];
+      treefmt.programs.typos.enable = true;
+    };
+}
+```
+
+### Files in your repo
+
+nullkomma keeps files in your repo to a minimum; features live in Nix instead.
+Some tools still need real files (Git needs `.gitignore`, GitHub needs
+workflows, editors need settings). Each such file is one of two kinds:
+
+|                             | **Source of truth** (committed, yours to edit) | **Generated from Nix** (Git-ignored, don't edit) |
+| --------------------------- | ---------------------------------------------- | ------------------------------------------------ |
+| `nix flake init --template` | `flake.nix`, `.envrc`                          | (not possible)                                   |
+| `write-files`               | `.gitignore`, GitHub workflows                 |                                                  |
+| `generate-files`            |                                                | `.vscode/*.json`, `.nvim.lua`                    |
+
+Templates can't take parameters, so anything that depends on your Nix
+configuration comes from `write-files` or `generate-files`.
+
+**Source-of-truth files** (`nullkomma.files."<path>".mode = "source"`, the
+default) are written once, then they are yours: edit and commit them.
+When nullkomma later changes a file, `write-files` updates it only if you
+haven't edited it. Otherwise it keeps your version, saves the new one next to it
+and fails, pointing you to the
+[resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
+After resolving, `write-files --accept <path>` marks the file as up to date.
+
+**Generated files** (`mode = "generated"`) always come from Nix.
+`generate-files` overwrites them on every run, starts them with a
+"do not edit" comment and the `git` plugin adds them to `.gitignore`.
+To change one, change the Nix options.
+
+`update` updates `flake.lock` and then runs both commands. After any other
+`nix flake update` (e.g. by a bot), run `write-files` and `generate-files`
+yourself.
+
+### Editors
+
+Editor settings live in Nix. Plugins describe their language servers once,
+editor-neutrally (`nullkomma.editor.languageServers`), plus anything only one
+editor has (e.g. `nullkomma.editor.vscode.extensions`). Editor plugins (`vscode`,
+`neovim`) write these out as generated, Git-ignored files, so every developer
+gets support for their editor without committing editor config.
+Neovim reads `.nvim.lua` only with `:set exrc` and asks once to trust it.
+The editor plugins match the editors [lap](https://github.com/dataheld/lap)
+sets up: VS Code and Neovim.
+
+nullkomma only handles **project-specific** editor features: language servers,
+formatters and recommended extensions. Installing editors and extensions, themes,
+keybindings and personal preferences belong to your user environment, e.g.
+[lap](https://github.com/dataheld/lap).
 
 ### Development Shell
 
-To bring the shell you are working in up to date with the _source_
-(`nix.flake`, etc.)
-of your repository:
+After changing `flake.nix`, run `direnv reload` (or `nix-direnv-reload`) to
+update your shell.
+
+## Design
+
+Plugins never read each other's options. Values shared between plugins are
+framework options that any plugin may set or read. For example, `treefmt` sets
+`nullkomma.editor.formatCommand` and the `nix` language server uses it, without
+knowing which plugin set it. Another formatter plugin can replace `treefmt`
+without changing `nix`.
+
+## Development
+
+### Testing nullkomma
+
+nullkomma is tested against small example projects ("fixtures") in
+`tests/fixtures`, which use nullkomma the way a real project would.
+All tests are in [`modules/dev/tests.nix`](modules/dev/tests.nix); projects using
+nullkomma don't inherit them.
+
+- **Unit tests** check the evaluated configuration of the fixtures, e.g. that
+  every plugin can be switched off and that all off leaves just the framework.
+- **Build tests** run the real tools on the fixtures inside `nix flake check`:
+  valid files must pass, and for every formatter/linter plugin a deliberately
+  bad file (listed in `rejects`) must fail with that tool's error.
+- **End-to-end test:** `check-fixtures` copies a fixture to a temporary
+  directory and runs `nix flake check` there (with valid and bad files), exactly
+  as a user would, against this checkout of nullkomma. The other tests evaluate fixtures from within
+  nullkomma's own flake, so only this one catches problems with
+  how a real project fetches and uses nullkomma. CI runs it on every push.
 
 ```sh
-direnv reload
+nix flake check   # unit and build tests
+check-fixtures    # end-to-end test
 ```
 
-Or if you have `nix-direnv` installed,:
-
-```sh
-nix-direnv-reload
-```
-
-## Issues
-
-`nix-`/`direnv` can be a bit chatty on launch.
-Set [`hide_env_diff=true`](https://direnv.net/man/direnv.toml.1.html) to quiet it down.
+New plugins should add a valid and a deliberately broken fixture, and check that
+the broken one fails with the real tool's error, not just any error.
