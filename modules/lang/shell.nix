@@ -35,20 +35,6 @@
         };
       };
       config = lib.mkIf config.nullkomma.shell.enable {
-        nullkomma.editor.languageServers.bashls = {
-          command = [
-            "bash-language-server"
-            "start"
-          ];
-          filetypes = [
-            "bash"
-            "sh"
-          ];
-        };
-        nullkomma.editor.vscode.extensions = [
-          "mads-hartmann.bash-ide-vscode"
-          "jetmartin.bats"
-        ];
         perSystem =
           { config, pkgs, ... }:
           let
@@ -57,9 +43,20 @@
           in
           lib.mkMerge [
             {
-              nullkomma.devshell.packages = [
-                pkgs.bash-language-server
-                bats
+              nullkomma.editor.languageServers.bashls = {
+                package = pkgs.bash-language-server;
+                command = [
+                  "bash-language-server"
+                  "start"
+                ];
+                filetypes = [
+                  "bash"
+                  "sh"
+                ];
+              };
+              nullkomma.editor.vscode.extensions = [
+                "mads-hartmann.bash-ide-vscode"
+                "jetmartin.bats"
               ];
               treefmt.programs = {
                 shellcheck.enable = lib.mkDefault true;

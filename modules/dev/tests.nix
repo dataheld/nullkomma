@@ -49,11 +49,11 @@
         nullkomma.shell.bats.testDir = "failing";
       } ../../tests/fixtures/shell;
       customized = callFlakeWith {
-        nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
         perSystem =
           { pkgs, ... }:
           {
-            nullkomma.devshell.packages = [ pkgs.hello ];
+            nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
+            nullkomma.devHelpers = [ pkgs.hello ];
             treefmt.programs.deadnix.enable = false;
             treefmt.programs.typos.enable = true;
           };
@@ -155,7 +155,15 @@
             tasks = lib.attrNames (perSystem flake).nullkomma.tasks;
             checks = lib.attrNames flake.checks.${system};
             shells = lib.attrNames flake.devShells.${system};
-            inherit (flake.debug.config.nullkomma) editor;
+            editor =
+              let
+                inherit ((perSystem flake).nullkomma) editor;
+              in
+              {
+                formatter = if editor.formatter == null then null else editor.formatter.command;
+                languageServers = lib.mapAttrs (_: s: removeAttrs s [ "package" ]) editor.languageServers;
+                inherit (editor) vscode;
+              };
           };
           tests = {
             # keep-sorted start block=yes
@@ -196,7 +204,7 @@
                 checks = [ ];
                 shells = [ ];
                 editor = {
-                  formatCommand = null;
+                  formatter = null;
                   languageServers = { };
                   vscode = {
                     extensions = [ ];
@@ -210,7 +218,7 @@
                 package = lib.elem pkgs.hello (perSystem customized).nullkomma.devshell.packages;
                 disabled = (perSystem customized).treefmt.programs.deadnix.enable;
                 enabled = (perSystem customized).treefmt.programs.typos.enable;
-                setting = customized.debug.config.nullkomma.editor.vscode.settings."nix.serverPath";
+                setting = (perSystem customized).nullkomma.editor.vscode.settings."nix.serverPath";
               };
               expected = {
                 package = true;
@@ -273,19 +281,19 @@
                 checks = lib.filter (lib.hasPrefix "test-") (summary rawNixUnit).checks;
                 tests = lib.attrNames rawNixUnit.tests.systems.${system};
                 schema = rawNixUnit.schemas ? tests;
-                withoutTests = rawNix ? tests;
+                withoutTests = rawNix.tests.systems.${system};
               };
               expected = {
                 checks = [ "test-nix-unit" ];
                 tests = [ "testTrue" ];
                 schema = true;
-                withoutTests = false;
+                withoutTests = { };
               };
             };
             testPluginWorksWithoutOthers = {
               expr = {
                 inherit (summary rawNix) formatters;
-                inherit (rawNix.debug.config.nullkomma.editor.languageServers.nixd) settings;
+                inherit ((perSystem rawNix).nullkomma.editor.languageServers.nixd) settings;
               };
               expected = {
                 formatters = [
@@ -438,7 +446,7 @@
                   ''
                     ${lib.concatMapStrings (s: ''
                       command -v ${lib.escapeShellArg (lib.head s.command)}
-                    '') (lib.attrValues fixtures.md.debug.config.nullkomma.editor.languageServers)}
+                    '') (lib.attrValues (perSystem fixtures.md).nullkomma.editor.languageServers)}
                     touch $out
                   '';
               file-updates =

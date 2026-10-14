@@ -10,7 +10,6 @@
     }:
     let
       cfg = config.nullkomma;
-      format = cfg.editor.formatCommand;
       unitTests = lib.mapAttrs (_: c: c.nullkomma.nix.unit.tests) config.allSystems;
     in
     {
@@ -36,7 +35,8 @@
         };
       };
       config = lib.mkIf cfg.nix.enable {
-        flake = lib.mkIf (lib.any (t: t != { }) (lib.attrValues unitTests)) {
+        # Unconditional: deciding by the tests would make every output depend on every system.
+        flake = {
           tests.systems = unitTests;
           schemas.tests = {
             version = 1;
@@ -53,22 +53,6 @@
           "result"
           "result-*"
         ];
-        nullkomma.editor.languageServers.nixd = {
-          command = [ "nixd" ];
-          filetypes = [ "nix" ];
-          settings = lib.optionalAttrs (format != null) { nixd.formatting.command = format; };
-        };
-        nullkomma.editor.vscode = {
-          extensions = [ "jnoortheen.nix-ide" ];
-          settings = lib.mapAttrs (_: lib.mkDefault) (
-            {
-              "nix.enableLanguageServer" = true;
-              "nix.serverPath" = "nixd";
-              "nix.serverSettings" = cfg.editor.languageServers.nixd.settings;
-            }
-            // lib.optionalAttrs (format != null) { "nix.formatterPath" = format; }
-          );
-        };
         perSystem =
           {
             config,
@@ -77,6 +61,8 @@
             ...
           }:
           let
+            inherit (config.nullkomma) editor;
+            format = if editor.formatter == null then null else editor.formatter.command;
             unit = config.nullkomma.nix.unit;
             attr = "tests.systems.${system}";
             run = pkgs.runCommand "test-nix-unit" { nativeBuildInputs = [ pkgs.nix-unit ]; } ''
@@ -114,7 +100,23 @@
                 check = if unit.allowNetwork then networked else run;
               };
             };
-            nullkomma.devshell.packages = [ pkgs.nixd ];
+            nullkomma.editor.languageServers.nixd = {
+              package = pkgs.nixd;
+              command = [ "nixd" ];
+              filetypes = [ "nix" ];
+              settings = lib.optionalAttrs (format != null) { nixd.formatting.command = format; };
+            };
+            nullkomma.editor.vscode = {
+              extensions = [ "jnoortheen.nix-ide" ];
+              settings = lib.mapAttrs (_: lib.mkDefault) (
+                {
+                  "nix.enableLanguageServer" = true;
+                  "nix.serverPath" = "nixd";
+                  "nix.serverSettings" = editor.languageServers.nixd.settings;
+                }
+                // lib.optionalAttrs (format != null) { "nix.formatterPath" = format; }
+              );
+            };
             treefmt.programs = {
               nixfmt.enable = lib.mkDefault true;
               deadnix.enable = lib.mkDefault true;

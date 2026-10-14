@@ -99,23 +99,23 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-| Plugin       | Dev shell                  | Format / lint     | Tests     | Tasks / CI                              | Files                            | Editor                                        |
-| ------------ | -------------------------- | ----------------- | --------- | --------------------------------------- | -------------------------------- | --------------------------------------------- |
-| `nix`        | nixd, flake-checker        | ✅                | nix-unit² | `check`, `update`, `flake-checker`      | ignores `result`                 | nixd language server; VS Code: Nix IDE        |
-| `markdown`   | marksman                   | ✅                |           |                                         |                                  | marksman language server                      |
-| `json`       | JSON language server       | ✅                |           |                                         |                                  | JSON language server                          |
-| `yaml`       | yaml-language-server       | ✅                |           |                                         |                                  | YAML language server; VS Code: YAML           |
-| `toml`       |                            | ✅                |           |                                         |                                  |                                               |
-| `shell`      | bash-language-server, bats | ✅ incl. `*.bats` | bats¹     |                                         |                                  | bash language server; VS Code: Bash IDE, Bats |
-| `github`     |                            | ✅ workflows      |           | reusable CI                             | `.github/workflows/push.yml`     |                                               |
-| `keepSorted` |                            | ✅                |           |                                         |                                  |                                               |
-| `typos`      |                            | ✅ spelling       |           |                                         |                                  |                                               |
-| `treefmt`    | treefmt                    | runs all ✅       |           | `nix fmt`, checked in `nix flake check` |                                  | VS Code: treefmt extension                    |
-| `git`        | git                        |                   |           |                                         | `.gitignore`                     |                                               |
-| `direnv`     |                            |                   |           |                                         | `.envrc`, ignores `.direnv/`     | VS Code: Nix environment selector             |
-| `vscode`     |                            |                   |           |                                         | `.vscode/` (generated from Nix)  | writes the Editor column for VS Code          |
-| `neovim`     |                            |                   |           |                                         | `.nvim.lua` (generated from Nix) | writes language servers for Neovim            |
-| `flakehub`   | `fh`                       |                   |           |                                         |                                  |                                               |
+| Plugin       | Dev helpers | Format / lint                                  | Tests     | Tasks                              | Files                                      | Editor                                        |
+| ------------ | ----------- | ---------------------------------------------- | --------- | ---------------------------------- | ------------------------------------------ | --------------------------------------------- |
+| `nix`        |             | ✅                                             | nix-unit² | `check`, `update`, `flake-checker` | ignores `result`                           | nixd language server; VS Code: Nix IDE        |
+| `markdown`   |             | ✅                                             |           |                                    |                                            | marksman language server                      |
+| `json`       |             | ✅                                             |           |                                    |                                            | JSON language server                          |
+| `yaml`       |             | ✅                                             |           |                                    |                                            | YAML language server; VS Code: YAML           |
+| `toml`       |             | ✅                                             |           |                                    |                                            |                                               |
+| `shell`      |             | ✅ incl. `*.bats`                              | bats¹     |                                    |                                            | bash language server; VS Code: Bash IDE, Bats |
+| `github`     |             | ✅ workflows                                   |           |                                    | `.github/workflows/push.yml` (reusable CI) |                                               |
+| `keepSorted` |             | ✅                                             |           |                                    |                                            |                                               |
+| `typos`      |             | ✅ spelling                                    |           |                                    |                                            |                                               |
+| `treefmt`    |             | runs all ✅ in `nix fmt` and `nix flake check` |           |                                    |                                            | formatter; VS Code: treefmt extension         |
+| `git`        | git         |                                                |           |                                    | `.gitignore`                               |                                               |
+| `direnv`     |             |                                                |           |                                    | `.envrc`, ignores `.direnv/`               | VS Code: Nix environment selector             |
+| `vscode`     |             |                                                |           |                                    | `.vscode/` (generated from Nix)            | renders the Editor column for VS Code         |
+| `neovim`     |             |                                                |           |                                    | `.nvim.lua` (generated from Nix)           | renders language servers for Neovim           |
+| `flakehub`   | `fh`        |                                                |           |                                    |                                            |                                               |
 
 ¹ [bats](https://bats-core.readthedocs.io) files in `test/`
 (`nullkomma.shell.bats.testDir`), once that directory exists. Add the tools they
@@ -130,8 +130,25 @@ need with `perSystem.nullkomma.shell.bats.packages`.
 
 Every test runs locally with `test` (or `test <name> [args]`) and, sandboxed
 against the flake's source, as `checks.<system>.test-<name>` in
-`nix flake check` and CI. Plugins add tests to
-`perSystem.nullkomma.tests.<name>`; so can you.
+`nix flake check` and CI.
+
+Each column is a framework: options (in `perSystem`, except `nullkomma.gitignore`)
+that plugins fill in, and so can you. Most plugins feed columns; a few render
+them (`git`, `vscode`, `neovim`) or run them (`treefmt`). Plugins never read
+each other's options, only the frameworks'.
+
+| Column        | Options                                                        | Ends up in                                                             |
+| ------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Dev helpers   | `nullkomma.devHelpers`                                         | dev shell                                                              |
+| Format / lint | `treefmt.programs`                                             | `nix fmt`, `checks.<system>.treefmt`, editors                          |
+| Tests         | `nullkomma.tests.<name>`                                       | `test` task, `checks.<system>.test-<name>`                             |
+| Tasks         | `nullkomma.tasks.<name>`                                       | dev shell commands, `tasks` runner                                     |
+| Files         | `nullkomma.files.<path>` (and top-level `nullkomma.gitignore`) | `write-files`, `generate-files`                                        |
+| Editor        | `nullkomma.editor`                                             | language servers and formatter in the dev shell; editor plugins' files |
+
+The dev shell (`devShells.default`) is assembled from these: task commands,
+editor tools and dev helpers. Packages a test or task needs (e.g. bats and the
+tools your bats tests call) stay inside that test or task, off your `PATH`.
 
 ### Knobs
 
@@ -143,7 +160,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
   perSystem =
     { pkgs, ... }:
     {
-      nullkomma.devshell.packages = [ pkgs.hello ];
+      nullkomma.devHelpers = [ pkgs.hello ];
       treefmt.programs.typos.enable = true;
     };
 }
@@ -197,8 +214,9 @@ yourself.
 ### Editors
 
 Editor settings live in Nix. Plugins describe their language servers once,
-editor-neutrally (`nullkomma.editor.languageServers`), plus anything only one
-editor has (e.g. `nullkomma.editor.vscode.extensions`). Editor plugins (`vscode`,
+editor-neutrally (`perSystem.nullkomma.editor.languageServers`, including the
+package that puts them in the dev shell), plus anything only one editor has
+(e.g. `perSystem.nullkomma.editor.vscode.extensions`). Editor plugins (`vscode`,
 `neovim`) write these out as generated, Git-ignored files, so every developer
 gets support for their editor without committing editor config.
 Neovim reads `.nvim.lua` only with `:set exrc` and asks once to trust it.
@@ -219,7 +237,7 @@ update your shell.
 
 Plugins never read each other's options. Values shared between plugins are
 framework options that any plugin may set or read. For example, `treefmt` sets
-`nullkomma.editor.formatCommand` and the `nix` language server uses it, without
+`nullkomma.editor.formatter` and the `nix` language server uses it, without
 knowing which plugin set it. Another formatter plugin can replace `treefmt`
 without changing `nix`.
 

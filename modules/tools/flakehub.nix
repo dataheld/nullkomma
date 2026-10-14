@@ -5,7 +5,7 @@
       config.perSystem =
         { pkgs, ... }:
         {
-          nullkomma.devshell.packages = lib.mkIf config.nullkomma.flakehub.enable [ pkgs.fh ];
+          nullkomma.devHelpers = lib.mkIf config.nullkomma.flakehub.enable [ pkgs.fh ];
         };
     };
 }
