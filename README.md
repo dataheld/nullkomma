@@ -156,6 +156,37 @@ matrix framework is involved. Explicit integrations and tests are still needed
 where project types interact. nullkomma's internal development tests are not
 consumer integrations.
 
+### Neutral interfaces between plugins
+
+Plugins connect through **shared contracts, not each other's implementation**.
+The framework owns these contracts; producers supply values and consumers use
+them without inspecting which plugin supplied them. Keep interfaces neutral with
+respect to language, build tool, CI provider and deployment destination.
+
+For example, `perSystem.nullkomma.site` is a static-site derivation whose output
+root contains `index.html`, exported as `packages.<system>.site`. A future Quarto
+plugin can supply it; a future Cloudflare deployment plugin can consume it.
+Neither should require the other: another site producer or deployment destination
+must be substitutable when it satisfies the same contract. CI can invoke the
+deployment task through its app output rather than reimplement deployment.
+These are architectural examples, not currently implemented plugins.
+
+The same rule applies beyond sites: executable deployment should consume a
+documented executable artifact, and caching should consume explicit store paths
+or standard flake outputs, not a list of recognized language plugins.
+Prefer existing Nix interfaces (`packages`, `checks`, `apps`) before adding a
+nullkomma-specific option. Add a new shared interface only for a concrete need,
+with documented output shape, selection/cardinality, absent-value behavior and
+validation responsibilities. Do not invent a universal artifact registry.
+
+Consumers must fail clearly when a required artifact is missing or invalid;
+absence must not produce a successful no-op. Producers verify their actual
+outputs, and consumers verify any additional requirements they impose.
+Test substitution through the shared interface and real tool behavior separately:
+module merging or a synthetic artifact alone does not prove deployment works.
+Keep genuinely tool-specific combinations explicit, but do not create a
+producer-by-provider implementation for behavior that can use a neutral contract.
+
 ### Knobs
 
 Options live under `nullkomma.*`, for example:
