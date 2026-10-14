@@ -157,6 +157,19 @@ and fails, pointing you to the
 [resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
 After resolving, `write-files --accept <path>` marks the file as up to date.
 
+### Conflict-resolution skill
+
+The repository root is a portable [Agent Plugins 1.0 package](https://agent-plugin.org/en).
+Install it from this Git repository in a compatible client. In Copilot, run:
+
+```text
+/plugin install https://github.com/dataheld/nullkomma
+```
+
+Update it with `/plugin update nullkomma`. Installing or updating the plugin
+does not write to the consumer project, so its source-of-truth edits remain
+untouched.
+
 **Generated files** (`mode = "generated"`) always come from Nix.
 `generate-files` overwrites them on every run, starts them with a
 "do not edit" comment and the `git` plugin adds them to `.gitignore`.
