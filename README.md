@@ -219,9 +219,16 @@ There are however some exceptions to this design goal:
    we avoid doing that if the native project files are a well-established and superior API.
    (Because such project files for dependencies often allow floating references, a separate, language-specific `*.lock` file is then also added to the source.)
 
-If these files are not parametrised, they will be come via `nix flake init --template` (see above).
+Templates bootstrap the project; `nix run .#write-files` is the authoritative
+configuration-aware initializer for plugin-contributed files. It stays a separate
+command, including when using a template preset.
 
-If they depend on some input from you, they will be added after the flake via `nix run .#write-files`.
+Future language/project templates can preselect plugins and sensible options in
+`flake.nix`, so getting started does not require configuring each integration by
+hand. They should reuse the same plugin definitions and file initializer, not
+maintain their own copies of CI workflows, editor settings or other
+configuration-derived files. The current template also ships `.envrc` for early
+shell activation; its content is tested against the initializer's version.
 
 After initialization, these files belong to you: edit them directly.
 Re-running `write-files` preserves existing files, and there is no drift check or automatic overwrite on upgrades.

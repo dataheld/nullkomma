@@ -14,3 +14,7 @@ when a neutral artifact suffices. Document shape, selection, absence and
 validation; reject missing required inputs explicitly. Test interchangeable
 producers without unrelated plugins, plus real tool success/failure separately.
 Do not add speculative deployment/caching APIs or a universal artifact registry.
+
+Template variants are starting presets, not separate file-generation engines:
+select plugins/options in their flakes and retain `nix run .#write-files` as the
+configuration-aware initializer. Avoid duplicating configuration-derived files.
