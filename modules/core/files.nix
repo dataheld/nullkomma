@@ -15,6 +15,11 @@
                   default = true;
                   description = "Whether to initialize `${name}` if absent.";
                 };
+                gitignore = lib.mkOption {
+                  type = lib.types.bool;
+                  default = false;
+                  description = "Whether the Git plugin should ignore this local file. Does not untrack existing files or change initialize-once ownership. Builds must use source directly, not the ignored workspace copy.";
+                };
                 text = lib.mkOption {
                   type = lib.types.nullOr lib.types.lines;
                   default = null;

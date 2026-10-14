@@ -44,10 +44,16 @@
         in
         {
           nullkomma.files = lib.mkIf (config.nullkomma.editor.enable && cfg.enable) {
-            ".vscode/extensions.json".source = json.generate "vscode-extensions.json" {
-              recommendations = config.flake.editor.vscode.extensions;
+            ".vscode/extensions.json" = {
+              gitignore = lib.mkDefault true;
+              source = json.generate "vscode-extensions.json" {
+                recommendations = config.flake.editor.vscode.extensions;
+              };
             };
-            ".vscode/settings.json".source = json.generate "vscode-settings.json" cfg.settings;
+            ".vscode/settings.json" = {
+              gitignore = lib.mkDefault true;
+              source = json.generate "vscode-settings.json" cfg.settings;
+            };
           };
         };
     };

@@ -103,21 +103,21 @@ remain available if you want a tool without its plugin.
 automatically added to that policy. Plugins are Nix modules, not runtime plugins
 or automatically discovered project types.
 
-| Plugin (`plugins.<name>`) | Development environment | Formatting / linting    | Builds / checks  | Tasks / CI                         | Project files            | Editor / LSP                                     |
-| ------------------------- | ----------------------- | ----------------------- | ---------------- | ---------------------------------- | ------------------------ | ------------------------------------------------ |
-| `nix`                     | nixd, flake-checker     | nixfmt, deadnix         | Via treefmt      | `check`, `update`, `flake-checker` | Nix build ignores        | Nix IDE recommendation and nixd settings         |
-| `markdown`                | Via treefmt             | mdformat                | Via treefmt      | None                               | None                     | None                                             |
-| `json`                    | Via treefmt             | jsonfmt                 | Via treefmt      | None                               | None                     | None                                             |
-| `yaml`                    | Via treefmt             | yamlfmt                 | Via treefmt      | None                               | None                     | None                                             |
-| `toml`                    | Via treefmt             | toml-sort               | Via treefmt      | None                               | None                     | None                                             |
-| `shell`                   | Via treefmt             | shfmt, shellcheck       | Via treefmt      | None                               | None                     | None                                             |
-| `github`                  | Via treefmt             | actionlint              | Via treefmt      | Reusable GitHub CI                 | CI stub                  | None                                             |
-| `keepSorted`              | Via treefmt             | keep-sorted             | Via treefmt      | None                               | None                     | None                                             |
-| `treefmt`                 | treefmt wrapper         | Combines selected tools | Formatting check | `nix fmt`                          | None                     | Treefmt recommendation/settings                  |
-| `git`                     | Git                     | None                    | None             | None                               | Initial `.gitignore`     | None                                             |
-| `direnv`                  | User supplies direnv    | None                    | None             | Shell activation                   | `.envrc`, direnv ignores | Nix environment selector recommendation/settings |
-| `editor`                  | None                    | None                    | None             | None                               | VS Code files            | Publishes contributions from enabled plugins     |
-| `flakehub`                | FlakeHub CLI (`fh`)     | None                    | None             | None                               | None                     | None                                             |
+| Plugin (`plugins.<name>`) | Development environment | Formatting / linting    | Builds / checks  | Tasks / CI                         | Project files                        | Editor / LSP                                     |
+| ------------------------- | ----------------------- | ----------------------- | ---------------- | ---------------------------------- | ------------------------------------ | ------------------------------------------------ |
+| `nix`                     | nixd, flake-checker     | nixfmt, deadnix         | Via treefmt      | `check`, `update`, `flake-checker` | Nix build ignores                    | Nix IDE recommendation and nixd settings         |
+| `markdown`                | Via treefmt             | mdformat                | Via treefmt      | None                               | None                                 | None                                             |
+| `json`                    | Via treefmt             | jsonfmt                 | Via treefmt      | None                               | None                                 | None                                             |
+| `yaml`                    | Via treefmt             | yamlfmt                 | Via treefmt      | None                               | None                                 | None                                             |
+| `toml`                    | Via treefmt             | toml-sort               | Via treefmt      | None                               | None                                 | None                                             |
+| `shell`                   | Via treefmt             | shfmt, shellcheck       | Via treefmt      | None                               | None                                 | None                                             |
+| `github`                  | Via treefmt             | actionlint              | Via treefmt      | Reusable GitHub CI                 | CI stub                              | None                                             |
+| `keepSorted`              | Via treefmt             | keep-sorted             | Via treefmt      | None                               | None                                 | None                                             |
+| `treefmt`                 | treefmt wrapper         | Combines selected tools | Formatting check | `nix fmt`                          | None                                 | Treefmt recommendation/settings                  |
+| `git`                     | Git                     | None                    | None             | None                               | Initial `.gitignore`                 | None                                             |
+| `direnv`                  | User supplies direnv    | None                    | None             | Shell activation                   | `.envrc`, direnv ignores             | Nix environment selector recommendation/settings |
+| `editor`                  | None                    | None                    | None             | None                               | Local VS Code files, ignore patterns | Publishes contributions from enabled plugins     |
+| `flakehub`                | FlakeHub CLI (`fh`)     | None                    | None             | None                               | None                                 | None                                             |
 
 Each cell describes that plugin's contributions, not everything inherited from
 other enabled plugins. All listed plugins are currently enabled by default.
@@ -233,6 +233,21 @@ shell activation; its content is tested against the initializer's version.
 After initialization, these files belong to you: edit them directly.
 Re-running `write-files` preserves existing files, and there is no drift check or automatic overwrite on upgrades.
 Commit the project files you want to share; nullkomma does not override your personal Git ignore rules.
+
+Files can instead be local-only: set
+`perSystem.nullkomma.files."<path>".gitignore = true` to add a root-relative
+ignore pattern to the initial `.gitignore` when the Git plugin is enabled.
+VS Code's settings and extension recommendations default to this policy;
+override their `gitignore` flags to `false` if you want to share them.
+GitHub workflows, `.gitignore` and other files default to not being ignored.
+
+Ignored files still follow initialize-once ownership: edits are preserved, but
+configuration changes do not refresh an existing copy. Delete a local copy
+deliberately and rerun `write-files` to recreate it. Nix builds must consume the
+store-backed configuration directly, never depend on an ignored workspace file.
+Existing `.gitignore` files are not updated; add the patterns yourself when
+adopting this policy. Already tracked files remain tracked until you explicitly
+remove them from Git's index.
 
 ### Editor ownership
 
