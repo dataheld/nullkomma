@@ -5,7 +5,7 @@
       options.nullkomma.direnv.enable = lib.mkEnableOption "direnv project integration";
       config = lib.mkIf config.nullkomma.direnv.enable {
         nullkomma.gitignore = [ ".direnv/" ];
-        nullkomma.editor.vscode = lib.mkIf (config.nullkomma.editor.enable or false) {
+        nullkomma.editor.vscode = {
           extensions = [ "arrterian.nix-env-selector" ];
           settings = lib.mapAttrs (_: lib.mkDefault) {
             "nixEnvSelector.nixFile" = "\${workspaceFolder}/flake.nix";

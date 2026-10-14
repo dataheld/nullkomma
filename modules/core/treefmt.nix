@@ -17,7 +17,7 @@
     {
       options.nullkomma.treefmt.enable = lib.mkEnableOption "treefmt integration";
       config = {
-        nullkomma.editor.vscode = lib.mkIf (enabled && (config.nullkomma.editor.enable or false)) {
+        nullkomma.editor.vscode = lib.mkIf enabled {
           extensions = [ "ibecker.treefmt-vscode" ];
           settings."editor.defaultFormatter" = lib.mkDefault "ibecker.treefmt-vscode";
         };

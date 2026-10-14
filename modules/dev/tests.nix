@@ -41,7 +41,7 @@
         md = callFlake ../../tests/fixtures/md;
       };
       customized = callFlakeWith {
-        nullkomma.editor.vscode.enable = false;
+        nullkomma.vscode.enable = false;
         nullkomma.editor.vscode.extensions = [ "jnoortheen.nix-ide" ];
         nullkomma.editor.vscode.settings."nix.serverPath" = lib.mkForce "project-nixd";
         perSystem =
@@ -265,6 +265,7 @@
                 "result"
                 "result-*"
                 ".direnv/"
+                "/.nvim.lua"
                 "/.vscode/extensions.json"
                 "/.vscode/settings.json"
               ];
@@ -275,6 +276,7 @@
                 "result"
                 "result-*"
                 ".direnv/"
+                "/.nvim.lua"
               ];
             };
             testImportTreeSkipsUnderscoresAndNonNix = {
@@ -318,6 +320,7 @@
                   && !(perSystem disabled.nix).treefmt.programs.deadnix.enable
                   && !(lib.elem pkgs.nixd (perSystem disabled.nix).nullkomma.devshell.packages)
                   && !(disabled.nix.editor.vscode.settings ? "nix.serverPath")
+                  && !(disabled.nix.editor.languageServers ? nixd)
                   && !((perSystem disabled.nix).nullkomma.tasks ? "check");
                 git =
                   !((perSystem disabled.git).nullkomma.files ? ".gitignore")
@@ -326,12 +329,10 @@
                   !((perSystem disabled.direnv).nullkomma.files ? ".envrc")
                   && !(lib.elem ".direnv/" disabled.direnv.debug.config.nullkomma.gitignore)
                   && !(lib.elem "arrterian.nix-env-selector" disabled.direnv.editor.vscode.extensions);
-                editor =
-                  disabled.editor.editor.vscode.extensions == [ ]
-                  && disabled.editor.editor.vscode.settings == { }
-                  && lib.all (name: !(lib.hasPrefix ".vscode/" name)) (
-                    lib.attrNames (perSystem disabled.editor).nullkomma.files
-                  );
+                vscode = lib.all (name: !(lib.hasPrefix ".vscode/" name)) (
+                  lib.attrNames (perSystem disabled.vscode).nullkomma.files
+                );
+                neovim = !((perSystem disabled.neovim).nullkomma.files ? ".nvim.lua");
                 treefmt =
                   !((disabled.treefmt.checks.${system}) ? treefmt)
                   && !(lib.elem (perSystem disabled.treefmt).treefmt.build.wrapper (perSystem disabled.treefmt)
@@ -353,7 +354,7 @@
                 files = lib.attrNames (perSystem rawFramework).nullkomma.files;
                 nix = (perSystem rawNix).treefmt.programs.nixfmt.enable;
                 tasks = lib.attrNames (perSystem rawNix).nullkomma.tasks;
-                editor = rawNix.editor.vscode.settings;
+                editor = lib.attrNames rawNix.editor.languageServers;
               };
               expected = {
                 checks = [ ];
@@ -372,7 +373,7 @@
                   "update"
                   "write-files"
                 ];
-                editor = { };
+                editor = [ "nixd" ];
               };
             };
             testPluginExports = {
@@ -509,6 +510,17 @@
               )
             ) rejects
             // {
+              neovim-config =
+                pkgs.runCommandLocal "nullkomma-neovim-config" { nativeBuildInputs = [ pkgs.neovim-unwrapped ]; }
+                  ''
+                    HOME=$TMPDIR nvim --clean -l ${pkgs.writeText "check.lua" ''
+                      dofile("${(perSystem fixtures.md).nullkomma.files.".nvim.lua".source}")
+                      assert(vim.lsp.config.nixd.cmd[1] == "nixd")
+                      assert(vim.lsp.config.nixd.settings.nixd.formatting.command[1] == "treefmt")
+                      assert(vim.lsp.is_enabled("nixd"))
+                    ''}
+                    touch $out
+                  '';
               site-contract = pkgs.runCommandLocal "nullkomma-site-contract" { } (
                 lib.concatMapStringsSep "\n" (
                   name:

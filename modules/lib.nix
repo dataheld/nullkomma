@@ -4,17 +4,18 @@
     importTree = import ../lib/import-tree.nix lib;
     defaultPlugins = [
       "direnv"
-      "editor"
       "flakehub"
       "git"
       "github"
       "json"
       "keepSorted"
       "markdown"
+      "neovim"
       "nix"
       "shell"
       "toml"
       "treefmt"
+      "vscode"
       "yaml"
     ];
     # Import definitions separately from the default plugin selection.

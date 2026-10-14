@@ -99,21 +99,22 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-| Plugin       | Dev shell           | Format / lint | Tasks / CI                              | Files                           | Editor (VS Code)         |
-| ------------ | ------------------- | ------------- | --------------------------------------- | ------------------------------- | ------------------------ |
-| `nix`        | nixd, flake-checker | ✅            | `check`, `update`, `flake-checker`      | ignores `result`                | Nix IDE, nixd            |
-| `markdown`   |                     | ✅            |                                         |                                 |                          |
-| `json`       |                     | ✅            |                                         |                                 |                          |
-| `yaml`       |                     | ✅            |                                         |                                 |                          |
-| `toml`       |                     | ✅            |                                         |                                 |                          |
-| `shell`      |                     | ✅            |                                         |                                 |                          |
-| `github`     |                     | ✅ workflows  | reusable CI                             | `.github/workflows/push.yml`    |                          |
-| `keepSorted` |                     | ✅            |                                         |                                 |                          |
-| `treefmt`    | treefmt             | runs all ✅   | `nix fmt`, checked in `nix flake check` |                                 | treefmt extension        |
-| `git`        | git                 |               |                                         | `.gitignore`                    |                          |
-| `direnv`     |                     |               |                                         | `.envrc`, ignores `.direnv/`    | Nix environment selector |
-| `editor`     |                     |               |                                         | `.vscode/` (generated from Nix) | settings, extensions     |
-| `flakehub`   | `fh`                |               |                                         |                                 |                          |
+| Plugin       | Dev shell           | Format / lint | Tasks / CI                              | Files                            | Editor                                 |
+| ------------ | ------------------- | ------------- | --------------------------------------- | -------------------------------- | -------------------------------------- |
+| `nix`        | nixd, flake-checker | ✅            | `check`, `update`, `flake-checker`      | ignores `result`                 | nixd language server; VS Code: Nix IDE |
+| `markdown`   |                     | ✅            |                                         |                                  |                                        |
+| `json`       |                     | ✅            |                                         |                                  |                                        |
+| `yaml`       |                     | ✅            |                                         |                                  |                                        |
+| `toml`       |                     | ✅            |                                         |                                  |                                        |
+| `shell`      |                     | ✅            |                                         |                                  |                                        |
+| `github`     |                     | ✅ workflows  | reusable CI                             | `.github/workflows/push.yml`     |                                        |
+| `keepSorted` |                     | ✅            |                                         |                                  |                                        |
+| `treefmt`    | treefmt             | runs all ✅   | `nix fmt`, checked in `nix flake check` |                                  | VS Code: treefmt extension             |
+| `git`        | git                 |               |                                         | `.gitignore`                     |                                        |
+| `direnv`     |                     |               |                                         | `.envrc`, ignores `.direnv/`     | VS Code: Nix environment selector      |
+| `vscode`     |                     |               |                                         | `.vscode/` (generated from Nix)  | writes the Editor column for VS Code   |
+| `neovim`     |                     |               |                                         | `.nvim.lua` (generated from Nix) | writes language servers for Neovim     |
+| `flakehub`   | `fh`                |               |                                         |                                  |                                        |
 
 ✅ means the plugin's files are formatted/linted by `nix fmt` and checked by
 `nix flake check` (via treefmt). The exact tools are in the plugin's source.
@@ -166,13 +167,21 @@ To change one, change the Nix options.
 `nix flake update` (e.g. by a bot), run `write-files` and `generate-files`
 yourself.
 
-### Editor ownership
+### Editors
 
-nullkomma owns **project-specific** editor features: formatter and language-server commands,
-workspace paths, and recommendations for extensions needed by the imported plugins.
-[lap](https://github.com/dataheld/lap) owns VS Code installation, extension installation,
-themes, keybindings, and personal preferences. `extensions.json` recommends extensions;
-it does not install them.
+Editor settings live in Nix. Plugins describe their language servers once,
+editor-neutrally (`nullkomma.editor.languageServers`), plus anything only one
+editor has (e.g. `nullkomma.editor.vscode.extensions`). Editor plugins (`vscode`,
+`neovim`) write these out as generated, Git-ignored files, so every developer
+gets support for their editor without committing editor config.
+Neovim reads `.nvim.lua` only with `:set exrc` and asks once to trust it.
+The editor plugins match the editors [lap](https://github.com/dataheld/lap)
+sets up: VS Code and Neovim.
+
+nullkomma only handles **project-specific** editor features: language servers,
+formatters and recommended extensions. Installing editors and extensions, themes,
+keybindings and personal preferences belong to your user environment, e.g.
+[lap](https://github.com/dataheld/lap).
 
 ### Development Shell
 
