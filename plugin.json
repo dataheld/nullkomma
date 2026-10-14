@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "nullkomma",
+  "description": "Nullkomma's source-of-truth file conflict resolution skill.",
+  "repository": "https://github.com/dataheld/nullkomma"
+}

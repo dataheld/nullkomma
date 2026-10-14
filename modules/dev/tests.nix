@@ -112,6 +112,7 @@
           };
         }
       );
+      agentPluginManifest = builtins.fromJSON (builtins.readFile ../../plugin.json);
       templates = lib.mapAttrs (_: t: callFlake t.path) nullkomma.templates;
     in
     {
@@ -132,6 +133,22 @@
           };
           tests = {
             # keep-sorted start block=yes
+            testAgentPluginExposesCanonicalConflictSkill = {
+              expr = {
+                inherit (agentPluginManifest) name;
+                schema = agentPluginManifest."$schema";
+                skillExists = builtins.pathExists ../../skills/resolve-file-conflicts/SKILL.md;
+                skillUsesCanonicalSource =
+                  builtins.readFile ../../skills/resolve-file-conflicts/SKILL.md
+                  == builtins.readFile ../../.github/skills/resolve-file-conflicts/SKILL.md;
+              };
+              expected = {
+                name = "nullkomma";
+                schema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
+                skillExists = true;
+                skillUsesCanonicalSource = true;
+              };
+            };
             testAllPluginsDisabledIsBareFramework = {
               expr = map summary [
                 rawFramework
@@ -396,6 +413,23 @@
                       exit 1
                     fi
                     test "$(cat source.txt)" = preexisting
+                    touch $out
+                  '';
+              agent-plugin-consumer =
+                pkgs.runCommandLocal "nullkomma-agent-plugin-consumer" { nativeBuildInputs = [ pkgs.coreutils ]; }
+                  ''
+                    scratch="$(mktemp -d)"
+                    consumer="$scratch/consumer"
+                    plugin="$scratch/home/.copilot/installed-plugins/_direct/nullkomma"
+                    mkdir -p "$consumer" "$plugin/.github"
+                    cp ${../../tests/fixtures/agent-plugin/project/custom-file.txt} "$consumer/custom-file.txt"
+                    cp ${../../plugin.json} "$plugin/plugin.json"
+                    cp -R ${../../.github/skills} "$plugin/.github/skills"
+                    cp -P ${../../skills} "$plugin/skills"
+                    test -f "$plugin/plugin.json"
+                    test -f "$plugin/skills/resolve-file-conflicts/SKILL.md"
+                    grep -qF 'name: resolve-file-conflicts' "$plugin/skills/resolve-file-conflicts/SKILL.md"
+                    cmp ${../../tests/fixtures/agent-plugin/project/custom-file.txt} "$consumer/custom-file.txt"
                     touch $out
                   '';
               file-update-task =
