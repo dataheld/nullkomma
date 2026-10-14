@@ -35,10 +35,7 @@
         perSystem =
           { pkgs, ... }:
           {
-            nullkomma.devshell.packages = [
-              pkgs.nixd
-              pkgs.flake-checker
-            ];
+            nullkomma.devshell.packages = [ pkgs.nixd ];
             treefmt.programs = {
               nixfmt.enable = lib.mkDefault true;
               deadnix.enable = lib.mkDefault true;
@@ -50,16 +47,18 @@
               };
               flake-checker = {
                 description = "Check flake.lock for outdated or non-upstream Nixpkgs";
-                runtimeInputs = [ pkgs.flake-checker ];
+                packages = [ pkgs.flake-checker ];
                 command = ''exec flake-checker "$@"'';
               };
               update = {
+                skip = true;
+                raw = true;
                 description = "Update flake.lock, then refresh shared and generated files using the updated flake";
                 command = ''
                   nix flake update "$@"
                   status=0
-                  nix run .#write-files || status=1
-                  nix run .#generate-files || status=1
+                  nix develop --command write-files || status=1
+                  nix develop --command generate-files || status=1
                   exit "$status"
                 '';
               };

@@ -54,8 +54,8 @@ When making changes, adhere to [aoshima's charter](https://github.com/dataheld/a
 
    ```sh
    git add flake.nix .envrc
-   nix run .#write-files
-   nix run .#generate-files
+   nix develop --command write-files
+   nix develop --command generate-files
    ```
 
 1. (one-time only) Inside the repo, run `direnv allow`.
@@ -71,11 +71,22 @@ The first time you enter the directory, this might take some time.
 
 ## Using
 
-All tasks are self-documented:
+Project tasks are plain commands in the development shell (they accept
+arguments, e.g. `write-files --accept-shared <path>`). The
+[DeterminateSystems/up](https://github.com/DeterminateSystems/up) runner lists
+them and runs them without arguments:
 
 ```sh
-nix run
+tasks          # list tasks
+tasks check    # run one task
+tasks all      # run all tasks not marked `skip` (mutating tasks are skipped)
 ```
+
+Tasks are dev-time only: they are not flake `apps`, but `nix flake show` lists
+them under up's `taskRunners` output. A task is declared in
+`perSystem.nullkomma.tasks.<name>` with `description`, `command` and `packages`;
+other [up task attributes](https://github.com/DeterminateSystems/up#task-attributes)
+(`skip`, `raw`, `confirm`, …) pass through to the runner.
 
 Then, as usual: `nix develop`, `nix fmt`, `nix flake check`, `nix flake show`.
 
@@ -148,7 +159,7 @@ The columns map directly to the implementation:
 - **Development environment:** [`perSystem.nullkomma.devshell`](modules/core/devshell.nix) contributes to `devShells.<system>.default`.
 - **Formatting / linting:** [`perSystem.treefmt`](modules/core/treefmt.nix) supplies `formatter.<system>` and `checks.<system>.treefmt`.
 - **Builds / checks:** flake-parts' `perSystem.packages` and `perSystem.checks`; [`perSystem.nullkomma.site`](modules/core/site.nix) can supply `packages.<system>.site`.
-- **Tasks / CI:** [`perSystem.nullkomma.tasks`](modules/core/tasks.nix) supplies `apps.<system>`; [`nullkomma.github`](modules/tools/github.nix) configures the [reusable CI](.github/workflows/ci.yml).
+- **Tasks / CI:** [`perSystem.nullkomma.tasks`](modules/core/tasks.nix) supplies devshell commands, the `tasks` runner and `taskRunners.<system>`; [`nullkomma.github`](modules/tools/github.nix) configures the [reusable CI](.github/workflows/ci.yml).
 - **Project files:** [`perSystem.nullkomma.files`](modules/core/files.nix), [`nullkomma.gitignore`](modules/core/gitignore.nix) and [template contents](templates/default).
 - **Editor / LSP:** [`nullkomma.editor.vscode`](modules/core/editor.nix) supplies project settings, extension recommendations and `editor.vscode`; the devshell supplies server executables.
 
@@ -169,7 +180,7 @@ root contains `index.html`, exported as `packages.<system>.site`. A future Quart
 plugin can supply it; a future Cloudflare deployment plugin can consume it.
 Neither should require the other: another site producer or deployment destination
 must be substitutable when it satisfies the same contract. CI can invoke the
-deployment task through its app output rather than reimplement deployment.
+deployment task (a `nullkomma.tasks` command) rather than reimplement deployment.
 These are architectural examples, not currently implemented plugins.
 
 The same rule applies beyond sites: executable deployment should consume a
@@ -187,6 +198,10 @@ Test substitution through the shared interface and real tool behavior separately
 module merging or a synthetic artifact alone does not prove deployment works.
 Keep genuinely tool-specific combinations explicit, but do not create a
 producer-by-provider implementation for behavior that can use a neutral contract.
+
+Planned: long-running development processes (e.g. a Quarto `preview`) will use
+the same pattern, through a neutral `nullkomma.processes` option that a `dev`
+command runs as an [up process tree](https://github.com/DeterminateSystems/up).
 
 ### Knobs
 
@@ -223,10 +238,10 @@ There are however some exceptions to this design goal:
 There are two independent questions: **how a file is created** and **where its
 source of truth lives**.
 
-| Creation                    | Shared, project-owned (commit it)                                           | Local, Nix-owned (Git-ignored)                      |
-| --------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------- |
-| `nix flake init --template` | Starter `flake.nix`, `.envrc`, future language starter files                | Not used by our template policy                     |
-| Evaluated Nix configuration | `nix run .#write-files`: workflows, `.gitignore`, other shared initializers | `nix run .#generate-files`: VS Code workspace files |
+| Creation                    | Shared, project-owned (commit it)                                 | Local, Nix-owned (Git-ignored)            |
+| --------------------------- | ----------------------------------------------------------------- | ----------------------------------------- |
+| `nix flake init --template` | Starter `flake.nix`, `.envrc`, future language starter files      | Not used by our template policy           |
+| Evaluated Nix configuration | `write-files`: workflows, `.gitignore`, other shared initializers | `generate-files`: VS Code workspace files |
 
 Templates cannot accept project parameters. Future R/Quarto presets can select
 plugins and options in their starter flakes, but must reuse these file commands
@@ -244,7 +259,7 @@ Unrelated project edits are not conflicts when upstream is unchanged.
 An existing, different file without a baseline also requires review; a new clone
 does not have the previous clone's local baseline. After reviewing/resolving a
 file, `write-files --accept-shared <path>` acknowledges the new initializer
-without overwriting the project content (pass these arguments after `--` to `nix run`).
+without overwriting the project content
 
 **Generated files** (`mode = "generated"`) remain Nix-owned. Do not edit them:
 change the Nix options instead. `generate-files` writes an ownership warning
@@ -263,7 +278,7 @@ shared mode. Git ignore status alone never grants overwrite permission.
 Builds must consume store-backed sources, not ignored workspace copies.
 Disabled/removed files are not deleted automatically.
 
-`nix run .#update` updates the lock file, then re-evaluates both file commands
+`update` updates the lock file, then re-evaluates both file commands
 against the updated flake, reporting conflicts and requesting replacement
 consent. After a direct `nix flake update`, a bot update or pulling a changed lock
 file, run `write-files` and `generate-files` yourself: Nix provides no universal
@@ -289,7 +304,7 @@ inherit them. Use three complementary layers:
   `checks`. Inspect successful build outputs as well as build success. For negative
   fixtures, use Nixpkgs' `testers.testBuildFailure'` with an expected exit code and
   tool-specific log entries; an arbitrary failure is not sufficient.
-- **CLI integration:** `nix run .#check-fixtures` runs real `nix flake check`
+- **CLI integration:** `nix develop --command check-fixtures` runs real `nix flake check`
   commands against good and bad consumer input, overriding nullkomma with this
   checkout. This tests input resolution and CLI failure propagation, which the
   in-process fixture evaluator does not cover. nullkomma's own CI runs it before
@@ -326,12 +341,12 @@ evaluation-error tests or per-test error isolation are needed.
 There are two separate aspects to updating the nix dependencies.
 
 1. There may be newer versions available _given_ the pinning in `flake.nix`.
-   This can be accomplished by running `nix run .#update` locally and may change the `flake.lock`.
+   This can be accomplished by running `update` locally and may change the `flake.lock`.
    However such updates may break a project.
 1. The versions pinned in `flake.nix` (and the resulting `flake.lock`) itself may be out of date.
    The [DeterminateSystems/flake-checker](https://github.com/DeterminateSystems/flake-checker) will fail if this is the case.
    It runs on every push as well as periodically.
-   You can also run this locally using `nix run .#flake-checker`.
+   You can also run this locally using `flake-checker`.
 
 ### Development Shell
 

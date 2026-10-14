@@ -145,6 +145,12 @@
           perSystem = flake: flake.allSystems.${system};
           has = attrs: name: attrs.${system} ? ${name};
           importTreeRoot = ../../tests/fixtures/import-tree;
+          # A framework without plugins still offers the file tasks and their runner.
+          fileTasks = [
+            "generate-files"
+            "write-files"
+            "tasks"
+          ];
           tests = {
             # keep-sorted start block=yes
             testAllPluginsDisabled = {
@@ -159,7 +165,7 @@
               };
               expected = {
                 files = [ ];
-                tools = [ ];
+                tools = fileTasks;
                 checks = [ ];
                 shells = [ ];
                 extensions = [ ];
@@ -173,15 +179,17 @@
             testConsumersExportSchemas = {
               expr = lib.mapAttrs (_: flake: {
                 versions = map (name: flake.schemas.${name}.version) [
-                  "apps"
                   "checks"
                   "devShells"
                   "formatter"
                   "packages"
+                  "taskRunners"
                 ];
-                app =
-                  (flake.schemas.apps.inventory flake.apps)
-                  .children.${system}.children.write-files.evalChecks.isValidApp;
+                apps = flake.apps.${system};
+                tasks = lib.elem "tasks" (map lib.getName (perSystem flake).nullkomma.devshell.packages);
+                listed =
+                  (flake.schemas.taskRunners.inventory flake.taskRunners).children.${system}.children.default.children
+                    ? check;
                 check =
                   (flake.schemas.checks.inventory flake.checks).children.${system}.children.treefmt.isFlakeCheck;
                 shell = (flake.schemas.devShells.inventory flake.devShells).children.${system}.children ? default;
@@ -204,7 +212,9 @@
                       1
                       1
                     ];
-                    app = true;
+                    apps = { };
+                    tasks = true;
+                    listed = true;
                     check = true;
                     shell = true;
                     fh = true;
@@ -337,7 +347,7 @@
                   tools = map (p: p.name) (perSystem rawUnselected).nullkomma.devshell.packages;
                   files = lib.attrNames (perSystem rawUnselected).nullkomma.files;
                 };
-                tools = (perSystem rawFramework).nullkomma.devshell.packages;
+                tools = map (p: p.name) (perSystem rawFramework).nullkomma.devshell.packages;
                 files = lib.attrNames (perSystem rawFramework).nullkomma.files;
                 nix = (perSystem rawNix).treefmt.programs.nixfmt.enable;
                 tasks = lib.attrNames (perSystem rawNix).nullkomma.tasks;
@@ -347,10 +357,10 @@
                 checks = [ ];
                 unselected = {
                   checks = [ ];
-                  tools = [ ];
+                  tools = fileTasks;
                   files = [ ];
                 };
-                tools = [ ];
+                tools = fileTasks;
                 files = [ ];
                 nix = true;
                 tasks = [
@@ -436,7 +446,7 @@
         {
           nullkomma.tasks.check-fixtures = {
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
-            runtimeInputs = [
+            packages = [
               pkgs.coreutils
               pkgs.git
               pkgs.gnugrep
@@ -495,7 +505,7 @@
                     flake = siteConsumers.${name};
                   in
                   ''
-                    ${flake.apps.${system}.read-site.program} > actual
+                    ${lib.getExe (perSystem flake).nullkomma.tasks.read-site.package} > actual
                     printf '%s' '${name}' > expected
                     cmp actual expected
                     cmp actual ${flake.packages.${system}.site}/index.html
@@ -512,8 +522,8 @@
                     mkdir project
                     cd project
                     git init --quiet
-                    ${fixtures.md.apps.${system}.write-files.program}
-                    ${fixtures.md.apps.${system}.generate-files.program}
+                    ${lib.getExe (perSystem fixtures.md).nullkomma.tasks.write-files.package}
+                    ${lib.getExe (perSystem fixtures.md).nullkomma.tasks.generate-files.package}
                     git -c core.excludesFile=/dev/null check-ignore --no-index .vscode/settings.json .vscode/extensions.json
                     for path in .gitignore .github/workflows/push.yml; do
                       if git -c core.excludesFile=/dev/null check-ignore --no-index "$path"; then
@@ -528,7 +538,7 @@
                       exit 1
                     fi
                     printf '# My workflow\n' > .github/workflows/push.yml
-                    ${fixtures.md.apps.${system}.write-files.program}
+                    ${lib.getExe (perSystem fixtures.md).nullkomma.tasks.write-files.package}
                     printf '# My workflow\n' > expected
                     cmp expected .github/workflows/push.yml
                     test ! -e .github/workflows/cron.yml
@@ -543,15 +553,15 @@
                     mkdir project
                     cd project
                     git init --quiet
-                    ${fileVersions.old.apps.${system}.write-files.program}
-                    ${fileVersions.old.apps.${system}.generate-files.program}
+                    ${lib.getExe (perSystem fileVersions.old).nullkomma.tasks.write-files.package}
+                    ${lib.getExe (perSystem fileVersions.old).nullkomma.tasks.generate-files.package}
                     grep -q 'Generated by nullkomma. DO NOT EDIT' local.txt
                     test "$(stat -c %a local.txt)" = 444
                     git -c core.excludesFile=/dev/null check-ignore local.txt
                     printf 'project edit' > shared.txt
                     chmod u+w local.txt
                     printf 'local edit' > local.txt
-                    if ${fileVersions.new.apps.${system}.write-files.program} > conflict.log 2>&1; then
+                    if ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.write-files.package} > conflict.log 2>&1; then
                       echo "Edited shared file unexpectedly overwritten" >&2
                       exit 1
                     fi
@@ -560,21 +570,21 @@
                     test "$(cat untouched.txt)" = new
                     test "$(cat .git/nullkomma/files/base/shared.txt)" = old
                     test "$(cat .git/nullkomma/files/incoming/shared.txt)" = new
-                    if ${fileVersions.new.apps.${system}.generate-files.program} < /dev/null; then
+                    if ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.generate-files.package} < /dev/null; then
                       echo "Generated file overwritten without consent" >&2
                       exit 1
                     fi
                     test "$(cat local.txt)" = 'local edit'
-                    ${fileVersions.new.apps.${system}.generate-files.program} --yes
+                    ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.generate-files.package} --yes
                     grep -q 'DO NOT EDIT' local.txt
                     test "$(tail -n 1 local.txt)" = new
-                    ${fileVersions.new.apps.${system}.write-files.program} --accept-shared shared.txt
-                    ${fileVersions.new.apps.${system}.write-files.program}
+                    ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.write-files.package} --accept-shared shared.txt
+                    ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.write-files.package}
                     test "$(cat shared.txt)" = 'project edit'
                     test "$(cat .git/nullkomma/files/base/shared.txt)" = new
                     test ! -f .git/nullkomma/files/incoming/shared.txt
                     git add -f local.txt
-                    if ${fileVersions.new.apps.${system}.generate-files.program} --yes; then
+                    if ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.generate-files.package} --yes; then
                       echo "Tracked generated file was not rejected" >&2
                       exit 1
                     fi
@@ -582,27 +592,50 @@
                     cd ../unknown
                     git init --quiet
                     printf 'preexisting' > shared.txt
-                    if ${fileVersions.new.apps.${system}.write-files.program}; then
+                    if ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.write-files.package}; then
                       echo "Unknown shared file was not reported" >&2
                       exit 1
                     fi
                     test "$(cat shared.txt)" = preexisting
                     test ! -f .git/nullkomma/files/base/shared.txt
                     ln -s shared.txt local.txt
-                    if ${fileVersions.new.apps.${system}.generate-files.program} --yes; then
+                    if ${lib.getExe (perSystem fileVersions.new).nullkomma.tasks.generate-files.package} --yes; then
                       echo "Symlink target was not rejected" >&2
                       exit 1
                     fi
                     test "$(cat shared.txt)" = preexisting
                     touch $out
                   '';
+              task-runner =
+                let
+                  tasks =
+                    flake:
+                    lib.getExe (
+                      lib.findFirst (p: p.name == "tasks") null (perSystem flake).nullkomma.devshell.packages
+                    );
+                in
+                pkgs.runCommandLocal "nullkomma-task-runner" { } ''
+                  ${tasks fixtures.md} > help
+                  cat help
+                  ${lib.concatMapStrings (name: ''
+                    grep -qF ${lib.escapeShellArg name} help
+                  '') (lib.attrNames (perSystem fixtures.md).nullkomma.tasks)}
+                  ${tasks siteConsumers.producer-a} all > all
+                  cat all
+                  grep -qF producer-a all
+                  if grep -qF "▶ write-files" all; then
+                    echo "Skipped task ran in tasks all" >&2
+                    exit 1
+                  fi
+                  touch $out
+                '';
               file-update-task =
                 let
                   nix = pkgs.writeShellScriptBin "nix" ''
                     printf '%s\n' "$*" >> "$NULLKOMMA_TEST_LOG"
                     case "$*" in
                       "flake update fail") exit 7 ;;
-                      "run .#write-files") exit 1 ;;
+                      "develop --command write-files") exit 1 ;;
                     esac
                   '';
                 in
@@ -612,14 +645,14 @@
                   }
                   ''
                     export NULLKOMMA_TEST_LOG="$PWD/calls"
-                    if ${fixtures.md.apps.${system}.update.program} nullkomma; then
+                    if ${lib.getExe (perSystem fixtures.md).nullkomma.tasks.update.package} nullkomma; then
                       echo "Update did not propagate file conflicts" >&2
                       exit 1
                     fi
-                    printf '%s\n' 'flake update nullkomma' 'run .#write-files' 'run .#generate-files' > expected
+                    printf '%s\n' 'flake update nullkomma' 'develop --command write-files' 'develop --command generate-files' > expected
                     cmp calls expected
                     : > calls
-                    if ${fixtures.md.apps.${system}.update.program} fail; then
+                    if ${lib.getExe (perSystem fixtures.md).nullkomma.tasks.update.package} fail; then
                       echo "Failed lock update was not propagated" >&2
                       exit 1
                     fi

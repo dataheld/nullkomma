@@ -6,7 +6,7 @@ description: Review and resolve nullkomma file-update conflicts after upgrades, 
 # Resolving file conflicts
 
 Use this in the affected consumer repository, not the nullkomma checkout.
-Run `nix run .#write-files` to get the current conflicts and candidate paths.
+Run `write-files` to get the current conflicts and candidate paths.
 Do not force regeneration of shared files or silently accept all baselines.
 
 ## Shared, project-owned files
@@ -24,7 +24,7 @@ Do not force regeneration of shared files or silently accept all baselines.
    user about substantive ambiguities. Review workflows for permissions,
    credentials and execution changes. Never copy secrets into reports.
 1. After resolution (including a deliberate decision to retain project content),
-   run `nix run .#write-files -- --accept-shared <path>` for that file. This
+   run `write-files --accept-shared <path>` for that file. This
    acknowledges the current upstream initializer without overwriting the project
    file. Do not accept changes you have not reviewed.
 1. Rerun `write-files`, inspect the Git diff, and run the relevant checks.
@@ -35,7 +35,7 @@ Do not force regeneration of shared files or silently accept all baselines.
 
 Read the local file and compare it with the generated candidate. Move useful
 edits into the appropriate Nix options, then run
-`nix run .#generate-files` and approve replacement after explaining any loss.
+`generate-files` and approve replacement after explaining any loss.
 Use `--yes` only with explicit authorization for unattended replacement.
 Do not merge edits back into a generated file: its warning and local Git ignore
 are deliberate, and its ultimate source of truth is Nix.

@@ -11,5 +11,6 @@
     "formatter"
     "packages"
     "schemas"
+    "taskRunners"
   ] (_: "dev");
 }

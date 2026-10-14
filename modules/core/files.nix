@@ -56,12 +56,14 @@
         let
           files = lib.filterAttrs (_: f: f.enable) config.nullkomma.files;
           task = mode: {
+            skip = true;
+            raw = true; # stream prompts
             description =
               if mode == "shared" then
                 "Initialize/update shared files; preserve edits and report upstream conflicts"
               else
                 "Generate ignored Nix-owned local files; confirm replacements (--yes for automation)";
-            runtimeInputs = [
+            packages = [
               pkgs.coreutils
               pkgs.git
               pkgs.gnugrep

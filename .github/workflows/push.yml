@@ -15,7 +15,7 @@ jobs:
           persist-credentials: false
       - uses: DeterminateSystems/determinate-nix-action@v3
       - name: Check good and bad consumers through the Nix CLI
-        run: nix run .#check-fixtures
+        run: nix develop --command check-fixtures
   nullkomma:
     needs: consumer-contract
     uses: ./.github/workflows/ci.yml

@@ -1,73 +1,83 @@
-# Named tasks become `apps.<name>` (`nix run .#<name>`); `nix run` lists them.
+# Dev-time tasks: each is a command on the dev shell PATH (taking arguments), and
+# the `tasks` runner (DeterminateSystems/up) lists them and runs them without arguments.
+{ inputs, ... }:
 {
   flake.framework =
     { flake-parts-lib, lib, ... }:
-    let
-      taskModule = {
-        options = {
-          description = lib.mkOption {
-            type = lib.types.str;
-            description = "One-line description, shown by `nix run`.";
-          };
-          command = lib.mkOption {
-            type = lib.types.lines;
-            description = "Bash script (checked by shellcheck); arguments are in `$@`.";
-          };
-          runtimeInputs = lib.mkOption {
-            type = lib.types.listOf lib.types.package;
-            default = [ ];
-            description = "Packages on `PATH` while the task runs.";
-          };
-        };
-      };
-    in
     {
-      options.perSystem = flake-parts-lib.mkPerSystemOption {
-        options.nullkomma.tasks = lib.mkOption {
-          type = lib.types.attrsOf (lib.types.submodule taskModule);
-          default = { };
-          description = "Project tasks (the Makefile replacement), exposed as `apps.<name>`.";
-        };
-      };
+      options.perSystem = flake-parts-lib.mkPerSystemOption (
+        { pkgs, ... }:
+        {
+          options.taskRunners = lib.mkOption {
+            type = lib.types.lazyAttrsOf lib.types.package;
+            default = { };
+            description = "up task runners, exported as `taskRunners.<system>`.";
+          };
+          options.nullkomma.tasks = lib.mkOption {
+            type = lib.types.attrsOf (
+              lib.types.submodule (
+                { name, config, ... }:
+                {
+                  freeformType = lib.types.attrsOf lib.types.anything;
+                  options = {
+                    description = lib.mkOption {
+                      type = lib.types.str;
+                      description = "One-line description, shown by `tasks`.";
+                    };
+                    command = lib.mkOption {
+                      type = lib.types.lines;
+                      description = "Bash script (checked by shellcheck); arguments are in `$@`.";
+                    };
+                    packages = lib.mkOption {
+                      type = lib.types.listOf lib.types.package;
+                      default = [ ];
+                      description = "Packages on `PATH` while the task runs.";
+                    };
+                    package = lib.mkOption {
+                      type = lib.types.package;
+                      readOnly = true;
+                      description = "The task's command, for tests and other tasks.";
+                    };
+                  };
+                  config.package = pkgs.writeShellApplication {
+                    inherit name;
+                    runtimeInputs = config.packages;
+                    text = config.command;
+                  };
+                }
+              )
+            );
+            default = { };
+            description = ''
+              Dev-time project tasks, as dev shell commands. Other attributes (`skip`, `raw`, `confirm`, …)
+              are passed to the up task; see https://github.com/DeterminateSystems/up#task-attributes.
+            '';
+          };
+        }
+      );
+      config.transposition.taskRunners = { };
       config.perSystem =
         { config, pkgs, ... }:
         let
           cfg = config.nullkomma.tasks;
-          toApp = name: task: {
-            type = "app";
-            program = lib.getExe (
-              pkgs.writeShellApplication {
-                inherit name;
-                inherit (task) runtimeInputs;
-                text = task.command;
+          runner = (inputs.up.lib { inherit lib pkgs; }).mkTaskRunner {
+            name = "tasks";
+            description = "Project tasks (also commands in this shell)";
+            tasks = lib.mapAttrs (
+              _: task:
+              removeAttrs task [
+                "package"
+                "packages"
+              ]
+              // {
+                command = task.package;
               }
-            );
-            meta.description = task.description;
-          };
-          width = lib.foldl' lib.max 0 (map lib.stringLength (lib.attrNames cfg)) + 2;
-          pad = s: s + lib.concatStrings (lib.genList (_: " ") (width - lib.stringLength s));
-          help = pkgs.writeShellApplication {
-            name = "nullkomma-help";
-            text = ''
-              cat <<'EOF'
-              Tasks (nix run .#<task>):
-              ${lib.concatStringsSep "\n" (lib.mapAttrsToList (n: t: "  ${pad n}${t.description}") cfg)}
-
-              Also: nix develop, nix fmt, nix flake check, nix flake show
-              EOF
-            '';
+            ) cfg;
           };
         in
-        {
-          config = {
-            apps = lib.mapAttrs toApp cfg // {
-              default = lib.mkDefault {
-                type = "app";
-                program = lib.getExe help;
-                meta.description = "List nullkomma tasks";
-              };
-            };
-          };
+        lib.mkIf (cfg != { }) {
+          taskRunners.default = runner;
+          nullkomma.devshell.packages = lib.mapAttrsToList (_: task: task.package) cfg ++ [ runner ];
         };
     };
 }

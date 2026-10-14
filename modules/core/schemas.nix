@@ -11,6 +11,7 @@
     in
     {
       flake.schemas = inputs.flake-schemas.schemas // {
+        inherit (inputs.up.exportedSchemas) taskRunners;
         editor = {
           version = 1;
           doc = "Project editor settings and extension IDs for workspace files or managed editor profiles.";

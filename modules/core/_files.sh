@@ -26,6 +26,7 @@ if [ "$#" != 0 ]; then
   exit 1
 fi
 
+# shellcheck disable=SC2329 # unused when no file of this mode is enabled
 confirm() {
   local answer
   if [ "$yes" = true ]; then
@@ -39,6 +40,7 @@ confirm() {
   [ "$answer" = y ] || [ "$answer" = Y ]
 }
 
+# shellcheck disable=SC2329 # unused when no file of this mode is enabled
 process_file() {
   local path="$1" source="$2" parent base incoming exclude pattern
   if [ -n "$accept" ] && [ "$accept" != "$path" ]; then

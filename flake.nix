@@ -14,6 +14,11 @@
       url = "https://flakehub.com/f/numtide/treefmt-nix/0.1.*";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    up = {
+      url = "https://flakehub.com/f/DeterminateSystems/up/0.1.*";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-schemas.follows = "flake-schemas";
+    };
   };
 
   # Dendritic: every file under ./modules is a flake-parts module.
