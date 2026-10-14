@@ -76,29 +76,21 @@ The first time you enter the directory, this might take some time.
 ## Using
 
 Project tasks are plain commands in the development shell (they accept
-arguments, e.g. `write-files --accept-shared <path>`). The
+arguments, e.g. `write-files --accept <path>`). The
 [DeterminateSystems/up](https://github.com/DeterminateSystems/up) runner lists
 them and runs them without arguments:
 
 ```sh
 tasks          # list tasks
 tasks check    # run one task
-tasks all      # run all tasks not marked `skip` (mutating tasks are skipped)
+tasks all      # run all tasks that don't change files
 ```
 
-### Plugins and integrations
+### Plugins
 
-A **plugin** is a project/language/tool bundle exported as a flake-parts module
-in `plugins`.
-Plugins are the rows in the table below.
-
-A plugin can contribute to several **integrations**.
-Integrations are the columns in the table below,
-and constitute shared configuration interfaces.
-
-All plugins are optional. `nullkomma.lib.mkFlake` imports their definitions and
-enables the usual defaults using `mkDefault`; callers only need to specify
-exceptions, for example:
+Everything nullkomma adds comes from **plugins** (exported as flake-parts modules
+in `plugins`). All plugins are optional; `nullkomma.lib.mkFlake` enables the
+ones below by default, so you only list exceptions:
 
 ```nix
 inputs.nullkomma.lib.mkFlake { inherit inputs; } {
@@ -107,24 +99,24 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
+| Plugin       | Dev shell           | Format / lint | Tasks / CI                              | Files                           | Editor (VS Code)         |
+| ------------ | ------------------- | ------------- | --------------------------------------- | ------------------------------- | ------------------------ |
+| `nix`        | nixd, flake-checker | ✅            | `check`, `update`, `flake-checker`      | ignores `result`                | Nix IDE, nixd            |
+| `markdown`   |                     | ✅            |                                         |                                 |                          |
+| `json`       |                     | ✅            |                                         |                                 |                          |
+| `yaml`       |                     | ✅            |                                         |                                 |                          |
+| `toml`       |                     | ✅            |                                         |                                 |                          |
+| `shell`      |                     | ✅            |                                         |                                 |                          |
+| `github`     |                     | ✅ workflows  | reusable CI                             | `.github/workflows/push.yml`    |                          |
+| `keepSorted` |                     | ✅            |                                         |                                 |                          |
+| `treefmt`    | treefmt             | runs all ✅   | `nix fmt`, checked in `nix flake check` |                                 | treefmt extension        |
+| `git`        | git                 |               |                                         | `.gitignore`                    |                          |
+| `direnv`     |                     |               |                                         | `.envrc`, ignores `.direnv/`    | Nix environment selector |
+| `editor`     |                     |               |                                         | `.vscode/` (generated from Nix) | settings, extensions     |
+| `flakehub`   | `fh`                |               |                                         |                                 |                          |
 
-| Plugin (`plugins.<name>`) | Development environment | Formatting / linting    | Builds / checks  | Tasks / CI                         | Project files                        | Editor / LSP                                     |
-| ------------------------- | ----------------------- | ----------------------- | ---------------- | ---------------------------------- | ------------------------------------ | ------------------------------------------------ |
-| `nix`                     | nixd, flake-checker     | nixfmt, deadnix         | Via treefmt      | `check`, `update`, `flake-checker` | Nix build ignores                    | Nix IDE recommendation and nixd settings         |
-| `markdown`                | Via treefmt             | mdformat                | Via treefmt      | None                               | None                                 | None                                             |
-| `json`                    | Via treefmt             | jsonfmt                 | Via treefmt      | None                               | None                                 | None                                             |
-| `yaml`                    | Via treefmt             | yamlfmt                 | Via treefmt      | None                               | None                                 | None                                             |
-| `toml`                    | Via treefmt             | toml-sort               | Via treefmt      | None                               | None                                 | None                                             |
-| `shell`                   | Via treefmt             | shfmt, shellcheck       | Via treefmt      | None                               | None                                 | None                                             |
-| `github`                  | Via treefmt             | actionlint              | Via treefmt      | Reusable GitHub CI                 | CI stub                              | None                                             |
-| `keepSorted`              | Via treefmt             | keep-sorted             | Via treefmt      | None                               | None                                 | None                                             |
-| `treefmt`                 | treefmt wrapper         | Combines selected tools | Formatting check | `nix fmt`                          | None                                 | Treefmt recommendation/settings                  |
-| `git`                     | Git                     | None                    | None             | None                               | Initial `.gitignore`                 | None                                             |
-| `direnv`                  | User supplies direnv    | None                    | None             | Shell activation                   | `.envrc`, direnv ignores             | Nix environment selector recommendation/settings |
-| `editor`                  | None                    | None                    | None             | None                               | Local VS Code files, ignore patterns | Publishes contributions from enabled plugins     |
-| `flakehub`                | FlakeHub CLI (`fh`)     | None                    | None             | None                               | None                                 | None                                             |
-
-All listed plugins are currently enabled by default..
+✅ means the plugin's files are formatted/linted by `nix fmt` and checked by
+`nix flake check` (via treefmt). The exact tools are in the plugin's source.
 
 ### Knobs
 
@@ -142,69 +134,37 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-### Boilerplate Files
+### Files in your repo
 
-nullkomma relies on as few "boilerplate" files in user repos as possible.
-For example, the `flake.nix` file to use nullkomma itself is intentionally kept short,
-and there should be no need for extra nix files or lines to add some feature (say, linting) for some project.
-Instead, such features are abstracted away in the above nix modules.
+nullkomma keeps files in your repo to a minimum; features live in Nix instead.
+Some tools still need real files (Git needs `.gitignore`, GitHub needs
+workflows, editors need settings). Each such file is one of two kinds:
 
-There are however some exceptions to this design goal:
+|                             | **Source of truth** (committed, yours to edit) | **Generated from Nix** (Git-ignored, don't edit)   |
+| --------------------------- | ---------------------------------------------- | -------------------------------------------------- |
+| `nix flake init --template` | `flake.nix`, `.envrc`                          | (not possible)                                     |
+| `write-files`               | `.gitignore`, GitHub workflows                 |                                                    |
+| `generate-files`            |                                                | `.vscode/settings.json`, `.vscode/extensions.json` |
 
-1. Some tooling in the interactive development environment expects local files to work properly.
-   For example, `git` needs a local `.gitignore`, GitHub Actions needs a local `.github/workflows/push.yml` and editors might need local files for extensions and settings (see `.vscode/`).
-1. Some languages have their own rich conventions of project files, to, for example, declare dependencies (R's `DESCRIPTION`, or python's `requirement.txt`).
-   While nullkomma could abstract these away in a module and write them out as an artifact,
-   we avoid doing that if the native project files are a well-established and superior API.
-   (Because such project files for dependencies often allow floating references, a separate, language-specific `*.lock` file is then also added to the source.)
+Templates can't take parameters, so anything that depends on your Nix
+configuration comes from `write-files` or `generate-files`.
 
-There are two independent questions:
-**how a file is created** and **where its source of truth lives**.
+**Source-of-truth files** (`nullkomma.files."<path>".mode = "source"`, the
+default) are written once, then they are yours: edit and commit them.
+When nullkomma later changes a file, `write-files` updates it only if you
+haven't edited it. Otherwise it keeps your version, saves the new one next to it
+and fails, pointing you to the
+[resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
+After resolving, `write-files --accept <path>` marks the file as up to date.
 
-| Creation                    | Shared, project-owned (commit it)                                 | Local, Nix-owned (Git-ignored)            |
-| --------------------------- | ----------------------------------------------------------------- | ----------------------------------------- |
-| `nix flake init --template` | Starter `flake.nix`, `.envrc`, future language starter files      |           |
-| Evaluated Nix configuration | `write-files`: workflows, `.gitignore`, other shared initializers | `generate-files`: VS Code workspace files |
+**Generated files** (`mode = "generated"`) always come from Nix.
+`generate-files` overwrites them on every run, starts them with a
+"do not edit" comment and the `git` plugin adds them to `.gitignore`.
+To change one, change the Nix options.
 
-**Shared files** (`perSystem.nullkomma.files."<path>".mode = "shared"`, the
-default) become project-owned.
-Edit them and commit them.
-`write-files` remembers the last upstream initializer as a baseline in local Git metadata.
-It updates a file automatically only if it still matches that baseline (or already matches
-the new initializer).
-When upstream changes and the project file differs,
-it preserves the project file, saves an incoming candidate and exits unsuccessfully
-with instructions for the [resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
-
-Unrelated project edits are not conflicts when upstream is unchanged.
-An existing, different file without a baseline also requires review; a new clone
-does not have the previous clone's local baseline.
-
-**Generated files** (`mode = "generated"`) remain Nix-owned.
-Do not edit them:
-change the Nix options instead.
-`generate-files` writes an ownership warning
-using the file's declared `commentPrefix` (`//` for VS Code's JSONC), makes the
-local copy read-only, and adds
-root-relative patterns to `.git/info/exclude`, independently of the Git plugin.
-It prompts before replacing different existing content; `--yes` explicitly
-authorizes unattended replacement. Noninteractive runs without consent fail
-rather than silently skip stale files. Tracked files and symlink targets are
-rejected; migration requires deliberately moving useful edits into Nix and
-untracking the file. Strict formats without comment support must not use this
-mode until an appropriate warning representation is designed.
-
-VS Code files default to generated mode; workflows and `.gitignore` default to
-shared mode. Git ignore status alone never grants overwrite permission.
-Builds must consume store-backed sources, not ignored workspace copies.
-Disabled/removed files are not deleted automatically.
-
-`update` updates the lock file, then re-evaluates both file commands
-against the updated flake, reporting conflicts and requesting replacement
-consent. After a direct `nix flake update`, a bot update or pulling a changed lock
-file, run `write-files` and `generate-files` yourself: Nix provides no universal
-post-update hook. Baselines and local excludes are not committed; review shared
-file changes normally.
+`update` updates `flake.lock` and then runs both commands. After any other
+`nix flake update` (e.g. by a bot), run `write-files` and `generate-files`
+yourself.
 
 ### Editor ownership
 
@@ -253,44 +213,29 @@ These are architectural examples, not currently implemented plugins.
 
 ### Testing nullkomma
 
-Tests of nullkomma itself live in the development partition; consumers do not
-inherit them. Use three complementary layers:
+nullkomma is tested against small example projects ("fixtures") in
+`tests/fixtures`, which use nullkomma the way a real project would.
+All tests are in [`modules/dev/tests.nix`](modules/dev/tests.nix); projects using
+nullkomma don't inherit them.
 
-- **Module contracts:** `lib.debug.runTests` checks evaluated consumer options,
-  overrides, templates and exported outputs.
-- **Build contracts:** consumer fixture checks are included in nullkomma's own
-  `checks`. Inspect successful build outputs as well as build success. For negative
-  fixtures, use Nixpkgs' `testers.testBuildFailure'` with an expected exit code and
-  tool-specific log entries; an arbitrary failure is not sufficient.
-- **CLI integration:** `nix develop --command check-fixtures` runs real `nix flake check`
-  commands against good and bad consumer input, overriding nullkomma with this
-  checkout. This tests input resolution and CLI failure propagation, which the
-  in-process fixture evaluator does not cover. nullkomma's own CI runs it before
-  the reusable build/publish workflow.
+- **Unit tests** check the evaluated options and outputs of the fixtures
+  (e.g. which files a plugin writes, which tools land in the dev shell).
+- **Build tests** run the real tools on the fixtures inside `nix flake check`:
+  valid files must pass, and for every formatter/linter plugin a deliberately
+  bad file (listed in `rejects`) must fail with that tool's error.
+- **End-to-end test:** `check-fixtures` copies a fixture to a temporary
+  directory and runs `nix flake check` there (with valid and bad files), exactly
+  as a user would, against this checkout of nullkomma. The other tests evaluate fixtures from within
+  nullkomma's own flake, so only this one catches problems with
+  how a real project fetches and uses nullkomma. CI runs it on every push.
 
-Each formatter/linter plugin adds one invalid file to `rejects` in
-`modules/dev/tests.nix`; both the build contract (`formatting-rejects-<plugin>`)
-and the CLI integration test assert that it fails with that tool's diff, while the
-valid fixture passes.
+```sh
+nix flake check   # unit and build tests
+check-fixtures    # end-to-end test
+```
 
-Run the build contracts with `nix flake check`. CLI integration runs outside
-derivation builders: no nested Nix daemon, recursive builds or import-from-derivation
-is needed. Fixtures use the checkout's locked dependencies, not the published
-nullkomma release.
-
-New language plugins should add small successful and deliberately broken fixtures.
-The successful fixture must exercise the actual build and verify meaningful output;
-the broken fixture must fail at the intended stage with its expected diagnostic.
-Do not compare an output with itself or substitute a dummy failing builder for the
-real tool. Keep invalid fixture content out of the repository-wide formatter's
-input, for example by constructing it with `pkgs.writeTextDir`.
-
-These patterns follow [flake-parts' module tests](https://github.com/hercules-ci/flake-parts/blob/main/dev/tests/nix-unit.nix),
-[treefmt-nix's consumer integration tests](https://github.com/numtide/treefmt-nix/blob/main/run-tests.sh),
-and [Nixpkgs' testing helpers](https://nixos.org/manual/nixpkgs/unstable/#chap-testers).
-`runTests` suffices for current value comparisons; consider
-[nix-unit](https://github.com/nix-community/nix-unit) when precise expected
-evaluation-error tests or per-test error isolation are needed.
+New plugins should add a valid and a deliberately broken fixture, and check that
+the broken one fails with the real tool's error, not just any error.
 
 ## Updating
 

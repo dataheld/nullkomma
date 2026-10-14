@@ -53,7 +53,7 @@
               update = {
                 skip = true;
                 raw = true;
-                description = "Update flake.lock, then refresh shared and generated files using the updated flake";
+                description = "Update flake.lock, then refresh written and generated files using the updated flake";
                 command = ''
                   nix flake update "$@"
                   status=0

@@ -28,7 +28,7 @@ Keep the matrix curated; do not add a metadata registry or documentation generat
    each row. Keep integrations grouped in the existing columns; explain a new
    column only when a genuinely distinct consumer concern warrants it.
 1. State conditions and limitations: default versus opt-in, project type,
-   platform availability, or combinations of imports. Use `None` only for a
+   platform availability, or combinations of imports. Leave a cell empty only for a
    verified absence of an added integration, not unknown behavior. Do not put
    speculative or unimplemented rows in the README.
 1. Check each changed claim against source and relevant consumer contracts.
@@ -40,14 +40,15 @@ Keep the matrix curated; do not add a metadata registry or documentation generat
 
 - A plugin is an exported module; a column is an integration it contributes to.
   A source file is not necessarily an independently selectable plugin.
-- Treefmt support for a language does not mean nullkomma exports a project-type
+- Mark formatter/linter coverage with ✅; tool names live in the source.
+  Treefmt support for a language does not mean nullkomma exports a project-type
   plugin for that language.
 - Distinguish an exposed package from a check that actually builds/verifies it.
   An extension point without a supplied implementation is not an active build.
 - Distinguish formatter/linter configuration, editor integration and an installed
   language-server executable. An extension recommendation does not install it.
-- Distinguish template starters, baseline-updated shared files (`write-files`),
-  ignored Nix-owned derivatives (`generate-files`) and build artifacts.
+- Distinguish template starters, source-of-truth files (`write-files`),
+  files generated from Nix (`generate-files`) and build artifacts.
 - Personal editor/user environment policy belongs outside nullkomma.
 - Check conditional behavior and explicit cross-plugin integration; option
   merging is not proof that every combination works.

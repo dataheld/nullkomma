@@ -3,46 +3,19 @@ mode="${mode:?file mode must be set by the caller}"
 root="$(git rev-parse --show-toplevel)"
 cd "$root" || exit 1
 state="$(git rev-parse --git-path nullkomma/files)"
-yes=false
 accept=""
 accepted=false
 status=0
-case "${1:-}" in
---yes)
-  yes=true
-  shift
-  ;;
---accept-shared)
-  if [ "$mode" != shared ] || [ "$#" != 2 ]; then
-    echo "Usage: write-files --accept-shared <path> (after reviewing/resolving a conflict)" >&2
-    exit 1
-  fi
+if [ "$mode" = source ] && [ "${1:-}" = --accept ] && [ "$#" = 2 ]; then
   accept="$2"
-  shift 2
-  ;;
-esac
-if [ "$#" != 0 ]; then
-  echo "Unexpected arguments; use --yes or write-files --accept-shared <path>" >&2
+elif [ "$#" != 0 ]; then
+  echo "Usage: write-files [--accept <path>] (after resolving a conflict); generate-files takes no arguments" >&2
   exit 1
 fi
 
 # shellcheck disable=SC2329 # unused when no file of this mode is enabled
-confirm() {
-  local answer
-  if [ "$yes" = true ]; then
-    return 0
-  fi
-  if [ ! -t 0 ]; then
-    echo "Confirmation required; rerun interactively or pass --yes after review." >&2
-    return 1
-  fi
-  read -r -p "$1 [y/N] " answer
-  [ "$answer" = y ] || [ "$answer" = Y ]
-}
-
-# shellcheck disable=SC2329 # unused when no file of this mode is enabled
 process_file() {
-  local path="$1" source="$2" parent base incoming exclude pattern
+  local path="$1" source="$2" parent base incoming
   if [ -n "$accept" ] && [ "$accept" != "$path" ]; then
     return
   fi
@@ -69,37 +42,9 @@ process_file() {
     return
   fi
   if [ "$mode" = generated ]; then
-    if git --literal-pathspecs ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
-      echo "Refusing to generate tracked file $path; migrate edits to Nix, then explicitly untrack it." >&2
-      status=1
-      return
-    fi
-    if [ -f "$path" ] && ! cmp -s "$path" "$source"; then
-      echo "Nix candidate: $source" >&2
-      if ! confirm "Replace Nix-owned $path? Local edits will be lost."; then
-        echo "Not replaced: $path" >&2
-        status=1
-        return
-      fi
-    fi
-    exclude="$(git rev-parse --git-path info/exclude)"
-    mkdir -p "$(dirname "$exclude")"
-    touch "$exclude"
-    pattern="${path//\\/\\\\}"
-    pattern="${pattern//\*/\\*}"
-    pattern="${pattern//\?/\\?}"
-    pattern="${pattern//\[/\\[}"
-    if ! grep -qxF "/$pattern" "$exclude"; then
-      printf '\n/%s\n' "$pattern" >>"$exclude"
-    fi
-    if ! git check-ignore --no-index --quiet -- "$path"; then
-      echo "Project Git rules prevent ignoring $path; resolve them before generation." >&2
-      status=1
-      return
-    fi
     mkdir -p "$(dirname "$path")"
     cp --remove-destination "$source" "$path"
-    chmod a-w "$path"
+    chmod u+w "$path"
     echo "generated $path"
     return
   fi
@@ -136,7 +81,7 @@ process_file() {
 
 finish() {
   if [ -n "$accept" ] && [ "$accepted" != true ]; then
-    echo "Not an enabled shared file: $accept" >&2
+    echo "Not an enabled source-of-truth file: $accept" >&2
     exit 1
   fi
   exit "$status"
