@@ -43,7 +43,9 @@
       callFlake = callFlakeWith { };
       fixtures = {
         md = callFlake ../../tests/fixtures/md;
+        bats = callFlake ../../tests/fixtures/bats;
       };
+      batsFailing = callFlakeWith { nullkomma.bats.testDir = "failing"; } ../../tests/fixtures/bats;
       customized = callFlakeWith {
         nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
         perSystem =
@@ -66,12 +68,16 @@
           };
         };
       } ../../tests/fixtures/md;
-      disabled = lib.genAttrs (lib.attrNames plugins) (
+      # Opt-in plugins are off by default, so compare against everything on.
+      allExcept =
         name:
         callFlakeWith {
-          nullkomma.${name}.enable = false;
-        } ../../tests/fixtures/md
-      );
+          nullkomma = lib.genAttrs (lib.attrNames plugins) (other: {
+            enable = other != name;
+          });
+        } ../../tests/fixtures/md;
+      allEnabled = allExcept null;
+      disabled = lib.genAttrs (lib.attrNames plugins) allExcept;
       minimal = callFlakeWith {
         nullkomma =
           lib.genAttrs (lib.attrNames plugins) (_: {
@@ -215,7 +221,7 @@
               };
             };
             testEveryPluginCanBeDisabled = {
-              expr = lib.filter (name: summary disabled.${name} == summary fixtures.md) (lib.attrNames plugins);
+              expr = lib.filter (name: summary disabled.${name} == summary allEnabled) (lib.attrNames plugins);
               expected = [ ];
             };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
@@ -395,6 +401,12 @@
               )
             ) rejects
             // {
+              bats-rejects-failing-tests = pkgs.testers.testBuildFailure' {
+                name = "nullkomma-bats-rejects-failing-tests";
+                drv = batsFailing.checks.${system}.bats;
+                expectedBuilderExitCode = 1;
+                expectedBuilderLogEntries = [ "not ok 1 fails on purpose" ];
+              };
               neovim-config =
                 pkgs.runCommandLocal "nullkomma-neovim-config" { nativeBuildInputs = [ pkgs.neovim-unwrapped ]; }
                   ''

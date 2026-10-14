@@ -90,7 +90,7 @@ Everything nullkomma adds comes from **plugins**, exported as flake-parts module
 `flakeModules.<plugin>` next to the shared `flakeModules.framework`.
 All plugins are optional; `nullkomma.lib.mkFlake` (or importing
 `flakeModules.default` into your own `flake-parts.lib.mkFlake`) enables the
-ones below by default, so you only list exceptions:
+ones below by default (except opt-in ones), so you only list exceptions:
 
 ```nix
 inputs.nullkomma.lib.mkFlake { inherit inputs; } {
@@ -107,6 +107,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 | `yaml`       | yaml-language-server | ✅            |                                         |                                  | YAML language server; VS Code: YAML     |
 | `toml`       |                      | ✅            |                                         |                                  |                                         |
 | `shell`      | bash-language-server | ✅            |                                         |                                  | bash language server; VS Code: Bash IDE |
+| `bats`¹      | bats                 | ✅ `*.bats`   | `test`, run in `nix flake check`        |                                  | VS Code: Bats                           |
 | `github`     |                      | ✅ workflows  | reusable CI                             | `.github/workflows/push.yml`     |                                         |
 | `keepSorted` |                      | ✅            |                                         |                                  |                                         |
 | `typos`      |                      | ✅ spelling   |                                         |                                  |                                         |
@@ -116,6 +117,11 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 | `vscode`     |                      |               |                                         | `.vscode/` (generated from Nix)  | writes the Editor column for VS Code    |
 | `neovim`     |                      |               |                                         | `.nvim.lua` (generated from Nix) | writes language servers for Neovim      |
 | `flakehub`   | `fh`                 |               |                                         |                                  |                                         |
+
+¹ Opt-in: enable with `nullkomma.bats.enable = true`. Tests live in `test/`
+(`nullkomma.bats.testDir`); add the tools they need with
+`perSystem.nullkomma.bats.packages`. The check runs them in the sandbox against
+the flake's source, with shebangs patched.
 
 ✅ means the plugin's files are formatted/linted by `nix fmt` and checked by
 `nix flake check` (via treefmt). The exact tools are in the plugin's source.
