@@ -23,8 +23,6 @@ It is **not**:
 | User environment policy (home-manager, shell ergonomics) | [dataheld/lap](https://github.com/dataheld/lap)         |
 | Agentic coding app / runtime                             | [dataheld/gittens](https://github.com/dataheld/gittens) |
 
-Separation tracker: [dataheld/aoshima#227](https://github.com/dataheld/aoshima/issues/227).
-
 ## Charter
 
 This repo contributes to the broader IT infrastructure laid out in [aoshima](https://github.com/dataheld/aoshima).
