@@ -16,17 +16,11 @@
     {
       options.nullkomma.git.enable = lib.mkEnableOption "Git project integration";
       config = lib.mkIf config.nullkomma.git.enable {
-        # Initialized files are re-included last, so a global excludesFile (e.g. one ignoring
-        # `.vscode/settings.json` or `.envrc`) can't keep them out of the flake source.
         perSystem =
-          { config, pkgs, ... }:
+          { pkgs, ... }:
           {
             nullkomma.devshell.packages = [ pkgs.git ];
-            nullkomma.files.".gitignore".text = lib.concatLines (
-              ignores
-              ++ [ "# Initialized files" ]
-              ++ map (path: "!/${path}") (lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files))
-            );
+            nullkomma.files.".gitignore".text = lib.concatLines ignores;
           };
       };
     };

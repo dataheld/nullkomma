@@ -220,21 +220,13 @@
                 notebook = false;
               };
             };
-            testGitignoreReincludesManagedFiles = {
-              expr =
-                let
-                  lines = lib.splitString "\n" (perSystem fixtures.md).nullkomma.files.".gitignore".text;
-                in
-                {
-                  envrc = lib.elem "!/.envrc" lines;
-                  vscode = lib.elem "!/.vscode/settings.json" lines;
-                  last = lib.last (lib.init lines) == "!/.vscode/settings.json";
-                };
-              expected = {
-                envrc = true;
-                vscode = true;
-                last = true;
-              };
+            testGitignoreContainsOnlyPluginPatterns = {
+              expr = (perSystem fixtures.md).nullkomma.files.".gitignore".text;
+              expected = lib.concatLines [
+                "result"
+                "result-*"
+                ".direnv/"
+              ];
             };
             testImportTreeSkipsUnderscoresAndNonNix = {
               expr = map (lib.removePrefix (toString importTreeRoot)) (

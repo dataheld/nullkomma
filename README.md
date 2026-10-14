@@ -225,7 +225,7 @@ If they depend on some input from you, they will be added after the flake via `n
 
 After initialization, these files belong to you: edit them directly.
 Re-running `write-files` preserves existing files, and there is no drift check or automatic overwrite on upgrades.
-Commit them; the initial `.gitignore` re-includes these paths to override a global `core.excludesFile`.
+Commit the project files you want to share; nullkomma does not override your personal Git ignore rules.
 
 ### Editor ownership
 
