@@ -50,7 +50,7 @@ When making changes, adhere to [aoshima's charter](https://github.com/dataheld/a
    The template also includes `.envrc` containing `use flake`.
    Existing files are preserved.
 
-1. Initialize remaining missing files (`.gitignore`, CI workflows, editor settings):
+1. Initialize remaining missing files (see below):
 
    ```sh
    git add flake.nix .envrc
@@ -70,27 +70,6 @@ The first time you enter the directory, this might take some time.
 
 ## Using
 
-The default aspect also exports [flake schemas](https://github.com/DeterminateSystems/flake-schemas)
-for standard outputs (`packages`, `checks`, `devShells`, `apps`, etc.) and module/library outputs.
-Schema-aware Nix tooling can inventory and validate these outputs; ordinary Nix can still consume the flake.
-The shared `flake-schemas` input adds one lightweight node to consumer locks.
-
-A project's entire nullkomma footprint is its `flake.nix` (and `flake.lock`):
-
-```nix
-{
-  inputs.nullkomma.url = "https://flakehub.com/f/dataheld/nullkomma/0.1.*";
-
-  outputs =
-    inputs:
-    inputs.nullkomma.lib.mkFlake { inherit inputs; } { };
-}
-```
-
-`nullkomma.lib.mkFlake` is [`flake-parts.lib.mkFlake`](https://flake.parts/getting-started) with `flakeModules.default` already imported,
-so everything flake-parts can do, a nullkomma project can do, too.
-The project needs no other inputs: Nixpkgs, flake-parts and treefmt-nix come pinned with nullkomma.
-
 All tasks are self-documented:
 
 ```sh
@@ -102,7 +81,7 @@ Then, as usual: `nix develop`, `nix fmt`, `nix flake check`, `nix flake show`.
 ### Aspects
 
 Each aspect is a flake-parts module in `flakeModules`.
-Import only the ones a project needs; an aspect never adds anything to a project that does not import it.
+Import only the ones a project needs.
 The `default` aspect is imported automatically by `nullkomma.lib.mkFlake`.
 
 | Aspect    | Adds                                                                                                                                                                                                                                                                           |
@@ -125,55 +104,37 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-### Initialized files
+### Boilerplate Files
 
-Some files must live in the repo, so `nix run .#write-files` initializes missing
-`.gitignore`, `.envrc`, `.github/workflows/push.yml`, and `.vscode/*.json` files.
-Configure their initial contents in `flake.nix` (e.g. `nullkomma.gitignore`, `nullkomma.editor.vscode`).
-After initialization they belong to you: edit them directly. Re-running `write-files`
-preserves existing files, and there is no drift check or automatic overwrite on upgrades.
+nullkomma relies on as few "boilerplate" files in user repos as possible.
+For example, the `flake.nix` file to use nullkomma itself is intentionally kept short,
+and there should be no need for extra nix files or lines to add some feature (say, linting) for some project.
+Instead, such features are abstracted away in the above nix modules.
+
+There are however some exceptions to this design goal:
+
+1. Some tooling in the interactive development environment expects local files to work properly.
+  For example, `git` needs a local `.gitignore`, GitHub Actions needs a local `.github/workflows/push.yml` and editors might need local files for extensions and settings (see `.vscode/`).
+1. Some languages have their own rich conventions of project files, to, for example, declare dependencies (R's `DESCRIPTION`, or python's `requirement.txt`).
+  While nullkomma could abstract these away in a module and write them out as an artifact,
+  we avoid doing that if the native project files are a well-established and superior API.
+  (Because such project files for dependencies often allow floating references, a separate, language-specific `*.lock` file is then also added to the source.)
+
+If these files are not parametrised, they will be come via `nix flake init --template` (see above).
+
+If they depend on some input from you, they will be added after the flake via `nix run .#write-files`.
+
+After initialization, these files belong to you: edit them directly.
+Re-running `write-files` preserves existing files, and there is no drift check or automatic overwrite on upgrades.
 Commit them; the initial `.gitignore` re-includes these paths to override a global `core.excludesFile`.
-The CI stub calls nullkomma's reusable [`ci.yml`](.github/workflows/ci.yml).
-It runs native Nix checks and builds packages and development shells on each supported system,
-then publishes to FlakeHub when configured, after all checks pass.
-The scheduled `cron.yml` maintenance workflow exists only in nullkomma itself, not in consumers.
 
 ### Editor ownership
 
-nullkomma owns **project** editor integration: formatter and language-server commands,
+nullkomma owns **project-specific** editor features: formatter and language-server commands,
 workspace paths, and recommendations for extensions needed by the imported aspects.
 [lap](https://github.com/dataheld/lap) owns VS Code installation, extension installation,
 themes, keybindings, and personal preferences. `extensions.json` recommends extensions;
 it does not install them.
-
-Workspace files remain useful on both unmanaged and Home Manager-managed machines:
-they select the project's tools without changing the user's global defaults.
-The same evaluated project data is exported as `editor.vscode.settings` and
-`editor.vscode.extensions` (sorted, unique extension IDs), even when
-`nullkomma.editor.vscode.enable = false` disables workspace-file initialization.
-
-A Home Manager configuration importing lap can use a separate project profile:
-
-```nix
-programs.vscode.profiles.nullkomma = {
-  userSettings = inputs.nullkomma.editor.vscode.settings;
-  extensions = map (
-    id:
-    let
-      parts = lib.splitString "." id;
-    in
-    marketplace.${builtins.elemAt parts 0}.${builtins.elemAt parts 1}
-  ) inputs.nullkomma.editor.vscode.extensions;
-};
-```
-
-Here `marketplace` is the version-compatible `vscode-marketplace` package set from
-`nix-vscode-extensions`, as used by lap. For another project, consume **that project's**
-`editor.vscode`, so its imported language aspects and overrides are included.
-Select the profile when opening the project; do not merge project-specific commands
-into lap's global user defaults. Profiles containing workspace-relative paths must
-be used with the corresponding project open. Personal language-specific formatter
-overrides may still need project-specific workspace overrides.
 
 ## Testing nullkomma
 
@@ -220,9 +181,6 @@ There are two separate aspects to updating the nix dependencies.
 1. There may be newer versions available _given_ the pinning in `flake.nix`.
    This can be accomplished by running `nix run .#update` locally and may change the `flake.lock`.
    However such updates may break a project.
-   Review updates and run checks before merging. Nullkomma itself uses a scheduled
-   `cron.yml` workflow to open update pull requests; downstream repos do not receive this workflow.
-   Updates never overwrite your initialized repository files.
 1. The versions pinned in `flake.nix` (and the resulting `flake.lock`) itself may be out of date.
    The [DeterminateSystems/flake-checker](https://github.com/DeterminateSystems/flake-checker) will fail if this is the case.
    It runs on every push as well as periodically.
@@ -243,18 +201,6 @@ Or if you have `nix-direnv` installed,:
 ```sh
 nix-direnv-reload
 ```
-
-## Developing
-
-nullkomma follows the [dendritic pattern](https://github.com/mightyiam/dendritic):
-every `.nix` file under [`modules/`](modules) is a flake-parts module, imported automatically
-(files and directories starting with `_` are skipped).
-Files add to the exported aspects by defining `flake.flakeModules.<aspect>`, so one aspect can span many files
-and one file can extend several aspects.
-
-nullkomma uses itself: its devshell, formatter and checks come from the `dev` [partition](https://flake.parts/options/flake-parts-partitions.html),
-so development-only configuration is not evaluated by consumers.
-The fixtures in [`tests/fixtures`](tests/fixtures) are evaluated like projects using nullkomma, and their checks and devshells are part of `nix flake check`.
 
 ## Issues
 
