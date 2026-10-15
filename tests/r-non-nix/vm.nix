@@ -21,7 +21,7 @@ pkgs.testers.runNixOSTest {
     machine.succeed("cp ${./Dockerfile} /tmp/r-test/image/Dockerfile")
     machine.succeed("cp ${./run.sh} /tmp/r-test/run.sh")
     machine.succeed(
-        "docker build --build-arg R_VERSION=${rVersion} "
+        "docker build --progress=plain --build-arg R_VERSION=${rVersion} "
         "-t nullkomma-r-non-nix /tmp/r-test/image",
         timeout=1200,
     )

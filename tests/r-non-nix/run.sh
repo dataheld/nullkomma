@@ -19,13 +19,14 @@ Rscript - <<'RS'
   stopifnot(!requireNamespace("pak", quietly = TRUE))
 RS
 
-Rscript examples.R
 Rscript - <<'RS'
+  source("examples.R")
   for (package in c("pak", "testthat", "assertthat", "rematch")) {
     stopifnot(startsWith(find.package(package), .libPaths()[1]))
   }
   plan <- pak::pkg_deps("brio", dependencies = FALSE)
-  stopifnot(plan$binary[plan$package == "brio"])
+  stopifnot(sum(plan$package == "brio") == 1L)
+  stopifnot(isTRUE(plan$binary[plan$package == "brio"]))
 RS
 
 # A new Config/Needs field is discovered without a Nix regeneration.

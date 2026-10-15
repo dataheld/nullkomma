@@ -371,13 +371,19 @@ if (!requireNamespace("pak", quietly = TRUE)) {
     .Platform$pkgType, R.Version()$os, R.Version()$arch
   ))
 }
+if (identical(getOption("repos")[["CRAN"]], paste0(
+  "https://packagemanager.posit.co/cran/", Sys.getenv("NULLKOMMA_PPM_SNAPSHOT")
+))) {
+  pak::repo_add(CRAN = paste0("PPM@", Sys.getenv("NULLKOMMA_PPM_SNAPSHOT")))
+}
 pak::local_install_deps(
   dependencies = getOption("nullkomma.r.dependencies"),
   ask = FALSE
 )
 ```
 
-pak chooses binaries for your operating system and R version when available,
+The PPM resolver selects a platform-specific repository when supported; a custom
+repository URL is left unchanged. pak chooses binaries when available,
 otherwise source packages. Source packages may need a compiler and system
 libraries; pak reports these requirements and may offer to install them with
 administrator privileges. The local library is Git-ignored; do not commit it.
@@ -396,7 +402,10 @@ Refresh the committed lockfile after changing dependencies:
 
 ```r
 local({
-  previous <- options(pkg.platforms = "source")
+  previous <- options(
+    repos = c(CRAN = Sys.getenv("NULLKOMMA_PPM_URL")),
+    pkg.platforms = "source"
+  )
   on.exit(options(previous))
   pak::lockfile_create(
     "deps::.",
