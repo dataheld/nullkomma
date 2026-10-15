@@ -1,4 +1,9 @@
-.direnv/
+.quarto/
+_site/
 result
 result-*
+.direnv/
 .claude/
+/.nvim.lua
+/_extensions/maxheld
+/privacy.qmd

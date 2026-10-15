@@ -103,26 +103,26 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-| Plugin                              | Dev helpers | Format / lint          | Tests                       | Files                            | Editor                                                           |
-| ----------------------------------- | ----------- | ---------------------- | --------------------------- | -------------------------------- | ---------------------------------------------------------------- |
-| [`nix`][nix]                        |             | ✅, [`flake-checker`]¹ | [nix-unit]²                 | ignores `result`                 | [nixd]; VS Code: [Nix IDE]                                       |
-| [`markdown`][md]                    |             | ✅                     |                             |                                  | [marksman]                                                       |
-| [`json`][json]                      |             | ✅                     |                             |                                  | [JSON language server][jsonls]                                   |
-| [`yaml`][yaml]                      |             | ✅                     |                             |                                  | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
-| [`toml`][toml]                      |             | ✅                     |                             |                                  |                                                                  |
-| [`shell`][bash]                     |             | ✅³                    | [bats]³                     |                                  | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
-| [`github`][gha]                     |             | ✅                     |                             | `push.yml`⁴                      |                                                                  |
-| [`keepSorted`][keep-sorted]         |             | ✅                     |                             |                                  |                                                                  |
-| [`typos`][typos]                    |             | ✅ spelling            |                             |                                  |                                                                  |
-| [`treefmt`][treefmt]                |             | runs all ✅            |                             |                                  | formatter; VS Code: [treefmt][vscode-treefmt]                    |
-| [`git`][git]                        | git         |                        |                             | `.gitignore`                     |                                                                  |
-| [`direnv`][direnv]                  |             |                        |                             | `.envrc`, ignores `.direnv/`     | VS Code: [Nix Environment Selector]                              |
-| [`vscode`][vscode]                  |             |                        |                             | `.vscode/`⁵                      | renders it for VS Code⁵                                          |
-| [`neovim`][neovim]                  |             |                        |                             | `.nvim.lua`⁵                     | renders it for Neovim⁵                                           |
-| [`flakehub`][flakehub]              | [`fh`]      |                        |                             |                                  |                                                                  |
-| [`quarto`][quarto] (opt-in)         | quarto⁷     |                        |                             | ignores `.quarto/`, `_site/`     | VS Code: [Quarto][vscode-quarto]                                 |
-| [`cloudflare`][cloudflare] (opt-in) | wrangler⁶   |                        | OpenTofu validation         | ignores `.nullkomma/cloudflare/` |                                                                  |
-| [`r`][r] (opt-in)                   | R, pak      | ✅                     | lock freshness, R CMD check | R ignores; optional `.Rprofile`  | R languageserver; VS Code: R, Air                                |
+| Plugin                              | Dev helpers | Format / lint          | Tests                       | Files                                                         | Editor                                                           |
+| ----------------------------------- | ----------- | ---------------------- | --------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`nix`][nix]                        |             | ✅, [`flake-checker`]¹ | [nix-unit]²                 | ignores `result`                                              | [nixd]; VS Code: [Nix IDE]                                       |
+| [`markdown`][md]                    |             | ✅                     |                             |                                                               | [marksman]                                                       |
+| [`json`][json]                      |             | ✅                     |                             |                                                               | [JSON language server][jsonls]                                   |
+| [`yaml`][yaml]                      |             | ✅                     |                             |                                                               | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
+| [`toml`][toml]                      |             | ✅                     |                             |                                                               |                                                                  |
+| [`shell`][bash]                     |             | ✅³                    | [bats]³                     |                                                               | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
+| [`github`][gha]                     |             | ✅                     |                             | `push.yml`⁴                                                   |                                                                  |
+| [`keepSorted`][keep-sorted]         |             | ✅                     |                             |                                                               |                                                                  |
+| [`typos`][typos]                    |             | ✅ spelling⁷           |                             |                                                               |                                                                  |
+| [`treefmt`][treefmt]                |             | runs all ✅            |                             |                                                               | formatter; VS Code: [treefmt][vscode-treefmt]                    |
+| [`git`][git]                        | git         |                        |                             | `.gitignore`                                                  |                                                                  |
+| [`direnv`][direnv]                  |             |                        |                             | `.envrc`, ignores `.direnv/`                                  | VS Code: [Nix Environment Selector]                              |
+| [`vscode`][vscode]                  |             |                        |                             | `.vscode/`⁵                                                   | renders it for VS Code⁵                                          |
+| [`neovim`][neovim]                  |             |                        |                             | `.nvim.lua`⁵                                                  | renders it for Neovim⁵                                           |
+| [`flakehub`][flakehub]              | [`fh`]      |                        |                             |                                                               |                                                                  |
+| [`quarto`][quarto] (opt-in)         | quarto⁹     |                        |                             | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸ | VS Code: [Quarto][vscode-quarto]                                 |
+| [`cloudflare`][cloudflare] (opt-in) | wrangler⁶   |                        | OpenTofu validation         | ignores `.nullkomma/cloudflare/`                              |                                                                  |
+| [`r`][r] (opt-in)                   | R, pak      | ✅                     | lock freshness, R CMD check | R ignores; optional `.Rprofile`                               | R languageserver; VS Code: R, Air                                |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
 Nixpkgs. The `nix` plugin also adds the tasks `check` (`nix flake check`) and
@@ -145,9 +145,16 @@ repositories and private for private repositories. Override
 ⁵ Generated (Git-ignored) from the Editor column: VS Code settings and
 recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
 
-⁶ Also adds the `terraform` (plan changes) and `deploy` tasks.
+⁶ Also adds the `terraform` (plan changes) and `deploy` tasks, and a section
+to the privacy policy (see [Static websites](#static-websites)).
 
-⁷ Also adds the `preview` task: `quarto preview`, serving the site on localhost
+⁷ Skips translations such as `*.de.md`, one pattern per non-English
+`nullkomma.privacy.languages`; typos only knows English.
+
+⁸ Generated: `nullkomma.quarto.extensions`, and the privacy policy once
+there are `nullkomma.privacy.sections`.
+
+⁹ Also adds the `preview` task: `quarto preview`, serving the site on localhost
 and re-rendering and live-reloading it on changes.
 
 ✅ means the plugin's files are formatted/linted by the `format` task (or `nix fmt`) and
@@ -213,6 +220,30 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 
 In `nix develop`, run `preview` to serve the site on localhost; Quarto
 re-renders and reloads the page as you edit.
+
+Shared Quarto extensions, e.g. a brand from another flake, go in
+`nullkomma.quarto.extensions.<name>`: generated into `_extensions/<name>` and
+copied into the build.
+
+Plugins that set up processing of visitors' data add a section to
+`nullkomma.privacy.sections` (`cloudflare` adds one on hosting and analytics);
+so can a brand module or the project:
+
+```nix
+nullkomma.privacy.sections.booking = {
+  order = 500; # cloudflare is 200
+  markdown = {
+    en = ./booking.en.md;
+    de = ./booking.de.md;
+  };
+};
+```
+
+`quarto` renders them, by `order`, into `privacy.qmd`
+(`nullkomma.quarto.privacy.page`), one tab per `nullkomma.privacy.languages`.
+Link it from your footer. To write your own, set the page to `null`; other
+builders get the sections' files from the same option or `nullkomma.lib.privacy`.
+nullkomma's sections are a starting point, not legal advice.
 
 In `nix develop`, use `tasks` to select `terraform` (plan changes) or `deploy`
 (publish). Run `terraform <command> [args]` for other OpenTofu commands.
@@ -289,7 +320,7 @@ workflows, editors need settings). Each such file is one of two kinds:
 | --------------------------- | ---------------------------------------------- | ------------------------------------------------ |
 | `nix flake init --template` | `flake.nix`, `.envrc`                          | (not possible)                                   |
 | `write-files`               | `.gitignore`, GitHub workflows                 |                                                  |
-| `generate-files`            |                                                | `.vscode/*.json`, `.nvim.lua`                    |
+| `generate-files`            |                                                | `.vscode/*.json`, `.nvim.lua`, Quarto extensions |
 
 Templates can't take parameters, so anything that depends on your Nix
 configuration comes from `write-files` or `generate-files`.
@@ -318,7 +349,9 @@ untouched.
 **Generated files** (`mode = "generated"`) always come from Nix.
 `generate-files` overwrites them on every run, starts them with a
 "do not edit" comment and the `git` plugin adds them to `.gitignore`.
-To change one, change the Nix options.
+To change one, change the Nix options. Directories (`directory = true`) are
+copied whole, without the comment. `generate-files` refuses to overwrite a file
+tracked by Git.
 
 `update` updates `flake.lock` and then runs both commands. After any other
 `nix flake update` (e.g. by a bot), run `write-files` and `generate-files`
@@ -370,7 +403,9 @@ nullkomma don't inherit them.
 
 - **Unit tests** ([nix-unit](https://github.com/nix-community/nix-unit), via the `nix` plugin) check
   the evaluated configuration of the fixtures, e.g. that every plugin can be
-  switched off and that all off leaves just the framework.
+  switched off and that all off leaves just the framework. This repo's unit
+  check uses the Nix plugin's network-enabled fixed-output derivation to fetch
+  dev-only partition inputs, which root input overrides cannot replace.
 - **Docs test:** `options-doc` renders every option the way
   [flake.parts](https://flake.parts) would, so each needs a description.
 - **Build tests** run the real tools on the fixtures inside `nix flake check`:

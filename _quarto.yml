@@ -1,5 +1,8 @@
 project:
-  type: website
+  type: maxheld
+  render:
+    - index.qmd
+    - privacy.qmd
 website:
   title: "nullkomma"
   description: "Opinionated 🤓, batteries-included 🔋, extra-DRY 🤌 Nix boilerplate."
@@ -9,5 +12,4 @@ website:
         text: Home
 format:
   html:
-    theme: pulse
     toc: true

@@ -18,6 +18,11 @@ in
   flake.lib = {
     r = import ../lib/r.nix { inherit lib; };
     importTree = import ../lib/import-tree.nix lib;
+    # Privacy sections plugins contribute, for sites assembling their policy without nullkomma.
+    privacy.cloudflare = {
+      en = ./deploy/_cloudflare/privacy.en.md;
+      de = ./deploy/_cloudflare/privacy.de.md;
+    };
     defaultPlugins = [
       "direnv"
       "flakehub"

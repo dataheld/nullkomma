@@ -1,0 +1,5 @@
+---
+title: Branded home
+---
+
+{{< greeting >}}

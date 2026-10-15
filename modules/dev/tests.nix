@@ -47,6 +47,7 @@
         quarto = callFlake ../../tests/fixtures/quarto;
         r = callFlake ../../tests/fixtures/r;
         r-remotes = callFlake ../../tests/fixtures/r-remotes;
+        quarto-branded = callFlake ../../tests/fixtures/quarto-branded;
         shell = callFlake ../../tests/fixtures/shell;
       };
       rWithoutDescription = callFlakeWith {
@@ -65,6 +66,16 @@
           domains."www.example.org" = "11111111111111111111111111111111";
         };
       } ../../tests/fixtures/quarto;
+      brandedCloudflare = callFlakeWith {
+        nullkomma.cloudflare.enable = true;
+        nullkomma.cloudflare.worker = "fixture-site";
+        nullkomma.privacy.languages = [
+          {
+            code = "en";
+            label = "English";
+          }
+        ];
+      } ../../tests/fixtures/quarto-branded;
       batsFailing = callFlakeWith {
         nullkomma.shell.bats.testDir = "failing";
       } ../../tests/fixtures/shell;
@@ -363,6 +374,49 @@
                 settings = { };
               };
             };
+            testQuartoGeneratesExtensionsAndPrivacyPage =
+              let
+                inherit ((perSystem fixtures.quarto-branded).nullkomma) files;
+                privacy = files."privacy.qmd";
+              in
+              {
+                expr = {
+                  extension = {
+                    inherit (files."_extensions/greeting") mode directory;
+                    source = builtins.pathExists (files."_extensions/greeting".source + "/greeting.lua");
+                  };
+                  privacy = {
+                    inherit (privacy) mode commentPrefix commentSuffix;
+                    startsWithFrontMatter = lib.hasPrefix "\n---\ntitle: \"Privacy Policy\"\n---\n" privacy.text;
+                  };
+                  ignored = lib.filter (
+                    line:
+                    lib.elem line [
+                      "/_extensions/greeting"
+                      "/privacy.qmd"
+                    ]
+                  ) (lib.splitString "\n" files.".gitignore".text);
+                  plainQuarto = (perSystem fixtures.quarto).nullkomma.files ? "privacy.qmd";
+                };
+                expected = {
+                  extension = {
+                    mode = "generated";
+                    directory = true;
+                    source = true;
+                  };
+                  privacy = {
+                    mode = "generated";
+                    commentPrefix = "<!--";
+                    commentSuffix = " -->";
+                    startsWithFrontMatter = true;
+                  };
+                  ignored = [
+                    "/_extensions/greeting"
+                    "/privacy.qmd"
+                  ];
+                  plainQuarto = false;
+                };
+              };
             testRIntegrations = {
               expr = {
                 air = (perSystem fixtures.r).treefmt.programs.air.enable;
@@ -602,9 +656,16 @@
         {
           # Sandboxed: nix-unit re-evaluates this flake with its inputs passed in.
           nullkomma.nix.unit.tests = tests;
+          # Dev partition inputs use flake-compat's fetchTree, not root input overrides.
+          nullkomma.nix.unit.allowNetwork = true;
           # Terranix's non-followed inputs also need paths in nix-unit's fresh store.
           nullkomma.nix.unit.inputs =
-            lib.mapAttrs (_: input: input.outPath) (removeAttrs inputs [ "self" ])
+            lib.mapAttrs (_: input: input.outPath) (
+              removeAttrs inputs [
+                "self"
+                "brand"
+              ]
+            )
             // {
               "terranix/import-tree" = inputs.terranix.inputs.import-tree.outPath;
               "terranix/systems" = inputs.terranix.inputs.systems.outPath;
@@ -760,8 +821,43 @@
                 PY
                 cmp ${../../tests/fixtures/quarto/_headers} "$site/_headers"
                 cmp ${../../tests/fixtures/quarto/_redirects} "$site/_redirects"
+                test ! -e "$site/privacy.html"
                 touch $out
               '';
+              quarto-branded-site =
+                pkgs.runCommand "nullkomma-quarto-branded-site" { nativeBuildInputs = [ pkgs.python3 ]; }
+                  ''
+                    python - ${fixtures.quarto-branded.packages.${system}.site} ${
+                      brandedCloudflare.packages.${system}.site
+                    } <<'PY'
+                    from html.parser import HTMLParser
+                    from pathlib import Path
+                    import sys
+
+                    class Document(HTMLParser):
+                        def handle_data(self, data):
+                            self.text.append(data)
+
+                    def text(path):
+                        document = Document()
+                        document.text = []
+                        document.feed(Path(path).read_text())
+                        return " ".join("".join(document.text).split())
+
+                    branded, english = sys.argv[1:]
+                    assert "Hello from an extension" in text(f"{branded}/index.html")
+                    privacy = text(f"{branded}/privacy.html")
+                    assert "Privacy Policy" in privacy
+                    assert "Generated by nullkomma" not in privacy
+                    assert "nav-tabs" in Path(f"{branded}/privacy.html").read_text()
+                    assert privacy.index("English") < privacy.index("Deutsch") < privacy.index("Local section in English") < privacy.index("Lokaler Abschnitt auf Deutsch")
+                    assert "Cloudflare" not in privacy
+                    privacy = text(f"{english}/privacy.html")
+                    assert "Deutsch" not in privacy
+                    assert privacy.index("Hosting, delivery, security and web analytics by Cloudflare") < privacy.index("Local section in English")
+                    PY
+                    touch $out
+                  '';
               cloudflare-config = cloudflare.checks.${system}.test-cloudflare;
               cloudflare-plan =
                 pkgs.runCommand "nullkomma-cloudflare-plan"
@@ -782,7 +878,7 @@
                       tofu plan -refresh=false -out=plan > /dev/null
                       tofu show -json plan | jq '.planned_values.root_module.resources | map({key: .address, value: .values}) | from_entries'
                     }
-                    site=${fixtures.quarto.packages.${system}.site}
+                    site=${cloudflare.packages.${system}.site}
                     assets=$(jq -r .resource.cloudflare_workers_script.site.assets.directory ${tfConfig cloudflare})
                     cp -r "$site" expected-assets
                     chmod -R u+w expected-assets
@@ -953,6 +1049,25 @@
                       exit 1
                     fi
                     test "$(cat source.txt)" = preexisting
+                    mkdir ../branded
+                    cd ../branded
+                    git init --quiet
+                    generate=${lib.getExe (perSystem fixtures.quarto-branded).nullkomma.tasks.generate-files.package}
+                    mkdir -p _extensions/greeting
+                    touch _extensions/greeting/stale.lua
+                    $generate
+                    test -f _extensions/greeting/greeting.lua
+                    test ! -e _extensions/greeting/stale.lua
+                    test -w _extensions/greeting/greeting.lua
+                    head -n 1 privacy.qmd | grep -q '^<!-- Generated by nullkomma.* -->$'
+                    $generate
+                    printf 'own policy' > privacy.qmd
+                    git add privacy.qmd
+                    if $generate; then
+                      echo "Tracked file was overwritten by a generated one" >&2
+                      exit 1
+                    fi
+                    test "$(cat privacy.qmd)" = 'own policy'
                     touch $out
                   '';
               agent-plugin-consumer =
