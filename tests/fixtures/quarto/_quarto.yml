@@ -1,0 +1,9 @@
+project:
+  type: website
+  resources:
+    - asset.txt
+website:
+  title: Fixture website
+format:
+  html:
+    theme: cosmo

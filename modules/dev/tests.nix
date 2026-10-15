@@ -44,8 +44,20 @@
       callFlake = callFlakeWith { };
       fixtures = {
         md = callFlake ../../tests/fixtures/md;
+        quarto = callFlake ../../tests/fixtures/quarto;
         shell = callFlake ../../tests/fixtures/shell;
       };
+      quartoNoIndex = callFlakeWith {
+        nullkomma.quarto.root = ../../tests/fixtures/quarto-no-index;
+      } ../../tests/fixtures/quarto;
+      cloudflare = callFlakeWith {
+        nullkomma.cloudflare = {
+          enable = true;
+          projectName = "fixture-site";
+          domain = "www.example.org";
+          infrastructure.enable = true;
+        };
+      } ../../tests/fixtures/quarto;
       batsFailing = callFlakeWith {
         nullkomma.shell.bats.testDir = "failing";
       } ../../tests/fixtures/shell;
@@ -214,6 +226,33 @@
                 };
               };
             };
+            testCloudflareConsumesOnlySite = {
+              expr =
+                let
+                  flake = raw {
+                    imports = [ plugins.cloudflare ];
+                    nullkomma.cloudflare = {
+                      enable = true;
+                      projectName = "another-builder";
+                    };
+                    perSystem.nullkomma.site = pkgs.emptyDirectory;
+                  };
+                in
+                {
+                  site = flake.packages.${system}.site == pkgs.emptyDirectory;
+                  tasks = lib.attrNames (perSystem flake).nullkomma.tasks;
+                  checks = lib.attrNames flake.checks.${system};
+                };
+              expected = {
+                site = true;
+                tasks = [
+                  "deploy"
+                  "generate-files"
+                  "write-files"
+                ];
+                checks = [ ];
+              };
+            };
             testConsumersCustomizeDefaults = {
               expr = {
                 package = lib.elem pkgs.hello (perSystem customized).nullkomma.devshell.packages;
@@ -228,8 +267,10 @@
                 setting = "project-nixd";
               };
             };
-            testEveryPluginCanBeDisabled = {
-              expr = lib.filter (name: summary disabled.${name} == summary fixtures.md) (lib.attrNames plugins);
+            testDefaultPluginsCanBeDisabled = {
+              expr = lib.filter (
+                name: summary disabled.${name} == summary fixtures.md
+              ) nullkomma.lib.defaultPlugins;
               expected = [ ];
             };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
@@ -291,6 +332,37 @@
                 withoutTests = { };
               };
             };
+            testOptionalPluginsCanBeDisabled = {
+              expr = summary (
+                callFlakeWith {
+                  nullkomma = {
+                    quarto.enable = lib.mkForce false;
+                    cloudflare = {
+                      enable = lib.mkForce false;
+                      infrastructure.enable = true;
+                      projectName = "fixture-site";
+                    };
+                  };
+                } ../../tests/fixtures/quarto
+              );
+              expected = summary fixtures.md;
+            };
+            testOptionalPluginsStartDisabled = {
+              expr = {
+                site = (perSystem fixtures.md).nullkomma.site;
+                enabled = map (name: fixtures.md.debug.config.nullkomma.${name}.enable) [
+                  "quarto"
+                  "cloudflare"
+                ];
+              };
+              expected = {
+                site = null;
+                enabled = [
+                  false
+                  false
+                ];
+              };
+            };
             testPluginWorksWithoutOthers = {
               expr = {
                 inherit (summary rawNix) formatters;
@@ -304,6 +376,10 @@
                 ];
                 settings = { };
               };
+            };
+            testSiteContractExportsBuilderPackage = {
+              expr = fixtures.quarto.packages.${system}.site == (perSystem fixtures.quarto).nullkomma.site;
+              expected = true;
             };
             testTasksAllSkipsMutatingTasks = {
               expr = lib.attrNames (
@@ -389,6 +465,18 @@
                   --no-write-lock-file --print-build-logs
               }
               check
+              cp -R "$root/tests/fixtures/quarto" "$scratch/quarto"
+              nix build "path:$scratch/quarto#site" \
+                --override-input nullkomma "path:$root" \
+                --no-write-lock-file --no-link --print-build-logs
+              cp -R "$root/tests/fixtures/cloudflare-no-site" "$scratch/cloudflare-no-site"
+              if nix eval "path:$scratch/cloudflare-no-site#packages.${system}.deploy.drvPath" \
+                --override-input nullkomma "path:$root" \
+                --no-write-lock-file > "$scratch/no-site.log" 2>&1; then
+                echo "Cloudflare without static assets unexpectedly evaluated" >&2
+                exit 1
+              fi
+              grep -qF 'nullkomma.cloudflare: set perSystem.nullkomma.site to a static assets package' "$scratch/no-site.log"
               # Consumer CI lints the lock; its Nixpkgs must be visible as a root input.
               nix flake lock "path:$scratch/project" --override-input nullkomma "path:$root"
               flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
@@ -428,6 +516,94 @@
               )
             ) rejects
             // {
+              quarto-site = pkgs.runCommand "nullkomma-quarto-site" { } ''
+                site=${fixtures.quarto.packages.${system}.site}
+                grep -qF "Quarto includes this user-owned content." "$site/index.html"
+                grep -qF "Fixture home" "$site/index.html"
+                grep -qF '<span class="va">answer</span>' "$site/index.html"
+                grep -qF "fixture-static-asset" "$site/asset.txt"
+                test -s "$site/search.json"
+                test -d "$site/site_libs"
+                touch $out
+              '';
+              quarto-rejects-missing-index = pkgs.testers.testBuildFailure' {
+                name = "nullkomma-quarto-rejects-missing-index";
+                drv = quartoNoIndex.packages.${system}.site;
+                expectedBuilderExitCode = 1;
+                expectedBuilderLogEntries = [ "nullkomma.quarto: rendered site is missing index.html" ];
+              };
+              cloudflare-config = cloudflare.checks.${system}.test-cloudflare;
+              cloudflare-deploy = cloudflare.packages.${system}.deploy;
+              cloudflare-terraform-wrapper = pkgs.runCommand "nullkomma-cloudflare-terraform-wrapper" { } ''
+                export HOME="$TMPDIR"
+                export CLOUDFLARE_ACCOUNT_ID=00000000000000000000000000000000
+                export CLOUDFLARE_STATE_BUCKET=fixture-state
+                terraform=${lib.getExe (perSystem cloudflare).nullkomma.tasks.terraform.package}
+                mkdir -p .nullkomma/cloudflare
+                echo stale-lock > .nullkomma/cloudflare/.terraform.lock.hcl
+                "$terraform" init -backend=false -input=false
+                "$terraform" validate
+                test -L .nullkomma/cloudflare/config.tf.json
+                export CLOUDFLARE_ACCOUNT_ID=invalid
+                if "$terraform" validate 2> failure.log; then
+                  echo "Invalid Cloudflare account unexpectedly accepted" >&2
+                  exit 1
+                fi
+                grep -qF 'CLOUDFLARE_ACCOUNT_ID must be 32 lowercase hexadecimal characters' failure.log
+                touch $out
+              '';
+              cloudflare-upload =
+                let
+                  stub = pkgs.writeShellApplication {
+                    name = "wrangler";
+                    text = ''
+                      test "$CLOUDFLARE_ACCOUNT_ID" = test-account
+                      test "$CLOUDFLARE_API_TOKEN" = test-token
+                      test "$1" = pages
+                      test "$2" = deploy
+                      test -f "$3/index.html"
+                      shift 3
+                      test "$*" = "--project-name fixture-site --branch main --commit-dirty=true"
+                    '';
+                  };
+                  upload = callFlakeWith {
+                    nullkomma.cloudflare = {
+                      enable = true;
+                      projectName = "fixture-site";
+                    };
+                    perSystem._module.args.pkgs = pkgs // {
+                      wrangler = stub;
+                    };
+                  } ../../tests/fixtures/quarto;
+                  badAssets = callFlakeWith {
+                    nullkomma.cloudflare = {
+                      enable = true;
+                      projectName = "fixture-site";
+                    };
+                    perSystem = {
+                      _module.args.pkgs = pkgs // {
+                        wrangler = stub;
+                      };
+                      nullkomma.site = pkgs.emptyDirectory;
+                    };
+                  } ../../tests/fixtures/quarto;
+                in
+                pkgs.runCommand "nullkomma-cloudflare-upload" { } ''
+                  export CLOUDFLARE_ACCOUNT_ID=test-account CLOUDFLARE_API_TOKEN=test-token
+                  ${lib.getExe upload.packages.${system}.deploy} --commit-dirty=true
+                  if ${lib.getExe badAssets.packages.${system}.deploy} 2> failure.log; then
+                    echo "Upload without index.html unexpectedly succeeded" >&2
+                    exit 1
+                  fi
+                  grep -qF 'nullkomma.cloudflare: static assets package is missing index.html' failure.log
+                  unset CLOUDFLARE_API_TOKEN
+                  if ${lib.getExe upload.packages.${system}.deploy} 2> failure.log; then
+                    echo "Upload without credentials unexpectedly succeeded" >&2
+                    exit 1
+                  fi
+                  grep -qF 'Set CLOUDFLARE_API_TOKEN' failure.log
+                  touch $out
+                '';
               bats-rejects-failing-tests = pkgs.testers.testBuildFailure' {
                 name = "nullkomma-bats-rejects-failing-tests";
                 drv = batsFailing.checks.${system}.test-bats;

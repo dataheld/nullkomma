@@ -94,7 +94,8 @@ Everything nullkomma adds comes from **plugins**, exported as flake-parts module
 `flakeModules.<plugin>` next to the shared `flakeModules.framework`.
 All plugins are optional; `nullkomma.lib.mkFlake` (or importing
 `flakeModules.default` into your own `flake-parts.lib.mkFlake`) enables the
-ones below by default, so you only list exceptions:
+standard plugins below by default, so you only list exceptions. Website plugins
+are opt-in:
 
 ```nix
 inputs.nullkomma.lib.mkFlake { inherit inputs; } {
@@ -103,23 +104,25 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-| Plugin                      | Dev helpers | Format / lint          | Tests       | Files                        | Editor                                                           |
-| --------------------------- | ----------- | ---------------------- | ----------- | ---------------------------- | ---------------------------------------------------------------- |
-| [`nix`][nix]                |             | ✅, [`flake-checker`]¹ | [nix-unit]² | ignores `result`             | [nixd]; VS Code: [Nix IDE]                                       |
-| [`markdown`][md]            |             | ✅                     |             |                              | [marksman]                                                       |
-| [`json`][json]              |             | ✅                     |             |                              | [JSON language server][jsonls]                                   |
-| [`yaml`][yaml]              |             | ✅                     |             |                              | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
-| [`toml`][toml]              |             | ✅                     |             |                              |                                                                  |
-| [`shell`][bash]             |             | ✅³                    | [bats]³     |                              | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
-| [`github`][gha]             |             | ✅                     |             | `push.yml`⁴                  |                                                                  |
-| [`keepSorted`][keep-sorted] |             | ✅                     |             |                              |                                                                  |
-| [`typos`][typos]            |             | ✅ spelling            |             |                              |                                                                  |
-| [`treefmt`][treefmt]        |             | runs all ✅            |             |                              | formatter; VS Code: [treefmt][vscode-treefmt]                    |
-| [`git`][git]                | git         |                        |             | `.gitignore`                 |                                                                  |
-| [`direnv`][direnv]          |             |                        |             | `.envrc`, ignores `.direnv/` | VS Code: [Nix Environment Selector]                              |
-| [`vscode`][vscode]          |             |                        |             | `.vscode/`⁵                  | renders it for VS Code⁵                                          |
-| [`neovim`][neovim]          |             |                        |             | `.nvim.lua`⁵                 | renders it for Neovim⁵                                           |
-| [`flakehub`][flakehub]      | [`fh`]      |                        |             |                              |                                                                  |
+| Plugin                              | Dev helpers | Format / lint          | Tests                | Files                          | Editor                                                           |
+| ----------------------------------- | ----------- | ---------------------- | -------------------- | ------------------------------ | ---------------------------------------------------------------- |
+| [`nix`][nix]                        |             | ✅, [`flake-checker`]¹ | [nix-unit]²          | ignores `result`               | [nixd]; VS Code: [Nix IDE]                                       |
+| [`markdown`][md]                    |             | ✅                     |                      |                                | [marksman]                                                       |
+| [`json`][json]                      |             | ✅                     |                      |                                | [JSON language server][jsonls]                                   |
+| [`yaml`][yaml]                      |             | ✅                     |                      |                                | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
+| [`toml`][toml]                      |             | ✅                     |                      |                                |                                                                  |
+| [`shell`][bash]                     |             | ✅³                    | [bats]³              |                                | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
+| [`github`][gha]                     |             | ✅                     |                      | `push.yml`⁴                    |                                                                  |
+| [`keepSorted`][keep-sorted]         |             | ✅                     |                      |                                |                                                                  |
+| [`typos`][typos]                    |             | ✅ spelling            |                      |                                |                                                                  |
+| [`treefmt`][treefmt]                |             | runs all ✅            |                      |                                | formatter; VS Code: [treefmt][vscode-treefmt]                    |
+| [`git`][git]                        | git         |                        |                      | `.gitignore`                   |                                                                  |
+| [`direnv`][direnv]                  |             |                        |                      | `.envrc`, ignores `.direnv/`   | VS Code: [Nix Environment Selector]                              |
+| [`vscode`][vscode]                  |             |                        |                      | `.vscode/`⁵                    | renders it for VS Code⁵                                          |
+| [`neovim`][neovim]                  |             |                        |                      | `.nvim.lua`⁵                   | renders it for Neovim⁵                                           |
+| [`flakehub`][flakehub]              | [`fh`]      |                        |                      |                                |                                                                  |
+| [`quarto`][quarto] (opt-in)         | quarto      |                        |                      | ignores `.quarto/`, `_site/`   | VS Code: [Quarto][vscode-quarto]                                 |
+| [`cloudflare`][cloudflare] (opt-in) |             |                        | OpenTofu validation⁶ | ignores local state workspace⁶ |                                                                  |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
 Nixpkgs. The `nix` plugin also adds the tasks `check` (`nix flake check`) and
@@ -137,6 +140,9 @@ which runs `nix flake check` and can publish to FlakeHub.
 
 ⁵ Generated (Git-ignored) from the Editor column: VS Code settings and
 recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
+
+⁶ Only with `nullkomma.cloudflare.infrastructure.enable`; deployment itself
+needs neither Terraform adoption nor a state bucket.
 
 ✅ means the plugin's files are formatted/linted by the `format` task (or `nix fmt`) and
 checked by `nix flake check` (via treefmt). The exact tools are in the plugin's source.
@@ -181,6 +187,76 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
     };
 }
 ```
+
+### Static websites
+
+The optional `quarto` and `cloudflare` plugins connect only through
+`perSystem.nullkomma.site`: a package containing static assets and `index.html`,
+exported as `packages.<system>.site`. Any builder or publisher can use that
+framework option without enabling the other plugin.
+
+```nix
+inputs.nullkomma.lib.mkFlake { inherit inputs; } {
+  nullkomma.quarto.enable = true;
+  nullkomma.cloudflare = {
+    enable = true;
+    projectName = "helden18-github-io";
+    domain = "www.helden18.de"; # used only for opt-in infrastructure management
+  };
+}
+```
+
+Quarto builds the existing, user-owned `_quarto.yml` and content with
+`nix build .#site`; `render` renders the current directory into its configured
+output directory. Set `nullkomma.quarto.root` for another source directory, or
+`perSystem.nullkomma.quarto.package` for a Quarto environment with execution
+engines. The default has no R, Python or TeX. Preview process management is not
+included; invoke `quarto preview` directly from the development shell.
+
+`nix run .#deploy` (or `deploy` in the development shell) uploads those assets
+to an **existing Pages project**, explicitly targeting `productionBranch`
+(default `"main"`). Arguments are passed to `wrangler pages deploy`.
+Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` at runtime; neither is
+embedded in the build. In helden18's workflow, retain the existing mappings
+from `vars.CLOUDFLARE_ACCOUNT_ID_HELDEN18DE` and
+`secrets.CLOUDFLARE_API_TOKEN_PAGES`. Uploads do not run Terraform, provision
+resources, change DNS, or migrate Pages to Workers.
+
+#### Optional Terraform adoption
+
+Enable `nullkomma.cloudflare.infrastructure.enable` to manage the Pages
+project and optional domain using the upstream
+[Terranix flake-parts module](https://terranix.org/flake-parts.html) and OpenTofu.
+The Cloudflare provider is a Nix-pinned upstream binary, not a local Go build.
+`test cloudflare` and `checks.<system>.test-cloudflare` validate the actual
+generated configuration offline. Customize the upstream
+`perSystem.terranix.terranixConfigurations.cloudflare.modules` when necessary.
+
+The `terraform` task and `nix run .#cloudflare.terraform -- <args>` expose
+OpenTofu; **nothing applies automatically**, including `deploy`.
+Set the existing account and API token above, `CLOUDFLARE_STATE_BUCKET` to an
+existing private R2 bucket, and its S3 credentials in `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY`. State uses locking and the object key
+`<projectName>.tfstate` (override `nullkomma.cloudflare.stateKey` to adopt an
+existing key). Bucket provisioning and credentials belong to infrastructure
+management, outside this plugin.
+The workspace and its provider lock file are local and ignored; `init`
+regenerates provider checksums from the Nix pin.
+
+For existing Pages resources, import them before planning any changes:
+
+```sh
+terraform init -input=false
+terraform import cloudflare_pages_project.site "$CLOUDFLARE_ACCOUNT_ID/helden18-github-io"
+terraform import cloudflare_pages_domain.site "$CLOUDFLARE_ACCOUNT_ID/helden18-github-io/www.helden18.de"
+terraform plan
+```
+
+Only import the domain if configured. Review the plan before an explicit
+`terraform apply`. Project/domain destruction is guarded by `prevent_destroy`.
+The plugin does not manage zone DNS, apex redirects, email, or unrelated
+hostnames; existing Pages DNS records remain untouched. For new domains the
+zone owner must arrange the Pages CNAME separately.
 
 ### Files in your repo
 
@@ -297,6 +373,7 @@ the broken one fails with the real tool's error, not just any error.
 [bash ide]: https://marketplace.visualstudio.com/items?itemName=mads-hartmann.bash-ide-vscode
 [bash-language-server]: https://github.com/bash-lsp/bash-language-server
 [bats]: https://bats-core.readthedocs.io
+[cloudflare]: https://pages.cloudflare.com
 [direnv]: https://direnv.net
 [flakehub]: https://flakehub.com
 [gha]: https://docs.github.com/actions
@@ -312,11 +389,13 @@ the broken one fails with the real tool's error, not just any error.
 [nix ide]: https://marketplace.visualstudio.com/items?itemName=jnoortheen.nix-ide
 [nix-unit]: https://github.com/nix-community/nix-unit
 [nixd]: https://github.com/nix-community/nixd
+[quarto]: https://quarto.org
 [toml]: https://toml.io
 [treefmt]: https://treefmt.com
 [typos]: https://github.com/crate-ci/typos
 [vscode]: https://code.visualstudio.com
 [vscode-bats]: https://marketplace.visualstudio.com/items?itemName=jetmartin.bats
+[vscode-quarto]: https://marketplace.visualstudio.com/items?itemName=quarto.quarto
 [vscode-treefmt]: https://marketplace.visualstudio.com/items?itemName=ibecker.treefmt-vscode
 [vscode-yaml]: https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml
 [yaml]: https://yaml.org
