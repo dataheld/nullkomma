@@ -43,13 +43,17 @@
       callFlake = callFlakeWith { };
       fixtures = {
         md = callFlake ../../tests/fixtures/md;
+        shell = callFlake ../../tests/fixtures/shell;
       };
+      batsFailing = callFlakeWith {
+        nullkomma.shell.bats.testDir = "failing";
+      } ../../tests/fixtures/shell;
       customized = callFlakeWith {
-        nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
         perSystem =
           { pkgs, ... }:
           {
-            nullkomma.devshell.packages = [ pkgs.hello ];
+            nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
+            nullkomma.devHelpers = [ pkgs.hello ];
             treefmt.programs.deadnix.enable = false;
             treefmt.programs.typos.enable = true;
           };
@@ -98,6 +102,15 @@
       rawUnselected = raw {
         imports = lib.attrValues plugins;
       };
+      rawTest = raw { perSystem.nullkomma.tests.custom.command = "true"; };
+      rawNixUnit = raw {
+        imports = [ plugins.nix ];
+        nullkomma.nix.enable = true;
+        perSystem.nullkomma.nix.unit.tests.testTrue = {
+          expr = true;
+          expected = true;
+        };
+      };
       rawNix = raw {
         imports = [ plugins.nix ];
         nullkomma.nix.enable = true;
@@ -129,14 +142,6 @@
       } ../../tests/fixtures/md;
     in
     {
-      imports = [ inputs.nix-unit.modules.flake.default ];
-      flake.schemas.tests = {
-        version = 1;
-        doc = "[nix-unit](https://github.com/nix-community/nix-unit) tests, run by `checks.<system>.nix-unit`.";
-        inventory = output: {
-          children = builtins.mapAttrs (_: _: { what = "nix-unit test suite"; }) output;
-        };
-      };
       perSystem =
         { pkgs, system, ... }:
         let
@@ -150,7 +155,15 @@
             tasks = lib.attrNames (perSystem flake).nullkomma.tasks;
             checks = lib.attrNames flake.checks.${system};
             shells = lib.attrNames flake.devShells.${system};
-            inherit (flake.debug.config.nullkomma) editor;
+            editor =
+              let
+                inherit ((perSystem flake).nullkomma) editor;
+              in
+              {
+                formatter = if editor.formatter == null then null else editor.formatter.command;
+                languageServers = lib.mapAttrs (_: s: removeAttrs s [ "package" ]) editor.languageServers;
+                inherit (editor) vscode;
+              };
           };
           tests = {
             # keep-sorted start block=yes
@@ -191,7 +204,7 @@
                 checks = [ ];
                 shells = [ ];
                 editor = {
-                  formatCommand = null;
+                  formatter = null;
                   languageServers = { };
                   vscode = {
                     extensions = [ ];
@@ -205,7 +218,7 @@
                 package = lib.elem pkgs.hello (perSystem customized).nullkomma.devshell.packages;
                 disabled = (perSystem customized).treefmt.programs.deadnix.enable;
                 enabled = (perSystem customized).treefmt.programs.typos.enable;
-                setting = customized.debug.config.nullkomma.editor.vscode.settings."nix.serverPath";
+                setting = (perSystem customized).nullkomma.editor.vscode.settings."nix.serverPath";
               };
               expected = {
                 package = true;
@@ -263,10 +276,24 @@
                 expr = normalize (summary overlapping);
                 expected = normalize (summary fixtures.md);
               };
+            testNixUnitTestsBecomeTest = {
+              expr = {
+                checks = lib.filter (lib.hasPrefix "test-") (summary rawNixUnit).checks;
+                tests = lib.attrNames rawNixUnit.tests.systems.${system};
+                schema = rawNixUnit.schemas ? tests;
+                withoutTests = rawNix.tests.systems.${system};
+              };
+              expected = {
+                checks = [ "test-nix-unit" ];
+                tests = [ "testTrue" ];
+                schema = true;
+                withoutTests = { };
+              };
+            };
             testPluginWorksWithoutOthers = {
               expr = {
                 inherit (summary rawNix) formatters;
-                inherit (rawNix.debug.config.nullkomma.editor.languageServers.nixd) settings;
+                inherit ((perSystem rawNix).nullkomma.editor.languageServers.nixd) settings;
               };
               expected = {
                 formatters = [
@@ -293,6 +320,19 @@
             testTemplatesIncludeDirenvBootstrap = {
               expr = builtins.readFile (nullkomma.templates.default.path + "/.envrc");
               expected = (perSystem templates.default).nullkomma.files.".envrc".text;
+            };
+            testTestsBecomeTaskAndCheck = {
+              expr = {
+                inherit (summary rawTest) tasks checks;
+              };
+              expected = {
+                tasks = [
+                  "generate-files"
+                  "test"
+                  "write-files"
+                ];
+                checks = [ "test-custom" ];
+              };
             };
             # keep-sorted end
           };
@@ -326,21 +366,8 @@
           };
         in
         {
-          # Sandboxed: nix-unit re-evaluates this flake, fetching dev inputs (../../dev).
-          nix-unit = {
-            package = pkgs.nix-unit;
-            inputs = {
-              inherit (inputs)
-                flake-parts
-                flake-schemas
-                nixpkgs
-                treefmt-nix
-                up
-                ;
-            };
-            allowNetwork = true;
-            inherit tests;
-          };
+          # Sandboxed: nix-unit re-evaluates this flake with its inputs passed in.
+          nullkomma.nix.unit.tests = tests;
           nullkomma.tasks.check-fixtures = {
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
             packages = [
@@ -395,6 +422,12 @@
               )
             ) rejects
             // {
+              bats-rejects-failing-tests = pkgs.testers.testBuildFailure' {
+                name = "nullkomma-bats-rejects-failing-tests";
+                drv = batsFailing.checks.${system}.test-bats;
+                expectedBuilderExitCode = 1;
+                expectedBuilderLogEntries = [ "not ok 1 fails on purpose" ];
+              };
               neovim-config =
                 pkgs.runCommandLocal "nullkomma-neovim-config" { nativeBuildInputs = [ pkgs.neovim-unwrapped ]; }
                   ''
@@ -413,7 +446,7 @@
                   ''
                     ${lib.concatMapStrings (s: ''
                       command -v ${lib.escapeShellArg (lib.head s.command)}
-                    '') (lib.attrValues fixtures.md.debug.config.nullkomma.editor.languageServers)}
+                    '') (lib.attrValues (perSystem fixtures.md).nullkomma.editor.languageServers)}
                     touch $out
                   '';
               file-updates =

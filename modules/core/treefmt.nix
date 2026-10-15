@@ -14,23 +14,33 @@
     };
   plugins.treefmt =
     { config, lib, ... }:
+    let
+      enabled = config.nullkomma.treefmt.enable;
+    in
     {
-      config = lib.mkIf config.nullkomma.treefmt.enable {
-        nullkomma.editor = {
-          formatCommand = [
-            "treefmt"
-            "--stdin"
-            "{file}"
-          ];
-          vscode.extensions = [ "ibecker.treefmt-vscode" ];
-          vscode.settings."editor.defaultFormatter" = lib.mkDefault "ibecker.treefmt-vscode";
-        };
-        perSystem =
-          { config, ... }:
-          {
-            treefmt.settings.excludes = lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files);
-            nullkomma.devshell.packages = [ config.treefmt.build.wrapper ];
+      config.perSystem =
+        { config, ... }:
+        lib.mkIf enabled {
+          nullkomma.editor = {
+            formatter = {
+              package = config.treefmt.build.wrapper;
+              command = [
+                "treefmt"
+                "--stdin"
+                "{file}"
+              ];
+            };
+            vscode.extensions = [ "ibecker.treefmt-vscode" ];
+            vscode.settings."editor.defaultFormatter" = lib.mkDefault "ibecker.treefmt-vscode";
           };
-      };
+          # Writes files, so not part of running all tasks.
+          nullkomma.tasks.format = {
+            skip = true;
+            description = "Format and lint all files (treefmt)";
+            packages = [ config.treefmt.build.wrapper ];
+            command = ''exec treefmt "$@"'';
+          };
+          treefmt.settings.excludes = lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files);
+        };
     };
 }
