@@ -203,9 +203,6 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-Quarto comes without R, Python or TeX; set `perSystem.nullkomma.quarto.package`
-for execution engines.
-
 In `nix develop`, use `tasks` to select `terraform` (plan changes) or `deploy`
 (publish). Run `terraform <command> [args]` for other OpenTofu commands.
 Deployment uses [Terranix], including custom domains, `_headers` and `_redirects`;

@@ -20,5 +20,11 @@
   },
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
   "nixEnvSelector.suggestion": false,
-  "nixEnvSelector.useFlakes": true
+  "nixEnvSelector.useFlakes": true,
+  "workbench.colorCustomizations": {
+    "editorInlayHint.background": "#00000000",
+    "statusBar.background": "#7c3399",
+    "statusBar.foreground": "#ffffff",
+    "sash.hoverBorder": "#7c3399"
+  }
 }
