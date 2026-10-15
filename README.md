@@ -243,6 +243,8 @@ checks for dependencies and Remotes missing from the lock and checks
 DESCRIPTION's version constraints against the installed environment.
 Packages with a `Package:` field also get `test r-cmd-check`; these tests run
 as `checks.<system>.test-r-lock` and `test-r-cmd-check` in CI.
+On Linux, `r-cmd-check` supplies the UTF-8 locale required by R inside Nix's
+build sandbox.
 
 The lock selects packages; **nixpkgs selects their versions and build recipes**.
 pak and languageserver are always included; `nullkomma.r.extraPackages` adds

@@ -46,7 +46,7 @@
         };
       };
       config.perSystem = lib.mkIf cfg.enable (
-        { config, ... }:
+        { config, pkgs, ... }:
         let
           strip = [
             "flake.nix"
@@ -110,6 +110,10 @@
                   chmod -R u+w "$scratch/pkg"
                   cd "$scratch"
                   (cd pkg && rm -rf ${lib.escapeShellArgs strip})
+                  ${lib.optionalString pkgs.stdenv.isLinux ''
+                    export LOCALE_ARCHIVE=${pkgs.glibcLocales}/lib/locale/locale-archive
+                    export LANG=en_US.UTF-8
+                  ''}
                   export _R_CHECK_CRAN_INCOMING_=false _R_CHECK_FORCE_SUGGESTS_=false _R_CHECK_SYSTEM_CLOCK_=false
                   R CMD build --no-build-vignettes --no-manual pkg
                   if R CMD check ${lib.escapeShellArgs cfg.check.args} "$@" ./*.tar.gz; then
