@@ -29,6 +29,7 @@
           flakeInputs = {
             self = self';
             nullkomma = debugged;
+            inherit (nullkomma.inputs) nixpkgs;
           };
           outputs = flake.outputs flakeInputs;
           self' = outputs // {
@@ -372,6 +373,7 @@
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
             packages = [
               pkgs.coreutils
+              pkgs.flake-checker
               pkgs.git
               pkgs.gnugrep
             ];
@@ -387,6 +389,10 @@
                   --no-write-lock-file --print-build-logs
               }
               check
+              # Consumer CI lints the lock; its Nixpkgs must be visible as a root input.
+              nix flake lock "path:$scratch/project" --override-input nullkomma "path:$root"
+              flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
+              rm "$scratch/project/flake.lock"
             ''
             + lib.concatMapStrings (case: ''
 
