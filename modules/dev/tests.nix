@@ -416,6 +416,13 @@
         {
           # Sandboxed: nix-unit re-evaluates this flake with its inputs passed in.
           nullkomma.nix.unit.tests = tests;
+          # Terranix's non-followed inputs also need paths in nix-unit's fresh store.
+          nullkomma.nix.unit.inputs =
+            lib.mapAttrs (_: input: input.outPath) (removeAttrs inputs [ "self" ])
+            // {
+              "terranix/import-tree" = inputs.terranix.inputs.import-tree.outPath;
+              "terranix/systems" = inputs.terranix.inputs.systems.outPath;
+            };
           nullkomma.tasks.check-fixtures = {
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
             packages = [
