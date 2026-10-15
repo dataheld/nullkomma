@@ -44,8 +44,16 @@
       callFlake = callFlakeWith { };
       fixtures = {
         md = callFlake ../../tests/fixtures/md;
+        quarto = callFlake ../../tests/fixtures/quarto;
         shell = callFlake ../../tests/fixtures/shell;
       };
+      cloudflare = callFlakeWith {
+        nullkomma.cloudflare = {
+          enable = true;
+          worker = "fixture-site";
+          domains."www.example.org" = "11111111111111111111111111111111";
+        };
+      } ../../tests/fixtures/quarto;
       batsFailing = callFlakeWith {
         nullkomma.shell.bats.testDir = "failing";
       } ../../tests/fixtures/shell;
@@ -71,12 +79,26 @@
           };
         };
       } ../../tests/fixtures/md;
-      disabled = lib.genAttrs (lib.attrNames plugins) (
+      # Toggles each plugin; opt-in plugins are enabled instead.
+      toggled = lib.genAttrs (lib.attrNames plugins) (
         name:
         callFlakeWith {
-          nullkomma.${name}.enable = false;
+          imports = [ { nullkomma.cloudflare.worker = "fixture-site"; } ];
+          nullkomma.${name}.enable = !fixtures.md.debug.config.nullkomma.${name}.enable;
         } ../../tests/fixtures/md
       );
+      bareCloudflare = {
+        imports = [ plugins.cloudflare ];
+        nullkomma.cloudflare = {
+          enable = true;
+          worker = "bare-site";
+        };
+        perSystem =
+          { pkgs, ... }:
+          {
+            packages.site = pkgs.writeTextDir "content.txt" "Independent static assets\n";
+          };
+      };
       minimal = callFlakeWith {
         nullkomma =
           lib.genAttrs (lib.attrNames plugins) (_: {
@@ -147,6 +169,8 @@
         { pkgs, system, ... }:
         let
           perSystem = flake: flake.allSystems.${system};
+          tfConfig =
+            flake: (perSystem flake).terranix.terranixConfigurations.deploy.result.terraformConfiguration;
           importTreeRoot = ../../tests/fixtures/import-tree;
           # What plugins can contribute to a consumer flake.
           summary = flake: {
@@ -214,6 +238,29 @@
                 };
               };
             };
+            testCloudflareComposesWithAnySite = {
+              expr = {
+                packages = lib.attrNames (raw bareCloudflare).packages.${system};
+                checks = lib.attrNames (raw bareCloudflare).checks.${system};
+              };
+              expected = {
+                packages = [
+                  "deploy"
+                  "site"
+                ];
+                checks = [ "test-cloudflare" ];
+              };
+            };
+            testCloudflareProvidesWranglerOnlyWhenEnabled = {
+              expr = map (flake: lib.elem pkgs.wrangler (perSystem flake).nullkomma.devshell.packages) [
+                cloudflare
+                fixtures.quarto
+              ];
+              expected = [
+                true
+                false
+              ];
+            };
             testConsumersCustomizeDefaults = {
               expr = {
                 package = lib.elem pkgs.hello (perSystem customized).nullkomma.devshell.packages;
@@ -229,7 +276,7 @@
               };
             };
             testEveryPluginCanBeDisabled = {
-              expr = lib.filter (name: summary disabled.${name} == summary fixtures.md) (lib.attrNames plugins);
+              expr = lib.filter (name: summary toggled.${name} == summary fixtures.md) (lib.attrNames plugins);
               expected = [ ];
             };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
@@ -369,6 +416,13 @@
         {
           # Sandboxed: nix-unit re-evaluates this flake with its inputs passed in.
           nullkomma.nix.unit.tests = tests;
+          # Terranix's non-followed inputs also need paths in nix-unit's fresh store.
+          nullkomma.nix.unit.inputs =
+            lib.mapAttrs (_: input: input.outPath) (removeAttrs inputs [ "self" ])
+            // {
+              "terranix/import-tree" = inputs.terranix.inputs.import-tree.outPath;
+              "terranix/systems" = inputs.terranix.inputs.systems.outPath;
+            };
           nullkomma.tasks.check-fixtures = {
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
             packages = [
@@ -428,6 +482,114 @@
               )
             ) rejects
             // {
+              quarto-site = pkgs.runCommand "nullkomma-quarto-site" { } ''
+                site=${fixtures.quarto.packages.${system}.site}
+                ${pkgs.python3}/bin/python - "$site/index.html" <<'PY'
+                from html.parser import HTMLParser
+                from pathlib import Path
+                import sys
+
+                class Document(HTMLParser):
+                    def handle_data(self, data):
+                        self.text.append(data)
+
+                document = Document()
+                document.text = []
+                document.feed(Path(sys.argv[1]).read_text())
+                text = "".join(document.text)
+                assert "Fixture home" in text
+                assert "{ answer = 42; }" in text
+                PY
+                cmp ${../../tests/fixtures/quarto/_headers} "$site/_headers"
+                cmp ${../../tests/fixtures/quarto/_redirects} "$site/_redirects"
+                touch $out
+              '';
+              cloudflare-config = cloudflare.checks.${system}.test-cloudflare;
+              cloudflare-plan =
+                pkgs.runCommand "nullkomma-cloudflare-plan"
+                  {
+                    nativeBuildInputs = [
+                      (perSystem cloudflare).terranix.terranixConfigurations.deploy.terraformWrapper.package
+                      pkgs.jq
+                    ];
+                  }
+                  ''
+                    export HOME=$TMPDIR CLOUDFLARE_API_TOKEN=0000000000000000000000000000000000000000
+                    export TF_VAR_account_id=00000000000000000000000000000000
+                    # Plan without backend, refresh or network.
+                    export HTTPS_PROXY=http://127.0.0.1:1
+                    plan() {
+                      jq 'del(.terraform.backend)' "$1" > config.tf.json
+                      tofu init -backend=false > /dev/null
+                      tofu plan -refresh=false -out=plan > /dev/null
+                      tofu show -json plan | jq '.planned_values.root_module.resources | map({key: .address, value: .values}) | from_entries'
+                    }
+                    site=${fixtures.quarto.packages.${system}.site}
+                    assets=$(jq -r .resource.cloudflare_workers_script.site.assets.directory ${tfConfig cloudflare})
+                    cp -r "$site" expected-assets
+                    chmod -R u+w expected-assets
+                    rm expected-assets/_headers expected-assets/_redirects
+                    diff -r expected-assets "$assets"
+                    jq -e '.terraform.backend.s3.key == "fixture-site.tfstate"' ${tfConfig cloudflare}
+                    jq -e '.terraform.backend.s3.key == "bare-site.tfstate"' ${tfConfig (raw bareCloudflare)}
+                    plan ${tfConfig cloudflare} | jq -e \
+                      --rawfile headers "$site/_headers" \
+                      --rawfile redirects "$site/_redirects" '
+                      ."cloudflare_workers_script.site" as $worker
+                      | ."cloudflare_workers_custom_domain.www_example_org" as $domain
+                      | ."cloudflare_workers_script_subdomain.site" as $subdomain
+                      | $worker.script_name == "fixture-site"
+                        and $worker.assets.config.not_found_handling == "404-page"
+                        and $worker.assets.config.headers == $headers
+                        and $worker.assets.config.redirects == $redirects
+                        and $domain.hostname == "www.example.org"
+                        and $domain.zone_id == "11111111111111111111111111111111"
+                        and $domain.service == "fixture-site"
+                        and $subdomain.enabled == false
+                        and $subdomain.previews_enabled == false
+                    '
+                    plan ${tfConfig (raw bareCloudflare)} | jq -e '
+                      keys == ["cloudflare_workers_script.site", "cloudflare_workers_script_subdomain.site"]
+                        and (."cloudflare_workers_script.site".assets.config | .headers == null and .redirects == null)
+                    '
+                    bareAssets=$(jq -r .resource.cloudflare_workers_script.site.assets.directory ${tfConfig (raw bareCloudflare)})
+                    diff -r ${(raw bareCloudflare).packages.${system}.site} "$bareAssets"
+                    touch $out
+                  '';
+              cloudflare-deploy =
+                let
+                  tofu = pkgs.writeShellScriptBin "tofu" ''
+                    set -eu
+                    test "$TF_VAR_account_id" = "$CLOUDFLARE_ACCOUNT_ID"
+                    test "$AWS_ENDPOINT_URL_S3" = "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
+                    test "$TF_CLI_ARGS_init" = "-backend-config=bucket=$CLOUDFLARE_STATE_BUCKET"
+                    test "$TF_CLI_ARGS_apply" = "-auto-approve"
+                    test "$TF_IN_AUTOMATION" = 1
+                    test "$TF_INPUT" = 0
+                    printf '%s\n' "$@" > "$CALLED"
+                  '';
+                  flake = raw {
+                    imports = [ bareCloudflare ];
+                    perSystem.terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
+                  };
+                  deploy = lib.getExe flake.packages.${system}.deploy;
+                  tasks = (perSystem flake).nullkomma.tasks;
+                in
+                pkgs.runCommand "nullkomma-cloudflare-deploy" { } ''
+                  export CALLED=$PWD/called CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
+                  ${deploy}
+                  test -f "$CALLED"
+                  rm "$CALLED"
+                  ${lib.getExe tasks.deploy.package}
+                  test -f "$CALLED"
+                  ${lib.getExe tasks.terraform.package}
+                  printf '%s\n' plan > expected
+                  cmp expected "$CALLED"
+                  ${lib.getExe tasks.terraform.package} import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id'
+                  printf '%s\n' import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id' > expected
+                  cmp expected "$CALLED"
+                  touch $out
+                '';
               bats-rejects-failing-tests = pkgs.testers.testBuildFailure' {
                 name = "nullkomma-bats-rejects-failing-tests";
                 drv = batsFailing.checks.${system}.test-bats;

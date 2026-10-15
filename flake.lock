@@ -33,6 +33,21 @@
         "url": "https://flakehub.com/f/DeterminateSystems/flake-schemas/0.5.%2A"
       }
     },
+    "import-tree": {
+      "locked": {
+        "lastModified": 1784254960,
+        "narHash": "sha256-iI88R3wHz8wTKQb5orvpc51L/Xr64AJyxid/0MKa/b8=",
+        "owner": "vic",
+        "repo": "import-tree",
+        "rev": "4ebb10ae17d5f1ad366e7aef5b92cb8eecf24f69",
+        "type": "github"
+      },
+      "original": {
+        "owner": "vic",
+        "repo": "import-tree",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1791353474,
@@ -52,8 +67,66 @@
         "flake-parts": "flake-parts",
         "flake-schemas": "flake-schemas",
         "nixpkgs": "nixpkgs",
+        "terraform-providers-bin": "terraform-providers-bin",
+        "terranix": "terranix",
         "treefmt-nix": "treefmt-nix",
         "up": "up"
+      }
+    },
+    "systems": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    },
+    "terraform-providers-bin": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789698037,
+        "narHash": "sha256-8/ihOyBtmanPd3qB6HkTi11KeW0bg4dnRIGfrzoo+kQ=",
+        "owner": "nix-community",
+        "repo": "nixpkgs-terraform-providers-bin",
+        "rev": "6f5dbe9186d4a26da7c8a554b45260aa95e24add",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nixpkgs-terraform-providers-bin",
+        "type": "github"
+      }
+    },
+    "terranix": {
+      "inputs": {
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "import-tree": "import-tree",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "systems": "systems"
+      },
+      "locked": {
+        "lastModified": 1790023441,
+        "narHash": "sha256-9vmOUIearXFJbafvJjEd8yaQQV/dKN2J5t3rC92Hi+Y=",
+        "owner": "terranix",
+        "repo": "terranix",
+        "rev": "cb9dd00fe24f3f1323baaa19b5ee5fb514d37d77",
+        "type": "github"
+      },
+      "original": {
+        "owner": "terranix",
+        "repo": "terranix",
+        "type": "github"
       }
     },
     "treefmt-nix": {

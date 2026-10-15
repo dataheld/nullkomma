@@ -1,0 +1,7 @@
+---
+title: Fixture home
+---
+
+```nix
+{ answer = 42; }
+```

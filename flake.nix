@@ -19,6 +19,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-schemas.follows = "flake-schemas";
     };
+    terranix = {
+      url = "github:terranix/terranix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
+    };
+    terraform-providers-bin = {
+      url = "github:nix-community/nixpkgs-terraform-providers-bin";
+      flake = false;
+    };
   };
 
   # Dendritic: every file under ./modules is a flake-parts module.
