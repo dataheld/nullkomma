@@ -55,7 +55,6 @@
           enable = true;
           projectName = "fixture-site";
           domain = "www.example.org";
-          infrastructure.enable = true;
         };
       } ../../tests/fixtures/quarto;
       batsFailing = callFlakeWith {
@@ -96,10 +95,7 @@
               }))
               {
                 quarto.root = ../../tests/fixtures/quarto;
-                cloudflare = {
-                  projectName = "fixture-site";
-                  infrastructure.enable = true;
-                };
+                cloudflare.projectName = "fixture-site";
               };
           perSystem = { pkgs, ... }: {
             nullkomma.site = pkgs.emptyDirectory;
@@ -269,9 +265,11 @@
                 tasks = [
                   "deploy"
                   "generate-files"
+                  "terraform"
+                  "test"
                   "write-files"
                 ];
-                checks = [ ];
+                checks = [ "test-cloudflare" ];
               };
             };
             testConsumersCustomizeDefaults = {
@@ -578,25 +576,35 @@
                   stub = pkgs.writeShellApplication {
                     name = "wrangler";
                     text = ''
-                      test "$CLOUDFLARE_ACCOUNT_ID" = test-account
+                      test "$CLOUDFLARE_ACCOUNT_ID" = 00000000000000000000000000000000
                       test "$CLOUDFLARE_API_TOKEN" = test-token
                       test "$1" = pages
                       test "$2" = deploy
                       test -f "$3/index.html"
                       shift 3
-                      test "$*" = "--project-name fixture-site --branch main --commit-dirty=true"
+                      test "$*" = "--project-name fixture-site --branch main"
+                      printf '%s\n' upload >> "$DEPLOY_LOG"
                     '';
                   };
-                  upload = callFlakeWith {
-                    nullkomma.cloudflare = {
-                      enable = true;
-                      projectName = "fixture-site";
-                    };
-                    perSystem._module.args.pkgs = pkgs // {
-                      wrangler = stub;
-                    };
-                  } ../../tests/fixtures/quarto;
-                  badAssets = callFlakeWith {
+                  tofuStub = pkgs.writeShellApplication {
+                    name = "tofu";
+                    text = ''
+                      test -L config.tf.json
+                      printf '%s\n' "$1" >> "$DEPLOY_LOG"
+                      case "$1" in
+                        init)
+                          test "$2" = -input=false
+                          if [[ "''${TOFU_FAIL-}" == init ]]; then exit 17; fi
+                          ;;
+                        apply)
+                          test "$2" = -auto-approve
+                          if [[ "''${TOFU_FAIL-}" == apply ]]; then exit 23; fi
+                          ;;
+                        *) echo "Unexpected OpenTofu command: $1" >&2; exit 1 ;;
+                      esac
+                    '';
+                  };
+                  uploadModule = {
                     nullkomma.cloudflare = {
                       enable = true;
                       projectName = "fixture-site";
@@ -605,24 +613,60 @@
                       _module.args.pkgs = pkgs // {
                         wrangler = stub;
                       };
-                      nullkomma.site = pkgs.emptyDirectory;
+                      terranix.terranixConfigurations.cloudflare.terraformWrapper.package = lib.mkForce tofuStub;
                     };
+                  };
+                  upload = callFlakeWith uploadModule ../../tests/fixtures/quarto;
+                  badAssets = callFlakeWith {
+                    imports = [ uploadModule ];
+                    perSystem.nullkomma.site = pkgs.emptyDirectory;
                   } ../../tests/fixtures/quarto;
                 in
                 pkgs.runCommand "nullkomma-cloudflare-upload" { } ''
-                  export CLOUDFLARE_ACCOUNT_ID=test-account CLOUDFLARE_API_TOKEN=test-token
-                  ${lib.getExe upload.packages.${system}.deploy} --commit-dirty=true
+                  export CLOUDFLARE_ACCOUNT_ID=00000000000000000000000000000000 CLOUDFLARE_API_TOKEN=test-token
+                  export CLOUDFLARE_STATE_BUCKET=fixture-state AWS_ACCESS_KEY_ID=test-key AWS_SECRET_ACCESS_KEY=test-secret
+                  export DEPLOY_LOG="$PWD/deploy.log"
+                  deploy=${lib.getExe upload.packages.${system}.deploy}
+                  "$deploy" -auto-approve
+                  printf '%s\n' init apply upload > expected
+                  cmp "$DEPLOY_LOG" expected
+                  for phase in init apply; do
+                    : > "$DEPLOY_LOG"
+                    export TOFU_FAIL="$phase"
+                    status=0
+                    "$deploy" -auto-approve || status=$?
+                    if [[ "$phase" == init ]]; then
+                      test "$status" = 17
+                      printf '%s\n' init > expected
+                    else
+                      test "$status" = 23
+                      printf '%s\n' init apply > expected
+                    fi
+                    cmp "$DEPLOY_LOG" expected
+                  done
+                  unset TOFU_FAIL
+                  : > "$DEPLOY_LOG"
                   if ${lib.getExe badAssets.packages.${system}.deploy} 2> failure.log; then
                     echo "Upload without index.html unexpectedly succeeded" >&2
                     exit 1
                   fi
                   grep -qF 'nullkomma.cloudflare: static assets package is missing index.html' failure.log
+                  test ! -s "$DEPLOY_LOG"
+                  for credential in CLOUDFLARE_STATE_BUCKET AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+                    if (unset "$credential"; "$deploy" -auto-approve) 2> failure.log; then
+                      echo "Deployment without $credential unexpectedly succeeded" >&2
+                      exit 1
+                    fi
+                    grep -qF "Set $credential" failure.log
+                    test ! -s "$DEPLOY_LOG"
+                  done
                   unset CLOUDFLARE_API_TOKEN
                   if ${lib.getExe upload.packages.${system}.deploy} 2> failure.log; then
                     echo "Upload without credentials unexpectedly succeeded" >&2
                     exit 1
                   fi
                   grep -qF 'Set CLOUDFLARE_API_TOKEN' failure.log
+                  test ! -s "$DEPLOY_LOG"
                   touch $out
                 '';
               bats-rejects-failing-tests = pkgs.testers.testBuildFailure' {

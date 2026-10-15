@@ -8,7 +8,6 @@
     {
       imports = [ inputs.terranix.flakeModule ];
       options.nullkomma.cloudflare = {
-        infrastructure.enable = lib.mkEnableOption "opt-in Terraform management of the Pages project and domain (requires importing existing resources and R2 state)";
         projectName = lib.mkOption {
           type = lib.types.strMatching "[a-z0-9][a-z0-9-]*";
           description = "Cloudflare Pages project name.";
@@ -31,7 +30,7 @@
         };
       };
       config = lib.mkIf cfg.enable {
-        nullkomma.gitignore = lib.mkIf cfg.infrastructure.enable [ "/.nullkomma/cloudflare/" ];
+        nullkomma.gitignore = [ "/.nullkomma/cloudflare/" ];
         perSystem =
           { config, pkgs, ... }:
           let
@@ -47,7 +46,7 @@
             tfConfig = config.terranix.terranixConfigurations.cloudflare.result.terraformConfiguration;
           in
           {
-            terranix = lib.mkIf cfg.infrastructure.enable {
+            terranix = {
               exportDevShells = false;
               terranixConfigurations.cloudflare = {
                 workdir = ".nullkomma/cloudflare";
@@ -113,30 +112,35 @@
               };
             };
             nullkomma.tasks = {
-              terraform = lib.mkIf cfg.infrastructure.enable {
+              terraform = {
                 description = "Manage the Pages infrastructure and R2 state with OpenTofu";
                 skip = true;
                 command = ''exec ${lib.getExe terraform} "$@"'';
               };
               deploy = {
-                description = "Upload the static site to an existing Cloudflare Pages project";
+                description = "Apply the Pages infrastructure, then upload the static site";
                 skip = true;
                 packages = [ pkgs.wrangler ];
                 command = ''
                   : "''${CLOUDFLARE_API_TOKEN:?Set CLOUDFLARE_API_TOKEN}"
                   : "''${CLOUDFLARE_ACCOUNT_ID:?Set CLOUDFLARE_ACCOUNT_ID}"
+                  : "''${CLOUDFLARE_STATE_BUCKET:?Set CLOUDFLARE_STATE_BUCKET to an existing private R2 bucket}"
+                  : "''${AWS_ACCESS_KEY_ID:?Set AWS_ACCESS_KEY_ID for R2 state}"
+                  : "''${AWS_SECRET_ACCESS_KEY:?Set AWS_SECRET_ACCESS_KEY for R2 state}"
                   if [[ ! -f ${site}/index.html ]]; then
                     echo "nullkomma.cloudflare: static assets package is missing index.html" >&2
                     exit 1
                   fi
+                  ${lib.getExe terraform} init -input=false
+                  ${lib.getExe terraform} apply "$@"
                   exec wrangler pages deploy ${site} \
                     --project-name ${lib.escapeShellArg cfg.projectName} \
-                    --branch ${lib.escapeShellArg cfg.productionBranch} "$@"
+                    --branch ${lib.escapeShellArg cfg.productionBranch}
                 '';
               };
             };
             packages.deploy = config.nullkomma.tasks.deploy.package;
-            nullkomma.tests.cloudflare = lib.mkIf cfg.infrastructure.enable {
+            nullkomma.tests.cloudflare = {
               packages = [
                 pkgs.coreutils
                 tofu
