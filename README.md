@@ -207,7 +207,9 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 ```
 
 In `nix develop`, run `preview` to serve the site on localhost; Quarto
-re-renders and reloads the page as you edit. Use `tasks` to select `terraform` (plan changes) or `deploy`
+re-renders and reloads the page as you edit.
+
+In `nix develop`, use `tasks` to select `terraform` (plan changes) or `deploy`
 (publish). Run `terraform <command> [args]` for other OpenTofu commands.
 Deployment uses [Terranix], including custom domains, `_headers` and `_redirects`;
 `workers.dev` is disabled. In CI, use `nix run .#deploy`.
