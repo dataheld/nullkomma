@@ -9,3 +9,6 @@
 ^[.]vscode$
 ^[.]idea$
 ^result(-.*)?$
+^docs$
+^pkgdown$
+^coverage[.]xml$

@@ -46,7 +46,7 @@
         };
       };
       config.perSystem = lib.mkIf cfg.enable (
-        { config, pkgs, ... }:
+        { config, ... }:
         let
           strip = [
             "flake.nix"
@@ -54,13 +54,6 @@
             (lib.removePrefix "${toString cfg.root}/" (toString cfg.lockfile))
           ]
           ++ lib.filter (path: baseNameOf path != ".Rbuildignore") (lib.attrNames config.nullkomma.files);
-          failOn =
-            {
-              error = null;
-              warning = "WARNING";
-              note = "WARNING|NOTE";
-            }
-            .${cfg.check.errorOn};
         in
         {
           nullkomma.tests = lib.mkMerge [
@@ -111,28 +104,21 @@
                   chmod -R u+w "$scratch/pkg"
                   cd "$scratch"
                   (cd pkg && rm -rf ${lib.escapeShellArgs strip})
-                  ${lib.optionalString pkgs.stdenv.isLinux ''
-                    export LOCALE_ARCHIVE=${pkgs.glibcLocales}/lib/locale/locale-archive
-                    export LANG=en_US.UTF-8
-                  ''}
+                  ${config.nullkomma.r.setup}
                   export _R_CHECK_CRAN_INCOMING_=false _R_CHECK_FORCE_SUGGESTS_=false _R_CHECK_SYSTEM_CLOCK_=false
-                  R CMD build --no-build-vignettes --no-manual pkg
-                  if R CMD check ${lib.escapeShellArgs cfg.check.args} "$@" ./*.tar.gz; then
-                    :
-                  else
-                    status=$?
-                    for log in ./*.Rcheck/*.out; do
-                      if [[ -f "$log" ]]; then cat "$log" >&2; fi
-                    done
-                    exit "$status"
-                  fi
-                  ${lib.optionalString (failOn != null) ''
-                    if grep -Eq '^Status: .*(${failOn})' ./*.Rcheck/00check.log; then
-                      cat ./*.Rcheck/00check.log >&2
-                      echo "nullkomma: R CMD check found issues at or above errorOn = ${cfg.check.errorOn}" >&2
-                      exit 1
-                    fi
+                  cd pkg
+                  ${lib.optionalString cfg.document.enable ''
+                    Rscript --vanilla -e 'roxygen2::roxygenise()'
                   ''}
+                  Rscript --vanilla - "$@" <<'EOF'
+                  rcmdcheck::rcmdcheck(
+                    path = ".",
+                    build_args = c("--no-build-vignettes", "--no-manual"),
+                    args = c(${rVector cfg.check.args}, commandArgs(TRUE)),
+                    error_on = ${builtins.toJSON cfg.check.errorOn},
+                    check_dir = "../check"
+                  )
+                  EOF
                 '';
               };
             })

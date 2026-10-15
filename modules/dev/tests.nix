@@ -60,6 +60,16 @@
       rWithProfile = callFlakeWith {
         nullkomma.r.nonNix.enable = true;
       } ../../tests/fixtures/r;
+      rWithWebsite = callFlakeWith {
+        nullkomma.r.pkgdown.enable = true;
+      } ../../tests/fixtures/r;
+      rWithShiny = callFlakeWith {
+        nullkomma.r.extraPackages = [ "shinytest2" ];
+      } ../../tests/fixtures/r;
+      rWithQuality = callFlakeWith {
+        nullkomma.r.lintr.enable = true;
+        nullkomma.r.coverage.enable = true;
+      } ../../tests/fixtures/r;
       cloudflare = callFlakeWith {
         nullkomma.cloudflare = {
           enable = true;
@@ -452,6 +462,9 @@
                 tests = [
                   "r-cmd-check"
                   "r-lock"
+                  "r-namespace"
+                  "r-testthat"
+                  "r-testthat-installed"
                 ];
                 languageServer = [
                   "R"
@@ -462,7 +475,12 @@
                 formatting = false;
                 profile = false;
                 optedInProfile = "source";
-                checkDisabled = [ "r-lock" ];
+                checkDisabled = [
+                  "r-lock"
+                  "r-namespace"
+                  "r-testthat"
+                  "r-testthat-installed"
+                ];
                 snapshot =
                   let
                     d = inputs.nixpkgs-r.sourceInfo.lastModifiedDate;
@@ -647,6 +665,40 @@
                   sources = { };
                   refs = [ ];
                 };
+              };
+            };
+            testRWorkflowSelection = {
+              expr = {
+                tasks = lib.filter (lib.hasPrefix "r-") (lib.attrNames (perSystem fixtures.r).nullkomma.tasks);
+                withoutPackage = (perSystem rWithoutDescription).nullkomma.r.packages;
+                heavyweightDefaults = lib.filter (name: lib.elem name (perSystem fixtures.r).nullkomma.r.packages) [
+                  "pkgdown"
+                  "lintr"
+                  "covr"
+                  "shinytest2"
+                ];
+                browserByDefault = (perSystem fixtures.r).nullkomma.r.browser != null;
+                website = rWithWebsite.packages.${system} ? site;
+                ignored = lib.elem "/man/*.Rd" fixtures.r.debug.config.nullkomma.gitignore;
+                keepsFigures = !(lib.elem "/man/" fixtures.r.debug.config.nullkomma.gitignore);
+              };
+              expected = {
+                tasks = [
+                  "r-check"
+                  "r-document"
+                  "r-lock"
+                  "r-test"
+                  "r-test-installed"
+                ];
+                withoutPackage = [
+                  "languageserver"
+                  "pak"
+                ];
+                heavyweightDefaults = [ ];
+                browserByDefault = false;
+                website = true;
+                ignored = true;
+                keepsFigures = true;
               };
             };
             testTasksAllSkipsMutatingTasks = {
@@ -850,6 +902,75 @@
           };
           checks =
             fixtureChecks
+            // {
+              r-pkgdown = pkgs.runCommand "r-pkgdown-output" { } ''
+                site=${rWithWebsite.packages.${system}.site}
+                test -s "$site/index.html"
+                test -s "$site/reference/hello.html"
+                epoch="$(date -u -d "@$SOURCE_DATE_EPOCH" +%Y-%m-%dT%H:%MZ)"
+                grep -qF "last_built: $epoch" "$site/pkgdown.yml"
+                touch "$out"
+              '';
+              r-lintr = rWithQuality.checks.${system}.test-r-lintr;
+              r-coverage = pkgs.runCommand "r-coverage-output" { } ''
+                cp -R ${../../tests/fixtures/r} project
+                chmod -R u+w project
+                cd project
+                export HOME="$TMPDIR/home"
+                mkdir -p "$HOME"
+                ${lib.getExe (perSystem rWithQuality).nullkomma.tasks.r-coverage.package}
+                grep -q '<coverage ' coverage.xml
+                grep -q 'hello.R' coverage.xml
+                touch "$out"
+              '';
+              r-installed-is-not-development = pkgs.runCommand "r-installed-is-not-development" { } ''
+                cp -R ${../../tests/fixtures/r} project
+                chmod -R u+w project
+                cd project
+                export HOME="$TMPDIR/home"
+                mkdir -p "$HOME"
+                cat > tests/testthat/test-installed.R <<'RS'
+                test_that("the installed namespace is tested", {
+                  expect_false(pkgload::is_dev_package("nullkommafixture"))
+                  expect_true(startsWith(find.package("nullkommafixture"), Sys.getenv("R_LIBS_USER")))
+                })
+                RS
+                ${lib.getExe (perSystem fixtures.r).nullkomma.tasks.r-test-installed.package}
+                touch "$out"
+              '';
+              r-namespace-rejects-drift = pkgs.runCommand "r-namespace-rejects-drift" { } ''
+                cp -R ${../../tests/fixtures/r} project
+                chmod -R u+w project
+                cd project
+                export HOME="$TMPDIR/home"
+                mkdir -p "$HOME"
+                printf '# Generated by roxygen2: do not edit by hand\n' > NAMESPACE
+                if ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-namespace.package} > failure.log 2>&1; then
+                  echo "Stale NAMESPACE unexpectedly passed" >&2
+                  exit 1
+                fi
+                grep -qF 'NAMESPACE is stale' failure.log
+                touch "$out"
+              '';
+            }
+            // lib.optionalAttrs pkgs.stdenv.isLinux {
+              r-shinytest2 =
+                let
+                  r = (perSystem rWithShiny).nullkomma.r;
+                in
+                pkgs.runCommand "r-shinytest2" { nativeBuildInputs = [ r.package ]; } ''
+                  export HOME="$TMPDIR/home"
+                  mkdir -p "$HOME"
+                  ${r.setup}
+                  export SHINY_FIXTURE=${../../tests/r-shiny}
+                  Rscript --vanilla - <<'RS'
+                  results <- testthat::test_file("${../../tests/r-shiny/test-browser.R}", stop_on_failure = TRUE, stop_on_warning = TRUE)
+                  results <- as.data.frame(results)
+                  stopifnot(sum(results$passed) >= 3L, !any(results$skipped))
+                  RS
+                  touch "$out"
+                '';
+            }
             // lib.mapAttrs' (
               name: case:
               lib.nameValuePair "formatting-rejects-${name}" (
@@ -916,7 +1037,7 @@
                   }
                   ''
                     Rscript --vanilla -e 'library(nullkommafixture, lib.loc = "${package}/library"); stopifnot(hello() == "Hello, world!")'
-                    if grep -E '/r-(testthat|pak|languageserver|assertthat|rematch)-[0-9]' closure; then
+                    if grep -E '/r-(testthat|pak|languageserver|assertthat|rematch|rcmdcheck|roxygen2|pkgdown|lintr|covr|shinytest2)-[0-9]' closure; then
                       echo "Production package includes development dependencies" >&2
                       exit 1
                     fi

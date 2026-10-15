@@ -22,6 +22,10 @@
             pname = "nullkommafixture";
             version = "0.0.1";
             src = ../r;
+            nativeBuildInputs = [ pkgs.rPackages.roxygen2 ];
+            preInstall = ''
+              Rscript --vanilla -e 'roxygen2::roxygenise()'
+            '';
           };
         };
     };

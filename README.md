@@ -288,8 +288,76 @@ Run it after dependency changes and Nix updates. For the first setup, if
 the development shell needs the lockfile before direnv can load it.
 `test r-lock` checks for dependencies and Remotes missing from the lock and checks
 DESCRIPTION's version constraints against the installed environment.
-Packages with a `Package:` field also get `test r-cmd-check`; these tests run
-as `checks.<system>.test-r-lock` and `test-r-cmd-check` in CI.
+Packages with a `Package:` field also get `r-check` (or `test r-cmd-check`),
+using rcmdcheck to build and check the package. These run automatically in
+`nix flake check`; `nullkomma.r.check.args` and `errorOn` control the check
+arguments and failure threshold (warnings by default).
+
+#### Package development tasks
+
+| Command            | What it does                                                      | Enabled when                                                                            |
+| ------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `r-document`       | Generate `man/*.Rd` and `NAMESPACE` with roxygen2                 | R package; disable with `nullkomma.r.document.enable = false` for hand-written manuals  |
+| `r-check`          | Generate documentation, build, and run rcmdcheck                  | R package                                                                               |
+| `r-test`           | Generate documentation and run testthat on the development source | testthat is in `pkg.lock`                                                               |
+| `r-test-installed` | Install into a temporary library and test the installed package   | testthat is in `pkg.lock`                                                               |
+| `r-pkgdown`        | Build a website in `docs/` without opening a browser              | pkgdown configuration exists, pkgdown is locked, or `nullkomma.r.pkgdown.enable = true` |
+| `r-lint`           | Load the package and run lintr, failing on lints                  | `.lintr`/`.lintr.R` exists, lintr is locked, or `nullkomma.r.lintr.enable = true`       |
+| `r-coverage`       | Write a local Cobertura `coverage.xml` report with covr           | covr is locked or `nullkomma.r.coverage.enable = true`                                  |
+
+Documentation is regenerated before checks, tests and website builds. Generated
+`man/*.Rd` files are Git-ignored, **not** the whole `man/` directory: keep
+hand-maintained figures. Commit `NAMESPACE`; `test r-namespace` rejects stale
+exports. testthat runs against both the development and installed package in
+`nix flake check`. Package dependencies remain in DESCRIPTION; nullkomma adds
+only the tools needed by enabled workflows to the development R environment,
+not to deployable package outputs.
+
+With pkgdown enabled, `nix build .#site` produces the website and
+`nix flake check` builds it too. The existing Cloudflare plugin can publish this
+same `packages.site` output; no R-specific deployment pipeline is needed.
+The sandboxed build disables pkgdown's default home sidebar, whose CRAN and
+Bioconductor lookups require network access; the local `r-pkgdown` task keeps
+the normal sidebar. `nullkomma.r.pkgdown.override` can instead select a
+local `home.sidebar.html` file. Remote templates, web fonts and network-dependent articles
+must be supplied locally for a reproducible Nix build. If both Quarto and pkgdown
+are enabled, select the intended `perSystem.packages.site` explicitly.
+
+Declaring shinytest2 in DESCRIPTION (and refreshing `pkg.lock`) also supplies
+Chromium on Linux and configures chromote for the devshell, checks, and tasks.
+The browser is headless and managed by shinytest2; no background browser service
+is needed. In Nix builds only, Chromium's namespace sandbox is disabled because
+it cannot nest inside the build sandbox; it stays enabled for interactive use.
+macOS has no Nixpkgs Chromium package: local tasks use chromote's installed
+Chrome discovery, or `CHROMOTE_CHROME`; run hermetic browser checks on Linux.
+`perSystem.nullkomma.r.browser` can select another Nix-packaged browser.
+The Linux `r-shinytest2` fixture check drives a real app, changes an input,
+asserts the reactive output and browser user agent, and fails if tests skip.
+
+#### Upstream R tooling choices
+
+These workflows cover the R-specific targets of
+[crow's Makefile](https://github.com/dataheld/crow/blob/main/Makefile) and
+[CI](https://github.com/dataheld/crow/blob/main/.github/workflows/cicd.yaml):
+documentation, namespace freshness, checks, local/installed tests, linting and
+pkgdown publication. Nix replaces its dependency/system-library installation;
+the existing treefmt and Cloudflare integrations replace separate lint/deploy
+pipelines. Its Docker images, Make wrappers and container health checks are
+intentionally not reproduced.
+
+Current representative tidyverse/r-lib repositories still use
+[rcmdcheck](https://github.com/r-lib/actions/blob/v2/examples/check-standard.yaml),
+[roxygen2](https://github.com/r-lib/actions/blob/v2/examples/document.yaml),
+[pkgdown](https://github.com/r-lib/actions/blob/v2/examples/pkgdown.yaml),
+[lintr](https://github.com/r-lib/devtools/blob/main/.github/workflows/lint.yaml)
+and [covr/Cobertura](https://github.com/r-lib/actions/blob/v2/examples/test-coverage.yaml).
+[dplyr's Air workflow](https://github.com/tidyverse/dplyr/blob/main/.github/workflows/format-suggest.yaml)
+confirms Air is a current choice, rather than adding styler as a second formatter.
+Keep lintr and coverage conditional; Jarl remains optional, not an assumed
+tidyverse/r-lib replacement. Coverage reporting stays local: no Codecov account,
+token or upload is required. Upstream's Windows and R release/devel/oldrel
+matrices test compatibility beyond our one locked R version; Nix does not
+replace those when a project needs them.
 
 pak and languageserver are always included. Declare test dependencies such as
 testthat in `DESCRIPTION`'s `Suggests` field, which is included by default.
@@ -436,6 +504,12 @@ and these instructions committed so collaborators need no Nix-generated files.
 For projects with a `Package:` field in `DESCRIPTION`, run these commands in a
 terminal from the project directory (replace the archive name with your package
 and version):
+
+If `man/*.Rd` is generated and Git-ignored, first run
+`roxygen2::roxygenise()` in R. Declare roxygen2 in `Config/Needs/development`
+so the dependency installation above supplies it (or install it once with
+`install.packages("roxygen2")`). Keep the generated `NAMESPACE` committed.
+The Nix development tasks generate manuals automatically, but plain R does not.
 
 ```sh
 R CMD build .

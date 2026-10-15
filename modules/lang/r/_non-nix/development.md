@@ -84,6 +84,12 @@ For projects with a `Package:` field in `DESCRIPTION`, run these commands in a
 terminal from the project directory (replace the archive name with your package
 and version):
 
+If `man/*.Rd` is generated and Git-ignored, first run
+`roxygen2::roxygenise()` in R. Declare roxygen2 in `Config/Needs/development`
+so the dependency installation above supplies it (or install it once with
+`install.packages("roxygen2")`). Keep the generated `NAMESPACE` committed.
+The Nix development tasks generate manuals automatically, but plain R does not.
+
 ```sh
 R CMD build .
 R CMD check yourpackage_0.1.0.tar.gz
