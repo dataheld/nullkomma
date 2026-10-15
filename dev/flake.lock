@@ -10,12 +10,12 @@
         "nullkomma": "nullkomma"
       },
       "locked": {
-        "lastModified": 1792080101,
-        "narHash": "sha256-fI74hfhuc/IBshjiiN5w1qirZMYp8ShcwbLydJph0Vg=",
-        "rev": "940cabc1682ac8f5a2b8642a0a269d7ebd4fdc23",
-        "revCount": 1,
+        "lastModified": 1792081660,
+        "narHash": "sha256-M05HjIJO2TkswpT9yMRUe64gyNOMRLeZKDJ9t34aFcY=",
+        "rev": "a65dc58d240d0d97b4ff58fba36b0c288fabf00f",
+        "revCount": 2,
         "type": "tarball",
-        "url": "https://api.flakehub.com/f/pinned/dataheld/brand/0.1.1%2Brev-940cabc1682ac8f5a2b8642a0a269d7ebd4fdc23/01a14050-9139-7d21-8c3b-05be12203c6d/source.tar.gz"
+        "url": "https://api.flakehub.com/f/pinned/dataheld/brand/0.1.2%2Brev-a65dc58d240d0d97b4ff58fba36b0c288fabf00f/01a14068-2ec0-73c1-aaa9-6da3a4973e23/source.tar.gz"
       },
       "original": {
         "type": "tarball",
