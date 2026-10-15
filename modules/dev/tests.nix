@@ -645,6 +645,28 @@
                     diff -r ${(raw bareCloudflare).packages.${system}.site} "$bareAssets"
                     touch $out
                   '';
+              quarto-preview =
+                let
+                  quarto = pkgs.writeShellScriptBin "quarto" ''
+                    printf '%s\n' "$PWD" "$@" > "$CALLED"
+                  '';
+                  flake = callFlakeWith (
+                    { self, ... }:
+                    {
+                      nullkomma.quarto.root = self.outPath + "/docs";
+                      perSystem.nullkomma.quarto.package = quarto;
+                    }
+                  ) ../../tests/fixtures/quarto;
+                  preview = lib.getExe (perSystem flake).nullkomma.tasks.preview.package;
+                in
+                pkgs.runCommand "nullkomma-quarto-preview" { nativeBuildInputs = [ pkgs.git ]; } ''
+                  export CALLED=$PWD/called
+                  mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
+                  ${preview} --no-browser
+                  printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
+                  cmp expected "$CALLED"
+                  touch $out
+                '';
               cloudflare-deploy =
                 let
                   tofu = pkgs.writeShellScriptBin "tofu" ''

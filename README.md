@@ -120,7 +120,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 | [`vscode`][vscode]                  |             |                        |                     | `.vscode/`⁵                                                   | renders it for VS Code⁵                                          |
 | [`neovim`][neovim]                  |             |                        |                     | `.nvim.lua`⁵                                                  | renders it for Neovim⁵                                           |
 | [`flakehub`][flakehub]              | [`fh`]      |                        |                     |                                                               |                                                                  |
-| [`quarto`][quarto] (opt-in)         | quarto      |                        |                     | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸ | VS Code: [Quarto][vscode-quarto]                                 |
+| [`quarto`][quarto] (opt-in)         | quarto⁹     |                        |                     | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸ | VS Code: [Quarto][vscode-quarto]                                 |
 | [`cloudflare`][cloudflare] (opt-in) | wrangler⁶   |                        | OpenTofu validation | ignores `.nullkomma/cloudflare/`                              |                                                                  |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
@@ -148,6 +148,9 @@ to the privacy policy (see [Static websites](#static-websites)).
 
 ⁸ Generated: `nullkomma.quarto.extensions`, and the privacy policy once
 there are `nullkomma.privacy.sections`.
+
+⁹ Also adds the `preview` task: `quarto preview`, serving the site on localhost
+and re-rendering and live-reloading it on changes.
 
 ✅ means the plugin's files are formatted/linted by the `format` task (or `nix fmt`) and
 checked by `nix flake check` (via treefmt). The exact tools are in the plugin's source.
@@ -209,6 +212,9 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
   };
 }
 ```
+
+In `nix develop`, run `preview` to serve the site on localhost; Quarto
+re-renders and reloads the page as you edit.
 
 Shared Quarto extensions, e.g. a brand from another flake, go in
 `nullkomma.quarto.extensions.<name>`: generated into `_extensions/<name>` and
