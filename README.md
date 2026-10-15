@@ -120,7 +120,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 | [`vscode`][vscode]                  |             |                        |                             | `.vscode/`⁵                      | renders it for VS Code⁵                                          |
 | [`neovim`][neovim]                  |             |                        |                             | `.nvim.lua`⁵                     | renders it for Neovim⁵                                           |
 | [`flakehub`][flakehub]              | [`fh`]      |                        |                             |                                  |                                                                  |
-| [`quarto`][quarto] (opt-in)         | quarto      |                        |                             | ignores `.quarto/`, `_site/`     | VS Code: [Quarto][vscode-quarto]                                 |
+| [`quarto`][quarto] (opt-in)         | quarto⁷     |                        |                             | ignores `.quarto/`, `_site/`     | VS Code: [Quarto][vscode-quarto]                                 |
 | [`cloudflare`][cloudflare] (opt-in) | wrangler⁶   |                        | OpenTofu validation         | ignores `.nullkomma/cloudflare/` |                                                                  |
 | [`r`][r] (opt-in)                   | R, pak      | ✅                     | lock freshness, R CMD check | R ignores; optional `.Rprofile`  | R languageserver; VS Code: R, Air                                |
 
@@ -146,6 +146,9 @@ repositories and private for private repositories. Override
 recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
 
 ⁶ Also adds the `terraform` (plan changes) and `deploy` tasks.
+
+⁷ Also adds the `preview` task: `quarto preview`, serving the site on localhost
+and re-rendering and live-reloading it on changes.
 
 ✅ means the plugin's files are formatted/linted by the `format` task (or `nix fmt`) and
 checked by `nix flake check` (via treefmt). The exact tools are in the plugin's source.
@@ -207,6 +210,9 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
   };
 }
 ```
+
+In `nix develop`, run `preview` to serve the site on localhost; Quarto
+re-renders and reloads the page as you edit.
 
 In `nix develop`, use `tasks` to select `terraform` (plan changes) or `deploy`
 (publish). Run `terraform <command> [args]` for other OpenTofu commands.

@@ -15,7 +15,7 @@
         type = lib.types.path;
         default = self.outPath;
         defaultText = lib.literalExpression "self.outPath";
-        description = "Quarto project rendered into `packages.site`.";
+        description = "Quarto project rendered into `packages.site` and served by the `preview` task.";
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption (
         { pkgs, ... }:
@@ -45,10 +45,29 @@
           { config, pkgs, ... }:
           let
             quarto = config.nullkomma.quarto.package;
+            rootInRepo =
+              assert lib.assertMsg (lib.hasPrefix (toString self) (
+                toString cfg.root
+              )) "nullkomma.quarto.root must be inside the flake for the preview task.";
+              lib.removePrefix (toString self) (toString cfg.root);
           in
           {
             nullkomma.devHelpers = [ quarto ];
             nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
+            # Quarto watches the working tree and live-reloads the browser itself.
+            nullkomma.tasks.preview = {
+              skip = true;
+              raw = true;
+              description = "Serve the site on localhost, re-rendering and reloading on changes";
+              packages = [
+                pkgs.git
+                quarto
+              ];
+              command = ''
+                cd "$(git rev-parse --show-toplevel)"${lib.escapeShellArg rootInRepo}
+                exec quarto preview "$@"
+              '';
+            };
             packages.site = lib.mkDefault (
               pkgs.runCommand "site" { nativeBuildInputs = [ quarto ]; } ''
                 cp -r ${cfg.root} src && chmod -R u+w src && cd src
