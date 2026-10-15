@@ -40,6 +40,7 @@
             '';
           in
           {
+            nullkomma.devHelpers = [ pkgs.wrangler ];
             terranix = {
               exportDevShells = false;
               terranixConfigurations.deploy = {

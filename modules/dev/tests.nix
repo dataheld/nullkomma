@@ -251,6 +251,16 @@
                 checks = [ "test-cloudflare" ];
               };
             };
+            testCloudflareProvidesWranglerOnlyWhenEnabled = {
+              expr = map (flake: lib.elem pkgs.wrangler (perSystem flake).nullkomma.devshell.packages) [
+                cloudflare
+                fixtures.quarto
+              ];
+              expected = [
+                true
+                false
+              ];
+            };
             testConsumersCustomizeDefaults = {
               expr = {
                 package = lib.elem pkgs.hello (perSystem customized).nullkomma.devshell.packages;
