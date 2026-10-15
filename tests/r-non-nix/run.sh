@@ -30,7 +30,7 @@ Rscript - <<'RS'
 RS
 
 # A new Config/Needs field is discovered without a Nix regeneration.
-printf '\nConfig/Needs/extra: RColorBrewer\n' >>DESCRIPTION
+printf 'Config/Needs/extra: RColorBrewer\n' >>DESCRIPTION
 Rscript examples.R
 Rscript -e 'stopifnot(requireNamespace("RColorBrewer", quietly = TRUE))'
 sed -i '/^Config\/Needs\/extra:/d' DESCRIPTION
