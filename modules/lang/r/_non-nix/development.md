@@ -45,7 +45,8 @@ Restart R and re-run the installation command after editing, so new
 package as well, run `pak::pkg_remove("packageName")`; this only changes your
 local library, not `DESCRIPTION`.
 
-Refresh the committed lockfile after changing dependencies:
+Refresh the committed lockfile after changing dependencies. Resolve against an
+empty library so installed binaries do not enter the shared source-only lock:
 
 ```r
 local({
@@ -53,10 +54,16 @@ local({
     repos = c(CRAN = Sys.getenv("NULLKOMMA_PPM_URL")),
     pkg.platforms = "source"
   )
-  on.exit(options(previous))
+  library <- tempfile()
+  dir.create(library)
+  on.exit({
+    options(previous)
+    unlink(library, recursive = TRUE)
+  })
   pak::lockfile_create(
     "deps::.",
     dependencies = getOption("nullkomma.r.dependencies"),
+    lib = library,
     lockfile = "pkg.lock"
   )
 })

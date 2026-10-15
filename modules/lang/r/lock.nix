@@ -50,6 +50,7 @@
               fi
               tmp="$(mktemp -d)"
               trap 'rm -rf "$tmp"' EXIT
+              mkdir "$tmp/library"
               cp "$description" "$tmp/DESCRIPTION"
               # pak's deps:: references need these, which non-package projects may lack
               for field in Package:project Version:0.0.0; do
@@ -63,7 +64,7 @@
                 cd "$tmp"
                 Rscript --vanilla - <<'EOF'
                   options(repos = c(CRAN = ${builtins.toJSON cfg.ppmUrl}), pkg.platforms = "source")
-                  pak::lockfile_create("deps::.", lockfile = "pkg.lock", dependencies = c(${fields}))
+                  pak::lockfile_create("deps::.", lockfile = "pkg.lock", lib = "library", dependencies = c(${fields}))
               EOF
               )
               cp "$tmp/pkg.lock" "$lockfile"
