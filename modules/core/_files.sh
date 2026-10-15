@@ -36,6 +36,24 @@ process_file() {
     fi
     parent="$(dirname "$parent")"
   done
+  if [ "$mode" = generated ] && git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+    echo "Refusing to overwrite tracked $path with a generated file; remove it from Git or disable the file in Nix." >&2
+    status=1
+    return
+  fi
+  if [ "$mode" = generated ] && [ -d "$source" ]; then
+    if [ -e "$path" ] && [ ! -d "$path" ]; then
+      echo "Not a directory: $path" >&2
+      status=1
+      return
+    fi
+    rm -rf "$path"
+    mkdir -p "$(dirname "$path")"
+    cp -R "$source" "$path"
+    chmod -R u+w "$path"
+    echo "generated $path/"
+    return
+  fi
   if [ -e "$path" ] && [ ! -f "$path" ]; then
     echo "Not a regular file: $path" >&2
     status=1

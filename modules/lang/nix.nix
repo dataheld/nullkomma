@@ -84,6 +84,8 @@
                 key = "${builtins.unsafeDiscardStringContext run.drvPath} passed\n";
               in
               run.overrideAttrs (old: {
+                SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+                NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
                 buildCommand = old.buildCommand + ''
                   printf %s ${lib.escapeShellArg key} > $out
                 '';

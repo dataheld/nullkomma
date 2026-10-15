@@ -21,6 +21,13 @@
       };
       config = lib.mkIf cfg.enable {
         nullkomma.gitignore = [ "/.nullkomma/cloudflare/" ];
+        nullkomma.privacy.sections.cloudflare = {
+          order = 200;
+          markdown = {
+            en = ./_cloudflare/privacy.en.md;
+            de = ./_cloudflare/privacy.de.md;
+          };
+        };
         perSystem =
           { config, pkgs, ... }:
           let
