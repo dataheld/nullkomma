@@ -1,7 +1,10 @@
 {
   description = "A project with bats tests";
 
-  inputs.nullkomma.url = "https://flakehub.com/f/dataheld/nullkomma/0.1.*";
+  inputs = {
+    nullkomma.url = "https://flakehub.com/f/dataheld/nullkomma/0.1.*";
+    nixpkgs.follows = "nullkomma/nixpkgs";
+  };
 
   outputs =
     inputs:

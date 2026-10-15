@@ -52,6 +52,10 @@ When making changes, adhere to [aoshima's charter](https://github.com/dataheld/a
    The template also includes `.envrc` containing `use flake`.
    Existing files are preserved.
 
+   Its `nixpkgs.follows = "nullkomma/nixpkgs"` uses nullkomma's tested Nixpkgs
+   pin and lets `flake-checker` check it. To use your own Nixpkgs instead,
+   declare `nixpkgs.url` and set `nullkomma.inputs.nixpkgs.follows = "nixpkgs"`.
+
 1. Initialize remaining missing files (see below):
 
    ```sh
