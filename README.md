@@ -210,7 +210,7 @@ output directory. Set `nullkomma.quarto.root` for another source directory, or
 engines. The default has no R, Python or TeX. Preview process management is not
 included; invoke `quarto preview` directly from the development shell.
 
-`nix run .#deploy` (or `deploy` in the development shell) always initializes
+In GitHub Actions, `nix run .#deploy` always initializes
 OpenTofu, applies the Pages project and optional custom domain configuration,
 then uploads the static assets with Wrangler, explicitly targeting
 `productionBranch` (default `"main"`). Terraform manages infrastructure;
@@ -245,15 +245,46 @@ management, outside this plugin.
 The workspace and its provider lock file are local and ignored; `init`
 regenerates provider checksums from the Nix pin.
 
+**All Cloudflare writes run only in GitHub Actions**, including state imports
+and lock operations. `deploy` rejects execution outside Actions. The Terraform
+wrapper likewise rejects local commands except `validate` and the exact offline
+initialization `init -backend=false -input=false`. `test cloudflare` provides
+credential-free offline validation. `GITHUB_ACTIONS=true` is an accidental-use
+guard, not an authentication boundary: keep write credentials only in Actions,
+never set that variable locally to bypass the guard.
+
+For GUI setup, create a private R2 bucket with default jurisdiction. Create an
+account-owned API token with only **Account / Cloudflare Pages / Edit** for the
+hosting account, plus separate R2 **Object Read & Write** credentials scoped to
+that state bucket. Neither DNS nor Workers Scripts nor R2 administration
+permissions are required. Pages Edit is account-scoped, not project-scoped.
+Store the tokens as organization Actions secrets, limited to selected deploying
+repositories; store account ID and bucket name as Actions variables. R2
+credentials map to `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` above.
+
 For an existing Pages project such as helden18, **import existing resources
-before the first deployment**, then review the plan:
+before the first deployment** using a dedicated `workflow_dispatch` adoption
+job on the protected default branch. After checkout and Nix installation, its
+step runs these commands through the flake wrapper, with the same runtime
+credentials as deployment:
 
 ```sh
-terraform init -input=false
-terraform import cloudflare_pages_project.site "$CLOUDFLARE_ACCOUNT_ID/helden18-github-io"
-terraform import cloudflare_pages_domain.site "$CLOUDFLARE_ACCOUNT_ID/helden18-github-io/www.helden18.de"
-terraform plan
+nix run .#cloudflare.terraform -- init -input=false
+nix run .#cloudflare.terraform -- import cloudflare_pages_project.site "$CLOUDFLARE_ACCOUNT_ID/helden18-github-io"
+nix run .#cloudflare.terraform -- import cloudflare_pages_domain.site "$CLOUDFLARE_ACCOUNT_ID/helden18-github-io/www.helden18.de"
+nix run .#cloudflare.terraform -- plan -input=false
 ```
+
+Launch that job from **Actions → adoption workflow → Run workflow** in GitHub's
+GUI, then review the plan before approving the first deployment. Terraform
+imports cannot be performed in Cloudflare's GUI. The consumer must supply the
+adoption and deployment jobs; the generic generated `push.yml` does not deploy.
+Protect workflow changes and the default branch, gate the deployment job on
+successful checks, and use a production environment with branch restrictions
+and approval where available. Organization secrets themselves are not gated by
+environment approval. Serialize adoption and deployment with the same
+concurrency group and `cancel-in-progress: false`; never expose write secrets
+to untrusted pull-request code.
 
 Only import the domain if configured and already attached. New projects/domains
 are created by the deployment's apply instead. Project/domain destruction is

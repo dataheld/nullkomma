@@ -555,6 +555,7 @@
               cloudflare-deploy = cloudflare.packages.${system}.deploy;
               cloudflare-terraform-wrapper = pkgs.runCommand "nullkomma-cloudflare-terraform-wrapper" { } ''
                 export HOME="$TMPDIR"
+                unset GITHUB_ACTIONS
                 export CLOUDFLARE_ACCOUNT_ID=00000000000000000000000000000000
                 export CLOUDFLARE_STATE_BUCKET=fixture-state
                 terraform=${lib.getExe (perSystem cloudflare).nullkomma.tasks.terraform.package}
@@ -627,6 +628,31 @@
                   export CLOUDFLARE_STATE_BUCKET=fixture-state AWS_ACCESS_KEY_ID=test-key AWS_SECRET_ACCESS_KEY=test-secret
                   export DEPLOY_LOG="$PWD/deploy.log"
                   deploy=${lib.getExe upload.packages.${system}.deploy}
+                  terraform=${lib.getExe (perSystem upload).nullkomma.tasks.terraform.package}
+                  unset GITHUB_ACTIONS
+                  if "$deploy" -auto-approve 2> failure.log; then
+                    echo "Local deployment unexpectedly accepted" >&2
+                    exit 1
+                  fi
+                  grep -qF 'nullkomma.cloudflare: deployment requires GitHub Actions' failure.log
+                  test ! -e "$DEPLOY_LOG"
+                  rejectLocal() {
+                    if "$terraform" "$@" 2> failure.log; then
+                      echo "Local remote Terraform operation unexpectedly accepted: $*" >&2
+                      exit 1
+                    fi
+                    grep -qF 'nullkomma.cloudflare: remote Terraform operations require GitHub Actions' failure.log
+                    test ! -e "$DEPLOY_LOG"
+                  }
+                  rejectLocal init -input=false
+                  rejectLocal init -backend=false -input=false -backend=true
+                  rejectLocal apply -auto-approve
+                  rejectLocal import cloudflare_pages_project.site account/project
+                  rejectLocal plan
+                  rejectLocal state rm cloudflare_pages_project.site
+                  export GITHUB_ACTIONS=false
+                  rejectLocal apply -auto-approve
+                  export GITHUB_ACTIONS=true
                   "$deploy" -auto-approve
                   printf '%s\n' init apply upload > expected
                   cmp "$DEPLOY_LOG" expected

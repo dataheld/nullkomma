@@ -53,6 +53,15 @@
                 terraformWrapper = {
                   package = tofu;
                   prefixText = ''
+                    if [[ "''${GITHUB_ACTIONS-}" != true ]]; then
+                      case "$*" in
+                        "validate" | "init -backend=false -input=false") ;;
+                        *)
+                          echo "nullkomma.cloudflare: remote Terraform operations require GitHub Actions" >&2
+                          exit 1
+                          ;;
+                      esac
+                    fi
                     : "''${CLOUDFLARE_ACCOUNT_ID:?Set CLOUDFLARE_ACCOUNT_ID}"
                     : "''${CLOUDFLARE_STATE_BUCKET:?Set CLOUDFLARE_STATE_BUCKET to an existing private R2 bucket}"
                     if [[ ! "$CLOUDFLARE_ACCOUNT_ID" =~ ^[a-f0-9]{32}$ ]]; then
@@ -122,6 +131,10 @@
                 skip = true;
                 packages = [ pkgs.wrangler ];
                 command = ''
+                  if [[ "''${GITHUB_ACTIONS-}" != true ]]; then
+                    echo "nullkomma.cloudflare: deployment requires GitHub Actions" >&2
+                    exit 1
+                  fi
                   : "''${CLOUDFLARE_API_TOKEN:?Set CLOUDFLARE_API_TOKEN}"
                   : "''${CLOUDFLARE_ACCOUNT_ID:?Set CLOUDFLARE_ACCOUNT_ID}"
                   : "''${CLOUDFLARE_STATE_BUCKET:?Set CLOUDFLARE_STATE_BUCKET to an existing private R2 bucket}"
