@@ -121,7 +121,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 | [`neovim`][neovim]                  |             |                        |                     | `.nvim.lua`⁵                     | renders it for Neovim⁵                                           |
 | [`flakehub`][flakehub]              | [`fh`]      |                        |                     |                                  |                                                                  |
 | [`quarto`][quarto] (opt-in)         | quarto      |                        |                     | ignores `.quarto/`, `_site/`     | VS Code: [Quarto][vscode-quarto]                                 |
-| [`cloudflare`][cloudflare] (opt-in) | wrangler    |                        | OpenTofu validation | ignores `.nullkomma/cloudflare/` |                                                                  |
+| [`cloudflare`][cloudflare] (opt-in) | wrangler⁶   |                        | OpenTofu validation | ignores `.nullkomma/cloudflare/` |                                                                  |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
 Nixpkgs. The `nix` plugin also adds the tasks `check` (`nix flake check`) and
@@ -139,6 +139,8 @@ which runs `nix flake check` and can publish to FlakeHub.
 
 ⁵ Generated (Git-ignored) from the Editor column: VS Code settings and
 recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
+
+⁶ Also adds the `terraform` (plan changes) and `deploy` tasks.
 
 ✅ means the plugin's files are formatted/linted by the `format` task (or `nix fmt`) and
 checked by `nix flake check` (via treefmt). The exact tools are in the plugin's source.
@@ -202,13 +204,14 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 ```
 
 Quarto comes without R, Python or TeX; set `perSystem.nullkomma.quarto.package`
-for execution engines. `nix run .#deploy` applies the [Terranix] configuration
-with OpenTofu: it uploads the site, applies `_headers` and `_redirects` as settings instead of publishing them, attaches
-the domains and disables `workers.dev`. `nix run .#deploy.terraform -- <args>`
-runs other OpenTofu commands, such as `import`.
+for execution engines.
 
-Both need these variables, with state in an existing private R2 bucket; in
-GitHub Actions:
+In `nix develop`, use `tasks` to select `terraform` (plan changes) or `deploy`
+(publish). Run `terraform <command> [args]` for other OpenTofu commands.
+Deployment uses [Terranix], including custom domains, `_headers` and `_redirects`;
+`workers.dev` is disabled. In CI, use `nix run .#deploy`.
+
+Set these variables for an existing private R2 state bucket; in GitHub Actions:
 
 ```yaml
 env:

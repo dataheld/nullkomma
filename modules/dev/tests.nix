@@ -559,18 +559,28 @@
                     test "$TF_CLI_ARGS_apply" = "-auto-approve"
                     test "$TF_IN_AUTOMATION" = 1
                     test "$TF_INPUT" = 0
-                    touch "$CALLED"
+                    printf '%s\n' "$@" > "$CALLED"
                   '';
                   flake = raw {
                     imports = [ bareCloudflare ];
                     perSystem.terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
                   };
                   deploy = lib.getExe flake.packages.${system}.deploy;
+                  tasks = (perSystem flake).nullkomma.tasks;
                 in
                 pkgs.runCommand "nullkomma-cloudflare-deploy" { } ''
                   export CALLED=$PWD/called CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
                   ${deploy}
                   test -f "$CALLED"
+                  rm "$CALLED"
+                  ${lib.getExe tasks.deploy.package}
+                  test -f "$CALLED"
+                  ${lib.getExe tasks.terraform.package}
+                  printf '%s\n' plan > expected
+                  cmp expected "$CALLED"
+                  ${lib.getExe tasks.terraform.package} import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id'
+                  printf '%s\n' import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id' > expected
+                  cmp expected "$CALLED"
                   touch $out
                 '';
               bats-rejects-failing-tests = pkgs.testers.testBuildFailure' {

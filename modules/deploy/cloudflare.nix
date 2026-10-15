@@ -41,6 +41,22 @@
           in
           {
             nullkomma.devHelpers = [ pkgs.wrangler ];
+            nullkomma.tasks = {
+              deploy = {
+                skip = true;
+                description = "Publish the site to Cloudflare";
+                command = "exec ${lib.getExe tf.result.app}";
+              };
+              terraform = {
+                skip = true;
+                description = "Plan Cloudflare changes, or run terraform <command> [args]";
+                command = ''
+                  ${lib.getExe tf.result.scripts.init}
+                  if [[ $# == 0 ]]; then set -- plan; fi
+                  exec ${lib.getExe tf.result.terraformWrapper} "$@"
+                '';
+              };
+            };
             terranix = {
               exportDevShells = false;
               terranixConfigurations.deploy = {
