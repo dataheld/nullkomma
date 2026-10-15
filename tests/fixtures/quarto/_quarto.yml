@@ -1,11 +1,5 @@
 project:
   type: website
   resources:
-    - asset.txt
     - _headers
     - _redirects
-website:
-  title: Fixture website
-format:
-  html:
-    theme: cosmo

@@ -2,10 +2,6 @@
 title: Fixture home
 ---
 
-{{< include content.md >}}
-
 ```nix
 { answer = 42; }
 ```
-
-[Static asset](asset.txt)

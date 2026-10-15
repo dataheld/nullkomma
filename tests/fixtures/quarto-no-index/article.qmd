@@ -1,5 +1,0 @@
----
-title: Not a homepage
----
-
-This project deliberately has no index page.
