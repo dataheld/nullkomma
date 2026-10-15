@@ -30,8 +30,14 @@
               (import inputs.terraform-providers-bin { nixpkgs = pkgs; }).providers.cloudflare.cloudflare;
             account_id = "\${var.account_id}";
             script_name = "\${cloudflare_workers_script.site.script_name}";
-            # Wrangler reads these files itself; the provider needs them as settings.
+            # Like Wrangler, pass these as settings rather than publishing them;
+            # the provider uploads every file in the assets directory.
             optionalFile = name: "\${fileexists(\"${site}/${name}\") ? file(\"${site}/${name}\") : null}";
+            assets = pkgs.runCommand "site-assets" { } ''
+              cp -r ${site} $out
+              chmod -R u+w $out
+              rm -f $out/_headers $out/_redirects
+            '';
           in
           {
             terranix = {
@@ -41,10 +47,6 @@
                 terraformWrapper = {
                   package = pkgs.opentofu.withPlugins (_: [ provider ]);
                   prefixText = ''
-                    if [[ ''${GITHUB_ACTIONS-} != true ]]; then
-                      echo "nullkomma.cloudflare: Cloudflare writes run only in GitHub Actions" >&2
-                      exit 1
-                    fi
                     export TF_IN_AUTOMATION=1 TF_INPUT=0 TF_CLI_ARGS_apply=-auto-approve
                     export TF_VAR_account_id="''${CLOUDFLARE_ACCOUNT_ID:?}"
                     export AWS_ENDPOINT_URL_S3="https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
@@ -77,7 +79,7 @@
                       inherit account_id;
                       script_name = cfg.worker;
                       assets = {
-                        directory = "${site}";
+                        directory = "${assets}";
                         config = {
                           not_found_handling = "404-page";
                           headers = optionalFile "_headers";

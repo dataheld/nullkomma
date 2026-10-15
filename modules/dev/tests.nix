@@ -491,6 +491,9 @@
                       tofu plan -refresh=false -out=plan > /dev/null
                       tofu show -json plan | jq '.planned_values.root_module.resources | map({key: .address, value: .values}) | from_entries'
                     }
+                    # The provider uploads every file in this directory.
+                    assets=$(jq -r .resource.cloudflare_workers_script.site.assets.directory ${tfConfig cloudflare})
+                    [[ -f $assets/index.html && ! -e $assets/_headers && ! -e $assets/_redirects ]]
                     plan ${tfConfig cloudflare} | jq -e '
                       ."cloudflare_workers_script.site" as $worker
                       | ."cloudflare_workers_custom_domain.www_example_org" as $domain
@@ -525,10 +528,7 @@
                 in
                 pkgs.runCommand "nullkomma-cloudflare-deploy" { } ''
                   export LOG=$PWD/log CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
-                  if ${deploy} 2> err; then exit 1; fi
-                  echo "nullkomma.cloudflare: Cloudflare writes run only in GitHub Actions" | cmp - err
-                  test ! -e log
-                  GITHUB_ACTIONS=true ${deploy}
+                  ${deploy}
                   cat > expected <<EOF
                   init account https://account.r2.cloudflarestorage.com -backend-config=bucket=state -auto-approve
                   apply account https://account.r2.cloudflarestorage.com -backend-config=bucket=state -auto-approve

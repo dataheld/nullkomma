@@ -203,11 +203,12 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 
 Quarto comes without R, Python or TeX; set `perSystem.nullkomma.quarto.package`
 for execution engines. `nix run .#deploy` applies the [Terranix] configuration
-with OpenTofu: it uploads the site, applies `_headers` and `_redirects`, attaches
+with OpenTofu: it uploads the site, applies `_headers` and `_redirects` as settings instead of publishing them, attaches
 the domains and disables `workers.dev`. `nix run .#deploy.terraform -- <args>`
 runs other OpenTofu commands, such as `import`.
 
-These run only in GitHub Actions, with state in an existing private R2 bucket:
+Both need these variables, with state in an existing private R2 bucket; in
+GitHub Actions:
 
 ```yaml
 env:
