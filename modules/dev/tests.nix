@@ -83,12 +83,33 @@
           };
         };
       } ../../tests/fixtures/md;
-      disabled = lib.genAttrs (lib.attrNames plugins) (
-        name:
+      pluginFixture =
+        name: forceDisabled:
         callFlakeWith {
-          nullkomma.${name}.enable = false;
-        } ../../tests/fixtures/md
-      );
+          imports = lib.optional forceDisabled {
+            nullkomma.${name}.enable = lib.mkForce false;
+          };
+          nullkomma =
+            lib.recursiveUpdate
+              (lib.genAttrs (lib.attrNames plugins) (plugin: {
+                enable = plugin == name;
+              }))
+              {
+                quarto.root = ../../tests/fixtures/quarto;
+                cloudflare = {
+                  projectName = "fixture-site";
+                  infrastructure.enable = true;
+                };
+              };
+          perSystem = { pkgs, ... }: {
+            nullkomma.site = pkgs.emptyDirectory;
+          };
+        } ../../tests/fixtures/md;
+      isolatedPlugins = lib.genAttrs (lib.attrNames plugins) (name: {
+        enabled = pluginFixture name false;
+        disabled = pluginFixture name true;
+      });
+      pluginsBaseline = pluginFixture null false;
       minimal = callFlakeWith {
         nullkomma =
           lib.genAttrs (lib.attrNames plugins) (_: {
@@ -267,10 +288,25 @@
                 setting = "project-nixd";
               };
             };
-            testDefaultPluginsCanBeDisabled = {
-              expr = lib.filter (
-                name: summary disabled.${name} == summary fixtures.md
-              ) nullkomma.lib.defaultPlugins;
+            testEveryPluginCanBeDisabled = {
+              expr =
+                let
+                  effects =
+                    flake:
+                    summary flake
+                    // {
+                      packages = lib.attrNames flake.packages.${system};
+                      gitignore = flake.debug.config.nullkomma.gitignore;
+                    };
+                  baseline = effects pluginsBaseline;
+                in
+                lib.filter (
+                  name:
+                  let
+                    fixture = isolatedPlugins.${name};
+                  in
+                  effects fixture.enabled == baseline || effects fixture.disabled != baseline
+                ) (lib.attrNames plugins);
               expected = [ ];
             };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
@@ -331,21 +367,6 @@
                 schema = true;
                 withoutTests = { };
               };
-            };
-            testOptionalPluginsCanBeDisabled = {
-              expr = summary (
-                callFlakeWith {
-                  nullkomma = {
-                    quarto.enable = lib.mkForce false;
-                    cloudflare = {
-                      enable = lib.mkForce false;
-                      infrastructure.enable = true;
-                      projectName = "fixture-site";
-                    };
-                  };
-                } ../../tests/fixtures/quarto
-              );
-              expected = summary fixtures.md;
             };
             testOptionalPluginsStartDisabled = {
               expr = {
