@@ -55,6 +55,7 @@
           enable = true;
           projectName = "fixture-site";
           domain = "www.example.org";
+          zoneId = "11111111111111111111111111111111";
         };
       } ../../tests/fixtures/quarto;
       batsFailing = callFlakeWith {
@@ -496,6 +497,14 @@
                 exit 1
               fi
               grep -qF 'nullkomma.cloudflare: set perSystem.nullkomma.site to a static assets package' "$scratch/no-site.log"
+              cp -R "$root/tests/fixtures/cloudflare-no-zone" "$scratch/cloudflare-no-zone"
+              if nix eval "path:$scratch/cloudflare-no-zone#packages.${system}.deploy.drvPath" \
+                --override-input nullkomma "path:$root" \
+                --no-write-lock-file > "$scratch/no-zone.log" 2>&1; then
+                echo "Cloudflare domain without zone ID unexpectedly evaluated" >&2
+                exit 1
+              fi
+              grep -qF 'nullkomma.cloudflare: set zoneId when domain is configured' "$scratch/no-zone.log"
               # Consumer CI lints the lock; its Nixpkgs must be visible as a root input.
               nix flake lock "path:$scratch/project" --override-input nullkomma "path:$root"
               flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
@@ -552,6 +561,95 @@
                 expectedBuilderLogEntries = [ "nullkomma.quarto: rendered site is missing index.html" ];
               };
               cloudflare-config = cloudflare.checks.${system}.test-cloudflare;
+              cloudflare-assets-plan =
+                let
+                  result = (perSystem cloudflare).terranix.terranixConfigurations.cloudflare.result;
+                  tofu = (perSystem cloudflare).terranix.terranixConfigurations.cloudflare.terraformWrapper.package;
+                  bare = raw {
+                    imports = [ plugins.cloudflare ];
+                    nullkomma.cloudflare = {
+                      enable = true;
+                      projectName = "bare-site";
+                    };
+                    perSystem.nullkomma.site = pkgs.writeTextDir "index.html" "bare site";
+                  };
+                  bareConfig =
+                    (perSystem bare).terranix.terranixConfigurations.cloudflare.result.terraformConfiguration;
+                in
+                pkgs.runCommand "nullkomma-cloudflare-assets-plan"
+                  {
+                    nativeBuildInputs = [
+                      tofu
+                      pkgs.jq
+                    ];
+                  }
+                  ''
+                    export HOME="$TMPDIR"
+                    export CLOUDFLARE_API_TOKEN=0000000000000000000000000000000000000000
+                    export TF_VAR_cloudflare_account_id=00000000000000000000000000000000
+                    export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1 NO_PROXY=
+                    # Only local, refresh-free plans with no backend or real credentials.
+                    jq 'del(.terraform.backend)' ${result.terraformConfiguration} > config.tf.json
+                    tofu init -backend=false -input=false
+                    plan() {
+                      tofu plan -refresh=false -input=false -out=plan > plan.log
+                      tofu show -json plan > "$1"
+                    }
+                    plan initial.json
+                    jq -e '
+                      .planned_values.root_module.resources
+                      | map({key: .type, value: .values}) | from_entries
+                      | .cloudflare_workers_script as $worker
+                      | ($worker.script_name == "fixture-site")
+                        and ($worker.assets.asset_manifest_sha256 | test("^[a-f0-9]{64}$"))
+                        and ($worker.assets.config.not_found_handling == "404-page")
+                        and ($worker.assets.config.html_handling == "auto-trailing-slash")
+                        and ($worker.assets.config.headers | contains("nosniff"))
+                        and ($worker.assets.config.redirects | contains("/old / 301"))
+                        and (.cloudflare_workers_custom_domain.hostname == "www.example.org")
+                        and (.cloudflare_workers_custom_domain.zone_id == "11111111111111111111111111111111")
+                        and (.cloudflare_workers_script_subdomain.enabled == false)
+                        and (.cloudflare_workers_script_subdomain.previews_enabled == false)
+                    ' initial.json
+                    original="$(jq -r '.resource.cloudflare_workers_script.site.assets.directory' config.tf.json)"
+                    test -s "$original/index.html"
+                    test ! -e "$original/_headers"
+                    test ! -e "$original/_redirects"
+                    cp -R "$original" assets
+                    chmod -R u+w assets
+                    jq --arg directory "$PWD/assets" \
+                      '.resource.cloudflare_workers_script.site.assets.directory = $directory' \
+                      config.tf.json > updated.json
+                    mv updated.json config.tf.json
+                    hash() {
+                      jq -r '.planned_values.root_module.resources[]
+                        | select(.type == "cloudflare_workers_script")
+                        | .values.assets.asset_manifest_sha256' "$1"
+                    }
+                    plan copied.json
+                    test "$(hash initial.json)" = "$(hash copied.json)"
+                    echo changed-content > assets/asset.txt
+                    plan changed.json
+                    test "$(hash copied.json)" != "$(hash changed.json)"
+                    rm assets/asset.txt
+                    plan removed.json
+                    test "$(hash changed.json)" != "$(hash removed.json)"
+                    plan repeated.json
+                    test "$(hash removed.json)" = "$(hash repeated.json)"
+                    jq 'del(.terraform.backend)' ${bareConfig} > config.tf.json
+                    plan bare.json
+                    jq -e '
+                      (.planned_values.root_module.resources | map(.type)) ==
+                        ["cloudflare_workers_script", "cloudflare_workers_script_subdomain"]
+                    ' bare.json
+                    jq -e '
+                      .planned_values.root_module.resources[]
+                      | select(.type == "cloudflare_workers_script")
+                      | (.values.assets.config.headers == null)
+                        and (.values.assets.config.redirects == null)
+                    ' bare.json
+                    touch $out
+                  '';
               cloudflare-deploy = cloudflare.packages.${system}.deploy;
               cloudflare-terraform-wrapper = pkgs.runCommand "nullkomma-cloudflare-terraform-wrapper" { } ''
                 export HOME="$TMPDIR"
@@ -572,24 +670,13 @@
                 grep -qF 'CLOUDFLARE_ACCOUNT_ID must be 32 lowercase hexadecimal characters' failure.log
                 touch $out
               '';
-              cloudflare-upload =
+              cloudflare-deployment =
                 let
-                  stub = pkgs.writeShellApplication {
-                    name = "wrangler";
-                    text = ''
-                      test "$CLOUDFLARE_ACCOUNT_ID" = 00000000000000000000000000000000
-                      test "$CLOUDFLARE_API_TOKEN" = test-token
-                      test "$1" = pages
-                      test "$2" = deploy
-                      test -f "$3/index.html"
-                      shift 3
-                      test "$*" = "--project-name fixture-site --branch main"
-                      printf '%s\n' upload >> "$DEPLOY_LOG"
-                    '';
-                  };
                   tofuStub = pkgs.writeShellApplication {
                     name = "tofu";
                     text = ''
+                      test "$CLOUDFLARE_ACCOUNT_ID" = 00000000000000000000000000000000
+                      test "$CLOUDFLARE_API_TOKEN" = test-token
                       test -L config.tf.json
                       printf '%s\n' "$1" >> "$DEPLOY_LOG"
                       case "$1" in
@@ -605,30 +692,26 @@
                       esac
                     '';
                   };
-                  uploadModule = {
+                  deployModule = {
                     nullkomma.cloudflare = {
                       enable = true;
                       projectName = "fixture-site";
                     };
-                    perSystem = {
-                      _module.args.pkgs = pkgs // {
-                        wrangler = stub;
-                      };
-                      terranix.terranixConfigurations.cloudflare.terraformWrapper.package = lib.mkForce tofuStub;
-                    };
+                    perSystem.terranix.terranixConfigurations.cloudflare.terraformWrapper.package =
+                      lib.mkForce tofuStub;
                   };
-                  upload = callFlakeWith uploadModule ../../tests/fixtures/quarto;
+                  deployment = callFlakeWith deployModule ../../tests/fixtures/quarto;
                   badAssets = callFlakeWith {
-                    imports = [ uploadModule ];
+                    imports = [ deployModule ];
                     perSystem.nullkomma.site = pkgs.emptyDirectory;
                   } ../../tests/fixtures/quarto;
                 in
-                pkgs.runCommand "nullkomma-cloudflare-upload" { } ''
+                pkgs.runCommand "nullkomma-cloudflare-deployment" { } ''
                   export CLOUDFLARE_ACCOUNT_ID=00000000000000000000000000000000 CLOUDFLARE_API_TOKEN=test-token
                   export CLOUDFLARE_STATE_BUCKET=fixture-state AWS_ACCESS_KEY_ID=test-key AWS_SECRET_ACCESS_KEY=test-secret
                   export DEPLOY_LOG="$PWD/deploy.log"
-                  deploy=${lib.getExe upload.packages.${system}.deploy}
-                  terraform=${lib.getExe (perSystem upload).nullkomma.tasks.terraform.package}
+                  deploy=${lib.getExe deployment.packages.${system}.deploy}
+                  terraform=${lib.getExe (perSystem deployment).nullkomma.tasks.terraform.package}
                   unset GITHUB_ACTIONS
                   if "$deploy" -auto-approve 2> failure.log; then
                     echo "Local deployment unexpectedly accepted" >&2
@@ -647,14 +730,14 @@
                   rejectLocal init -input=false
                   rejectLocal init -backend=false -input=false -backend=true
                   rejectLocal apply -auto-approve
-                  rejectLocal import cloudflare_pages_project.site account/project
+                  rejectLocal import cloudflare_workers_script.site account/worker
                   rejectLocal plan
-                  rejectLocal state rm cloudflare_pages_project.site
+                  rejectLocal state rm cloudflare_workers_script.site
                   export GITHUB_ACTIONS=false
                   rejectLocal apply -auto-approve
                   export GITHUB_ACTIONS=true
                   "$deploy" -auto-approve
-                  printf '%s\n' init apply upload > expected
+                  printf '%s\n' init apply > expected
                   cmp "$DEPLOY_LOG" expected
                   for phase in init apply; do
                     : > "$DEPLOY_LOG"
@@ -673,7 +756,7 @@
                   unset TOFU_FAIL
                   : > "$DEPLOY_LOG"
                   if ${lib.getExe badAssets.packages.${system}.deploy} 2> failure.log; then
-                    echo "Upload without index.html unexpectedly succeeded" >&2
+                    echo "Deployment without index.html unexpectedly succeeded" >&2
                     exit 1
                   fi
                   grep -qF 'nullkomma.cloudflare: static assets package is missing index.html' failure.log
@@ -687,8 +770,8 @@
                     test ! -s "$DEPLOY_LOG"
                   done
                   unset CLOUDFLARE_API_TOKEN
-                  if ${lib.getExe upload.packages.${system}.deploy} 2> failure.log; then
-                    echo "Upload without credentials unexpectedly succeeded" >&2
+                  if "$deploy" 2> failure.log; then
+                    echo "Deployment without credentials unexpectedly succeeded" >&2
                     exit 1
                   fi
                   grep -qF 'Set CLOUDFLARE_API_TOKEN' failure.log

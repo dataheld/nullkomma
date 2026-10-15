@@ -104,25 +104,25 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-| Plugin                              | Dev helpers | Format / lint          | Tests               | Files                         | Editor                                                           |
-| ----------------------------------- | ----------- | ---------------------- | ------------------- | ----------------------------- | ---------------------------------------------------------------- |
-| [`nix`][nix]                        |             | ✅, [`flake-checker`]¹ | [nix-unit]²         | ignores `result`              | [nixd]; VS Code: [Nix IDE]                                       |
-| [`markdown`][md]                    |             | ✅                     |                     |                               | [marksman]                                                       |
-| [`json`][json]                      |             | ✅                     |                     |                               | [JSON language server][jsonls]                                   |
-| [`yaml`][yaml]                      |             | ✅                     |                     |                               | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
-| [`toml`][toml]                      |             | ✅                     |                     |                               |                                                                  |
-| [`shell`][bash]                     |             | ✅³                    | [bats]³             |                               | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
-| [`github`][gha]                     |             | ✅                     |                     | `push.yml`⁴                   |                                                                  |
-| [`keepSorted`][keep-sorted]         |             | ✅                     |                     |                               |                                                                  |
-| [`typos`][typos]                    |             | ✅ spelling            |                     |                               |                                                                  |
-| [`treefmt`][treefmt]                |             | runs all ✅            |                     |                               | formatter; VS Code: [treefmt][vscode-treefmt]                    |
-| [`git`][git]                        | git         |                        |                     | `.gitignore`                  |                                                                  |
-| [`direnv`][direnv]                  |             |                        |                     | `.envrc`, ignores `.direnv/`  | VS Code: [Nix Environment Selector]                              |
-| [`vscode`][vscode]                  |             |                        |                     | `.vscode/`⁵                   | renders it for VS Code⁵                                          |
-| [`neovim`][neovim]                  |             |                        |                     | `.nvim.lua`⁵                  | renders it for Neovim⁵                                           |
-| [`flakehub`][flakehub]              | [`fh`]      |                        |                     |                               |                                                                  |
-| [`quarto`][quarto] (opt-in)         | quarto      |                        |                     | ignores `.quarto/`, `_site/`  | VS Code: [Quarto][vscode-quarto]                                 |
-| [`cloudflare`][cloudflare] (opt-in) |             |                        | OpenTofu validation | ignores local state workspace |                                                                  |
+| Plugin                              | Dev helpers | Format / lint          | Tests               | Files                        | Editor                                                           |
+| ----------------------------------- | ----------- | ---------------------- | ------------------- | ---------------------------- | ---------------------------------------------------------------- |
+| [`nix`][nix]                        |             | ✅, [`flake-checker`]¹ | [nix-unit]²         | ignores `result`             | [nixd]; VS Code: [Nix IDE]                                       |
+| [`markdown`][md]                    |             | ✅                     |                     |                              | [marksman]                                                       |
+| [`json`][json]                      |             | ✅                     |                     |                              | [JSON language server][jsonls]                                   |
+| [`yaml`][yaml]                      |             | ✅                     |                     |                              | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
+| [`toml`][toml]                      |             | ✅                     |                     |                              |                                                                  |
+| [`shell`][bash]                     |             | ✅³                    | [bats]³             |                              | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
+| [`github`][gha]                     |             | ✅                     |                     | `push.yml`⁴                  |                                                                  |
+| [`keepSorted`][keep-sorted]         |             | ✅                     |                     |                              |                                                                  |
+| [`typos`][typos]                    |             | ✅ spelling            |                     |                              |                                                                  |
+| [`treefmt`][treefmt]                |             | runs all ✅            |                     |                              | formatter; VS Code: [treefmt][vscode-treefmt]                    |
+| [`git`][git]                        | git         |                        |                     | `.gitignore`                 |                                                                  |
+| [`direnv`][direnv]                  |             |                        |                     | `.envrc`, ignores `.direnv/` | VS Code: [Nix Environment Selector]                              |
+| [`vscode`][vscode]                  |             |                        |                     | `.vscode/`⁵                  | renders it for VS Code⁵                                          |
+| [`neovim`][neovim]                  |             |                        |                     | `.nvim.lua`⁵                 | renders it for Neovim⁵                                           |
+| [`flakehub`][flakehub]              | [`fh`]      |                        |                     |                              |                                                                  |
+| [`quarto`][quarto] (opt-in)         | quarto      |                        |                     | ignores `.quarto/`, `_site/` | VS Code: [Quarto][vscode-quarto]                                 |
+| [`cloudflare`][cloudflare] (opt-in) |             |                        | OpenTofu validation | ignores Terraform workspace  |                                                                  |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
 Nixpkgs. The `nix` plugin also adds the tasks `check` (`nix flake check`) and
@@ -199,6 +199,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
     enable = true;
     projectName = "helden18-github-io";
     domain = "www.helden18.de";
+    zoneId = "<32-character Cloudflare zone ID>";
   };
 }
 ```
@@ -210,14 +211,15 @@ output directory. Set `nullkomma.quarto.root` for another source directory, or
 engines. The default has no R, Python or TeX. Preview process management is not
 included; invoke `quarto preview` directly from the development shell.
 
-In GitHub Actions, `nix run .#deploy` always initializes
-OpenTofu, applies the Pages project and optional custom domain configuration,
-then uploads the static assets with Wrangler, explicitly targeting
-`productionBranch` (default `"main"`). Terraform manages infrastructure;
-Wrangler handles asset uploads, which the Pages Terraform resources do not
-support. A failed initialization or apply stops deployment before any upload.
-Arguments go to **OpenTofu apply**, not Wrangler; deployment asks for approval
-by default. After state adoption and plan review, CI can use
+In GitHub Actions, `nix run .#deploy` initializes OpenTofu and applies a
+Workers Static Assets deployment, including the actual site files and optional
+custom domain. No Worker JavaScript or Wrangler upload is needed. The provider
+hashes the asset manifest during planning. `_headers` and `_redirects` are
+passed as serving configuration, not published as downloadable assets.
+HTML uses automatic trailing-slash handling and custom 404-page handling, not
+SPA fallback. The `workers.dev` endpoint and preview URLs are disabled.
+Arguments go to **OpenTofu apply**; deployment asks for approval by default.
+After state adoption and plan review, CI can use
 `nix run .#deploy -- -auto-approve`.
 
 #### Terraform management and first deployment
@@ -234,10 +236,8 @@ OpenTofu for imports, plans, and other operations. Set `CLOUDFLARE_ACCOUNT_ID`
 and `CLOUDFLARE_API_TOKEN` at runtime, `CLOUDFLARE_STATE_BUCKET` to an
 existing private R2 bucket, and its S3 credentials in `AWS_ACCESS_KEY_ID` and
 `AWS_SECRET_ACCESS_KEY`. None are embedded in the build; building and checking
-the site needs no credentials or state bucket. In helden18's workflow retain
-the account mapping from `vars.CLOUDFLARE_ACCOUNT_ID_HELDEN18DE` and token from
-`secrets.CLOUDFLARE_API_TOKEN_PAGES`, with Pages edit permission for the project
-and domain. Add the state bucket and R2 credentials before enabling deployment.
+the site needs no credentials or state bucket. The old Pages token is not a
+Workers token; use the organization secrets below instead.
 State uses locking and the object key
 `<projectName>.tfstate` (override `nullkomma.cloudflare.stateKey` to adopt an
 existing key). Bucket provisioning and credentials belong to infrastructure
@@ -253,25 +253,111 @@ credential-free offline validation. `GITHUB_ACTIONS=true` is an accidental-use
 guard, not an authentication boundary: keep write credentials only in Actions,
 never set that variable locally to bypass the guard.
 
-For GUI setup, create a private R2 bucket with default jurisdiction. Create an
-account-owned API token with only **Account / Cloudflare Pages / Edit** for the
-hosting account, plus separate R2 **Object Read & Write** credentials scoped to
-that state bucket. Neither DNS nor Workers Scripts nor R2 administration
-permissions are required. Pages Edit is account-scoped, not project-scoped.
-Store the tokens as organization Actions secrets, limited to selected deploying
-repositories; store account ID and bucket name as Actions variables. R2
-credentials map to `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` above.
+##### Organization-wide GUI bootstrap
 
-For an existing Pages project such as helden18, **import existing resources
-before the first deployment** using a dedicated `workflow_dispatch` adoption
-job on the protected default branch. After checkout and Nix installation, its
-step runs these commands through the flake wrapper, with the same runtime
-credentials as deployment:
+Create these in the Cloudflare account that hosts the websites. These are
+account-owned service credentials, not personal tokens. A GitHub organization
+does not itself scope a Cloudflare token.
+
+1. **Manage account → Account API tokens → Create Token**: name it
+   `github-actions-dataheld-workers`. Grant only **Account → Workers Scripts →
+   Edit**, scoped to the hosting account. This covers asset uploads, Worker
+   settings, and the custom-domain API (which manages the hostname's DNS and
+   certificate). No Pages, DNS Edit, Workers Routes, or R2 administration
+   permission is needed for the resources this plugin manages. Do not use
+   the broader "Edit Cloudflare Workers" template unchanged.
+1. **R2 object storage → Create bucket**: create a private
+   `dataheld-terraform-state` bucket (or another available name), using default
+   jurisdiction, not an EU/US-specific jurisdiction. Leave public access
+   disabled; do not add a retention lock or lifecycle expiration for state.
+1. **R2 → Overview → Account Details → Manage API tokens → Create Account API
+   token**: name it `github-actions-dataheld-r2-state`. Choose **Object Read &
+   Write**, **specific buckets only**, and select only the state bucket. This
+   allows state/lock object reads, writes and deletion, not bucket
+   administration. Record the **Access Key ID** and **Secret Access Key** shown
+   once; do not substitute the general API token string for either.
+
+Prefer an explicit expiration with a rotation reminder. Ordinary GitHub-hosted
+runners do not have a fixed egress IP, so do not add an arbitrary client-IP
+allowlist. Keep credentials out of local shells, Nix configuration and chat.
+See Cloudflare's [account tokens][cf-account-tokens], [custom-domain API
+permissions][cf-domain-api], and [R2 token instructions][cf-r2-tokens].
+
+In **GitHub → dataheld → Settings → Secrets and variables → Actions**, create
+these organization **secrets**, each available only to **selected repositories**
+that actually deploy:
+
+| Organization secret               | Value                                            |
+| --------------------------------- | ------------------------------------------------ |
+| `CLOUDFLARE_API_TOKEN_WORKERS`    | `github-actions-dataheld-workers` token          |
+| `CLOUDFLARE_R2_ACCESS_KEY_ID`     | `github-actions-dataheld-r2-state` Access Key ID |
+| `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | Its Secret Access Key                            |
+
+Create organization **variables** `CLOUDFLARE_ACCOUNT_ID` (hosting account ID)
+and `CLOUDFLARE_STATE_BUCKET` (bucket name), with the same selected repositories.
+Both values are non-secret. The zone ID is also non-secret and belongs in each
+site's `nullkomma.cloudflare.zoneId`; find it on the domain's Overview page.
+Use this job-level mapping in adoption and deployment jobs:
+
+```yaml
+env:
+  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_WORKERS }}
+  CLOUDFLARE_STATE_BUCKET: ${{ vars.CLOUDFLARE_STATE_BUCKET }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+```
+
+An existing account variable such as `CLOUDFLARE_ACCOUNT_ID_HELDEN18DE` can still
+be mapped to `CLOUDFLARE_ACCOUNT_ID` instead. Shared credentials work only for
+websites in the same Cloudflare account; use account-specific credential sets
+otherwise. Organization secrets cannot be granted to a personal-account
+repository, and GitHub Free does not expose organization secrets to private
+repositories. See [GitHub organization secrets][gh-org-secrets].
+
+**Shared credentials share their blast radius:** Workers Scripts Edit is
+account-wide, not restricted to this site's Worker. Every selected repository
+can also access all state objects in the shared bucket; distinct `stateKey`s
+avoid collisions but are not access controls. Use separate credentials/buckets
+for repositories with different trust levels.
+
+##### Adoption and Pages cutover
+
+Do not create the Worker in the dashboard: for a new Worker, Terraform creates
+it and its assets. A Pages project is a different resource and cannot be
+imported as a Worker. For helden18, keep Pages serving production until a
+reviewed cutover. Deploy and inspect the Worker on a temporary custom hostname
+first: leave `domain = null` and add a separate temporary
+`cloudflare_workers_custom_domain.preview` through the upstream Terranix
+`modules` option. Keep the same Worker name and state key throughout migration,
+then configure the production `domain`/`zoneId` once that hostname is free.
+Do not change a temporary `site` domain into the production domain: the
+replacement would be blocked by `prevent_destroy`. Remove the separate
+temporary resource only after production verification. No `workers.dev`
+preview is enabled implicitly.
+
+Workers custom domains require an active zone in the same Cloudflare account.
+The production Pages custom-domain attachment and its conflicting CNAME must
+be removed in a separate reviewed Actions migration before attaching that
+hostname to the Worker. This may cause a brief outage; record the previous
+attachment/DNS for rollback. The normal Worker token deliberately cannot
+delete Pages resources or arbitrary DNS records: use separately scoped,
+temporary migration credentials in a protected manual workflow, and revoke
+them afterward. Do not remove Pages now or give steady-state credentials
+those extra permissions. Existing Pages Terraform state requires an explicit
+state migration/retirement plan, not reuse of a Pages resource address.
+
+Only if adopting an **existing Worker**, import its resources in a dedicated
+`workflow_dispatch` job on the protected default branch. After checkout and Nix
+installation, run the following with the same runtime credentials as deployment.
+Obtain the existing domain ID from the dashboard/API read output, not the
+hostname or zone ID:
 
 ```sh
 nix run .#cloudflare.terraform -- init -input=false
-nix run .#cloudflare.terraform -- import cloudflare_pages_project.site "$CLOUDFLARE_ACCOUNT_ID/helden18-github-io"
-nix run .#cloudflare.terraform -- import cloudflare_pages_domain.site "$CLOUDFLARE_ACCOUNT_ID/helden18-github-io/www.helden18.de"
+nix run .#cloudflare.terraform -- import cloudflare_workers_script.site "$CLOUDFLARE_ACCOUNT_ID/helden18-github-io"
+nix run .#cloudflare.terraform -- import cloudflare_workers_script_subdomain.site "$CLOUDFLARE_ACCOUNT_ID/helden18-github-io"
+nix run .#cloudflare.terraform -- import cloudflare_workers_custom_domain.site "$CLOUDFLARE_ACCOUNT_ID/$WORKER_DOMAIN_ID"
 nix run .#cloudflare.terraform -- plan -input=false
 ```
 
@@ -286,12 +372,14 @@ environment approval. Serialize adoption and deployment with the same
 concurrency group and `cancel-in-progress: false`; never expose write secrets
 to untrusted pull-request code.
 
-Only import the domain if configured and already attached. New projects/domains
-are created by the deployment's apply instead. Project/domain destruction is
-guarded by `prevent_destroy`.
-The plugin does not manage zone DNS, apex redirects, email, or unrelated
-hostnames; existing Pages DNS records remain untouched. For new domains the
-zone owner must arrange the Pages CNAME separately.
+Only import the domain if configured and already attached. New Workers/domains
+are created by apply. Worker/domain destruction is guarded by `prevent_destroy`;
+removing that resource's configuration also removes its lifecycle guard.
+Custom-domain attachment manages its own DNS record and certificate, but the
+plugin does not manage zone-wide DNS, apex redirects, email or unrelated
+hostnames. The provider plans local asset changes but does not independently
+verify the remote asset manifest on refresh: do not mix dashboard/Wrangler
+publishing with Terraform ownership.
 
 ### Files in your repo
 
@@ -408,9 +496,13 @@ the broken one fails with the real tool's error, not just any error.
 [bash ide]: https://marketplace.visualstudio.com/items?itemName=mads-hartmann.bash-ide-vscode
 [bash-language-server]: https://github.com/bash-lsp/bash-language-server
 [bats]: https://bats-core.readthedocs.io
+[cf-account-tokens]: https://developers.cloudflare.com/fundamentals/api/get-started/account-owned-tokens/
+[cf-domain-api]: https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/update/
+[cf-r2-tokens]: https://developers.cloudflare.com/r2/api/tokens/
 [cloudflare]: https://pages.cloudflare.com
 [direnv]: https://direnv.net
 [flakehub]: https://flakehub.com
+[gh-org-secrets]: https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#creating-secrets-for-an-organization
 [gha]: https://docs.github.com/actions
 [git]: https://git-scm.com
 [json]: https://www.json.org

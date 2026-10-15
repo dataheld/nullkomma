@@ -10,17 +10,17 @@
       options.nullkomma.cloudflare = {
         projectName = lib.mkOption {
           type = lib.types.strMatching "[a-z0-9][a-z0-9-]*";
-          description = "Cloudflare Pages project name.";
+          description = "Cloudflare Worker name.";
         };
         domain = lib.mkOption {
           type = lib.types.nullOr lib.types.str;
           default = null;
-          description = "Optional Pages custom hostname. Its DNS record belongs to the zone owner, not this plugin.";
+          description = "Optional Worker custom hostname in an active Cloudflare zone. Cloudflare manages its DNS and certificate.";
         };
-        productionBranch = lib.mkOption {
-          type = lib.types.str;
-          default = "main";
-          description = "Pages production branch, also passed explicitly to uploads.";
+        zoneId = lib.mkOption {
+          type = lib.types.nullOr (lib.types.strMatching "[a-f0-9]{32}");
+          default = null;
+          description = "Cloudflare zone ID, required when domain is set. Not a secret.";
         };
         stateKey = lib.mkOption {
           type = lib.types.str;
@@ -44,6 +44,13 @@
             tofu = pkgs.opentofu.withPlugins (_: [ provider ]);
             terraform = config.terranix.terranixConfigurations.cloudflare.result.terraformWrapper;
             tfConfig = config.terranix.terranixConfigurations.cloudflare.result.terraformConfiguration;
+            assets = pkgs.runCommand "cloudflare-assets" { } ''
+              cp -RL ${site}/. "$out"
+              chmod u+w "$out"
+              # The provider does not interpret Wrangler's control files.
+              rm -f "$out/_headers" "$out/_redirects"
+            '';
+            assetConfigFile = name: "\${fileexists(\"${site}/${name}\") ? file(\"${site}/${name}\") : null}";
           in
           {
             terranix = {
@@ -101,18 +108,38 @@
                     variable.cloudflare_account_id.type = "string";
                     provider.cloudflare = { };
                     resource = {
-                      cloudflare_pages_project.site = {
+                      cloudflare_workers_script.site = {
                         account_id = "\${var.cloudflare_account_id}";
-                        name = cfg.projectName;
-                        production_branch = cfg.productionBranch;
+                        script_name = cfg.projectName;
+                        compatibility_date = "2026-10-15";
+                        assets = {
+                          directory = "${assets}";
+                          config = {
+                            html_handling = "auto-trailing-slash";
+                            not_found_handling = "404-page";
+                            headers = assetConfigFile "_headers";
+                            redirects = assetConfigFile "_redirects";
+                          };
+                        };
                         lifecycle.prevent_destroy = true;
+                      };
+                      cloudflare_workers_script_subdomain.site = {
+                        account_id = "\${var.cloudflare_account_id}";
+                        script_name = "\${cloudflare_workers_script.site.script_name}";
+                        enabled = false;
+                        previews_enabled = false;
                       };
                     }
                     // lib.optionalAttrs (cfg.domain != null) {
-                      cloudflare_pages_domain.site = {
+                      cloudflare_workers_custom_domain.site = {
                         account_id = "\${var.cloudflare_account_id}";
-                        project_name = "\${cloudflare_pages_project.site.name}";
-                        name = cfg.domain;
+                        service = "\${cloudflare_workers_script.site.script_name}";
+                        hostname = cfg.domain;
+                        zone_id =
+                          if cfg.zoneId == null then
+                            throw "nullkomma.cloudflare: set zoneId when domain is configured"
+                          else
+                            cfg.zoneId;
                         lifecycle.prevent_destroy = true;
                       };
                     };
@@ -122,14 +149,13 @@
             };
             nullkomma.tasks = {
               terraform = {
-                description = "Manage the Pages infrastructure and R2 state with OpenTofu";
+                description = "Manage Worker assets, hosting and R2 state with OpenTofu";
                 skip = true;
                 command = ''exec ${lib.getExe terraform} "$@"'';
               };
               deploy = {
-                description = "Apply the Pages infrastructure, then upload the static site";
+                description = "Deploy the static site and Worker hosting with OpenTofu";
                 skip = true;
-                packages = [ pkgs.wrangler ];
                 command = ''
                   if [[ "''${GITHUB_ACTIONS-}" != true ]]; then
                     echo "nullkomma.cloudflare: deployment requires GitHub Actions" >&2
@@ -145,10 +171,7 @@
                     exit 1
                   fi
                   ${lib.getExe terraform} init -input=false
-                  ${lib.getExe terraform} apply "$@"
-                  exec wrangler pages deploy ${site} \
-                    --project-name ${lib.escapeShellArg cfg.projectName} \
-                    --branch ${lib.escapeShellArg cfg.productionBranch}
+                  exec ${lib.getExe terraform} apply "$@"
                 '';
               };
             };
