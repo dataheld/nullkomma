@@ -573,8 +573,8 @@
                 pkgs.runCommand "nullkomma-quarto-preview" { nativeBuildInputs = [ pkgs.git ]; } ''
                   export CALLED=$PWD/called
                   mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
-                  ${preview} --port 4321
-                  printf '%s\n' "$(cd ../.. && pwd)/docs" preview --port 4321 > expected
+                  ${preview} --no-browser
+                  printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
                   cmp expected "$CALLED"
                   touch $out
                 '';
