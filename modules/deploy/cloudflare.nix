@@ -64,6 +64,10 @@
                 terraformWrapper = {
                   package = pkgs.opentofu.withPlugins (_: [ provider ]);
                   prefixText = ''
+                    if [[ ! "''${CLOUDFLARE_ACCOUNT_ID:-}" =~ ^[0-9a-f]{32}$ ]]; then
+                      echo "CLOUDFLARE_ACCOUNT_ID must be the 32-character account ID, not an API token" >&2
+                      exit 1
+                    fi
                     export TF_IN_AUTOMATION=1 TF_INPUT=0 TF_CLI_ARGS_apply=-auto-approve
                     export TF_VAR_account_id="''${CLOUDFLARE_ACCOUNT_ID:?}"
                     export AWS_ENDPOINT_URL_S3="https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
