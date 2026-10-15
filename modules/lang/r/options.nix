@@ -100,8 +100,13 @@
         };
         fields = lib.mkOption {
           type = lib.types.listOf lib.types.str;
-          default = rlib.defaultFields;
-          description = "DESCRIPTION fields whose packages `nix run .#r-lock` resolves (pak's `dependencies`, e.g. `Config/Needs/website`).";
+          default =
+            rlib.defaultFields
+            ++ lib.optionals (config.nullkomma.r.description != null) (
+              rlib.configNeedsFields (builtins.readFile config.nullkomma.r.description)
+            );
+          defaultText = lib.literalMD "`Depends`, `Imports`, `LinkingTo`, `Suggests`, and all `Config/Needs/*` fields in DESCRIPTION";
+          description = "DESCRIPTION fields whose packages pak resolves. Override with only `Depends`, `Imports` and `LinkingTo` for runtime-only dependencies.";
         };
         extraPackages = lib.mkOption {
           type = lib.types.listOf lib.types.str;

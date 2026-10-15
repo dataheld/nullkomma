@@ -9,6 +9,18 @@ rec {
     "Suggests"
   ];
 
+  configNeedsFields =
+    text:
+    lib.unique (
+      lib.concatMap (
+        line:
+        let
+          match = builtins.match "(Config/Needs/[^:[:space:]]+):.*" line;
+        in
+        lib.optional (match != null) (builtins.head match)
+      ) (lib.splitString "\n" text)
+    );
+
   # Cheap presence test: DCF field names start a line, continuations are indented.
   hasPackageField = text: lib.any (lib.hasPrefix "Package:") (lib.splitString "\n" text);
 

@@ -47,6 +47,7 @@
         quarto = callFlake ../../tests/fixtures/quarto;
         r = callFlake ../../tests/fixtures/r;
         r-remotes = callFlake ../../tests/fixtures/r-remotes;
+        r-production = callFlake ../../tests/fixtures/r-production;
         quarto-branded = callFlake ../../tests/fixtures/quarto-branded;
         shell = callFlake ../../tests/fixtures/shell;
       };
@@ -436,6 +437,15 @@
                     )).nullkomma.tests;
                 snapshot = fixtures.r.debug.config.nullkomma.r.snapshot;
                 ppm = fixtures.r.debug.config.nullkomma.r.ppmUrl;
+                fields = fixtures.r.debug.config.nullkomma.r.fields;
+                runtimeFields =
+                  (callFlakeWith {
+                    nullkomma.r.fields = [
+                      "Depends"
+                      "Imports"
+                      "LinkingTo"
+                    ];
+                  } ../../tests/fixtures/r).debug.config.nullkomma.r.fields;
               };
               expected = {
                 air = true;
@@ -459,6 +469,15 @@
                   in
                   "${builtins.substring 0 4 d}-${builtins.substring 4 2 d}-${builtins.substring 6 2 d}";
                 ppm = "https://packagemanager.posit.co/cran/${tests.testRIntegrations.expected.snapshot}";
+                fields = nullkomma.lib.r.defaultFields ++ [
+                  "Config/Needs/development"
+                  "Config/Needs/website"
+                ];
+                runtimeFields = [
+                  "Depends"
+                  "Imports"
+                  "LinkingTo"
+                ];
               };
             };
             testRLockReader = {
@@ -542,6 +561,8 @@
                     "pak"
                     "languageserver"
                     "testthat"
+                    "assertthat"
+                    "rematch"
                   ];
                   sources = r.lock.sources;
                   remotes = lib.mapAttrs (_: s: s.fetchTree.type or "url") remotes.lock.sources;
@@ -555,6 +576,8 @@
                 };
               expected = {
                 tools = [
+                  true
+                  true
                   true
                   true
                   true
@@ -648,6 +671,7 @@
               drv =
                 (callFlakeWith {
                   nullkomma.r.description = builtins.toFile "DESCRIPTION" text;
+                  nullkomma.r.fields = fixtures.r.debug.config.nullkomma.r.fields;
                 } ../../tests/fixtures/r).checks.${system}.test-r-lock;
               expectedBuilderExitCode = 1;
               expectedBuilderLogEntries = [ message ];
@@ -742,6 +766,26 @@
               )
             ) rejects
             // {
+              r-production =
+                let
+                  package = fixtures.r-production.packages.${system}.default;
+                in
+                pkgs.runCommand "nullkomma-r-production"
+                  {
+                    exportReferencesGraph = [
+                      "closure"
+                      package
+                    ];
+                    nativeBuildInputs = [ pkgs.R ];
+                  }
+                  ''
+                    Rscript --vanilla -e 'library(nullkommafixture, lib.loc = "${package}/library"); stopifnot(hello() == "Hello, world!")'
+                    if grep -E '/r-(testthat|pak|languageserver|assertthat|rematch)-[0-9]' closure; then
+                      echo "Production package includes development dependencies" >&2
+                      exit 1
+                    fi
+                    touch $out
+                  '';
               flakehub-visibility = pkgs.runCommand "nullkomma-flakehub-visibility" { } ''
                 ${pkgs.nodejs}/bin/node <<'JS'
                 const assert = require("node:assert/strict");

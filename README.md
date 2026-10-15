@@ -270,24 +270,47 @@ Enable `nullkomma.r.enable = true` (or use the `r` template).
 Dependencies are *declared* in `DESCRIPTION`.
 But because the `DESCRIPTION` alone does *not* record a reproducible R environment,
 dependencies are resolved and locked via [pak](https://pak.r-lib.org)'s `pkg.lock`.
-Nix then reads the `pkg.lock` to declaratively build a reproducible R environment.
+Nix reads the package names from `pkg.lock` and uses the versions and build
+instructions from the Nixpkgs revision recorded in `flake.lock`, rather than
+pak's recorded versions. With `allowOffNixpkgs` enabled, packages unavailable
+there or explicitly pinned in `Remotes` instead use the source revisions or
+download hashes recorded in `pkg.lock` and the flake configuration.
 
-To initialise this setup, run:
+After direnv loads the development shell, use `r-lock` to refresh dependencies:
 
 ```sh
-nix run .#r-lock
+r-lock
 git add DESCRIPTION pkg.lock
 ```
 
-Inside the dev shell, you can also run the `r-lock` task to refresh the `pkg.lock` file.
-Run it after dependency changes and Nix updates.
+Run it after dependency changes and Nix updates. For the first setup, if
+`DESCRIPTION` exists but `pkg.lock` does not, run `nix run .#r-lock` once:
+the development shell needs the lockfile before direnv can load it.
 `test r-lock` checks for dependencies and Remotes missing from the lock and checks
 DESCRIPTION's version constraints against the installed environment.
 Packages with a `Package:` field also get `test r-cmd-check`; these tests run
 as `checks.<system>.test-r-lock` and `test-r-cmd-check` in CI.
 
-pak and languageserver are always included; `nullkomma.r.extraPackages` adds
-development tools.
+pak and languageserver are always included. Declare test dependencies such as
+testthat in `DESCRIPTION`'s `Suggests` field, which is included by default.
+For development-only tools, use pak's `Config/Needs/development` field so
+non-Nix collaborators can install them too:
+
+```dcf
+Config/Needs/development: devtools
+```
+
+All `Config/Needs/*` fields are included automatically; run `r-lock` after edits.
+For a runtime-only environment, override `nullkomma.r.fields` with
+`[ "Depends" "Imports" "LinkingTo" ]` and generate a separate lockfile.
+Production package outputs should use `buildRPackage` with only their required
+dependencies, not the development R environment; see the `r-production` fixture,
+whose package output excludes testthat, pak, languageserver and development tools.
+
+Without Nix, use
+`pak::local_install_deps(dependencies = c("all", "Config/Needs/development"))`.
+Reserve `nullkomma.r.extraPackages` for Nix-only additions, not shared project
+dependencies.
 
 nullkomma will automatically set a snapshot date for R package sources to retrieve from [Posit's Public Package Manager (PPM)](https://packagemanager.posit.co).
 
@@ -297,7 +320,7 @@ This gets you two benefits:
    Packages on CRAN at the same time are known to work together as well as working with the version of R released at that time.
    These compatibility guarantees are rare in software ecosystems and should be maintained in your project.
    This date will be set by the Nixpkgs set in your nullkomma (see next point).
-2. Nix brings the correct version of R, as well as the system dependencies known to work with these versions of the R packages.
+1. Nix brings the correct version of R, as well as the system dependencies known to work with these versions of the R packages.
    This too improves compatibility, because the nix project has run tests on the R packages, including the available system dependencies in nixpkgs for that release.
 
 > [!TIP]
@@ -310,9 +333,9 @@ This gets you two benefits:
 > nix will download the source based on that information lock down the compute environment based on that download (a hash).
 > Such `Remotes:`-packages require `nullkomma.r.allowOffNixpkgs = true`.
 > Git sources use the locked commit; URL sources also require `nullkomma.r.hashes.<package>` from
-`nix store prefetch-file <url>`.
+> `nix store prefetch-file <url>`.
 > These packages build against the selected R package set. Add missing system libraries through
-`perSystem.nullkomma.r.buildInputs.<package>`.
+> `perSystem.nullkomma.r.buildInputs.<package>`.
 > GitLab-specific and local
 > references are unsupported; use `git::` for GitLab repositories.
 

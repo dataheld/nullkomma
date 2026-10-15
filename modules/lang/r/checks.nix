@@ -76,8 +76,9 @@
                   refs <- ${rVector config.nullkomma.r.lock.refs}
                   d <- read.dcf(${builtins.toJSON (relative cfg.description)})
                   value <- function(field) if (field %in% colnames(d)) d[1, field] else character()
-                  deps <- tools:::.split_dependencies(unlist(lapply(fields, value)))
-                  remotes <- trimws(unlist(strsplit(value("Remotes"), ",")))
+                  config_fields <- fields[startsWith(fields, "Config/Needs/")]
+                  deps <- tools:::.split_dependencies(unlist(lapply(setdiff(fields, config_fields), value)))
+                  remotes <- trimws(unlist(strsplit(paste(c(value("Remotes"), unlist(lapply(config_fields, value))), collapse = ","), ",")))
                   base <- c("R", rownames(installed.packages(priority = "base")))
                   stale <- c(
                     sprintf("DESCRIPTION depends on %s, which", setdiff(names(deps), c(base, locked))),
