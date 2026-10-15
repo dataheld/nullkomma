@@ -26,6 +26,12 @@
           "latest";
     in
     {
+      imports = [
+        (lib.mkRenamedOptionModule
+          [ "nullkomma" "r" "rprofile" "enable" ]
+          [ "nullkomma" "r" "nonNix" "enable" ]
+        )
+      ];
       options.nullkomma.r = {
         root = lib.mkOption {
           type = lib.types.path;
@@ -86,15 +92,15 @@
           defaultText = lib.literalExpression ''"https://packagemanager.posit.co/cran/''${snapshot}"'';
           description = "Posit Package Manager (PPM) repository URL corresponding to `nullkomma.r.snapshot`.";
         };
-        rprofile = {
+        nonNix = {
           enable = lib.mkOption {
             type = lib.types.bool;
             default = false;
             description = ''
-              Whether to initialize a project `.Rprofile` via `write-files` setting
-              `options(repos = c(CRAN = nullkomma.r.ppmUrl))`.
-              Disabled by default: all-in-on-Nix projects do not need an `.Rprofile`.
-              Enable this if non-Nix collaborators need to install packages from a matching PPM snapshot.
+              Whether `write-files` supplies committed `.Renviron`, `.Rprofile`
+              and a non-Nix development section in README.md. The profile sets
+              the PPM snapshot and a writable project library outside Nix shells.
+              Disabled by default; enable for collaborators who do not use Nix.
             '';
           };
         };

@@ -14,7 +14,7 @@
       # Shared development tools belong in DESCRIPTION's Config/Needs/* fields.
       # Allow Remotes: and CRAN packages missing from nixpkgs:
       # nullkomma.r.allowOffNixpkgs = true;
-      # Write an .Rprofile with the matching PPM snapshot for non-Nix collaborators:
-      # nullkomma.r.rprofile.enable = true;
+      # Add committed startup files and instructions for non-Nix collaborators:
+      # nullkomma.r.nonNix.enable = true;
     };
 }

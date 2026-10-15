@@ -103,26 +103,26 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-| Plugin                              | Dev helpers | Format / lint          | Tests                       | Files                                                         | Editor                                                           |
-| ----------------------------------- | ----------- | ---------------------- | --------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [`nix`][nix]                        |             | ✅, [`flake-checker`]¹ | [nix-unit]²                 | ignores `result`                                              | [nixd]; VS Code: [Nix IDE]                                       |
-| [`markdown`][md]                    |             | ✅                     |                             |                                                               | [marksman]                                                       |
-| [`json`][json]                      |             | ✅                     |                             |                                                               | [JSON language server][jsonls]                                   |
-| [`yaml`][yaml]                      |             | ✅                     |                             |                                                               | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
-| [`toml`][toml]                      |             | ✅                     |                             |                                                               |                                                                  |
-| [`shell`][bash]                     |             | ✅³                    | [bats]³                     |                                                               | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
-| [`github`][gha]                     |             | ✅                     |                             | `push.yml`⁴                                                   |                                                                  |
-| [`keepSorted`][keep-sorted]         |             | ✅                     |                             |                                                               |                                                                  |
-| [`typos`][typos]                    |             | ✅ spelling⁷           |                             |                                                               |                                                                  |
-| [`treefmt`][treefmt]                |             | runs all ✅            |                             |                                                               | formatter; VS Code: [treefmt][vscode-treefmt]                    |
-| [`git`][git]                        | git         |                        |                             | `.gitignore`                                                  |                                                                  |
-| [`direnv`][direnv]                  |             |                        |                             | `.envrc`, ignores `.direnv/`                                  | VS Code: [Nix Environment Selector]                              |
-| [`vscode`][vscode]                  |             |                        |                             | `.vscode/`⁵                                                   | renders it for VS Code⁵                                          |
-| [`neovim`][neovim]                  |             |                        |                             | `.nvim.lua`⁵                                                  | renders it for Neovim⁵                                           |
-| [`flakehub`][flakehub]              | [`fh`]      |                        |                             |                                                               |                                                                  |
-| [`quarto`][quarto] (opt-in)         | quarto⁹     |                        |                             | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸ | VS Code: [Quarto][vscode-quarto]                                 |
-| [`cloudflare`][cloudflare] (opt-in) | wrangler⁶   |                        | OpenTofu validation         | ignores `.nullkomma/cloudflare/`                              |                                                                  |
-| [`r`][r] (opt-in)                   | R, pak      | ✅                     | lock freshness, R CMD check | R ignores; optional `.Rprofile`                               | R languageserver; VS Code: R, Air                                |
+| Plugin                              | Dev helpers | Format / lint          | Tests                       | Files                                                           | Editor                                                           |
+| ----------------------------------- | ----------- | ---------------------- | --------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`nix`][nix]                        |             | ✅, [`flake-checker`]¹ | [nix-unit]²                 | ignores `result`                                                | [nixd]; VS Code: [Nix IDE]                                       |
+| [`markdown`][md]                    |             | ✅                     |                             |                                                                 | [marksman]                                                       |
+| [`json`][json]                      |             | ✅                     |                             |                                                                 | [JSON language server][jsonls]                                   |
+| [`yaml`][yaml]                      |             | ✅                     |                             |                                                                 | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
+| [`toml`][toml]                      |             | ✅                     |                             |                                                                 |                                                                  |
+| [`shell`][bash]                     |             | ✅³                    | [bats]³                     |                                                                 | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
+| [`github`][gha]                     |             | ✅                     |                             | `push.yml`⁴                                                     |                                                                  |
+| [`keepSorted`][keep-sorted]         |             | ✅                     |                             |                                                                 |                                                                  |
+| [`typos`][typos]                    |             | ✅ spelling⁷           |                             |                                                                 |                                                                  |
+| [`treefmt`][treefmt]                |             | runs all ✅            |                             |                                                                 | formatter; VS Code: [treefmt][vscode-treefmt]                    |
+| [`git`][git]                        | git         |                        |                             | `.gitignore`                                                    |                                                                  |
+| [`direnv`][direnv]                  |             |                        |                             | `.envrc`, ignores `.direnv/`                                    | VS Code: [Nix Environment Selector]                              |
+| [`vscode`][vscode]                  |             |                        |                             | `.vscode/`⁵                                                     | renders it for VS Code⁵                                          |
+| [`neovim`][neovim]                  |             |                        |                             | `.nvim.lua`⁵                                                    | renders it for Neovim⁵                                           |
+| [`flakehub`][flakehub]              | [`fh`]      |                        |                             |                                                                 |                                                                  |
+| [`quarto`][quarto] (opt-in)         | quarto⁹     |                        |                             | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸   | VS Code: [Quarto][vscode-quarto]                                 |
+| [`cloudflare`][cloudflare] (opt-in) | wrangler⁶   |                        | OpenTofu validation         | ignores `.nullkomma/cloudflare/`                                |                                                                  |
+| [`r`][r] (opt-in)                   | R, pak      | ✅                     | lock freshness, R CMD check | R ignores; opt-in `.Rprofile`, `.Renviron`, README instructions | R languageserver; VS Code: R, Air                                |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
 Nixpkgs. The `nix` plugin also adds the tasks `check` (`nix flake check`) and
@@ -293,8 +293,7 @@ as `checks.<system>.test-r-lock` and `test-r-cmd-check` in CI.
 
 pak and languageserver are always included. Declare test dependencies such as
 testthat in `DESCRIPTION`'s `Suggests` field, which is included by default.
-For development-only tools, use pak's `Config/Needs/development` field so
-non-Nix collaborators can install them too:
+For development-only tools, use pak's `Config/Needs/development` field:
 
 ```dcf
 Config/Needs/development: devtools
@@ -307,8 +306,6 @@ Production package outputs should use `buildRPackage` with only their required
 dependencies, not the development R environment; see the `r-production` fixture,
 whose package output excludes testthat, pak, languageserver and development tools.
 
-Without Nix, use
-`pak::local_install_deps(dependencies = c("all", "Config/Needs/development"))`.
 Reserve `nullkomma.r.extraPackages` for Nix-only additions, not shared project
 dependencies.
 
@@ -344,13 +341,87 @@ to the configured editor formatter, when present. Jarl linting is opt-in with
 `nullkomma.r.jarl.enable` (it builds from source with upstream tests disabled on
 macOS).
 
-> [!TIP]
-> R packages built on nullkomma can be used and developed *without* using nix,
-> though the reproducibility guarantees are consequently reduced:
-> You only get the same R library versions, nothing else.
-> To install them, run `pak::lockfile_install()`.
-> A collabor *with* nix can also enable `nullkomma.r.rprofile.enable`,
-> which adds an `.Rprofile` with the approximate PPM snapshot to the source.
+Enable `nullkomma.r.nonNix.enable = true` for collaborators without Nix, then run
+`write-files` and commit the resulting `.Renviron`, `.Rprofile` and README changes.
+The README section below is supplied by the R plugin under the project's
+`## Development` heading, preserving existing text. These are source-of-truth
+files: later upstream changes use the normal conflict-aware `write-files` updates.
+The old `nullkomma.r.rprofile.enable` option is an alias for this complete bundle.
+
+<!-- nullkomma:r-development:start -->
+
+#### R development without Nix {.callout-tip}
+
+You do not need Nix or direnv. Install R (the recommended version is recorded in
+`.Renviron`), open this directory in R or RStudio, and start a fresh R session.
+The committed `.Rprofile` reads `.Renviron`, selects the project's dated Posit
+Package Manager (PPM) repository, and creates a writable library in
+`.R/library/<R-version>/<platform>/`. Nothing is installed automatically at
+startup. Do not use `R --vanilla`: it skips these project settings.
+
+##### Install dependencies
+
+Run this in the R console, from the directory containing `DESCRIPTION`:
+
+```r
+if (!requireNamespace("pak", quietly = TRUE)) {
+  install.packages("pak", repos = sprintf(
+    "https://r-lib.github.io/p/pak/stable/%s/%s/%s",
+    .Platform$pkgType, R.Version()$os, R.Version()$arch
+  ))
+}
+pak::local_install_deps(
+  dependencies = getOption("nullkomma.r.dependencies"),
+  ask = FALSE
+)
+```
+
+pak chooses binaries for your operating system and R version when available,
+otherwise source packages. Source packages may need a compiler and system
+libraries; pak reports these requirements and may offer to install them with
+administrator privileges. The local library is Git-ignored; do not commit it.
+
+##### Add or remove dependencies
+
+Edit `DESCRIPTION`: use `Imports` for packages needed to run your code,
+`Suggests` for tests (for example, testthat), and `Config/Needs/development`
+for development tools. All `Config/Needs/*` fields are included by default.
+Re-run the installation command after editing. To remove an unused installed
+package as well, run `pak::pkg_remove("packageName")`; this only changes your
+local library, not `DESCRIPTION`.
+
+Refresh the committed lockfile after changing dependencies:
+
+```r
+local({
+  previous <- options(pkg.platforms = "source")
+  on.exit(options(previous))
+  pak::lockfile_create(
+    "deps::.",
+    dependencies = getOption("nullkomma.r.dependencies"),
+    lockfile = "pkg.lock"
+  )
+})
+```
+
+Commit `DESCRIPTION` and `pkg.lock` together. Restart R after updating packages.
+Nix collaborators can refresh the same lockfile with `r-lock`.
+
+The PPM date approximates the Nix package set: R package versions can differ,
+and neither your R installation nor system libraries are pinned by this setup.
+`pak::lockfile_install()` reproduces the lock's source-package choices instead,
+but may need compilation and working source URLs. Keep `.Renviron`, `.Rprofile`
+and these instructions committed so collaborators need no Nix-generated files.
+
+<!-- nullkomma:r-development:end -->
+
+On Linux, the maintainer-only `test-r-non-nix` task uses Nix's NixOS test driver
+to boot a disposable VM and run Ubuntu 24.04 inside it. Ubuntu uses the same R
+version as `nixpkgs-r`, as an unprivileged user with no Nix installation or store
+mounted. No host Docker daemon is used. This live installation test needs
+virtualization and network access, so Nix builds its VM/driver first and the
+task runs the driver outside the build sandbox. This repository's Linux CI
+also runs it.
 
 ### Files in your repo
 

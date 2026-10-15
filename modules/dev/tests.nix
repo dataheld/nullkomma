@@ -58,7 +58,7 @@
         nullkomma.r.lockfile = ../../tests/fixtures/r + "/missing.lock";
       } ../../tests/fixtures/r;
       rWithProfile = callFlakeWith {
-        nullkomma.r.rprofile.enable = true;
+        nullkomma.r.nonNix.enable = true;
       } ../../tests/fixtures/r;
       cloudflare = callFlakeWith {
         nullkomma.cloudflare = {
@@ -550,6 +550,56 @@
                 rejects = lib.replicate 7 true;
               };
             };
+            testRNonNixDocumentation = {
+              expr =
+                let
+                  inherit (nullkomma.lib.r) withNonNixDocumentation;
+                  original = builtins.readFile ../../tests/fixtures/r/README.md;
+                  updated = withNonNixDocumentation original;
+                in
+                {
+                  preservesNotes = lib.hasInfix "Keep these project-specific development notes." updated;
+                  idempotent = withNonNixDocumentation updated == updated;
+                  headingCount = lib.length (lib.splitString "\n## Development\n" updated) - 1;
+                  noReadme = lib.hasInfix "## Development" (withNonNixDocumentation "");
+                  rejectsIncomplete =
+                    (builtins.tryEval (withNonNixDocumentation "<!-- nullkomma:r-development:start -->")).success;
+                  environmentDefault = (perSystem rWithProfile).nullkomma.files.".Renviron".mode;
+                  sharedDocumentation = lib.hasInfix (lib.replaceStrings
+                    [ "### R development without Nix" "\n#### " ]
+                    [ "#### R development without Nix" "\n##### " ]
+                    nullkomma.lib.r.nonNixDocumentation
+                  ) (builtins.readFile ../../README.md);
+                  disabledFiles = lib.any (f: (perSystem fixtures.r).nullkomma.files ? ${f}) [
+                    ".Rprofile"
+                    ".Renviron"
+                    "README.md"
+                  ];
+                  runtimeFields =
+                    lib.hasInfix "NULLKOMMA_R_ALL_CONFIG_NEEDS=false"
+                      (perSystem (
+                        callFlakeWith {
+                          nullkomma.r.nonNix.enable = true;
+                          nullkomma.r.fields = [
+                            "Depends"
+                            "Imports"
+                            "LinkingTo"
+                          ];
+                        } ../../tests/fixtures/r
+                      )).nullkomma.files.".Renviron".text;
+                };
+              expected = {
+                preservesNotes = true;
+                idempotent = true;
+                headingCount = 1;
+                noReadme = true;
+                rejectsIncomplete = false;
+                environmentDefault = "source";
+                sharedDocumentation = true;
+                disabledFiles = false;
+                runtimeFields = true;
+              };
+            };
             testRPackagesFromLockfile = {
               expr =
                 let
@@ -676,6 +726,26 @@
               expectedBuilderExitCode = 1;
               expectedBuilderLogEntries = [ message ];
             };
+          nonNixProject =
+            pkgs.runCommand "nullkomma-r-non-nix-project" { nativeBuildInputs = [ pkgs.git ]; }
+              ''
+                cp -R ${../../tests/fixtures/r} project
+                chmod -R u+w project
+                cd project
+                git init -q
+                ${lib.getExe (perSystem rWithProfile).nullkomma.tasks.write-files.package}
+                grep -qF 'Keep these project-specific development notes.' README.md
+                cp README.md expected
+                ${lib.getExe (perSystem rWithProfile).nullkomma.tasks.write-files.package}
+                cmp expected README.md
+                mkdir $out
+                cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .Rprofile .Renviron README.md $out/
+              '';
+          nonNixVM = import ../../tests/r-non-nix/vm.nix {
+            inherit pkgs;
+            project = nonNixProject;
+            rVersion = inputs.nixpkgs-r.legacyPackages.${system}.R.version;
+          };
         in
         {
           # Sandboxed: nix-unit re-evaluates this flake with its inputs passed in.
@@ -694,6 +764,19 @@
               "terranix/import-tree" = inputs.terranix.inputs.import-tree.outPath;
               "terranix/systems" = inputs.terranix.inputs.systems.outPath;
             };
+          nullkomma.tasks.test-r-non-nix = lib.mkIf pkgs.stdenv.isLinux {
+            description = "Run a NixOS VM testing Ubuntu 24.04 R workflows without Nix (requires virtualization and network)";
+            skip = true;
+            packages = [
+              pkgs.coreutils
+              pkgs.git
+            ];
+            command = ''
+              scratch="$(mktemp -d)"
+              trap 'rm -rf "$scratch"' EXIT
+              ${nonNixVM.driver}/bin/nixos-test-driver --output_directory "$scratch"
+            '';
+          };
           nullkomma.tasks.check-fixtures = {
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
             packages = [
@@ -766,6 +849,32 @@
               )
             ) rejects
             // {
+              r-non-nix-files = nonNixProject;
+              r-non-nix-profile =
+                pkgs.runCommand "nullkomma-r-non-nix-profile" { nativeBuildInputs = [ pkgs.R ]; }
+                  ''
+                    cp -R ${nonNixProject} project
+                    chmod -R u+w project
+                    cd project
+                    export HOME="$TMPDIR/home"
+                    mkdir -p "$HOME"
+                    unset IN_NIX_SHELL R_LIBS_USER
+                    Rscript -e '
+                      stopifnot(startsWith(.libPaths()[1], file.path(getwd(), ".R", "library")))
+                      stopifnot(getOption("repos")[["CRAN"]] == Sys.getenv("NULLKOMMA_PPM_URL"))
+                      stopifnot(all(c("Config/Needs/development", "Config/Needs/website") %in% getOption("nullkomma.r.dependencies")))
+                    '
+                    IN_NIX_SHELL=impure Rscript -e '
+                      stopifnot(!startsWith(.libPaths()[1], file.path(getwd(), ".R", "library")))
+                    '
+                    rm .Renviron
+                    if Rscript -e 'quit(status = 0)' > failure.log 2>&1; then
+                      echo "Missing project settings unexpectedly accepted" >&2
+                      exit 1
+                    fi
+                    grep -qF 'Missing project R settings' failure.log
+                    touch $out
+                  '';
               r-production =
                 let
                   package = fixtures.r-production.packages.${system}.default;
