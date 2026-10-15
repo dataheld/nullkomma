@@ -470,9 +470,16 @@
         {
           # Sandboxed: nix-unit re-evaluates this flake with its inputs passed in.
           nullkomma.nix.unit.tests = tests;
+          # Dev partition inputs use flake-compat's fetchTree, not root input overrides.
+          nullkomma.nix.unit.allowNetwork = true;
           # Terranix's non-followed inputs also need paths in nix-unit's fresh store.
           nullkomma.nix.unit.inputs =
-            lib.mapAttrs (_: input: input.outPath) (removeAttrs inputs [ "self" ])
+            lib.mapAttrs (_: input: input.outPath) (
+              removeAttrs inputs [
+                "self"
+                "brand"
+              ]
+            )
             // {
               "terranix/import-tree" = inputs.terranix.inputs.import-tree.outPath;
               "terranix/systems" = inputs.terranix.inputs.systems.outPath;

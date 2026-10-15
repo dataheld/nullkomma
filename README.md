@@ -351,7 +351,9 @@ nullkomma don't inherit them.
 
 - **Unit tests** ([nix-unit](https://github.com/nix-community/nix-unit), via the `nix` plugin) check
   the evaluated configuration of the fixtures, e.g. that every plugin can be
-  switched off and that all off leaves just the framework.
+  switched off and that all off leaves just the framework. This repo's unit
+  check uses the Nix plugin's network-enabled fixed-output derivation to fetch
+  dev-only partition inputs, which root input overrides cannot replace.
 - **Docs test:** `options-doc` renders every option the way
   [flake.parts](https://flake.parts) would, so each needs a description.
 - **Build tests** run the real tools on the fixtures inside `nix flake check`:
