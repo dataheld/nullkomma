@@ -1,7 +1,7 @@
 # Thin GitHub Actions stubs that call nullkomma's reusable workflows, so CI logic
 # is upgraded centrally (.github/workflows/{ci,maintenance}.yml in this repo).
 {
-  flake.flakeModules.default =
+  plugins.github =
     { config, lib, ... }:
     let
       cfg = config.nullkomma.github;
@@ -37,11 +37,6 @@
     in
     {
       options.nullkomma.github = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Whether to initialize `.github/workflows/push.yml`.";
-        };
         workflows = {
           source = lib.mkOption {
             type = lib.types.str;
@@ -67,7 +62,7 @@
             example = {
               visibility = "public";
             };
-            description = "Inputs of the reusable `ci.yml` (`visibility` publishes to FlakeHub, `deploy` runs `nix run .#deploy`).";
+            description = "Inputs of the reusable `ci.yml` (`visibility` publishes to FlakeHub).";
           };
           secrets = lib.mkOption {
             type = lib.types.listOf lib.types.str;
@@ -76,8 +71,9 @@
           };
         };
       };
-      config.perSystem.nullkomma.files = lib.mkIf cfg.enable {
-        ".github/workflows/push.yml".text = ci;
+      config.perSystem = lib.mkIf cfg.enable {
+        treefmt.programs.actionlint.enable = lib.mkDefault true;
+        nullkomma.files.".github/workflows/push.yml".text = ci;
       };
     };
 }

@@ -1,8 +1,8 @@
 {
-  flake.flakeModules.r =
+  plugins.r =
     { config, lib, ... }:
     let
-      cfg = config.nullkomma.r.jarl;
+      cfg = config.nullkomma.r;
     in
     {
       options.nullkomma.r.jarl.enable = lib.mkOption {
@@ -14,11 +14,11 @@
           so it is compiled from source with tests disabled on macOS.
         '';
       };
-      config.perSystem =
+      config.perSystem = lib.mkIf cfg.enable (
         { pkgs, ... }:
         {
           treefmt.programs.air.enable = lib.mkDefault true;
-          treefmt.settings.formatter.jarl = lib.mkIf cfg.enable {
+          treefmt.settings.formatter.jarl = lib.mkIf cfg.jarl.enable {
             command = lib.getExe (
               if pkgs.stdenv.hostPlatform.isDarwin then
                 pkgs.jarl.overrideAttrs { doCheck = false; }
@@ -39,6 +39,7 @@
             # fix lints first, then let air format the result
             priority = -1;
           };
-        };
+        }
+      );
     };
 }

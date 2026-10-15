@@ -2,12 +2,9 @@ let
   welcomeText = ''
     # Welcome to nullkomma
 
-    Next steps:
-
-    1. `git add flake.nix` (flakes only see tracked files)
-    2. `nix run .#write-files` to initialize `.gitignore`, `.envrc`, CI stubs, …
-    3. `direnv allow` (or `nix develop`)
-    4. `nix run` to list all tasks
+    1. `git add flake.nix .envrc` (flakes only see tracked files)
+    2. `nix develop -c write-files` and `nix develop -c generate-files`
+    3. `direnv allow` (or `nix develop`), then `tasks` to list tasks
   '';
 in
 {
@@ -19,15 +16,11 @@ in
     };
     r = {
       path = ../templates/r;
-      description = "nullkomma R project: dependencies from DESCRIPTION locked by pak, air, R CMD check";
+      description = "R project: pak dependencies, formatting, language server and package checks";
       welcomeText = welcomeText + ''
-        5. `nix run .#r-lock` to lock DESCRIPTION's dependencies into `pkg.lock`; commit both
+
+        If DESCRIPTION already exists, run `nix run .#r-lock` before step 2.
       '';
-    };
-    quarto = {
-      path = ../templates/quarto;
-      description = "nullkomma Quarto project: site build, render and preview tasks";
-      inherit welcomeText;
     };
   };
 }

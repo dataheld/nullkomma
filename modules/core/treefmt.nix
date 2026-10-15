@@ -1,38 +1,46 @@
 { inputs, ... }:
 {
-  flake.flakeModules.default =
-    { lib, ... }:
+  framework =
+    { config, lib, ... }:
     {
+      # Imported by the framework so any plugin can set `treefmt.programs`. Only the
+      # `treefmt` plugin turns on `nix fmt` and the check; reading its option with
+      # `or false` avoids priority tricks and works when the plugin isn't imported.
       imports = [ inputs.treefmt-nix.flakeModule ];
-      perSystem =
+      perSystem.treefmt = {
+        flakeFormatter = lib.mkDefault (config.nullkomma.treefmt.enable or false);
+        flakeCheck = lib.mkDefault (config.nullkomma.treefmt.enable or false);
+      };
+    };
+  plugins.treefmt =
+    { config, lib, ... }:
+    let
+      enabled = config.nullkomma.treefmt.enable;
+    in
+    {
+      config.perSystem =
         { config, ... }:
-        {
-          treefmt = {
-            programs = {
-              # keep-sorted start block=yes
-              actionlint.enable = lib.mkDefault true;
-              deadnix.enable = lib.mkDefault true;
-              jsonfmt.enable = lib.mkDefault true;
-              keep-sorted.enable = lib.mkDefault true;
-              mdformat = {
-                enable = lib.mkDefault true;
-                plugins = lib.mkDefault (ps: [
-                  ps.mdformat-footnote
-                  ps.mdformat-frontmatter
-                  ps.mdformat-gfm
-                  ps.mdformat-gfm-alerts
-                ]);
-              };
-              nixfmt.enable = lib.mkDefault true;
-              shellcheck.enable = lib.mkDefault true;
-              shfmt.enable = lib.mkDefault true;
-              toml-sort.enable = lib.mkDefault true;
-              yamlfmt.enable = lib.mkDefault true;
-              # keep-sorted end
+        lib.mkIf enabled {
+          nullkomma.editor = {
+            formatter = {
+              package = config.treefmt.build.wrapper;
+              command = [
+                "treefmt"
+                "--stdin"
+                "{file}"
+              ];
             };
-            # Generated files are formatted by their generator, not by treefmt.
-            settings.excludes = lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files);
+            vscode.extensions = [ "ibecker.treefmt-vscode" ];
+            vscode.settings."editor.defaultFormatter" = lib.mkDefault "ibecker.treefmt-vscode";
           };
+          # Writes files, so not part of running all tasks.
+          nullkomma.tasks.format = {
+            skip = true;
+            description = "Format and lint all files (treefmt)";
+            packages = [ config.treefmt.build.wrapper ];
+            command = ''exec treefmt "$@"'';
+          };
+          treefmt.settings.excludes = lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files);
         };
     };
 }

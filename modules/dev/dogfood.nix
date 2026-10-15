@@ -1,12 +1,9 @@
-# nullkomma uses nullkomma: this repo is a Quarto site (README as index.qmd).
+# nullkomma uses nullkomma for its own development environment.
 {
   partitions.dev.module =
     { inputs, ... }:
     {
-      imports = [
-        inputs.self.flakeModules.default
-        inputs.self.flakeModules.quarto
-      ];
+      imports = [ inputs.self.flakeModules.default ];
       nullkomma = {
         github = {
           workflows = {
@@ -17,10 +14,5 @@
         };
         gitignore = [ ".claude/" ];
       };
-      perSystem =
-        { pkgs, ... }:
-        {
-          nullkomma.devshell.packages = [ pkgs.fh ];
-        };
     };
 }

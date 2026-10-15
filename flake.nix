@@ -5,8 +5,7 @@
   # Tools come from nixpkgs; schemas describe both our and consumers' outputs.
   inputs = {
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2605.*";
-    # Knob: R version and CRAN snapshot. Free unless a consumer overrides it, e.g.
-    # inputs.nullkomma.inputs.nixpkgs-r.url = "github:rstats-on-nix/nixpkgs/2026-01-05";
+    # Override this input to select another R/CRAN package set.
     nixpkgs-r.follows = "nixpkgs";
     flake-parts = {
       url = "https://flakehub.com/f/hercules-ci/flake-parts/0.1.*";
@@ -16,6 +15,20 @@
     treefmt-nix = {
       url = "https://flakehub.com/f/numtide/treefmt-nix/0.1.*";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+    up = {
+      url = "https://flakehub.com/f/DeterminateSystems/up/0.1.*";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-schemas.follows = "flake-schemas";
+    };
+    terranix = {
+      url = "github:terranix/terranix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-parts.follows = "flake-parts";
+    };
+    terraform-providers-bin = {
+      url = "github:nix-community/nixpkgs-terraform-providers-bin";
+      flake = false;
     };
   };
 

@@ -2,7 +2,6 @@
   "recommendations": [
     "arrterian.nix-env-selector",
     "ibecker.treefmt-vscode",
-    "jnoortheen.nix-ide",
-    "quarto.quarto"
+    "jnoortheen.nix-ide"
   ]
 }

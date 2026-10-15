@@ -1,7 +1,12 @@
 {
-  flake.flakeModules.r.perSystem =
-    { config, ... }:
+  plugins.r =
+    { config, lib, ... }:
     {
-      nullkomma.devshell.packages = [ config.nullkomma.r.package ];
+      config.perSystem = lib.mkIf config.nullkomma.r.enable (
+        { config, ... }:
+        {
+          nullkomma.devHelpers = [ config.nullkomma.r.package ];
+        }
+      );
     };
 }

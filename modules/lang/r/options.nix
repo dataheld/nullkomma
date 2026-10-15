@@ -1,6 +1,6 @@
 { inputs, ... }:
 {
-  flake.flakeModules.r =
+  plugins.r =
     {
       config,
       lib,
@@ -26,12 +26,11 @@
           "latest";
     in
     {
-      imports = [ inputs.self.flakeModules.default ];
       options.nullkomma.r = {
         root = lib.mkOption {
           type = lib.types.path;
-          default = self;
-          defaultText = lib.literalExpression "self";
+          default = self.outPath;
+          defaultText = lib.literalExpression "self.outPath";
           example = lib.literalExpression "./pkg";
           description = "R project directory (containing `DESCRIPTION`); a path literal if not the repo root.";
         };

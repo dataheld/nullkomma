@@ -1,14 +1,4 @@
-**/*.quarto_ipynb
-/.quarto/
-/_book/
-/_site/
 .direnv/
 result
 result-*
 .claude/
-# Initialized files
-!/.envrc
-!/.github/workflows/push.yml
-!/.gitignore
-!/.vscode/extensions.json
-!/.vscode/settings.json

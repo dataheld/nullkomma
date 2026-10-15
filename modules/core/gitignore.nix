@@ -1,31 +1,30 @@
 {
-  flake.flakeModules.default =
+  framework =
+    { lib, ... }:
+    {
+      options.nullkomma.gitignore = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "Lines of the initial `.gitignore`; plugins append here. Generated files are added automatically.";
+      };
+    };
+  plugins.git =
     { config, lib, ... }:
     let
       ignores = lib.unique config.nullkomma.gitignore;
     in
     {
-      options.nullkomma.gitignore = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [ ];
-        description = "Lines of the initial `.gitignore`; every aspect appends here.";
-      };
-      config = {
-        nullkomma.gitignore = [
-          ".direnv/"
-          "result"
-          "result-*"
-        ];
-        # Initialized files are re-included last, so a global excludesFile (e.g. one ignoring
-        # `.vscode/settings.json` or `.envrc`) can't keep them out of the flake source.
+      config = lib.mkIf config.nullkomma.git.enable {
         perSystem =
-          { config, ... }:
-          {
-            nullkomma.files.".gitignore".text = lib.concatLines (
-              ignores
-              ++ [ "# Initialized files" ]
-              ++ map (path: "!/${path}") (lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files))
+          { config, pkgs, ... }:
+          let
+            generated = lib.attrNames (
+              lib.filterAttrs (_: f: f.enable && f.mode == "generated") config.nullkomma.files
             );
+          in
+          {
+            nullkomma.devHelpers = [ pkgs.git ];
+            nullkomma.files.".gitignore".text = lib.concatLines (ignores ++ map (path: "/${path}") generated);
           };
       };
     };

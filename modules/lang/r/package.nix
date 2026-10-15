@@ -3,7 +3,7 @@
 # cannot provide are built from the sources the lockfile pins.
 { inputs, ... }:
 {
-  flake.flakeModules.r =
+  plugins.r =
     {
       config,
       flake-parts-lib,
@@ -38,7 +38,7 @@
           description = "R with every package of `nullkomma.r.packages`.";
         };
       };
-      config.perSystem =
+      config.perSystem = lib.mkIf cfg.enable (
         { system, config, ... }:
         let
           pcfg = config.nullkomma.r;
@@ -71,7 +71,7 @@
             name: s:
             let
               attr = rlib.attrName name;
-              tree = builtins.fetchTree s.fetchTree;
+              tree = fetchTree s.fetchTree;
               src =
                 if s ? fetchurl then
                   pkgsR.fetchurl s.fetchurl
@@ -128,6 +128,7 @@
             );
             package = pkgsR.rWrapper.override { packages = map lookup pcfg.packages; };
           };
-        };
+        }
+      );
     };
 }

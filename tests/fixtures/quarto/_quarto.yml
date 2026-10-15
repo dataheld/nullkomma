@@ -1,4 +1,5 @@
 project:
   type: website
-website:
-  title: nullkomma fixture
+  resources:
+    - _headers
+    - _redirects

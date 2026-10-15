@@ -1,12 +1,15 @@
 {
   description = "An R project with batteries included by nullkomma";
 
-  inputs.nullkomma.url = "https://flakehub.com/f/dataheld/nullkomma/0.1.*";
+  inputs = {
+    nullkomma.url = "https://flakehub.com/f/dataheld/nullkomma/0.1.*";
+    nixpkgs.follows = "nullkomma/nixpkgs";
+  };
 
   outputs =
     inputs:
     inputs.nullkomma.lib.mkFlake { inherit inputs; } {
-      imports = [ inputs.nullkomma.flakeModules.r ];
+      nullkomma.r.enable = true;
       # R packages come from DESCRIPTION, locked in pkg.lock by `nix run .#r-lock`.
       # Add dev-only ones here:
       # nullkomma.r.extraPackages = [ "devtools" ];

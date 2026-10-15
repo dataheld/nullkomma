@@ -1,5 +1,5 @@
 {
-  flake.flakeModules.r =
+  plugins.r =
     {
       config,
       lib,
@@ -12,10 +12,10 @@
       profile = if toString cfg.root == toString self then ".Rprofile" else "${relativeRoot}/.Rprofile";
     in
     {
-      perSystem = {
+      config.perSystem = lib.mkIf cfg.enable {
         nullkomma.files = lib.mkIf cfg.rprofile.enable {
           ${profile}.text = ''
-            options(repos = c(CRAN = "${cfg.ppmUrl}"))
+            options(repos = c(CRAN = ${builtins.toJSON cfg.ppmUrl}))
           '';
         };
         nullkomma.devshell.shellHook = ''

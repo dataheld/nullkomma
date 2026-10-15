@@ -1,7 +1,9 @@
-# Consumers need no nixpkgs input: nullkomma's curated pin is the default `pkgs`.
+# nullkomma's curated Nixpkgs pin is the default `pkgs`. Consumers expose it as
+# their own input (`nixpkgs.follows = "nullkomma/nixpkgs"`, as in the template),
+# so lock tooling such as flake-checker sees the Nixpkgs they actually use.
 { inputs, ... }:
 {
-  flake.flakeModules.default =
+  framework =
     { lib, ... }:
     {
       systems = lib.mkDefault [

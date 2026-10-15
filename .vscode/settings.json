@@ -6,11 +6,6 @@
     "--stdin",
     "{file}"
   ],
-  "nix.hiddenLanguageServerErrors": [
-    "textDocument/definition",
-    "textDocument/completion",
-    "textDocument/documentHighlight"
-  ],
   "nix.serverPath": "nixd",
   "nix.serverSettings": {
     "nixd": {
@@ -26,5 +21,10 @@
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
   "nixEnvSelector.suggestion": false,
   "nixEnvSelector.useFlakes": true,
-  "notebook.defaultFormatter": "ibecker.treefmt-vscode"
+  "workbench.colorCustomizations": {
+    "editorInlayHint.background": "#00000000",
+    "statusBar.background": "#7c3399",
+    "statusBar.foreground": "#ffffff",
+    "sash.hoverBorder": "#7c3399"
+  }
 }

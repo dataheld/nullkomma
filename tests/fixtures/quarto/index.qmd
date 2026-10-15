@@ -1,9 +1,7 @@
 ---
-title: nullkomma fixture
+title: Fixture home
 ---
 
-R chunks run with the R aspect's environment:
-
-```{r}
-1 + 1
+```nix
+{ answer = 42; }
 ```
