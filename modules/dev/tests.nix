@@ -681,6 +681,27 @@
               )
             ) rejects
             // {
+              flakehub-visibility = pkgs.runCommand "nullkomma-flakehub-visibility" { } ''
+                ${pkgs.nodejs}/bin/node <<'JS'
+                const assert = require("node:assert/strict");
+                const fs = require("node:fs");
+                const workflow = fs.readFileSync("${../../.github/workflows/ci.yml}", "utf8");
+                assert.match(workflow, /        default: auto\n/);
+                const expression = workflow.match(/          visibility: \$\{\{ (.+) \}\}/)[1];
+                const visibility = new Function("inputs", "github", "return (" + expression + ");");
+                for (const isPrivate of [false, true]) {
+                  for (const input of ["auto", "public", "unlisted", "private", ""]) {
+                    const actual = visibility(
+                      {visibility: input},
+                      {event: {repository: {private: isPrivate}}},
+                    );
+                    const expected = input === "auto" ? (isPrivate ? "private" : "public") : input;
+                    assert.equal(actual, expected);
+                  }
+                }
+                JS
+                touch $out
+              '';
               r-lock-rejects-stale = rLockFailure ''
                 Package: nullkommafixture
                 Imports: digest
