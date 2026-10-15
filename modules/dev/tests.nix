@@ -755,11 +755,6 @@
                 mkdir $out
                 cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .Rprofile .Renviron .Rbuildignore README.md flake.nix $out/
               '';
-          nonNixVM = import ../../tests/r-non-nix/vm.nix {
-            inherit pkgs;
-            project = nonNixProject;
-            rVersion = inputs.nixpkgs-r.legacyPackages.${system}.R.version;
-          };
         in
         {
           # Sandboxed: nix-unit re-evaluates this flake with its inputs passed in.
@@ -778,18 +773,27 @@
               "terranix/import-tree" = inputs.terranix.inputs.import-tree.outPath;
               "terranix/systems" = inputs.terranix.inputs.systems.outPath;
             };
-          nullkomma.tasks.test-r-non-nix = lib.mkIf pkgs.stdenv.isLinux {
-            description = "Run a NixOS VM testing Ubuntu 24.04 R workflows without Nix (requires virtualization and network)";
+          nullkomma.tasks.test-r-non-nix = {
+            description = "Test Ubuntu 24.04 R workflows without Nix (requires a running Docker daemon and network)";
             skip = true;
             packages = [
               pkgs.coreutils
               pkgs.git
+              pkgs.docker-client
             ];
             command = ''
-              # The VM disk must not live in the small XDG runtime tmpfs.
-              scratch="$(mktemp -d /tmp/nullkomma-r-test.XXXXXX)"
+              docker info > /dev/null
+              scratch="$(mktemp -d)"
               trap 'rm -rf "$scratch"' EXIT
-              XDG_RUNTIME_DIR="$scratch" ${nonNixVM.driver}/bin/nixos-test-driver --output_directory "$scratch"
+              cp -R ${nonNixProject} "$scratch/project"
+              chmod -R u+w "$scratch/project"
+              cp ${../../tests/r-non-nix/Dockerfile} "$scratch/Dockerfile"
+              cp ${../../tests/r-non-nix/run.sh} "$scratch/run.sh"
+              image=nullkomma-r-non-nix:${builtins.substring 11 12 (toString nonNixProject)}
+              docker build --platform linux/amd64 --progress=plain \
+                --build-arg R_VERSION=${inputs.nixpkgs-r.legacyPackages.${system}.R.version} \
+                --tag "$image" "$scratch"
+              docker run --rm --platform linux/amd64 "$image" bash /test.sh
             '';
           };
           nullkomma.tasks.check-fixtures = {

@@ -450,13 +450,15 @@ apply.
 
 <!-- nullkomma:r-development:end -->
 
-On Linux, the maintainer-only `test-r-non-nix` task uses Nix's NixOS test driver
-to boot a disposable VM and run Ubuntu 24.04 inside it. Ubuntu uses the same R
-version as `nixpkgs-r`, as an unprivileged user with no Nix installation or store
-mounted. No host Docker daemon is used. This live installation test needs
-virtualization and network access, so Nix builds its VM/driver first and the
-task runs the driver outside the build sandbox. This repository's Linux CI
-also runs it.
+Run `nix develop --command test-r-non-nix` locally on macOS or Linux with Docker
+running. Nix prepares the fixture and Docker client; Docker runs Ubuntu 24.04
+with the same R version as `nixpkgs-r`, as an unprivileged user, without Nix or a
+mounted Nix store. The test executes the documented R examples and checks an
+ordinary source-package build. It uses `linux/amd64` (emulated on Apple Silicon)
+to verify PPM binaries, and requires network access. Docker caches the R image
+layers for subsequent runs. Sandboxed Nix checks cover startup, emitted files,
+and source-package exclusions; the live Docker test also runs on manually
+dispatched CI workflows, not every push.
 
 ### Files in your repo
 

@@ -14,6 +14,7 @@ chmod -R u+w .
 awk '/^```r$/ { code=1; next } /^```$/ { code=0 } code { print }' README.md >examples.R
 Rscript - <<'RS'
   stopifnot(as.character(getRversion()) == Sys.getenv("NULLKOMMA_R_VERSION"))
+  stopifnot(l10n_info()[["UTF-8"]])
   stopifnot(getOption("repos")[["CRAN"]] == Sys.getenv("NULLKOMMA_PPM_URL"))
   stopifnot(startsWith(.libPaths()[1], file.path(getwd(), ".R", "library")))
   stopifnot(!requireNamespace("pak", quietly = TRUE))
