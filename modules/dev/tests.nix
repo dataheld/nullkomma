@@ -96,7 +96,7 @@
         perSystem =
           { pkgs, ... }:
           {
-            packages.site = pkgs.writeTextDir "index.html" "";
+            packages.site = pkgs.writeTextDir "content.txt" "Independent static assets\n";
           };
       };
       minimal = callFlakeWith {
@@ -467,8 +467,24 @@
             // {
               quarto-site = pkgs.runCommand "nullkomma-quarto-site" { } ''
                 site=${fixtures.quarto.packages.${system}.site}
-                grep -qF '<span class="va">answer</span>' "$site/index.html"
-                test -f "$site/_redirects"
+                ${pkgs.python3}/bin/python - "$site/index.html" <<'PY'
+                from html.parser import HTMLParser
+                from pathlib import Path
+                import sys
+
+                class Document(HTMLParser):
+                    def handle_data(self, data):
+                        self.text.append(data)
+
+                document = Document()
+                document.text = []
+                document.feed(Path(sys.argv[1]).read_text())
+                text = "".join(document.text)
+                assert "Fixture home" in text
+                assert "{ answer = 42; }" in text
+                PY
+                cmp ${../../tests/fixtures/quarto/_headers} "$site/_headers"
+                cmp ${../../tests/fixtures/quarto/_redirects} "$site/_redirects"
                 touch $out
               '';
               cloudflare-config = cloudflare.checks.${system}.test-cloudflare;
@@ -491,18 +507,24 @@
                       tofu plan -refresh=false -out=plan > /dev/null
                       tofu show -json plan | jq '.planned_values.root_module.resources | map({key: .address, value: .values}) | from_entries'
                     }
-                    # The provider uploads every file in this directory.
+                    site=${fixtures.quarto.packages.${system}.site}
                     assets=$(jq -r .resource.cloudflare_workers_script.site.assets.directory ${tfConfig cloudflare})
-                    [[ -f $assets/index.html && ! -e $assets/_headers && ! -e $assets/_redirects ]]
-                    plan ${tfConfig cloudflare} | jq -e '
+                    cp -r "$site" expected-assets
+                    chmod -R u+w expected-assets
+                    rm expected-assets/_headers expected-assets/_redirects
+                    diff -r expected-assets "$assets"
+                    jq -e '.terraform.backend.s3.key == "fixture-site.tfstate"' ${tfConfig cloudflare}
+                    jq -e '.terraform.backend.s3.key == "bare-site.tfstate"' ${tfConfig (raw bareCloudflare)}
+                    plan ${tfConfig cloudflare} | jq -e \
+                      --rawfile headers "$site/_headers" \
+                      --rawfile redirects "$site/_redirects" '
                       ."cloudflare_workers_script.site" as $worker
                       | ."cloudflare_workers_custom_domain.www_example_org" as $domain
                       | ."cloudflare_workers_script_subdomain.site" as $subdomain
                       | $worker.script_name == "fixture-site"
-                        and ($worker.assets.asset_manifest_sha256 | test("^[0-9a-f]{64}$"))
                         and $worker.assets.config.not_found_handling == "404-page"
-                        and ($worker.assets.config.headers | contains("nosniff"))
-                        and ($worker.assets.config.redirects | contains("/old / 301"))
+                        and $worker.assets.config.headers == $headers
+                        and $worker.assets.config.redirects == $redirects
                         and $domain.hostname == "www.example.org"
                         and $domain.zone_id == "11111111111111111111111111111111"
                         and $domain.service == "fixture-site"
@@ -513,12 +535,21 @@
                       keys == ["cloudflare_workers_script.site", "cloudflare_workers_script_subdomain.site"]
                         and (."cloudflare_workers_script.site".assets.config | .headers == null and .redirects == null)
                     '
+                    bareAssets=$(jq -r .resource.cloudflare_workers_script.site.assets.directory ${tfConfig (raw bareCloudflare)})
+                    diff -r ${(raw bareCloudflare).packages.${system}.site} "$bareAssets"
                     touch $out
                   '';
               cloudflare-deploy =
                 let
                   tofu = pkgs.writeShellScriptBin "tofu" ''
-                    echo "$* $TF_VAR_account_id $AWS_ENDPOINT_URL_S3 $TF_CLI_ARGS_init $TF_CLI_ARGS_apply" >> "$LOG"
+                    set -eu
+                    test "$TF_VAR_account_id" = "$CLOUDFLARE_ACCOUNT_ID"
+                    test "$AWS_ENDPOINT_URL_S3" = "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
+                    test "$TF_CLI_ARGS_init" = "-backend-config=bucket=$CLOUDFLARE_STATE_BUCKET"
+                    test "$TF_CLI_ARGS_apply" = "-auto-approve"
+                    test "$TF_IN_AUTOMATION" = 1
+                    test "$TF_INPUT" = 0
+                    touch "$CALLED"
                   '';
                   flake = raw {
                     imports = [ bareCloudflare ];
@@ -527,13 +558,9 @@
                   deploy = lib.getExe flake.packages.${system}.deploy;
                 in
                 pkgs.runCommand "nullkomma-cloudflare-deploy" { } ''
-                  export LOG=$PWD/log CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
+                  export CALLED=$PWD/called CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
                   ${deploy}
-                  cat > expected <<EOF
-                  init account https://account.r2.cloudflarestorage.com -backend-config=bucket=state -auto-approve
-                  apply account https://account.r2.cloudflarestorage.com -backend-config=bucket=state -auto-approve
-                  EOF
-                  cmp expected log
+                  test -f "$CALLED"
                   touch $out
                 '';
               bats-rejects-failing-tests = pkgs.testers.testBuildFailure' {
