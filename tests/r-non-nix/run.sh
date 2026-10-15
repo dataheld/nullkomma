@@ -44,8 +44,20 @@ Rscript - <<'RS'
   stopifnot(file.exists("pkg.lock"), dir.exists(Sys.getenv("R_LIBS_USER")))
 RS
 
+rm examples.R
+mkdir -p nix .github/workflows .vscode .direnv
+touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json \
+  .direnv/cache .envrc project-only.txt
 R CMD build --no-build-vignettes --no-manual .
-if tar -tf nullkommafixture_0.0.1.tar.gz | grep -F '/.R/library/'; then
-  echo "Local development library leaked into the package source" >&2
+tar -tf nullkommafixture_0.0.1.tar.gz >/tmp/package-files
+if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]Rprofile|[.]Renviron|[.]envrc|[.]direnv|[.]github|[.]vscode|project-only[.]txt)(/|$))' /tmp/package-files; then
+  echo "Development-only files leaked into the package source" >&2
+  exit 1
+fi
+grep -qx 'nullkommafixture/R/hello.R' /tmp/package-files
+grep -qx 'nullkommafixture/DESCRIPTION' /tmp/package-files
+R CMD check --no-manual --ignore-vignettes nullkommafixture_0.0.1.tar.gz
+if grep -Eq '^Status: .*(WARNING|ERROR)' nullkommafixture.Rcheck/00check.log; then
+  cat nullkommafixture.Rcheck/00check.log >&2
   exit 1
 fi

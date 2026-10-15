@@ -573,6 +573,7 @@
                   disabledFiles = lib.any (f: (perSystem fixtures.r).nullkomma.files ? ${f}) [
                     ".Rprofile"
                     ".Renviron"
+                    ".Rbuildignore"
                     "README.md"
                   ];
                   runtimeFields =
@@ -744,11 +745,15 @@
                 mv original README.md
                 ${lib.getExe (perSystem rWithProfile).nullkomma.tasks.write-files.package}
                 grep -qF 'Keep these project-specific development notes.' README.md
+                grep -qxF '^project-only[.]txt$' .Rbuildignore
+                test "$(grep -xcF '^[.]envrc$' .Rbuildignore)" = 1
                 cp README.md expected
+                cp .Rbuildignore expected-buildignore
                 ${lib.getExe (perSystem rWithProfile).nullkomma.tasks.write-files.package}
                 cmp expected README.md
+                cmp expected-buildignore .Rbuildignore
                 mkdir $out
-                cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .Rprofile .Renviron README.md $out/
+                cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .Rprofile .Renviron .Rbuildignore README.md flake.nix $out/
               '';
           nonNixVM = import ../../tests/r-non-nix/vm.nix {
             inherit pkgs;
@@ -781,9 +786,10 @@
               pkgs.git
             ];
             command = ''
-              scratch="$(mktemp -d)"
+              # The VM disk must not live in the small XDG runtime tmpfs.
+              scratch="$(mktemp -d /tmp/nullkomma-r-test.XXXXXX)"
               trap 'rm -rf "$scratch"' EXIT
-              ${nonNixVM.driver}/bin/nixos-test-driver --output_directory "$scratch"
+              XDG_RUNTIME_DIR="$scratch" ${nonNixVM.driver}/bin/nixos-test-driver --output_directory "$scratch"
             '';
           };
           nullkomma.tasks.check-fixtures = {
@@ -876,6 +882,14 @@
                     IN_NIX_SHELL=impure Rscript -e '
                       stopifnot(!startsWith(.libPaths()[1], file.path(getwd(), ".R", "library")))
                     '
+                    touch .R/library/sentinel project-only.txt
+                    R CMD build --no-build-vignettes --no-manual .
+                    tar -tf nullkommafixture_0.0.1.tar.gz > package-files
+                    if grep -E '/(flake[.]nix|pkg[.]lock|[.]R|[.]Renviron|[.]Rprofile|project-only[.]txt)(/|$)' package-files; then
+                      echo "Development files leaked into the R source package" >&2
+                      exit 1
+                    fi
+                    grep -qx 'nullkommafixture/R/hello.R' package-files
                     rm .Renviron
                     if Rscript -e 'quit(status = 0)' > failure.log 2>&1; then
                       echo "Missing project settings unexpectedly accepted" >&2

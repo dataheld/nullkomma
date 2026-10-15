@@ -15,6 +15,13 @@
       prefix = if toString cfg.root == toString self then "" else "${relativeRoot}/";
       rlib = import ../../../lib/r.nix { inherit lib; };
       readme = cfg.root + "/README.md";
+      buildignore = cfg.root + "/.Rbuildignore";
+      existingBuildignore = if builtins.pathExists buildignore then builtins.readFile buildignore else "";
+      buildignoreLines = lib.splitString "\n" existingBuildignore;
+      buildignoreRules = lib.filter (line: line != "") (
+        lib.splitString "\n" (builtins.readFile ./_non-nix/Rbuildignore)
+        ++ [ "^${lib.escapeRegex (lib.removePrefix "${toString cfg.root}/" (toString cfg.lockfile))}$" ]
+      );
     in
     {
       config.nullkomma.gitignore = lib.mkIf (cfg.enable && cfg.nonNix.enable) [ "${prefix}.R/library/" ];
@@ -37,6 +44,15 @@
               text = rlib.withNonNixDocumentation (
                 if builtins.pathExists readme then builtins.readFile readme else ""
               );
+            };
+            "${prefix}.Rbuildignore" = {
+              initialSource = if builtins.pathExists buildignore then buildignore else null;
+              text =
+                existingBuildignore
+                + lib.optionalString (existingBuildignore != "" && !lib.hasSuffix "\n" existingBuildignore) "\n"
+                + lib.concatMapStrings (rule: lib.optionalString (!(lib.elem rule buildignoreLines)) "${rule}\n") (
+                  lib.unique buildignoreRules
+                );
             };
           };
           nullkomma.devshell.shellHook = ''

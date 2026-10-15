@@ -342,7 +342,8 @@ to the configured editor formatter, when present. Jarl linting is opt-in with
 macOS).
 
 Enable `nullkomma.r.nonNix.enable = true` for collaborators without Nix, then run
-`write-files` and commit the resulting `.Renviron`, `.Rprofile` and README changes.
+`write-files` and commit the resulting `.Renviron`, `.Rprofile`, `.Rbuildignore`
+and README changes.
 The README section below is supplied by the R plugin under the project's
 `## Development` heading, preserving existing text. These are source-of-truth
 files: later upstream changes use the normal conflict-aware `write-files` updates.
@@ -386,7 +387,8 @@ administrator privileges. The local library is Git-ignored; do not commit it.
 Edit `DESCRIPTION`: use `Imports` for packages needed to run your code,
 `Suggests` for tests (for example, testthat), and `Config/Needs/development`
 for development tools. All `Config/Needs/*` fields are included by default.
-Re-run the installation command after editing. To remove an unused installed
+Restart R and re-run the installation command after editing, so new
+`Config/Needs/*` fields are picked up. To remove an unused installed
 package as well, run `pak::pkg_remove("packageName")`; this only changes your
 local library, not `DESCRIPTION`.
 
@@ -412,6 +414,23 @@ and neither your R installation nor system libraries are pinned by this setup.
 `pak::lockfile_install()` reproduces the lock's source-package choices instead,
 but may need compilation and working source URLs. Keep `.Renviron`, `.Rprofile`
 and these instructions committed so collaborators need no Nix-generated files.
+
+##### Build and check a package
+
+For projects with a `Package:` field in `DESCRIPTION`, run these commands in a
+terminal from the project directory (replace the archive name with your package
+and version):
+
+```sh
+R CMD build .
+R CMD check yourpackage_0.1.0.tar.gz
+```
+
+The committed `.Rbuildignore` excludes Nix files, lockfiles, editor/CI settings,
+startup files and the local library from the source package. Existing project
+exclusions are preserved when setting it up. Building manuals and vignettes may
+require additional tools such as LaTeX; CRAN's submission requirements still
+apply.
 
 <!-- nullkomma:r-development:end -->
 

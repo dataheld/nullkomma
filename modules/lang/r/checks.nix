@@ -53,7 +53,7 @@
             "flake.lock"
             (lib.removePrefix "${toString cfg.root}/" (toString cfg.lockfile))
           ]
-          ++ lib.attrNames config.nullkomma.files;
+          ++ lib.filter (path: baseNameOf path != ".Rbuildignore") (lib.attrNames config.nullkomma.files);
           failOn =
             {
               error = null;

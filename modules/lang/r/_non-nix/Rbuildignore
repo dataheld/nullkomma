@@ -1,0 +1,11 @@
+[.]nix$
+^flake[.]lock$
+^[.]envrc$
+^[.]Renviron$
+^[.]Rprofile$
+^[.]R$
+^[.]direnv$
+^[.]github$
+^[.]vscode$
+^[.]idea$
+^result(-.*)?$

@@ -97,7 +97,7 @@
             type = lib.types.bool;
             default = false;
             description = ''
-              Whether `write-files` supplies committed `.Renviron`, `.Rprofile`
+              Whether `write-files` supplies committed `.Renviron`, `.Rprofile`, `.Rbuildignore`
               and a non-Nix development section in README.md. The profile sets
               the PPM snapshot and a writable project library outside Nix shells.
               Disabled by default; enable for collaborators who do not use Nix.
