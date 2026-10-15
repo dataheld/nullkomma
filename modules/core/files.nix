@@ -109,7 +109,7 @@
                 in
                 ''
                   process_file ${lib.escapeShellArg path} ${lib.escapeShellArg (toString source)} ${
-                    lib.escapeShellArg (if f.initialSource == null then "" else toString f.initialSource)
+                    lib.escapeShellArg (if f.initialSource == null then "" else "${f.initialSource}")
                   }
                 ''
               ) (lib.filterAttrs (_: f: f.mode == mode) files)

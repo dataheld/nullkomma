@@ -18,6 +18,7 @@ Rscript - <<'RS'
   stopifnot(startsWith(.libPaths()[1], file.path(getwd(), ".R", "library")))
   stopifnot(!requireNamespace("pak", quietly = TRUE))
 RS
+
 Rscript examples.R
 Rscript - <<'RS'
   for (package in c("pak", "testthat", "assertthat", "rematch")) {
@@ -42,3 +43,9 @@ Rscript - <<'RS'
   stopifnot(all(vapply(lock$packages, function(p) identical(p$platform, "source"), logical(1))))
   stopifnot(file.exists("pkg.lock"), dir.exists(Sys.getenv("R_LIBS_USER")))
 RS
+
+R CMD build --no-build-vignettes --no-manual .
+if tar -tf nullkommafixture_0.0.1.tar.gz | grep -F '/.R/library/'; then
+  echo "Local development library leaked into the package source" >&2
+  exit 1
+fi

@@ -733,6 +733,15 @@
                 chmod -R u+w project
                 cd project
                 git init -q
+                cp README.md original
+                echo "Unseen working-tree edit" >> README.md
+                if ${lib.getExe (perSystem rWithProfile).nullkomma.tasks.write-files.package} > conflict.log 2>&1; then
+                  echo "README initialization overwrote an unseen edit" >&2
+                  exit 1
+                fi
+                grep -qF 'Unseen working-tree edit' README.md
+                grep -qF 'Upstream conflict: README.md' conflict.log
+                mv original README.md
                 ${lib.getExe (perSystem rWithProfile).nullkomma.tasks.write-files.package}
                 grep -qF 'Keep these project-specific development notes.' README.md
                 cp README.md expected
