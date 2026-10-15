@@ -121,7 +121,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 | [`neovim`][neovim]                  |             |                        |                     | `.nvim.lua`⁵                     | renders it for Neovim⁵                                           |
 | [`flakehub`][flakehub]              | [`fh`]      |                        |                     |                                  |                                                                  |
 | [`quarto`][quarto] (opt-in)         | quarto      |                        |                     | ignores `.quarto/`, `_site/`     | VS Code: [Quarto][vscode-quarto]                                 |
-| [`cloudflare`][cloudflare] (opt-in) |             |                        | OpenTofu validation | ignores `.nullkomma/cloudflare/` |                                                                  |
+| [`cloudflare`][cloudflare] (opt-in) | wrangler    |                        | OpenTofu validation | ignores `.nullkomma/cloudflare/` |                                                                  |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
 Nixpkgs. The `nix` plugin also adds the tasks `check` (`nix flake check`) and
