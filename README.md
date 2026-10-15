@@ -265,50 +265,69 @@ env:
 
 ### R projects
 
-Enable `nullkomma.r.enable = true` (or use the `r` template). Declare dependencies
-in `DESCRIPTION`, then resolve and commit pak's `pkg.lock`:
+Enable `nullkomma.r.enable = true` (or use the `r` template).
+
+Dependencies are *declared* in `DESCRIPTION`.
+But because the `DESCRIPTION` alone does *not* record a reproducible R environment,
+dependencies are resolved and locked via [pak](https://pak.r-lib.org)'s `pkg.lock`.
+Nix then reads the `pkg.lock` to declaratively build a reproducible R environment.
+
+To initialise this setup, run:
 
 ```sh
 nix run .#r-lock
 git add DESCRIPTION pkg.lock
 ```
 
-`r-lock` is also a dev shell task, but `nix run .#r-lock` works before a lockfile
-exists. Run it after dependency changes and Nix updates. Nix reads the JSON
-lockfile without evaluating R; missing locks fail evaluation. `test r-lock`
-checks for dependencies and Remotes missing from the lock and checks
+Inside the dev shell, you can also run the `r-lock` task to refresh the `pkg.lock` file.
+Run it after dependency changes and Nix updates.
+`test r-lock` checks for dependencies and Remotes missing from the lock and checks
 DESCRIPTION's version constraints against the installed environment.
 Packages with a `Package:` field also get `test r-cmd-check`; these tests run
 as `checks.<system>.test-r-lock` and `test-r-cmd-check` in CI.
-On Linux, `r-cmd-check` supplies the UTF-8 locale required by R inside Nix's
-build sandbox.
 
-The lock selects packages; **nixpkgs selects their versions and build recipes**.
 pak and languageserver are always included; `nullkomma.r.extraPackages` adds
-development tools. `nixpkgs-r` follows nullkomma's Nixpkgs by default; override
-`inputs.nullkomma.inputs.nixpkgs-r.url` to choose another R/CRAN package set.
-`nullkomma.r.snapshot` derives the approximate CRAN snapshot from its locked
-date, and `nullkomma.r.ppmUrl` supplies that snapshot to pak.
+development tools.
 
-Pinned Remotes and packages missing from nixpkgs require
-`nullkomma.r.allowOffNixpkgs = true`. Git sources use the locked commit;
-URL sources also require `nullkomma.r.hashes.<package>` from
-`nix store prefetch-file <url>`. These packages build against the selected R
-package set. Add missing system libraries through
-`perSystem.nullkomma.r.buildInputs.<package>`. GitLab-specific and local
-references are unsupported; use `git::` for GitLab repositories.
+nullkomma will automatically set a snapshot date for R package sources to retrieve from [Posit's Public Package Manager (PPM)](https://packagemanager.posit.co).
+
+This gets you two benefits:
+
+1. All R packages come at the version, in which they were all on CRAN (and, by extension, PPM) on *some* defined day.
+   Packages on CRAN at the same time are known to work together as well as working with the version of R released at that time.
+   These compatibility guarantees are rare in software ecosystems and should be maintained in your project.
+   This date will be set by the Nixpkgs set in your nullkomma (see next point).
+2. Nix brings the correct version of R, as well as the system dependencies known to work with these versions of the R packages.
+   This too improves compatibility, because the nix project has run tests on the R packages, including the available system dependencies in nixpkgs for that release.
+
+> [!TIP]
+> If you need a more current version of R or its packages than are included in the current nixpkgs,
+> you can override it by setting `inputs.nullkomma.inputs.nixpkgs-r.url`.
+
+> [!INFO]
+> If you "hand-pick" a package using the `DESCRIPTION`s `Remotes:` field
+> (which be pinned *or* float!)
+> nix will download the source based on that information lock down the compute environment based on that download (a hash).
+> Such `Remotes:`-packages require `nullkomma.r.allowOffNixpkgs = true`.
+> Git sources use the locked commit; URL sources also require `nullkomma.r.hashes.<package>` from
+`nix store prefetch-file <url>`.
+> These packages build against the selected R package set. Add missing system libraries through
+`perSystem.nullkomma.r.buildInputs.<package>`.
+> GitLab-specific and local
+> references are unsupported; use `git::` for GitLab repositories.
 
 Air extends treefmt for R. The editor-neutral R language server defers formatting
 to the configured editor formatter, when present. Jarl linting is opt-in with
 `nullkomma.r.jarl.enable` (it builds from source with upstream tests disabled on
 macOS).
 
-No `.Rprofile` is created by default. Non-Nix collaborators can use
-`pak::lockfile_install()`; enabling `nullkomma.r.rprofile.enable` adds a
-source-owned `.Rprofile` setting the PPM repository through `write-files`.
-The dev shell creates a writable user library outside the Nix store for
-interactive installs; those installs are not reproducible and may shadow pins.
-Sandboxed tests do not use that library.
+> [!TIP]
+> R packages built on nullkomma can be used and developed *without* using nix,
+> though the reproducibility guarantees are consequently reduced:
+> You only get the same R library versions, nothing else.
+> To install them, run `pak::lockfile_install()`.
+> A collabor *with* nix can also enable `nullkomma.r.rprofile.enable`,
+> which adds an `.Rprofile` with the approximate PPM snapshot to the source.
 
 ### Files in your repo
 
