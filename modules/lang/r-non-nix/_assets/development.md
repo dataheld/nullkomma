@@ -21,7 +21,7 @@ source(".R/install.R")
 Or run `Rscript .R/install.R` in a terminal from the project directory. This
 helper installs pak and the DESCRIPTION dependencies explicitly into the project
 library, even if pak is already installed elsewhere. Re-run it to update
-dependencies. It refuses to run without the project profile or inside Nix.
+dependencies and `pkg.lock`. It refuses to run without the project profile or inside Nix.
 
 The PPM resolver selects a platform-specific repository when supported; a custom
 repository URL is left unchanged. pak chooses binaries when available,
@@ -41,41 +41,13 @@ are already isolated; no extra bootstrap package or `pak_setup()` is needed.
 
 #### Add or remove dependencies
 
-Edit `DESCRIPTION`: use `Imports` for packages needed to run your code,
-`Suggests` for tests (for example, testthat), and `Config/Needs/development`
-for development tools. All `Config/Needs/*` fields are included by default.
-Restart R and re-run the installation command after editing, so new
-`Config/Needs/*` fields are picked up. To remove an unused installed
-package as well, specify the library explicitly; this only changes your
-local library, not `DESCRIPTION`:
-`pak::pkg_remove("packageName", lib = getOption("nullkomma.r.library"))`.
-
-Refresh the committed lockfile after changing dependencies. Resolve against an
-empty library so installed binaries do not enter the shared source-only lock:
-
-```r
-local({
-  previous <- options(
-    repos = c(CRAN = Sys.getenv("NULLKOMMA_PPM_URL")),
-    pkg.platforms = "source"
-  )
-  library <- tempfile()
-  dir.create(library)
-  on.exit({
-    options(previous)
-    unlink(library, recursive = TRUE)
-  })
-  pak::lockfile_create(
-    "deps::.",
-    dependencies = getOption("nullkomma.r.dependencies"),
-    lib = library,
-    lockfile = "pkg.lock"
-  )
-})
-```
-
-Commit `DESCRIPTION` and `pkg.lock` together. Restart R after updating packages.
-Nix collaborators can refresh the same lockfile with `r-lock`.
+- To add or update a package, list it in `DESCRIPTION`, restart R and re-run
+  `.R/install.R`. The installer also refreshes `pkg.lock`.
+- To remove a package, delete it from `DESCRIPTION`, re-run `.R/install.R`, and
+  optionally remove it from the project library with
+  `pak::pkg_remove("packageName", lib = getOption("nullkomma.r.library"))`.
+- Commit `DESCRIPTION` and `pkg.lock` together. Nix collaborators can refresh the
+  lockfile with `r-lock` instead.
 
 The PPM date approximates the Nix package set: R package versions can differ,
 and neither your R installation nor system libraries are pinned by this setup.
