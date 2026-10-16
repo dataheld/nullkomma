@@ -20,7 +20,8 @@ local({
     }
     library <- normalizePath(library, winslash = "/", mustWork = TRUE)
     Sys.setenv(R_LIBS_USER = library)
-    .libPaths(c(library, .libPaths()))
+    .libPaths(library, include.site = FALSE)
+    options(nullkomma.r.library = library)
     if (as.character(getRversion()) != Sys.getenv("NULLKOMMA_R_VERSION")) {
       message("Project recommends R ", Sys.getenv("NULLKOMMA_R_VERSION"),
               "; this session uses R ", getRversion(), ".")

@@ -15,6 +15,6 @@
       # Allow Remotes: and CRAN packages missing from nixpkgs:
       # nullkomma.r.allowOffNixpkgs = true;
       # Add committed startup files and instructions for non-Nix collaborators:
-      # nullkomma.r.nonNix.enable = true;
+      # nullkomma.r-non-nix.enable = true;
     };
 }

@@ -58,7 +58,7 @@
         nullkomma.r.lockfile = ../../tests/fixtures/r + "/missing.lock";
       } ../../tests/fixtures/r;
       rWithProfile = callFlakeWith {
-        nullkomma.r.nonNix.enable = true;
+        nullkomma.r-non-nix.enable = true;
       } ../../tests/fixtures/r;
       rWithWebsite = callFlakeWith {
         nullkomma.r.pkgdown.enable = true;
@@ -585,7 +585,7 @@
             testRNonNixDocumentation = {
               expr =
                 let
-                  inherit (nullkomma.lib.r) withNonNixDocumentation;
+                  inherit (nullkomma.lib.r-non-nix) withNonNixDocumentation;
                   original = builtins.readFile ../../tests/fixtures/r/README.md;
                   updated = withNonNixDocumentation original;
                 in
@@ -600,19 +600,20 @@
                   sharedDocumentation = lib.hasInfix (lib.replaceStrings
                     [ "### R development without Nix" "\n#### " ]
                     [ "#### R development without Nix" "\n##### " ]
-                    nullkomma.lib.r.nonNixDocumentation
+                    nullkomma.lib.r-non-nix.nonNixDocumentation
                   ) (builtins.readFile ../../README.md);
                   disabledFiles = lib.any (f: (perSystem fixtures.r).nullkomma.files ? ${f}) [
                     ".Rprofile"
                     ".Renviron"
                     ".Rbuildignore"
+                    ".R/install.R"
                     "README.md"
                   ];
                   runtimeFields =
                     lib.hasInfix "NULLKOMMA_R_ALL_CONFIG_NEEDS=false"
                       (perSystem (
                         callFlakeWith {
-                          nullkomma.r.nonNix.enable = true;
+                          nullkomma.r-non-nix.enable = true;
                           nullkomma.r.fields = [
                             "Depends"
                             "Imports"
@@ -631,6 +632,86 @@
                 sharedDocumentation = true;
                 disabledFiles = false;
                 runtimeFields = true;
+              };
+            };
+            testRNonNixPlugin = {
+              expr =
+                let
+                  standalone = raw {
+                    imports = [ plugins.r-non-nix ];
+                    nullkomma.r-non-nix.enable = true;
+                  };
+                  core = raw {
+                    imports = [ plugins.r ];
+                    nullkomma.r.enable = true;
+                  };
+                  overlapping = raw {
+                    imports = [
+                      plugins.r
+                      plugins.r-non-nix
+                      nullkomma.modules.flake.r-non-nix
+                    ];
+                    nullkomma.r-non-nix.enable = true;
+                  };
+                  legacy = path: callFlakeWith (lib.setAttrByPath path true) ../../tests/fixtures/r;
+                  files = flake: (perSystem flake).nullkomma.files;
+                  nested = callFlakeWith {
+                    nullkomma.r-non-nix.enable = true;
+                    nullkomma.r.root = ../../tests/fixtures/r/R;
+                  } ../../tests/fixtures/r;
+                  conflict = raw {
+                    imports = [ plugins.r-non-nix ];
+                    nullkomma.r-non-nix.enable = true;
+                    nullkomma.r.enable = false;
+                  };
+                in
+                {
+                  enablesR = standalone.debug.config.nullkomma.r.enable;
+                  standaloneFiles = lib.attrNames (files standalone);
+                  duplicateImports = summary standalone == summary overlapping;
+                  coreFiles = lib.attrNames (files core);
+                  coreLibrary = lib.hasInfix "R_LIBS_USER" (perSystem core).nullkomma.devshell.shellHook;
+                  coreHasCompanion = core.debug.options.nullkomma ? r-non-nix;
+                  defaultDisabled = fixtures.r.debug.config.nullkomma.r-non-nix.enable;
+                  legacyFiles = map (path: files (legacy path) == files rWithProfile) [
+                    [
+                      "nullkomma"
+                      "r"
+                      "nonNix"
+                      "enable"
+                    ]
+                    [
+                      "nullkomma"
+                      "r"
+                      "rprofile"
+                      "enable"
+                    ]
+                  ];
+                  nestedProfile = files nested ? "R/.Rprofile";
+                  nestedIgnore = lib.elem "R/.R/library/" nested.debug.config.nullkomma.gitignore;
+                  disabledDependency = (builtins.tryEval conflict.debug.config.nullkomma.r.enable).success;
+                };
+              expected = {
+                enablesR = true;
+                standaloneFiles = [
+                  ".R/install.R"
+                  ".Rbuildignore"
+                  ".Renviron"
+                  ".Rprofile"
+                  "README.md"
+                ];
+                duplicateImports = true;
+                coreFiles = [ ];
+                coreLibrary = true;
+                coreHasCompanion = false;
+                defaultDisabled = false;
+                legacyFiles = [
+                  true
+                  true
+                ];
+                nestedProfile = true;
+                nestedIgnore = true;
+                disabledDependency = false;
               };
             };
             testRPackagesFromLockfile = {
@@ -820,6 +901,8 @@
                 cmp expected-buildignore .Rbuildignore
                 mkdir $out
                 cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .Rprofile .Renviron .Rbuildignore README.md flake.nix $out/
+                mkdir "$out/.R"
+                cp .R/install.R "$out/.R/"
               '';
         in
         {
@@ -1013,11 +1096,37 @@
                     export HOME="$TMPDIR/home"
                     mkdir -p "$HOME"
                     unset IN_NIX_SHELL R_LIBS_USER
+                    export R_LIBS_USER="$HOME/user-library"
+                    export R_LIBS_SITE="$HOME/site-library"
+                    mkdir -p "$R_LIBS_USER" "$R_LIBS_SITE"
+                    R CMD INSTALL --library="$R_LIBS_USER" .
+                    R CMD INSTALL --library="$R_LIBS_SITE" .
+                    find "$HOME" -type f -exec sha256sum {} + | sort > external-before
+                    test -s external-before
                     Rscript -e '
                       stopifnot(startsWith(.libPaths()[1], file.path(getwd(), ".R", "library")))
+                      stopifnot(!any(file.path(Sys.getenv("HOME"), c("user-library", "site-library")) %in% .libPaths()))
+                      stopifnot(!requireNamespace("nullkommafixture", quietly = TRUE))
                       stopifnot(getOption("repos")[["CRAN"]] == Sys.getenv("NULLKOMMA_PPM_URL"))
                       stopifnot(all(c("Config/Needs/development", "Config/Needs/website") %in% getOption("nullkomma.r.dependencies")))
                     '
+                    Rscript -e '
+                      install.packages(".", repos = NULL, type = "source")
+                      stopifnot(startsWith(find.package("nullkommafixture"), getOption("nullkomma.r.library")))
+                      remove.packages("nullkommafixture", lib = getOption("nullkomma.r.library"))
+                    '
+                    find "$HOME" -type f -exec sha256sum {} + | sort > external-after
+                    cmp external-before external-after
+                    if Rscript --vanilla .R/install.R > failure.log 2>&1; then
+                      echo "Installer accepted a missing project profile" >&2
+                      exit 1
+                    fi
+                    grep -qF 'with its .Rprofile enabled' failure.log
+                    if IN_NIX_SHELL=impure Rscript .R/install.R > failure.log 2>&1; then
+                      echo "Installer accepted a Nix environment" >&2
+                      exit 1
+                    fi
+                    grep -qF 'outside Nix' failure.log
                     IN_NIX_SHELL=impure Rscript -e '
                       stopifnot(!startsWith(.libPaths()[1], file.path(getwd(), ".R", "library")))
                     '
