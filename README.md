@@ -246,6 +246,9 @@ In `nix develop`, use `tasks` to select `terraform` (plan changes) or `deploy`
 (publish). Run `terraform <command> [args]` for other OpenTofu commands.
 Deployment uses [Terranix], including custom domains, `_headers` and `_redirects`;
 `workers.dev` is disabled. In CI, use `nix run .#deploy`.
+The devshell does not build the site: deployment, planning and local Cloudflare
+validation build it on demand. Sandboxed Cloudflare checks still validate the
+built site's configuration without credentials.
 
 Set these variables for an existing private R2 state bucket; in GitHub Actions:
 

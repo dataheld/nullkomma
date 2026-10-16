@@ -1439,6 +1439,33 @@
                     touch $out
                   '';
               cloudflare-config = cloudflare.checks.${system}.test-cloudflare;
+              cloudflare-validation-local =
+                let
+                  nix = pkgs.writeShellScriptBin "nix" ''
+                    set -eu
+                    test "$*" = 'build --no-link --print-out-paths .#deploy.config'
+                    echo ${tfConfig (raw bareCloudflare)}
+                  '';
+                  flake = raw {
+                    imports = [ bareCloudflare ];
+                    perSystem.nullkomma.tests.cloudflare.packages = lib.mkForce [ nix ];
+                  };
+                in
+                pkgs.runCommand "nullkomma-cloudflare-validation-local" { } ''
+                  export HOME="$TMPDIR"
+                  ${lib.getExe (perSystem flake).nullkomma.tests.cloudflare.package}
+                  touch "$out"
+                '';
+              cloudflare-devshell =
+                (raw {
+                  imports = [ bareCloudflare ];
+                  nullkomma.devshell.enable = true;
+                  perSystem =
+                    { pkgs, ... }:
+                    {
+                      packages.site = lib.mkForce (pkgs.runCommand "unbuildable-site" { } "exit 1");
+                    };
+                }).devShells.${system}.default;
               cloudflare-plan =
                 pkgs.runCommand "nullkomma-cloudflare-plan"
                   {
@@ -1524,9 +1551,28 @@
                     test "$TF_INPUT" = 0
                     printf '%s\n' "$@" > "$CALLED"
                   '';
+                  nix = pkgs.writeShellScriptBin "nix" ''
+                    set -eu
+                    test "$1" = run
+                    target="$2"
+                    shift 2
+                    if [[ "''${1-}" == -- ]]; then shift; fi
+                    case "$target" in
+                      .#deploy) exec ${deploy} "$@" ;;
+                      .#deploy.init) exec ${lib.getExe flake.packages.${system}.deploy.init} "$@" ;;
+                      .#deploy.terraform) exec ${lib.getExe flake.packages.${system}.deploy.terraform} "$@" ;;
+                      *) exit 1 ;;
+                    esac
+                  '';
                   flake = raw {
                     imports = [ bareCloudflare ];
-                    perSystem.terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
+                    perSystem = {
+                      terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
+                      nullkomma.tasks = {
+                        deploy.packages = lib.mkForce [ nix ];
+                        terraform.packages = lib.mkForce [ nix ];
+                      };
+                    };
                   };
                   deploy = lib.getExe flake.packages.${system}.deploy;
                   tasks = (perSystem flake).nullkomma.tasks;
