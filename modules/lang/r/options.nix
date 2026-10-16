@@ -9,7 +9,6 @@
     }:
     let
       rlib = import ../../../lib/r.nix { inherit lib; };
-      description = config.nullkomma.r.root + "/DESCRIPTION";
       # Extract snapshot date directly from the flake input's sourceInfo.
       # If nixpkgs-r has an explicit date ref (e.g. rstats-on-nix/YYYY-MM-DD), use it.
       # Otherwise format the locked commit date (lastModifiedDate: "YYYYMMDDhhmmss" -> "YYYY-MM-DD").
@@ -32,13 +31,13 @@
           default = self.outPath;
           defaultText = lib.literalExpression "self.outPath";
           example = lib.literalExpression "./pkg";
-          description = "R project directory (containing `DESCRIPTION`); a path literal if not the repo root.";
+          description = "R package directory (containing `DESCRIPTION`); a path literal if not the repo root.";
         };
         description = lib.mkOption {
-          type = lib.types.nullOr lib.types.path;
-          default = if builtins.pathExists description then description else null;
-          defaultText = lib.literalExpression ''root + "/DESCRIPTION" (if it exists)'';
-          description = "R DESCRIPTION file, where R dependencies are declared; `nix run .#r-lock` resolves them into `nullkomma.r.lockfile`.";
+          type = lib.types.path;
+          default = config.nullkomma.r.root + "/DESCRIPTION";
+          defaultText = lib.literalExpression ''root + "/DESCRIPTION"'';
+          description = "DESCRIPTION of the R package, where its dependencies are declared; `nix run .#r-lock` resolves them into `nullkomma.r.lockfile`.";
         };
         lockfile = lib.mkOption {
           type = lib.types.path;
@@ -89,10 +88,7 @@
         fields = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           default =
-            rlib.defaultFields
-            ++ lib.optionals (config.nullkomma.r.description != null) (
-              rlib.configNeedsFields (builtins.readFile config.nullkomma.r.description)
-            );
+            rlib.defaultFields ++ rlib.configNeedsFields (builtins.readFile config.nullkomma.r.description);
           defaultText = lib.literalMD "`Depends`, `Imports`, `LinkingTo`, `Suggests`, and all `Config/Needs/*` fields in DESCRIPTION";
           description = "DESCRIPTION fields whose packages pak resolves. Override with only `Depends`, `Imports` and `LinkingTo` for runtime-only dependencies.";
         };

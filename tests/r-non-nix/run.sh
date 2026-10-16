@@ -76,16 +76,19 @@ rm examples.R
 mkdir -p nix .github/workflows .vscode .direnv
 touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json \
   .direnv/cache .envrc project-only.txt
-R CMD build --no-build-vignettes --no-manual .
-tar -tf nullkommafixture_0.0.1.tar.gz >/tmp/package-files
+Rscript - <<'RS'
+  pak::pkg_install("rcmdcheck", lib = getOption("nullkomma.r.library"), ask = FALSE)
+  rcmdcheck::rcmdcheck(
+    build_args = c("--no-build-vignettes", "--no-manual"),
+    args = c("--no-manual", "--ignore-vignettes"),
+    error_on = "warning",
+    check_dir = "/tmp/rcmdcheck"
+  )
+RS
+tar -tf /tmp/rcmdcheck/nullkommafixture_0.0.1.tar.gz >/tmp/package-files
 if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]Rprofile|[.]Renviron|[.]envrc|[.]direnv|[.]github|[.]vscode|project-only[.]txt)(/|$))' /tmp/package-files; then
   echo "Development-only files leaked into the package source" >&2
   exit 1
 fi
 grep -qx 'nullkommafixture/R/hello.R' /tmp/package-files
 grep -qx 'nullkommafixture/DESCRIPTION' /tmp/package-files
-R CMD check --no-manual --ignore-vignettes nullkommafixture_0.0.1.tar.gz
-if grep -Eq '^Status: .*(WARNING|ERROR)' nullkommafixture.Rcheck/00check.log; then
-  cat nullkommafixture.Rcheck/00check.log >&2
-  exit 1
-fi

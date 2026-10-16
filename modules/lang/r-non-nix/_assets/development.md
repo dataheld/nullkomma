@@ -8,7 +8,8 @@ Package Manager (PPM) repository, and creates a writable library in
 startup. Other user and site libraries are excluded from this project's library
 search path; R's own base/recommended library remains available. Your existing
 libraries and global defaults are not modified. Do not use `R --vanilla`: it skips
-these project settings.
+these project settings. For a quiet terminal session that never restores or saves
+workspace contents, use `R --quiet --no-save --no-restore`.
 
 #### Install dependencies
 
@@ -54,52 +55,3 @@ and neither your R installation nor system libraries are pinned by this setup.
 `pak::lockfile_install()` reproduces the lock's source-package choices instead,
 but may need compilation and working source URLs. Keep `.Renviron`, `.Rprofile`
 and these instructions committed so collaborators need no Nix-generated files.
-
-#### Build and check a package
-
-For projects with a `Package:` field in `DESCRIPTION`, run these commands in a
-terminal from the project directory (replace the archive name with your package
-and version):
-
-If `man/*.Rd` is generated and Git-ignored, first run
-`roxygen2::roxygenise()` in R. Declare roxygen2 in `Config/Needs/development`
-so the dependency installation above supplies it (or install it once with
-`install.packages("roxygen2", lib = getOption("nullkomma.r.library"))`).
-Keep the generated `NAMESPACE` committed.
-The Nix development tasks generate manuals automatically, but plain R does not.
-
-```sh
-R CMD build .
-R CMD check yourpackage_0.1.0.tar.gz
-```
-
-The committed `.Rbuildignore` excludes Nix files, lockfiles, editor/CI settings,
-startup files and the local library from the source package. Existing project
-exclusions are preserved when setting it up. Building manuals and vignettes may
-require additional tools such as LaTeX; CRAN's submission requirements still
-apply.
-
-#### Optional R version management with rig
-
-[rig](https://rig.r-lib.org/) can install and select R without requiring Nix.
-With a recent rig supporting [user mode](https://rig.r-lib.org/admin-vs-user-mode.html),
-replace `<version>` below with `NULLKOMMA_R_VERSION` from `.Renviron`:
-
-```sh
-rig add --user --without-pak <version>
-rig run --user --r-version <version> -f .R/install.R
-rig run --user --r-version <version>
-```
-
-The R interpreter is installed per-user, not per-repo; packages still go into
-this repo's `.R/library/`. No `rig default`, `rig library default`, or mode
-migration is needed. Older rig releases may not support `--user`; upgrade first
-rather than falling back to an administrator installation. In particular,
-admin-mode installs on macOS can replace another patch version of R.
-
-[`rig library`](https://rig.r-lib.org/reference/library.html) manages named
-user-wide libraries, not repo-local ones. We do not switch their default or
-install into them. Rig's experimental [`rig proj`](https://rig.r-lib.org/proj-guide.html)
-provides project environments, but introduces `rproj.toml` and `rproj.lock`;
-this setup deliberately keeps DESCRIPTION and pak's `pkg.lock` as its only
-dependency declarations. Rig is optional and never runs during R startup.

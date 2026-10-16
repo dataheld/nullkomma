@@ -115,10 +115,22 @@
       # Toggles each plugin; opt-in plugins are enabled instead.
       toggled = lib.genAttrs (lib.attrNames plugins) (
         name:
-        callFlakeWith {
-          imports = [ { nullkomma.cloudflare.worker = "fixture-site"; } ];
-          nullkomma.${name}.enable = !fixtures.md.debug.config.nullkomma.${name}.enable;
-        } ../../tests/fixtures/md
+        callFlakeWith
+          {
+            imports = [ { nullkomma.cloudflare.worker = "fixture-site"; } ];
+            nullkomma.${name}.enable = !fixtures.md.debug.config.nullkomma.${name}.enable;
+          }
+          (
+            if
+              lib.elem name [
+                "r"
+                "r-non-nix"
+              ]
+            then
+              ../../tests/fixtures/r
+            else
+              ../../tests/fixtures/md
+          )
       );
       bareCloudflare = {
         imports = [ plugins.cloudflare ];
@@ -141,11 +153,12 @@
             devshell.enable = false;
           };
       } ../../tests/fixtures/md;
-      raw =
-        module:
+      raw = rawAt ../../tests/fixtures/md;
+      rawAt =
+        src: module:
         inputs.flake-parts.lib.mkFlake
           {
-            inputs.self.outPath = ../../tests/fixtures/md;
+            inputs.self.outPath = src;
           }
           {
             imports = [
@@ -442,6 +455,36 @@
                 "R6"
               ];
             };
+            testRBuildignore = {
+              expr =
+                let
+                  core = (perSystem fixtures.r).nullkomma.files.".Rbuildignore";
+                  nested = callFlakeWith {
+                    nullkomma.r.root = ../../tests/fixtures/r/R;
+                    nullkomma.r.lockfile = ../../tests/fixtures/r/R + "/deps/selected.lock";
+                  } ../../tests/fixtures/r;
+                in
+                {
+                  source = core.mode;
+                  baseline = core.initialSource == ../../tests/fixtures/r/.Rbuildignore;
+                  externalFiles = lib.filter (lib.hasSuffix ".Rbuildignore") (
+                    lib.attrNames (perSystem fixtures.r-production).nullkomma.files
+                  );
+                  preservesRules = lib.hasPrefix (builtins.readFile ../../tests/fixtures/r/.Rbuildignore) core.text;
+                  uniqueRule = lib.length (lib.filter (line: line == "^[.]envrc$") (lib.splitString "\n" core.text));
+                  nestedLock =
+                    lib.hasInfix "^deps/selected\\.lock$"
+                      (perSystem nested).nullkomma.files."R/.Rbuildignore".text;
+                };
+              expected = {
+                source = "source";
+                baseline = true;
+                externalFiles = [ ];
+                preservesRules = true;
+                uniqueRule = 1;
+                nestedLock = true;
+              };
+            };
             testRIntegrations = {
               expr = {
                 air = (perSystem fixtures.r).treefmt.programs.air.enable;
@@ -475,7 +518,6 @@
                 air = true;
                 tests = [
                   "r-cmd-check"
-                  "r-lock"
                   "r-namespace"
                   "r-testthat"
                   "r-testthat-installed"
@@ -490,7 +532,6 @@
                 profile = false;
                 optedInProfile = "source";
                 checkDisabled = [
-                  "r-lock"
                   "r-namespace"
                   "r-testthat"
                   "r-testthat-installed"
@@ -605,7 +646,6 @@
                   disabledFiles = lib.any (f: (perSystem fixtures.r).nullkomma.files ? ${f}) [
                     ".Rprofile"
                     ".Renviron"
-                    ".Rbuildignore"
                     ".R/install.R"
                     "README.md"
                   ];
@@ -637,15 +677,15 @@
             testRNonNixPlugin = {
               expr =
                 let
-                  standalone = raw {
+                  standalone = rawAt ../../tests/fixtures/r {
                     imports = [ plugins.r-non-nix ];
                     nullkomma.r-non-nix.enable = true;
                   };
-                  core = raw {
+                  core = rawAt ../../tests/fixtures/r {
                     imports = [ plugins.r ];
                     nullkomma.r.enable = true;
                   };
-                  overlapping = raw {
+                  overlapping = rawAt ../../tests/fixtures/r {
                     imports = [
                       plugins.r
                       plugins.r-non-nix
@@ -686,7 +726,7 @@
                   "README.md"
                 ];
                 duplicateImports = true;
-                coreFiles = [ ];
+                coreFiles = [ ".Rbuildignore" ];
                 coreLibrary = true;
                 coreHasCompanion = false;
                 defaultDisabled = false;
@@ -717,7 +757,9 @@
                     .success;
                   bootstrap = rWithoutLockfile.packages.${system}.r-lock.type;
                   skipLock = (perSystem fixtures.r).nullkomma.tasks.r-lock.skip;
-                  withoutDescription = (perSystem rWithoutDescription).nullkomma.r.lock;
+                  withoutDescription =
+                    (builtins.tryEval (builtins.deepSeq (perSystem rWithoutDescription).nullkomma.r.packages null))
+                    .success;
                 };
               expected = {
                 tools = [
@@ -736,17 +778,12 @@
                 missingLock = false;
                 bootstrap = "derivation";
                 skipLock = true;
-                withoutDescription = {
-                  nixpkgs = [ ];
-                  sources = { };
-                  refs = [ ];
-                };
+                withoutDescription = false;
               };
             };
             testRWorkflowSelection = {
               expr = {
                 tasks = lib.filter (lib.hasPrefix "r-") (lib.attrNames (perSystem fixtures.r).nullkomma.tasks);
-                withoutPackage = (perSystem rWithoutDescription).nullkomma.r.packages;
                 heavyweightDefaults = lib.filter (name: lib.elem name (perSystem fixtures.r).nullkomma.r.packages) [
                   "pkgdown"
                   "lintr"
@@ -765,10 +802,6 @@
                   "r-lock"
                   "r-test"
                   "r-test-installed"
-                ];
-                withoutPackage = [
-                  "languageserver"
-                  "pak"
                 ];
                 heavyweightDefaults = [ ];
                 browserByDefault = false;
@@ -843,18 +876,6 @@
               ];
             };
           };
-          rLockFailure =
-            text: message:
-            pkgs.testers.testBuildFailure' {
-              name = "nullkomma-r-lock-rejects";
-              drv =
-                (callFlakeWith {
-                  nullkomma.r.description = builtins.toFile "DESCRIPTION" text;
-                  nullkomma.r.fields = fixtures.r.debug.config.nullkomma.r.fields;
-                } ../../tests/fixtures/r).checks.${system}.test-r-lock;
-              expectedBuilderExitCode = 1;
-              expectedBuilderLogEntries = [ message ];
-            };
           nonNixProject =
             pkgs.runCommand "nullkomma-r-non-nix-project" { nativeBuildInputs = [ pkgs.git ]; }
               ''
@@ -1067,6 +1088,63 @@
               )
             ) rejects
             // {
+              r-files =
+                pkgs.runCommand "nullkomma-r-files"
+                  {
+                    nativeBuildInputs = [
+                      pkgs.git
+                      pkgs.R
+                    ];
+                  }
+                  ''
+                    cp -R ${../../tests/fixtures/r} project
+                    chmod -R u+w project
+                    cd project
+                    git init -q
+                    ${lib.getExe (perSystem fixtures.r).nullkomma.tasks.write-files.package}
+                    test ! -e .Rprofile
+                    test ! -e .Renviron
+                    test ! -e .R/install.R
+                    grep -qxF '^project-only[.]txt$' .Rbuildignore
+                    test "$(grep -xcF '^[.]envrc$' .Rbuildignore)" = 1
+                    mkdir -p nix .github/workflows .vscode .direnv .R/library
+                    touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json \
+                      .direnv/cache .R/library/sentinel .envrc project-only.txt
+                    export HOME="$TMPDIR/home"
+                    mkdir -p "$HOME"
+                    R CMD build --no-build-vignettes --no-manual .
+                    tar -tf nullkommafixture_0.0.1.tar.gz > package-files
+                    if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|project-only[.]txt)(/|$))' package-files; then
+                      echo "Development-only files leaked into the Nix-only package source" >&2
+                      exit 1
+                    fi
+                    grep -qx 'nullkommafixture/R/hello.R' package-files
+                    touch "$out"
+                  '';
+              r-interactive =
+                pkgs.runCommand "nullkomma-r-interactive"
+                  { nativeBuildInputs = (perSystem fixtures.r).nullkomma.devshell.packages; }
+                  ''
+                    export HOME="$TMPDIR/home"
+                    mkdir -p "$HOME"
+                    unset R_PROFILE_USER R_ENVIRON_USER
+                    echo 'profile_loaded <- TRUE' > .Rprofile
+                    Rscript --vanilla -e 'restore_me <- TRUE; save(restore_me, file = ".RData")'
+                    sha256sum .RData > workspace-before
+                    printf 'if (exists("restore_me") || !exists("profile_loaded")) q(status = 1)\ncreated <- TRUE\nq()\n' | R --interactive > session.log 2>&1
+                    sha256sum -c workspace-before
+                    rm .RData
+                    printf 'created <- TRUE\nq()\n' | R --interactive >> session.log 2>&1
+                    test ! -e .RData
+                    if grep -E 'R version|Copyright|Save workspace|save workspace|Restored' session.log; then
+                      echo "Interactive R printed startup chatter or asked to save" >&2
+                      exit 1
+                    fi
+                    R CMD config CC > compiler
+                    test -s compiler
+                    Rscript --vanilla -e 'stopifnot(!exists("profile_loaded"))'
+                    touch "$out"
+                  '';
               r-non-nix-files = nonNixProject;
               r-non-nix-profile =
                 pkgs.runCommand "nullkomma-r-non-nix-profile" { nativeBuildInputs = [ pkgs.R ]; }
@@ -1108,6 +1186,19 @@
                       exit 1
                     fi
                     grep -qF 'outside Nix' failure.log
+                    Rscript - <<'RS'
+                      local({
+                        library <- getOption("nullkomma.r.library")
+                        options(nullkomma.r.library = tempdir())
+                        failure <- tryCatch(source(".R/install.R"), error = conditionMessage)
+                        stopifnot(identical(failure, "The project library must be first in .libPaths(); restart R from the project directory."))
+                        options(nullkomma.r.library = library)
+                        on.exit(Sys.chmod(library, "0755"))
+                        Sys.chmod(library, "0555")
+                        failure <- tryCatch(source(".R/install.R"), error = conditionMessage)
+                        stopifnot(identical(failure, paste0("The project R library is not writable: ", library)))
+                      })
+                    RS
                     IN_NIX_SHELL=impure Rscript -e '
                       stopifnot(!startsWith(.libPaths()[1], file.path(getwd(), ".R", "library")))
                     '
@@ -1147,33 +1238,10 @@
                     fi
                     touch $out
                   '';
-              r-lock-rejects-stale = rLockFailure ''
-                Package: nullkommafixture
-                Imports: digest
-                Remotes: r-lib/withr@main
-              '' "DESCRIPTION depends on digest, which the lockfile lacks.";
-              r-lock-rejects-constraint = rLockFailure ''
-                Package: nullkommafixture
-                Suggests: testthat (>= 99.0)
-              '' "DESCRIPTION requires testthat (>= 99.0)";
-              r-lock-rejects-remotes = rLockFailure ''
-                Package: nullkommafixture
-                Remotes: r-lib/withr@main
-              '' "DESCRIPTION has `Remotes: r-lib/withr@main`, which the lockfile lacks.";
               r-tests-use-working-tree = pkgs.runCommand "nullkomma-r-working-tree" { } ''
                 cp -r ${../../tests/fixtures/r} project
                 chmod -R u+w project
                 cd project
-                printf '\nImports: digest\n' > DESCRIPTION
-                if ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-lock.package} > failure.log 2>&1; then
-                  echo "R lock test ignored the edited DESCRIPTION" >&2
-                  exit 1
-                fi
-                grep -qF "DESCRIPTION depends on digest, which the lockfile lacks." failure.log || {
-                  cat failure.log >&2
-                  exit 1
-                }
-                cp ${../../tests/fixtures/r/DESCRIPTION} DESCRIPTION
                 echo 'stop("local-r-source-marker")' >> R/hello.R
                 if ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-cmd-check.package} > failure.log 2>&1; then
                   echo "R CMD check ignored the edited package source" >&2

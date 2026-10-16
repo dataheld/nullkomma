@@ -16,10 +16,10 @@ in
     };
     r = {
       path = ../templates/r;
-      description = "R project: pak dependencies, formatting, language server and package checks";
+      description = "R package: pak dependencies, formatting, language server and package checks";
       welcomeText = welcomeText + ''
 
-        If DESCRIPTION already exists, run `nix run .#r-lock` before step 2.
+        R projects are packages: add a DESCRIPTION, then run `nix run .#r-lock` before step 2.
       '';
     };
   };

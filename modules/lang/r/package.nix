@@ -46,12 +46,8 @@
           base = pkgsR.rPackages;
 
           lock =
-            if cfg.description == null then
-              {
-                nixpkgs = [ ];
-                sources = { };
-                refs = [ ];
-              }
+            if !builtins.pathExists cfg.description then
+              throw "nullkomma.r: `${baseNameOf cfg.description}` is missing; R projects must be packages with a DESCRIPTION."
             else if !builtins.pathExists cfg.lockfile then
               throw "nullkomma.r: the lockfile `${baseNameOf cfg.lockfile}` of DESCRIPTION is missing; create it with `nix run .#r-lock` (flakes only see files known to git)."
             else

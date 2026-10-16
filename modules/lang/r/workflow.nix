@@ -9,8 +9,6 @@
     }:
     let
       cfg = config.nullkomma.r;
-      rlib = import ../../../lib/r.nix { inherit lib; };
-      isPackage = cfg.description != null && rlib.hasPackageField (builtins.readFile cfg.description);
       locked =
         if builtins.pathExists cfg.lockfile then
           map (p: p.package) (lib.importJSON cfg.lockfile).packages
@@ -26,14 +24,13 @@
       options.nullkomma.r = {
         document.enable = lib.mkOption {
           type = lib.types.bool;
-          default = isPackage;
-          defaultText = lib.literalMD "whether DESCRIPTION has a `Package` field";
+          default = true;
           description = "Generate roxygen2 documentation before package workflows; disable for hand-written manuals. Keep NAMESPACE committed; generated man/*.Rd files are Git-ignored.";
         };
         testthat.enable = lib.mkOption {
           type = lib.types.bool;
-          default = isPackage && lib.elem "testthat" locked;
-          defaultText = lib.literalMD "whether this is a package with testthat in pkg.lock";
+          default = lib.elem "testthat" locked;
+          defaultText = lib.literalMD "whether testthat is in pkg.lock";
           description = "Run testthat against both the development source and an installed package.";
         };
         pkgdown.enable = lib.mkOption {

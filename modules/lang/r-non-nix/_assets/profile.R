@@ -4,7 +4,7 @@ local({
     stop("Missing project R settings; restore .Renviron and restart R.", call. = FALSE)
   }
   fields <- strsplit(Sys.getenv("NULLKOMMA_R_DEPENDENCIES"), ",", fixed = TRUE)[[1]]
-  if (Sys.getenv("NULLKOMMA_R_ALL_CONFIG_NEEDS") == "true" && file.exists("DESCRIPTION")) {
+  if (Sys.getenv("NULLKOMMA_R_ALL_CONFIG_NEEDS") == "true") {
     fields <- unique(c(fields, grep("^Config/Needs/", colnames(read.dcf("DESCRIPTION")), value = TRUE)))
   }
   options(

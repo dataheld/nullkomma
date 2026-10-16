@@ -21,9 +21,6 @@ rec {
       ) (lib.splitString "\n" text)
     );
 
-  # Cheap presence test: DCF field names start a line, continuations are indented.
-  hasPackageField = text: lib.any (lib.hasPrefix "Package:") (lib.splitString "\n" text);
-
   # Match nixpkgs' r-modules/generate-r-packages.R, including reserved names.
   attrName =
     name:
@@ -134,6 +131,5 @@ rec {
             )
           ) offNixpkgs
         );
-        refs = map (p: p.ref) packages;
       };
 }

@@ -13,9 +13,7 @@
     let
       cfg = config.nullkomma.r;
       relative = path: lib.removePrefix "${toString self}/" (toString path);
-      description = relative (
-        if cfg.description != null then cfg.description else cfg.root + "/DESCRIPTION"
-      );
+      description = relative cfg.description;
       fields = lib.concatMapStringsSep ", " builtins.toJSON cfg.fields;
     in
     {
@@ -37,7 +35,6 @@
             packages = [
               pkgs.coreutils
               pkgs.git
-              pkgs.gnugrep
               (pkgsR.rWrapper.override { packages = [ pkgsR.rPackages.pak ]; })
             ];
             command = ''
@@ -45,21 +42,13 @@
               description=${lib.escapeShellArg description}
               lockfile=${lib.escapeShellArg (relative cfg.lockfile)}
               if [ ! -f "$description" ]; then
-                echo "nullkomma: $description not found" >&2
+                echo "nullkomma: $description not found; R projects must be packages" >&2
                 exit 1
               fi
               tmp="$(mktemp -d)"
               trap 'rm -rf "$tmp"' EXIT
               mkdir "$tmp/library"
               cp "$description" "$tmp/DESCRIPTION"
-              # pak's deps:: references need these, which non-package projects may lack
-              for field in Package:project Version:0.0.0; do
-                name="''${field%%:*}"
-                if ! grep -q "^$name:" "$tmp/DESCRIPTION"; then
-                  { echo "$name: ''${field#*:}"; cat "$tmp/DESCRIPTION"; } > "$tmp/prefixed"
-                  mv "$tmp/prefixed" "$tmp/DESCRIPTION"
-                fi
-              done
               (
                 cd "$tmp"
                 Rscript --vanilla - <<'EOF'
