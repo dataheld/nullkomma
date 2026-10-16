@@ -653,7 +653,6 @@
                     ];
                     nullkomma.r-non-nix.enable = true;
                   };
-                  legacy = path: callFlakeWith (lib.setAttrByPath path true) ../../tests/fixtures/r;
                   files = flake: (perSystem flake).nullkomma.files;
                   nested = callFlakeWith {
                     nullkomma.r-non-nix.enable = true;
@@ -673,20 +672,6 @@
                   coreLibrary = lib.hasInfix "R_LIBS_USER" (perSystem core).nullkomma.devshell.shellHook;
                   coreHasCompanion = core.debug.options.nullkomma ? r-non-nix;
                   defaultDisabled = fixtures.r.debug.config.nullkomma.r-non-nix.enable;
-                  legacyFiles = map (path: files (legacy path) == files rWithProfile) [
-                    [
-                      "nullkomma"
-                      "r"
-                      "nonNix"
-                      "enable"
-                    ]
-                    [
-                      "nullkomma"
-                      "r"
-                      "rprofile"
-                      "enable"
-                    ]
-                  ];
                   nestedProfile = files nested ? "R/.Rprofile";
                   nestedIgnore = lib.elem "R/.R/library/" nested.debug.config.nullkomma.gitignore;
                   disabledDependency = (builtins.tryEval conflict.debug.config.nullkomma.r.enable).success;
@@ -705,10 +690,6 @@
                 coreLibrary = true;
                 coreHasCompanion = false;
                 defaultDisabled = false;
-                legacyFiles = [
-                  true
-                  true
-                ];
                 nestedProfile = true;
                 nestedIgnore = true;
                 disabledDependency = false;

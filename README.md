@@ -424,9 +424,6 @@ no additional flake input is needed.
 The `r` plugin alone keeps Nix development shells, lock generation, checks and
 package workflows, without emitting compatibility files. Snapshot and PPM settings
 remain under `nullkomma.r` because `r-lock` also uses them.
-The old `nullkomma.r.nonNix.enable` and `nullkomma.r.rprofile.enable` options
-are deprecated aliases, available when the companion module is imported
-(including through `flakeModules.default` and `lib.mkFlake`).
 
 <!-- nullkomma:r-development:start -->
 

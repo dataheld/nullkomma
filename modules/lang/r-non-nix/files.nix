@@ -27,17 +27,7 @@ in
       );
     in
     {
-      imports = [
-        rModule
-        (lib.mkRenamedOptionModule
-          [ "nullkomma" "r" "nonNix" "enable" ]
-          [ "nullkomma" "r-non-nix" "enable" ]
-        )
-        (lib.mkRenamedOptionModule
-          [ "nullkomma" "r" "rprofile" "enable" ]
-          [ "nullkomma" "r-non-nix" "enable" ]
-        )
-      ];
+      imports = [ rModule ];
       config = lib.mkIf config.nullkomma.r-non-nix.enable {
         nullkomma.r.enable = true;
         nullkomma.gitignore = [ "${prefix}.R/library/" ];
