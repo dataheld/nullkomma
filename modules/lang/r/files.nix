@@ -32,7 +32,12 @@
         "^pkgdown$"
         "^coverage[.]xml$"
         "^${lib.escapeRegex (lib.removePrefix "${toString cfg.root}/" (toString cfg.lockfile))}$"
-      ];
+      ]
+      ++ lib.optional (
+        cfg.pkgdown.enable
+        && cfg.pkgdown.privacy.page != null
+        && lib.any (section: section.enable) (lib.attrValues config.nullkomma.privacy.sections)
+      ) "^${lib.escapeRegex cfg.pkgdown.privacy.page}$";
     in
     {
       options.nullkomma.r.buildIgnore = lib.mkOption {

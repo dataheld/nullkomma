@@ -122,7 +122,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 | [`flakehub`][flakehub]              | [`fh`]      |                        |                                          |                                                               |                                                                  |
 | [`quarto`][quarto] (opt-in)         | quarto⁹     |                        |                                          | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸ | VS Code: [Quarto][vscode-quarto]                                 |
 | [`cloudflare`][cloudflare] (opt-in) | wrangler⁶   |                        | OpenTofu validation                      | ignores `.nullkomma/cloudflare/`                              |                                                                  |
-| [`r`][r] (opt-in)                   | R, pak      | ✅                     | rcmdcheck, testthat, namespace freshness | `.Rbuildignore`, R ignores                                    | R languageserver; VS Code: R, Air                                |
+| [`r`][r] (opt-in)                   | R, pak      | ✅                     | rcmdcheck, testthat, namespace freshness | `.Rbuildignore`, R ignores, `privacy.md`⁸                     | R languageserver; VS Code: R, Air                                |
 | `r-non-nix` (opt-in, enables `r`)   |             |                        |                                          | `.Rprofile`, `.Renviron`, `.R/install.R`, README              |                                                                  |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
@@ -326,6 +326,15 @@ the normal sidebar. `nullkomma.r.pkgdown.override` can instead select a
 local `home.sidebar.html` file. Remote templates, web fonts and network-dependent articles
 must be supplied locally for a reproducible Nix build. If both Quarto and pkgdown
 are enabled, select the intended `perSystem.packages.site` explicitly.
+
+pkgdown also renders `nullkomma.privacy.sections`, including hosting and brand
+sections, to `privacy.html`. Both the local task and the sandboxed build generate
+Git-ignored `privacy.md`, excluded from R package tarballs. Sections follow their
+configured order; each must provide every configured privacy language. Multiple
+languages appear in expandable sections without extra JavaScript or dependencies.
+Set `nullkomma.r.pkgdown.privacy.page = null` to supply your own page, or choose
+another root-level Markdown filename. A project-owned file is never overwritten.
+Link to the HTML page from your pkgdown navigation or brand footer.
 
 Declaring shinytest2 in DESCRIPTION (and refreshing `pkg.lock`) also supplies
 Chromium on Linux and configures chromote for the devshell, checks, and tasks.

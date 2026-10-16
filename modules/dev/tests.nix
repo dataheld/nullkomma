@@ -63,6 +63,41 @@
       rWithWebsite = callFlakeWith {
         nullkomma.r.pkgdown.enable = true;
       } ../../tests/fixtures/r;
+      rPrivacy = {
+        nullkomma.r.pkgdown.enable = true;
+        nullkomma.cloudflare = {
+          enable = true;
+          worker = "r-fixture-site";
+        };
+        nullkomma.privacy.sections = {
+          local = {
+            order = 100;
+            markdown = {
+              en = ../../tests/fixtures/quarto-branded/_privacy/local.en.md;
+              de = ../../tests/fixtures/quarto-branded/_privacy/local.de.md;
+            };
+          };
+          disabled = {
+            enable = false;
+            markdown.en = ../../tests/fixtures/md/README.md;
+          };
+        };
+      };
+      rWithPrivacy = callFlakeWith rPrivacy ../../tests/fixtures/r;
+      rWithoutPrivacy = callFlakeWith {
+        imports = [ rPrivacy ];
+        nullkomma.r.pkgdown.privacy.page = null;
+      } ../../tests/fixtures/r;
+      rEnglishPrivacy = callFlakeWith {
+        imports = [ rPrivacy ];
+        nullkomma.r.pkgdown.privacy.page = "legal.md";
+        nullkomma.privacy.languages = [
+          {
+            code = "en";
+            label = "English";
+          }
+        ];
+      } ../../tests/fixtures/r;
       rWithShiny = callFlakeWith {
         nullkomma.r.extraPackages = [ "shinytest2" ];
       } ../../tests/fixtures/r;
@@ -781,6 +816,49 @@
                 withoutDescription = false;
               };
             };
+            testRPkgdownPrivacy = {
+              expr =
+                let
+                  files = (perSystem rWithPrivacy).nullkomma.files;
+                  english = (perSystem rEnglishPrivacy).nullkomma.files."legal.md".text;
+                  missing = callFlakeWith {
+                    imports = [ rPrivacy ];
+                    nullkomma.privacy.languages = [
+                      {
+                        code = "fr";
+                        label = "Français";
+                      }
+                    ];
+                  } ../../tests/fixtures/r;
+                in
+                {
+                  generated = files."privacy.md".mode;
+                  bilingual =
+                    lib.hasInfix "Local section in English" files."privacy.md".text
+                    && lib.hasInfix "Lokaler Abschnitt auf Deutsch" files."privacy.md".text;
+                  singleLanguage =
+                    lib.hasInfix "Local section in English" english
+                    && !(lib.hasInfix "Deutsch" english)
+                    && !(lib.hasInfix "<details" english);
+                  plain = (perSystem rWithWebsite).nullkomma.files ? "privacy.md";
+                  disabled = (perSystem rWithoutPrivacy).nullkomma.files ? "privacy.md";
+                  missingLanguage =
+                    (builtins.tryEval (builtins.deepSeq (perSystem missing).nullkomma.files."privacy.md".text true))
+                    .success;
+                  excluded = lib.hasInfix "^privacy\\.md$" rWithPrivacy.debug.config.nullkomma.r.buildIgnore;
+                  renamedExcluded = lib.hasInfix "^legal\\.md$" rEnglishPrivacy.debug.config.nullkomma.r.buildIgnore;
+                };
+              expected = {
+                generated = "generated";
+                bilingual = true;
+                singleLanguage = true;
+                plain = false;
+                disabled = false;
+                missingLanguage = false;
+                excluded = true;
+                renamedExcluded = true;
+              };
+            };
             testRWorkflowSelection = {
               expr = {
                 tasks = lib.filter (lib.hasPrefix "r-") (lib.attrNames (perSystem fixtures.r).nullkomma.tasks);
@@ -1008,6 +1086,56 @@
                 test -s "$site/reference/hello.html"
                 epoch="$(date -u -d "@$SOURCE_DATE_EPOCH" +%Y-%m-%dT%H:%MZ)"
                 grep -qF "last_built: $epoch" "$site/pkgdown.yml"
+                touch "$out"
+              '';
+              r-pkgdown-privacy = pkgs.runCommand "r-pkgdown-privacy" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+                site=${rWithPrivacy.packages.${system}.site}
+                english=${rEnglishPrivacy.packages.${system}.site}
+                disabled=${rWithoutPrivacy.packages.${system}.site}
+                test ! -e "$disabled/privacy.html"
+                python - "$site/privacy.html" "$english/legal.html" <<'PY'
+                import sys
+                from html.parser import HTMLParser
+                from pathlib import Path
+
+                class Text(HTMLParser):
+                    def __init__(self, path):
+                        super().__init__()
+                        self.parts = []
+                        self.feed(Path(path).read_text())
+                    def handle_data(self, data):
+                        self.parts.append(data)
+
+                policy, english = (" ".join(Text(path).parts) for path in sys.argv[1:])
+                assert "Privacy Policy" in policy
+                assert "Generated by nullkomma" not in policy
+                assert policy.index("Local section in English") < policy.index("Hosting, delivery, security and web analytics by Cloudflare")
+                assert "Lokaler Abschnitt auf Deutsch" in policy
+                assert "Local section in English" in english
+                assert "Deutsch" not in english
+                PY
+                touch "$out"
+              '';
+              r-pkgdown-privacy-local = pkgs.runCommand "r-pkgdown-privacy-local" { } ''
+                cp -R ${../../tests/fixtures/r} project
+                chmod -R u+w project
+                cd project
+                export HOME="$TMPDIR/home"
+                mkdir -p "$HOME"
+                printf 'home:\n  sidebar: false\n' > _pkgdown.yml
+                ${lib.getExe (perSystem rWithPrivacy).nullkomma.tasks.r-pkgdown.package}
+                test -s docs/privacy.html
+                grep -qF 'Local section in English' docs/privacy.html
+                grep -qF 'Lokaler Abschnitt auf Deutsch' docs/privacy.html
+                head -n 1 privacy.md | grep -q '^<!-- Generated by nullkomma.* -->$'
+                chmod u+w privacy.md
+                printf 'own policy\n' > privacy.md
+                if ${lib.getExe (perSystem rWithPrivacy).nullkomma.tasks.r-pkgdown.package} > failure.log 2>&1; then
+                  echo "Project-owned privacy page was overwritten" >&2
+                  exit 1
+                fi
+                grep -qF 'set nullkomma.r.pkgdown.privacy.page = null' failure.log
+                test "$(cat privacy.md)" = 'own policy'
                 touch "$out"
               '';
               r-lintr = rWithQuality.checks.${system}.test-r-lintr;
