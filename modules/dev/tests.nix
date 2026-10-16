@@ -1147,27 +1147,6 @@
                     fi
                     touch $out
                   '';
-              flakehub-visibility = pkgs.runCommand "nullkomma-flakehub-visibility" { } ''
-                ${pkgs.nodejs}/bin/node <<'JS'
-                const assert = require("node:assert/strict");
-                const fs = require("node:fs");
-                const workflow = fs.readFileSync("${../../.github/workflows/ci.yml}", "utf8");
-                assert.match(workflow, /        default: auto\n/);
-                const expression = workflow.match(/          visibility: \$\{\{ (.+) \}\}/)[1];
-                const visibility = new Function("inputs", "github", "return (" + expression + ");");
-                for (const isPrivate of [false, true]) {
-                  for (const input of ["auto", "public", "unlisted", "private", ""]) {
-                    const actual = visibility(
-                      {visibility: input},
-                      {event: {repository: {private: isPrivate}}},
-                    );
-                    const expected = input === "auto" ? (isPrivate ? "private" : "public") : input;
-                    assert.equal(actual, expected);
-                  }
-                }
-                JS
-                touch $out
-              '';
               r-lock-rejects-stale = rLockFailure ''
                 Package: nullkommafixture
                 Imports: digest
@@ -1357,8 +1336,7 @@
                   tasks = (perSystem flake).nullkomma.tasks;
                 in
                 pkgs.runCommand "nullkomma-cloudflare-deploy" { } ''
-                  export CALLED=$PWD/called CLOUDFLARE_STATE_BUCKET=state
-                  export CLOUDFLARE_ACCOUNT_ID=0123456789abcdef0123456789abcdef
+                  export CALLED=$PWD/called CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
                   ${deploy}
                   test -f "$CALLED"
                   rm "$CALLED"

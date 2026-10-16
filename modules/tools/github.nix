@@ -62,7 +62,7 @@
             example = {
               visibility = "public";
             };
-            description = "Inputs of the reusable `ci.yml`. FlakeHub visibility defaults to repository privacy; set `visibility` to public, unlisted or private to override it, or an empty string to skip publishing.";
+            description = "Inputs of the reusable `ci.yml` (`visibility` publishes to FlakeHub).";
           };
           secrets = lib.mkOption {
             type = lib.types.listOf lib.types.str;

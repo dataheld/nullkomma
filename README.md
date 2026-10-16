@@ -137,11 +137,7 @@ exists; add the tools they call with `perSystem.nullkomma.shell.bats.packages`.
 `*.bats` files are formatted and linted like other shell scripts.
 
 ⁴ `.github/workflows/push.yml`, a stub calling nullkomma's reusable CI workflow,
-which runs `nix flake check` and publishes to FlakeHub after successful checks
-on default-branch and tag pushes (not forks). Releases are public for public
-repositories and private for private repositories. Override
-`nullkomma.github.ci.inputs.visibility` with `"public"`, `"unlisted"` or
-`"private"`, or set it to `""` to opt out.
+which runs `nix flake check` and can publish to FlakeHub.
 
 ⁵ Generated (Git-ignored) from the Editor column: VS Code settings and
 recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
@@ -192,7 +188,7 @@ Options live under `nullkomma.*`, for example:
 
 ```nix
 inputs.nullkomma.lib.mkFlake { inherit inputs; } {
-  nullkomma.github.ci.inputs.visibility = "unlisted"; # override repository privacy
+  nullkomma.github.ci.inputs.visibility = "public"; # publish to FlakeHub
   perSystem =
     { pkgs, ... }:
     {
