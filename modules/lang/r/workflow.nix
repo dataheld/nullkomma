@@ -86,10 +86,20 @@
             description = "Title of the generated pkgdown privacy page.";
           };
         };
+        pkgdown.config = lib.mkOption {
+          type = lib.types.attrsOf lib.types.anything;
+          default = { };
+          description = "Native pkgdown configuration merged over _pkgdown.yml in both local and sandboxed builds, e.g. template.bslib.brand and footer.components for shared branding.";
+        };
+        pkgdown.assets = lib.mkOption {
+          type = lib.types.nullOr lib.types.path;
+          default = null;
+          description = "Directory generated into pkgdown/assets and copied by pkgdown to the website root in both local and sandboxed builds. Git-ignored; null keeps project-owned assets.";
+        };
         pkgdown.override = lib.mkOption {
           type = lib.types.attrsOf lib.types.anything;
           default.home.sidebar = false;
-          description = "pkgdown configuration overrides for the sandboxed site build. The default disables the network-dependent home sidebar; set home.sidebar.html to a local HTML file to supply your own.";
+          description = "Sandbox-only overrides merged over pkgdown.config. The default disables the network-dependent home sidebar; set home.sidebar.html to a local HTML file to supply your own.";
         };
         lintr.enable = lib.mkOption {
           type = lib.types.bool;
@@ -136,6 +146,13 @@
           ++ lib.optional cfg.document.enable "roxygen2"
           ++ lib.optional cfg.testthat.enable "testthat"
           ++ lib.optional cfg.pkgdown.enable "pkgdown"
+          ++ lib.optional (
+            cfg.pkgdown.enable
+            && (
+              (cfg.pkgdown.config.template.bslib.brand or null) != null
+              || (cfg.pkgdown.override.template.bslib.brand or null) != null
+            )
+          ) "brand.yml"
           ++ lib.optionals cfg.lintr.enable [
             "lintr"
             "pkgload"
@@ -187,6 +204,35 @@
                 exit 1
               fi
               cp --remove-destination ${privacySource} "$privacy_page"
+            '';
+            pkgdownDependencies = import ./_pkgdown-dependencies.nix { inherit pkgs; };
+            pkgdownAssets = pkgs.runCommand "pkgdown-assets" { } ''
+              cp -R ${cfg.pkgdown.assets} "$out"
+              chmod -R u+w "$out"
+              touch "$out/.nullkomma-generated"
+            '';
+            stagePkgdown =
+              stagePrivacy
+              + lib.optionalString (cfg.pkgdown.assets != null) ''
+                if [ -L pkgdown ] || [ -L pkgdown/assets ] || { [ -e pkgdown/assets ] && [ ! -f pkgdown/assets/.nullkomma-generated ]; }; then
+                  echo "pkgdown/assets is project-owned; remove it or set nullkomma.r.pkgdown.assets = null." >&2
+                  exit 1
+                fi
+                mkdir -p pkgdown
+                rm -rf pkgdown/assets
+                cp -R ${pkgdownAssets} pkgdown/assets
+                chmod -R u+w pkgdown/assets
+              ''
+              + ''
+                pkgdown_cache="$(mktemp -d)"
+                trap 'rm -rf "$pkgdown_cache"' EXIT
+                export R_USER_CACHE_DIR="$pkgdown_cache"
+                mkdir -p "$R_USER_CACHE_DIR/R/pkgdown"
+                cp -R ${pkgdownDependencies}/. "$R_USER_CACHE_DIR/R/pkgdown/"
+                chmod -R u+w "$R_USER_CACHE_DIR"
+              '';
+            pkgdownConfig = ''
+              override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
             '';
             check =
               name:
@@ -262,8 +308,11 @@
                   ];
                   command = ''
                     ${prepare}
-                    ${stagePrivacy}
-                    Rscript --vanilla -e 'pkgdown::build_site(preview = FALSE, new_process = FALSE)'
+                    ${stagePkgdown}
+                    Rscript --vanilla - <<'RS'
+                    ${pkgdownConfig}
+                    pkgdown::build_site(override = override, preview = FALSE, new_process = FALSE)
+                    RS
                   '';
                 };
               })
@@ -324,17 +373,25 @@
               lib.mkIf
                 (
                   cfg.pkgdown.enable
-                  && hasPrivacyPage
                   && (toString cfg.root == toString self || lib.hasPrefix "${toString self}/" (toString cfg.root))
                 )
-                {
-                  "${root}${cfg.pkgdown.privacy.page}" = {
-                    mode = "generated";
-                    commentPrefix = "<!--";
-                    commentSuffix = " -->";
-                    text = privacyPage;
-                  };
-                };
+                (
+                  lib.optionalAttrs hasPrivacyPage {
+                    "${root}${cfg.pkgdown.privacy.page}" = {
+                      mode = "generated";
+                      commentPrefix = "<!--";
+                      commentSuffix = " -->";
+                      text = privacyPage;
+                    };
+                  }
+                  // lib.optionalAttrs (cfg.pkgdown.assets != null) {
+                    "${root}pkgdown/assets" = {
+                      mode = "generated";
+                      directory = true;
+                      source = pkgdownAssets;
+                    };
+                  }
+                );
             packages = lib.mkIf cfg.pkgdown.enable {
               site = lib.mkDefault (
                 pkgs.runCommand "r-pkgdown-site"
@@ -352,10 +409,12 @@
                     mkdir -p "$HOME"
                     ${pcfg.setup}
                     ${document}
-                    ${stagePrivacy}
+                    ${stagePkgdown}
                     export PKGDOWN_OUTPUT="$out"
                     Rscript --vanilla - <<'RS'
-                    override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.override)}, simplifyVector = FALSE)
+                    ${pkgdownConfig}
+                    sandbox <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.override)}, simplifyVector = FALSE)
+                    override <- utils::modifyList(override, sandbox)
                     override$destination <- Sys.getenv("PKGDOWN_OUTPUT")
                     pkgdown::build_site(override = override, preview = FALSE, new_process = FALSE)
                     # pkgdown records wall-clock time even in otherwise reproducible builds.

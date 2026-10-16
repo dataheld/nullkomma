@@ -63,6 +63,28 @@
       rWithWebsite = callFlakeWith {
         nullkomma.r.pkgdown.enable = true;
       } ../../tests/fixtures/r;
+      rBranded = {
+        nullkomma.r.pkgdown = {
+          enable = true;
+          assets = ../../tests/fixtures/r-brand/assets;
+          override = {
+            home.sidebar = false;
+            footer.components.brand = ''<span id="sandbox-brand">Sandbox brand footer</span>'';
+          };
+          config = {
+            template = {
+              bootstrap = 5;
+              bslib.brand = ../../tests/fixtures/r-brand/_brand.yml;
+            };
+            home.sidebar = false;
+            footer = {
+              structure.left = "brand";
+              components.brand = ''<span id="shared-brand">Shared brand footer</span>'';
+            };
+          };
+        };
+      };
+      rWithBrand = callFlakeWith rBranded ../../tests/fixtures/r;
       rPrivacy = {
         nullkomma.r.pkgdown.enable = true;
         nullkomma.cloudflare = {
@@ -816,6 +838,24 @@
                 withoutDescription = false;
               };
             };
+            testRPkgdownBrand = {
+              expr = {
+                assets = (perSystem rWithBrand).nullkomma.files."pkgdown/assets".mode;
+                directory = (perSystem rWithBrand).nullkomma.files."pkgdown/assets".directory;
+                ignored = lib.hasInfix "/pkgdown/assets\n" (perSystem rWithBrand).nullkomma.files.".gitignore".text;
+                brandPackage = lib.elem "brand.yml" (perSystem rWithBrand).nullkomma.r.packages;
+                defaultBrandPackage = lib.elem "brand.yml" (perSystem rWithWebsite).nullkomma.r.packages;
+                defaultAssets = (perSystem rWithWebsite).nullkomma.files ? "pkgdown/assets";
+              };
+              expected = {
+                assets = "generated";
+                directory = true;
+                ignored = true;
+                brandPackage = true;
+                defaultBrandPackage = false;
+                defaultAssets = false;
+              };
+            };
             testRPkgdownPrivacy = {
               expr =
                 let
@@ -1086,6 +1126,57 @@
                 test -s "$site/reference/hello.html"
                 epoch="$(date -u -d "@$SOURCE_DATE_EPOCH" +%Y-%m-%dT%H:%MZ)"
                 grep -qF "last_built: $epoch" "$site/pkgdown.yml"
+                touch "$out"
+              '';
+              r-pkgdown-brand = pkgs.runCommand "r-pkgdown-brand" { } ''
+                site=${rWithBrand.packages.${system}.site}
+                grep -qF 'Sandbox brand footer' "$site/index.html"
+                grep -qF '#123456' "$site"/deps/bootstrap-*/*.css
+                cmp ${../../tests/fixtures/r-brand/assets/brand.svg} "$site/brand.svg"
+                test ! -e "$site/.nullkomma-generated"
+                test -s "$site/deps/headroom-0.11.0/headroom.min.js"
+                test -s "$site/deps/headroom-0.11.0/jQuery.headroom.min.js"
+                test -s "$site/deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"
+                test -s "$site/deps/clipboard.js-2.0.11/clipboard.min.js"
+                test -s "$site/deps/search-1.0.0/fuse.min.js"
+                test -s "$site/deps/search-1.0.0/autocomplete.jquery.min.js"
+                test -s "$site/deps/search-1.0.0/mark.min.js"
+                touch "$out"
+              '';
+              r-pkgdown-brand-local = pkgs.runCommand "r-pkgdown-brand-local" { } ''
+                cp -R ${../../tests/fixtures/r} project
+                chmod -R u+w project
+                cd project
+                export HOME="$TMPDIR/home" HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1
+                mkdir -p "$HOME"
+                ${pkgs.git}/bin/git init -q
+                ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.generate-files.package}
+                test -f pkgdown/assets/.nullkomma-generated
+                ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.r-pkgdown.package}
+                grep -qF 'Shared brand footer' docs/index.html
+                grep -qF '#123456' docs/deps/bootstrap-*/*.css
+                cmp ${../../tests/fixtures/r-brand/assets/brand.svg} docs/brand.svg
+                test ! -e docs/.nullkomma-generated
+                test -s docs/deps/headroom-0.11.0/headroom.min.js
+                touch pkgdown/assets/stale.txt
+                ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.r-pkgdown.package}
+                test ! -e pkgdown/assets/stale.txt
+                rm pkgdown/assets/.nullkomma-generated
+                printf 'project-owned asset\n' > pkgdown/assets/keep.txt
+                if ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.r-pkgdown.package} > failure.log 2>&1; then
+                  echo "Project-owned pkgdown assets were overwritten" >&2
+                  exit 1
+                fi
+                grep -qF 'pkgdown/assets is project-owned' failure.log
+                test "$(cat pkgdown/assets/keep.txt)" = 'project-owned asset'
+                rm -rf pkgdown
+                ln -s "$TMPDIR" pkgdown
+                if ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.r-pkgdown.package} > failure.log 2>&1; then
+                  echo "Symlinked pkgdown assets were overwritten" >&2
+                  exit 1
+                fi
+                grep -qF 'pkgdown/assets is project-owned' failure.log
+                test -L pkgdown
                 touch "$out"
               '';
               r-pkgdown-privacy = pkgs.runCommand "r-pkgdown-privacy" { nativeBuildInputs = [ pkgs.python3 ]; } ''

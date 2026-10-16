@@ -122,7 +122,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 | [`flakehub`][flakehub]              | [`fh`]      |                        |                                          |                                                               |                                                                  |
 | [`quarto`][quarto] (opt-in)         | quarto⁹     |                        |                                          | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸ | VS Code: [Quarto][vscode-quarto]                                 |
 | [`cloudflare`][cloudflare] (opt-in) | wrangler⁶   |                        | OpenTofu validation                      | ignores `.nullkomma/cloudflare/`                              |                                                                  |
-| [`r`][r] (opt-in)                   | R, pak      | ✅                     | rcmdcheck, testthat, namespace freshness | `.Rbuildignore`, R ignores, `privacy.md`⁸                     | R languageserver; VS Code: R, Air                                |
+| [`r`][r] (opt-in)                   | R, pak      | ✅                     | rcmdcheck, testthat, namespace freshness | `.Rbuildignore`, R ignores, `privacy.md`⁸, pkgdown assets⁸    | R languageserver; VS Code: R, Air                                |
 | `r-non-nix` (opt-in, enables `r`)   |             |                        |                                          | `.Rprofile`, `.Renviron`, `.R/install.R`, README              |                                                                  |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
@@ -148,8 +148,8 @@ to the privacy policy (see [Static websites](#static-websites)).
 ⁷ Skips translations such as `*.de.md`, one pattern per non-English
 `nullkomma.privacy.languages`; typos only knows English.
 
-⁸ Generated: `nullkomma.quarto.extensions`, and the privacy policy once
-there are `nullkomma.privacy.sections`.
+⁸ Generated: `nullkomma.quarto.extensions`, `nullkomma.r.pkgdown.assets`, and
+the privacy policy once there are `nullkomma.privacy.sections`.
 
 ⁹ Also adds the `preview` task: `quarto preview`, serving the site on localhost
 and re-rendering and live-reloading it on changes.
@@ -326,9 +326,25 @@ same `packages.site` output; no R-specific deployment pipeline is needed.
 The sandboxed build disables pkgdown's default home sidebar, whose CRAN and
 Bioconductor lookups require network access; the local `r-pkgdown` task keeps
 the normal sidebar. `nullkomma.r.pkgdown.override` can instead select a
-local `home.sidebar.html` file. Remote templates, web fonts and network-dependent articles
-must be supplied locally for a reproducible Nix build. If both Quarto and pkgdown
-are enabled, select the intended `perSystem.packages.site` explicitly.
+local `home.sidebar.html` file. Bootstrap 5's JavaScript dependencies (including
+Headroom and search) are fetched by Nix with pinned integrity hashes, not by R
+during the build. Remote templates, web fonts and network-dependent articles
+must still be supplied locally for a reproducible Nix build. If both Quarto and
+pkgdown are enabled, select the intended `perSystem.packages.site` explicitly.
+
+`nullkomma.r.pkgdown.config` supplies native pkgdown settings to both
+`r-pkgdown` and the sandboxed build, merged over the project's `_pkgdown.yml`.
+Use `template.bslib.brand` for a local `_brand.yml` path (automatically adding
+the `brand.yml` R package), and `footer.structure`/`footer.components` for shared
+footer markup. Sandbox-only `pkgdown.override` settings take precedence.
+Shared images and other site files
+go in `pkgdown.assets`, a directory generated into Git-ignored `pkgdown/assets/`
+and copied by pkgdown to the website root; it is excluded from package tarballs.
+The pkgdown workflows refuse existing project-owned assets and symlinks; leave
+this option `null` to keep managing `pkgdown/assets/` yourself. Like other
+generated directories, `generate-files` replaces untracked contents at that path.
+Branding remains a consumer input,
+not a dependency of nullkomma.
 
 pkgdown also renders `nullkomma.privacy.sections`, including hosting and brand
 sections, to `privacy.html`. Both the local task and the sandboxed build generate
