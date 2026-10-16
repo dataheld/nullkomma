@@ -45,8 +45,16 @@ rec {
   # Cheap presence test: DCF field names start a line, continuations are indented.
   hasPackageField = text: lib.any (lib.hasPrefix "Package:") (lib.splitString "\n" text);
 
-  # nixpkgs mangles CRAN names: data.table -> data_table
-  attrName = lib.replaceStrings [ "." ] [ "_" ];
+  # Match nixpkgs' r-modules/generate-r-packages.R, including reserved names.
+  attrName =
+    name:
+    lib.replaceStrings [ "." ] [ "_" ] (
+      {
+        import = "r_import";
+        "assert" = "r_assert";
+      }
+      .${name} or name
+    );
 
   # Splits the packages of a pak lockfile (`pak::lockfile_create()`, format 1)
   # into `nixpkgs`, names of packages taken from `available` (nixpkgs'

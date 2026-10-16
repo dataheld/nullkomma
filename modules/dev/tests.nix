@@ -428,6 +428,20 @@
                   plainQuarto = false;
                 };
               };
+            testRAttributeNames = {
+              expr = map nullkomma.lib.r.attrName [
+                "data.table"
+                "import"
+                "assert"
+                "R6"
+              ];
+              expected = [
+                "data_table"
+                "r_import"
+                "r_assert"
+                "R6"
+              ];
+            };
             testRIntegrations = {
               expr = {
                 air = (perSystem fixtures.r).treefmt.programs.air.enable;
