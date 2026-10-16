@@ -294,7 +294,8 @@ threshold (warnings by default).
 
 In the development shell, `R` starts quietly without restoring or saving a
 workspace and without a save prompt on exit. Project startup profiles still run;
-`Rscript` and `R CMD` retain their normal behavior.
+`Rscript` and `R CMD` retain their normal behavior. The shell, tasks and checks
+share a UTF-8 locale on Linux and macOS.
 
 The `r` plugin supplies a shared `.Rbuildignore`; run `write-files` and commit it.
 Its Nix-defined exclusions apply to package checks inside and outside Nix,

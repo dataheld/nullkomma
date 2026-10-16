@@ -69,7 +69,7 @@
           assets = ../../tests/fixtures/r-brand/assets;
           override = {
             home.sidebar = false;
-            footer.components.brand = ''<span id="sandbox-brand">Sandbox brand footer</span>'';
+            footer.components.brand = ''<span id="sandbox-brand">Sandbox brand footer · 🌲</span>'';
           };
           config = {
             template = {
@@ -79,7 +79,7 @@
             home.sidebar = false;
             footer = {
               structure.left = "brand";
-              components.brand = ''<span id="shared-brand">Shared brand footer</span>'';
+              components.brand = ''<span id="shared-brand">Shared brand footer · 🌲</span>'';
             };
           };
         };
@@ -1130,7 +1130,9 @@
               '';
               r-pkgdown-brand = pkgs.runCommand "r-pkgdown-brand" { } ''
                 site=${rWithBrand.packages.${system}.site}
-                grep -qF 'Sandbox brand footer' "$site/index.html"
+                grep -qF 'Sandbox brand footer · 🌲' "$site/index.html"
+                test -s "$site"/deps/bootstrap-*/bootstrap.bundle.min.js
+                test -s "$site"/deps/bootstrap-*/bootstrap.bundle.min.js.map
                 grep -qF '#123456' "$site"/deps/bootstrap-*/*.css
                 cmp ${../../tests/fixtures/r-brand/assets/brand.svg} "$site/brand.svg"
                 test ! -e "$site/.nullkomma-generated"
@@ -1152,14 +1154,22 @@
                 ${pkgs.git}/bin/git init -q
                 ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.generate-files.package}
                 test -f pkgdown/assets/.nullkomma-generated
-                ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.r-pkgdown.package}
-                grep -qF 'Shared brand footer' docs/index.html
+                export LC_ALL=C LANG=C
+                build_site() {
+                  ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.r-pkgdown.package} > build.log 2>&1 || { cat build.log; exit 1; }
+                  cat build.log
+                  ! grep -qE "Permission denied|Failed to copy over bootstrap's javascript files" build.log
+                }
+                build_site
+                grep -qF 'Shared brand footer · 🌲' docs/index.html
+                test -s docs/deps/bootstrap-*/bootstrap.bundle.min.js
+                test -s docs/deps/bootstrap-*/bootstrap.bundle.min.js.map
                 grep -qF '#123456' docs/deps/bootstrap-*/*.css
                 cmp ${../../tests/fixtures/r-brand/assets/brand.svg} docs/brand.svg
                 test ! -e docs/.nullkomma-generated
                 test -s docs/deps/headroom-0.11.0/headroom.min.js
                 touch pkgdown/assets/stale.txt
-                ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.r-pkgdown.package}
+                build_site
                 test ! -e pkgdown/assets/stale.txt
                 rm pkgdown/assets/.nullkomma-generated
                 printf 'project-owned asset\n' > pkgdown/assets/keep.txt

@@ -232,6 +232,8 @@
                 chmod -R u+w "$R_USER_CACHE_DIR"
               '';
             pkgdownConfig = ''
+              # Cached Sass paths make repeated Bootstrap copies overwrite read-only Nix assets.
+              options(sass.cache = FALSE)
               override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
             '';
             check =
@@ -261,16 +263,16 @@
             };
           in
           {
-            nullkomma.r.setup = ''
-              export NOT_CRAN=true
-            ''
-            + lib.optionalString pkgs.stdenv.isLinux ''
-              export LOCALE_ARCHIVE=${pkgs.glibcLocales}/lib/locale/locale-archive
-              export LANG=en_US.UTF-8
-            ''
-            + lib.optionalString (pcfg.browser != null) ''
-              export CHROMOTE_CHROME=${browser}
-            '';
+            nullkomma.r.setup =
+              lib.optionalString pkgs.stdenv.isLinux ''
+                export LOCALE_ARCHIVE=${pkgs.glibcLocales}/lib/locale/locale-archive
+              ''
+              + ''
+                export NOT_CRAN=true LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+              ''
+              + lib.optionalString (pcfg.browser != null) ''
+                export CHROMOTE_CHROME=${browser}
+              '';
             nullkomma.devshell.shellHook = pcfg.setup;
             nullkomma.tasks = lib.mkMerge [
               (lib.mkIf cfg.check.enable {
