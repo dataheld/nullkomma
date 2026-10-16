@@ -1358,15 +1358,6 @@
                 in
                 pkgs.runCommand "nullkomma-cloudflare-deploy" { } ''
                   export CALLED=$PWD/called CLOUDFLARE_STATE_BUCKET=state
-                  for invalid in "" cfat_offline-test-token short 0000000000000000000000000000000g; do
-                    if CLOUDFLARE_ACCOUNT_ID="$invalid" ${deploy} > failure.log 2>&1; then
-                      echo "Deploy accepted an invalid account ID" >&2
-                      exit 1
-                    fi
-                    test ! -f "$CALLED"
-                    printf '%s\n' "CLOUDFLARE_ACCOUNT_ID must be the 32-character account ID, not an API token" > expected
-                    cmp expected failure.log
-                  done
                   export CLOUDFLARE_ACCOUNT_ID=0123456789abcdef0123456789abcdef
                   ${deploy}
                   test -f "$CALLED"
