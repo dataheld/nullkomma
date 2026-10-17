@@ -17,6 +17,21 @@
         };
         gitignore = [ ".claude/" ];
         quarto.enable = true;
+        lint.markdown = {
+          MD013 = false;
+          MD028 = false;
+          MD041 = false;
+        };
+        lint.typos = {
+          default.extend-words.fnd = "fnd";
+          type.nullkomma-lint-tests = {
+            extend-glob = [
+              "tests.nix"
+              "dogfood.nix"
+            ];
+            extend-words.teh = "teh";
+          };
+        };
       };
       # The workspace editor settings are tracked and hand-edited.
       perSystem.nullkomma.files = {

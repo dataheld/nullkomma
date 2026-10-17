@@ -45,6 +45,12 @@
               chmod -R u+w $out
               rm -f $out/_headers $out/_redirects
             '';
+            validate = configuration: ''
+              cd "$(mktemp -d)"
+              ln -s ${configuration} config.tf.json
+              ${lib.getExe tf.terraformWrapper.package} init -backend=false
+              ${lib.getExe tf.terraformWrapper.package} validate
+            '';
           in
           {
             nullkomma.devHelpers = [ pkgs.wrangler ];
@@ -52,15 +58,17 @@
               deploy = {
                 skip = true;
                 description = "Publish the site to Cloudflare";
-                command = "exec ${lib.getExe tf.result.app}";
+                packages = [ pkgs.nix ];
+                command = ''exec nix run .#deploy -- "$@"'';
               };
               terraform = {
                 skip = true;
                 description = "Plan Cloudflare changes, or run terraform <command> [args]";
+                packages = [ pkgs.nix ];
                 command = ''
-                  ${lib.getExe tf.result.scripts.init}
+                  nix run .#deploy.init
                   if [[ $# == 0 ]]; then set -- plan; fi
-                  exec ${lib.getExe tf.result.terraformWrapper} "$@"
+                  exec nix run .#deploy.terraform -- "$@"
                 '';
               };
             };
@@ -129,12 +137,15 @@
               };
             };
             nullkomma.tests.cloudflare = {
-              packages = [ tf.terraformWrapper.package ];
+              packages = [ pkgs.nix ];
               command = ''
-                cd "$(mktemp -d)"
-                ln -s ${tf.result.terraformConfiguration} config.tf.json
-                tofu init -backend=false
-                tofu validate
+                configuration="$(nix build --no-link --print-out-paths .#deploy.config)"
+                ${validate ''"$configuration"''}
+              '';
+              check = pkgs.runCommand "test-cloudflare" { } ''
+                export HOME="$TMPDIR"
+                ${validate tf.result.terraformConfiguration}
+                touch "$out"
               '';
             };
           };

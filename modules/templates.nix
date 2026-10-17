@@ -14,5 +14,13 @@ in
       description = "nullkomma project: devshell, treefmt, checks, CI";
       inherit welcomeText;
     };
+    r = {
+      path = ../templates/r;
+      description = "R package: pak dependencies, formatting, language server and package checks";
+      welcomeText = welcomeText + ''
+
+        R projects are packages: add a DESCRIPTION, then run `nix run .#r-lock` before step 2.
+      '';
+    };
   };
 }

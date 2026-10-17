@@ -48,6 +48,11 @@
                   type = lib.types.path;
                   description = "Store path whose content is written to `${name}`.";
                 };
+                initialSource = lib.mkOption {
+                  type = lib.types.nullOr lib.types.path;
+                  default = null;
+                  description = "Existing project content used as the initial source-of-truth baseline. The first update is applied only if the on-disk file still matches it.";
+                };
               };
               config.source = lib.mkIf (config.text != null) (
                 pkgs.writeText "nullkomma-${lib.replaceStrings [ "/" ] [ "-" ] name}" config.text
@@ -103,7 +108,9 @@
                       f.source;
                 in
                 ''
-                  process_file ${lib.escapeShellArg path} ${lib.escapeShellArg (toString source)}
+                  process_file ${lib.escapeShellArg path} ${lib.escapeShellArg (toString source)} ${
+                    lib.escapeShellArg (if f.initialSource == null then "" else "${f.initialSource}")
+                  }
                 ''
               ) (lib.filterAttrs (_: f: f.mode == mode) files)
             )

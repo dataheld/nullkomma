@@ -7,7 +7,32 @@
       # `treefmt` plugin turns on `nix fmt` and the check; reading its option with
       # `or false` avoids priority tricks and works when the plugin isn't imported.
       imports = [ inputs.treefmt-nix.flakeModule ];
-      perSystem.treefmt = {
+      options.nullkomma.generatedPaths = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "Repository-relative treefmt exclusion globs for generated outputs, including directory descendants. Plugins contribute their outputs; projects may add their own.";
+      };
+      options.nullkomma.lint.markdown = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = { };
+        description = "Shared markdownlint rule defaults, extended by native .markdownlint.* and .markdownlint-cli2.* configuration. Project rules take precedence.";
+      };
+      options.nullkomma.lint.markdownExcludes = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "Repository-relative markdownlint exclusion globs contributed by language plugins and projects.";
+      };
+      options.nullkomma.lint.typos = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = { };
+        description = "Shared typos TOML settings, merged with discovered native configuration. Explicit shared settings take precedence, as with typos --config; projects can override these Nix defaults.";
+      };
+      options.nullkomma.lint.yaml = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = { };
+        description = "Shared yamllint defaults, extended by native .yamllint configuration. Project rules and exclusions take precedence.";
+      };
+      config.perSystem.treefmt = {
         flakeFormatter = lib.mkDefault (config.nullkomma.treefmt.enable or false);
         flakeCheck = lib.mkDefault (config.nullkomma.treefmt.enable or false);
       };
@@ -16,6 +41,7 @@
     { config, lib, ... }:
     let
       enabled = config.nullkomma.treefmt.enable;
+      generatedPaths = config.nullkomma.generatedPaths;
     in
     {
       config.perSystem =
@@ -40,7 +66,13 @@
             packages = [ config.treefmt.build.wrapper ];
             command = ''exec treefmt "$@"'';
           };
-          treefmt.settings.excludes = lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files);
+          treefmt.settings.excludes =
+            generatedPaths
+            ++ lib.concatLists (
+              lib.mapAttrsToList (path: file: [ path ] ++ lib.optional file.directory "${path}/**") (
+                lib.filterAttrs (_: file: file.enable) config.nullkomma.files
+              )
+            );
         };
     };
 }

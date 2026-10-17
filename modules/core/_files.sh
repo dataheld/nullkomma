@@ -15,7 +15,7 @@ fi
 
 # shellcheck disable=SC2329 # unused when no file of this mode is enabled
 process_file() {
-  local path="$1" source="$2" parent base incoming
+  local path="$1" source="$2" initial="${3:-}" parent base incoming
   if [ -n "$accept" ] && [ "$accept" != "$path" ]; then
     return
   fi
@@ -69,6 +69,9 @@ process_file() {
   base="$state/base/$path"
   incoming="$state/incoming/$path"
   mkdir -p "$(dirname "$base")" "$(dirname "$incoming")"
+  if [ ! -f "$base" ] && [ -n "$initial" ] && [ -f "$path" ] && cmp -s "$path" "$initial"; then
+    cp "$initial" "$base"
+  fi
   if [ -n "$accept" ]; then
     if [ ! -f "$path" ]; then
       echo "Resolve or initialize $path before accepting its upstream baseline." >&2

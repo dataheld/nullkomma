@@ -72,7 +72,6 @@
         };
       };
       config.perSystem = lib.mkIf cfg.enable {
-        treefmt.programs.actionlint.enable = lib.mkDefault true;
         nullkomma.files.".github/workflows/push.yml".text = ci;
       };
     };
