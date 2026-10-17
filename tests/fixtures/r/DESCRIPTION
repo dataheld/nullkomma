@@ -17,3 +17,4 @@ Suggests:
 Config/testthat/edition: 3
 Config/Needs/development: assertthat
 Config/Needs/website: rematch
+RoxygenNote: 7.3.3

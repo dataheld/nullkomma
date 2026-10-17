@@ -17,6 +17,11 @@
         default = { };
         description = "Shared markdownlint rule defaults, extended by native .markdownlint.* and .markdownlint-cli2.* configuration. Project rules take precedence.";
       };
+      options.nullkomma.lint.markdownExcludes = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "Repository-relative markdownlint exclusion globs contributed by language plugins and projects.";
+      };
       options.nullkomma.lint.typos = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = { };

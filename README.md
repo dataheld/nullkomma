@@ -103,28 +103,28 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-| Plugin                              | Dev helpers    | Format / lint          | Tests                                    | Files                                                              | Editor                                                           |
-| ----------------------------------- | -------------- | ---------------------- | ---------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| [`nix`][nix]                        |                | ✅, [`flake-checker`]¹ | [nix-unit]²                              | ignores `result`                                                   | [nixd]; VS Code: [Nix IDE]                                       |
-| [`markdown`][md]                    |                | ✅                     |                                          |                                                                    | [marksman]                                                       |
-| [`json`][json]                      |                | ✅                     |                                          |                                                                    | [JSON language server][jsonls]                                   |
-| [`yaml`][yaml]                      |                | ✅                     |                                          |                                                                    | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
-| [`toml`][toml]                      |                | ✅                     |                                          |                                                                    |                                                                  |
-| [`shell`][bash]                     |                | ✅³                    | [bats]³                                  |                                                                    | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
-| [`github`][gha]                     |                |                        |                                          | `push.yml`⁴                                                        |                                                                  |
-| [`keepSorted`][keep-sorted]         |                | ✅                     |                                          |                                                                    |                                                                  |
-| [`gitleaks`][gitleaks]              | secret-history | ✅ secrets             |                                          |                                                                    |                                                                  |
-| [`typos`][typos]                    |                | ✅ spelling⁷           |                                          |                                                                    |                                                                  |
-| [`treefmt`][treefmt]                |                | runs all ✅            |                                          |                                                                    | formatter; VS Code: [treefmt][vscode-treefmt]                    |
-| [`git`][git]                        | git            |                        |                                          | `.gitignore`                                                       |                                                                  |
-| [`direnv`][direnv]                  |                |                        |                                          | `.envrc`, ignores `.direnv/`                                       | VS Code: [Nix Environment Selector]                              |
-| [`vscode`][vscode]                  |                |                        |                                          | `.vscode/`⁵                                                        | renders it for VS Code⁵                                          |
-| [`neovim`][neovim]                  |                |                        |                                          | `.nvim.lua`⁵                                                       | renders it for Neovim⁵                                           |
-| [`flakehub`][flakehub]              | [`fh`]         |                        |                                          |                                                                    |                                                                  |
-| [`quarto`][quarto] (opt-in)         | quarto⁹        |                        |                                          | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸      | VS Code: [Quarto][vscode-quarto]                                 |
-| [`cloudflare`][cloudflare] (opt-in) | wrangler⁶      |                        | OpenTofu validation                      | ignores `.nullkomma/cloudflare/`                                   |                                                                  |
-| [`r`][r] (opt-in)                   | R, pak         | ✅                     | rcmdcheck, testthat, namespace freshness | `.Rbuildignore`, R ignores, `pkgdown/privacy.md`⁸, pkgdown assets⁸ | R languageserver; VS Code: R, Air                                |
-| `r-non-nix` (opt-in, enables `r`)   |                |                        |                                          | `.Rprofile`, `.Renviron`, `.R/install.R`, README                   |                                                                  |
+| Plugin                              | Dev helpers    | Format / lint          | Tests                                                                           | Files                                                              | Editor                                                           |
+| ----------------------------------- | -------------- | ---------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| [`nix`][nix]                        |                | ✅, [`flake-checker`]¹ | [nix-unit]²                                                                     | ignores `result`                                                   | [nixd]; VS Code: [Nix IDE]                                       |
+| [`markdown`][md]                    |                | ✅                     |                                                                                 |                                                                    | [marksman]                                                       |
+| [`json`][json]                      |                | ✅                     |                                                                                 |                                                                    | [JSON language server][jsonls]                                   |
+| [`yaml`][yaml]                      |                | ✅                     |                                                                                 |                                                                    | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
+| [`toml`][toml]                      |                | ✅                     |                                                                                 |                                                                    |                                                                  |
+| [`shell`][bash]                     |                | ✅³                    | [bats]³                                                                         |                                                                    | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
+| [`github`][gha]                     |                |                        |                                                                                 | `push.yml`⁴                                                        |                                                                  |
+| [`keepSorted`][keep-sorted]         |                | ✅                     |                                                                                 |                                                                    |                                                                  |
+| [`gitleaks`][gitleaks]              | secret-history | ✅ secrets             |                                                                                 |                                                                    |                                                                  |
+| [`typos`][typos]                    |                | ✅ spelling⁷           |                                                                                 |                                                                    |                                                                  |
+| [`treefmt`][treefmt]                |                | runs all ✅            |                                                                                 |                                                                    | formatter; VS Code: [treefmt][vscode-treefmt]                    |
+| [`git`][git]                        | git            |                        |                                                                                 | `.gitignore`                                                       |                                                                  |
+| [`direnv`][direnv]                  |                |                        |                                                                                 | `.envrc`, ignores `.direnv/`                                       | VS Code: [Nix Environment Selector]                              |
+| [`vscode`][vscode]                  |                |                        |                                                                                 | `.vscode/`⁵                                                        | renders it for VS Code⁵                                          |
+| [`neovim`][neovim]                  |                |                        |                                                                                 | `.nvim.lua`⁵                                                       | renders it for Neovim⁵                                           |
+| [`flakehub`][flakehub]              | [`fh`]         |                        |                                                                                 |                                                                    |                                                                  |
+| [`quarto`][quarto] (opt-in)         | quarto⁹        |                        |                                                                                 | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸      | VS Code: [Quarto][vscode-quarto]                                 |
+| [`cloudflare`][cloudflare] (opt-in) | wrangler⁶      |                        | OpenTofu validation                                                             | ignores `.nullkomma/cloudflare/`                                   |                                                                  |
+| [`r`][r] (opt-in)                   | R, pak         | ✅                     | strict rcmdcheck, parallel testthat, lintr, jscpd, pkgdown, namespace freshness | `.Rbuildignore`, R ignores, `pkgdown/privacy.md`⁸, pkgdown assets⁸ | R languageserver; VS Code: R, Air                                |
+| `r-non-nix` (opt-in, enables `r`)   |                |                        |                                                                                 | `.Rprofile`, `.Renviron`, `.R/install.R`, README                   |                                                                  |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
 Nixpkgs. The `nix` plugin also adds the tasks `check` (`nix flake check`) and
@@ -373,7 +373,9 @@ Every nullkomma R project is a package with a `DESCRIPTION`; `r-check`
 (or `test r-cmd-check`) uses rcmdcheck to build and check it, including the usual
 package dependency checks. It runs automatically in `nix flake check`;
 `nullkomma.r.check.args` and `errorOn` control the check arguments and failure
-threshold (warnings by default).
+threshold (notes by default). The R template needs only
+`nullkomma.r.enable = true`: lintr, pkgdown, testthat and jscpd are all on,
+without per-project enable flags, npm dependencies or test wiring.
 
 In the development shell, `R` starts quietly without restoring or saving a
 workspace and without a save prompt on exit. Project startup profiles still run;
@@ -386,15 +388,16 @@ while preserving project-specific rules.
 
 #### Package development tasks
 
-| Command            | What it does                                                      | Enabled when                                                                            |
-| ------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `r-document`       | Generate `man/*.Rd` and `NAMESPACE` with roxygen2                 | Always; disable with `nullkomma.r.document.enable = false` for hand-written manuals     |
-| `r-check`          | Generate documentation, build, and run rcmdcheck                  | Always                                                                                  |
-| `r-test`           | Generate documentation and run testthat on the development source | testthat is in `pkg.lock`                                                               |
-| `r-test-installed` | Install into a temporary library and test the installed package   | testthat is in `pkg.lock`                                                               |
-| `r-pkgdown`        | Build a website in `docs/` without opening a browser              | pkgdown configuration exists, pkgdown is locked, or `nullkomma.r.pkgdown.enable = true` |
-| `r-lint`           | Load the package and run lintr, failing on lints                  | `.lintr`/`.lintr.R` exists, lintr is locked, or `nullkomma.r.lintr.enable = true`       |
-| `r-coverage`       | Write a local Cobertura `coverage.xml` report with covr           | covr is locked or `nullkomma.r.coverage.enable = true`                                  |
+| Command            | What it does                                                                | Enabled when                                                                        |
+| ------------------ | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `r-document`       | Generate `man/*.Rd` and `NAMESPACE` with roxygen2                           | Always; disable with `nullkomma.r.document.enable = false` for hand-written manuals |
+| `r-check`          | Generate documentation, build, and run rcmdcheck                            | Always                                                                              |
+| `r-test`           | Generate documentation and run parallel testthat on the development source  | Default on; `nullkomma.r.testthat.enable`                                           |
+| `r-test-installed` | Install into a temporary library and test the installed package in parallel | Default on; `nullkomma.r.testthat.enable`                                           |
+| `r-pkgdown`        | Build a website in `docs/` without opening a browser                        | Default on; `nullkomma.r.pkgdown.enable`                                            |
+| `r-lint`           | Load the package and run lintr, failing on lints                            | Default on; `nullkomma.r.lintr.enable`                                              |
+| `r-jscpd`          | Check the repository for duplicated code                                    | Default on; `nullkomma.r.jscpd.enable`                                              |
+| `r-coverage`       | Write a local Cobertura `coverage.xml` report with covr                     | covr is locked or `nullkomma.r.coverage.enable = true`                              |
 
 Documentation is regenerated before checks, tests and website builds. Generated
 `man/*.Rd` files are Git-ignored, **not** the whole `man/` directory: keep
@@ -402,7 +405,42 @@ hand-maintained figures. Commit `NAMESPACE`; `test r-namespace` rejects stale
 exports. testthat runs against both the development and installed package in
 `nix flake check`. Package dependencies remain in DESCRIPTION; nullkomma adds
 only the tools needed by enabled workflows to the development R environment,
-not to deployable package outputs.
+not to deployable package outputs. Set any workflow's `enable` option to `false`
+to opt out; `nullkomma.r.check.errorOn = "warning"` relaxes the note threshold.
+
+Test files run in parallel in source tests, installed tests and R CMD check.
+`TESTTHAT_CPUS` defaults to Nix's `NIX_BUILD_CORES` allocation, or two locally;
+a one-core allocation is respected. Override it to choose a worker count, or use
+`TESTTHAT_PARALLEL=false` for a single serial invocation. Set
+`nullkomma.r.testthat.parallel = false` for the project's default opt-out.
+Parallelism is across files, so a single test file cannot run concurrently.
+The test environment also defaults `SHINYTEST=true`; it does not install a
+browser or shinytest2 unless the package needs them. Native environment overrides
+are preserved.
+
+nullkomma uses testthat's native environment controls, without rewriting
+`DESCRIPTION` or changing the test edition. Use edition 3 for upstream-supported
+parallel testing. To enable parallelism outside the Nix environment too, commit:
+
+```dcf
+Config/testthat/edition: 3
+Config/testthat/parallel: true
+```
+
+jscpd fails on any detected duplication by default. It respects `.gitignore`,
+excludes lockfiles and generated/managed files, and adds native `.jscpd.json`
+(or `package.json`'s `jscpd` key) settings. Commit project policy directly, e.g.:
+
+```json
+{
+  "ignore": ["tests/fixtures/**"],
+  "threshold": 1
+}
+```
+
+Project exclusions are added to the shared ones; other native settings, such as
+the duplication percentage threshold, take precedence. There is no required npm
+manifest, lockfile or report directory in the consumer.
 
 With pkgdown enabled, `nix build .#site` produces the website and
 `nix flake check` builds it too. The existing Cloudflare plugin can publish this
@@ -428,10 +466,7 @@ inputs.brand = {
   inputs.nullkomma.follows = "nullkomma";
 };
 # Inside mkFlake's module:
-nullkomma.r.pkgdown = {
-  enable = true;
-  brand = inputs.brand;
-};
+nullkomma.r.pkgdown.brand = inputs.brand;
 ```
 
 The brand supplies `lib.brand` (a brand.yml path), optionally `lib.footer` (HTML)
@@ -499,8 +534,8 @@ Current representative tidyverse/r-lib repositories still use
 and [covr/Cobertura](https://github.com/r-lib/actions/blob/v2/examples/test-coverage.yaml).
 [dplyr's Air workflow](https://github.com/tidyverse/dplyr/blob/main/.github/workflows/format-suggest.yaml)
 confirms Air is a current choice, rather than adding styler as a second formatter.
-Keep lintr and coverage conditional; Jarl remains optional, not an assumed
-tidyverse/r-lib replacement. Coverage reporting stays local: no Codecov account,
+lintr is on by default; coverage and Jarl remain optional, not assumed
+tidyverse/r-lib replacements. Coverage reporting stays local: no Codecov account,
 token or upload is required. Upstream's Windows and R release/devel/oldrel
 matrices test compatibility beyond our one locked R version; Nix does not
 replace those when a project needs them.
@@ -554,9 +589,8 @@ This gets you two benefits:
 The editor-neutral R language server defers formatting
 to the configured editor formatter, when present. When lintr is enabled, it also
 runs after Air through treefmt, using the same package-aware runner as `r-lint`.
-Enable it with `nullkomma.r.lintr.enable = true`, or automatically by locking lintr
-or keeping a native `.lintr`/`.lintr.R` file. Set the option explicitly when removing
-that file and relying on shared defaults.
+It is on by default, with or without a native configuration file; disable it with
+`nullkomma.r.lintr.enable = false`.
 The shared policy disables object-name and object-length rules. Add or disable
 rules with `nullkomma.r.lintr.linters`, for example
 `line_length_linter = "lintr::line_length_linter(100L)"` or
@@ -565,8 +599,9 @@ rules with `nullkomma.r.lintr.linters`, for example
 rules; named project rules take precedence. An explicit `list(...)` or
 `linters_with_defaults(..., defaults = ...)` deliberately replaces the defaults.
 Native config discovery and exclusions are unchanged. R projects also allow HTML
-and unrestricted line length in Markdown (`MD033` and `MD013`); generated `docs/`
-is excluded globally, so pkgdown output needs no separate linter exceptions.
+and unrestricted line length in Markdown (`MD033` and `MD013`); testthat snapshot
+Markdown is excluded from markdownlint, and generated `docs/` is excluded globally,
+so snapshots and pkgdown output need no separate linter exceptions.
 The valid author role `fnd` is protected from typos corrections in `DESCRIPTION`
 files, without accepting it in unrelated prose.
 Jarl linting is opt-in with

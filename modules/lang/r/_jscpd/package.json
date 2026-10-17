@@ -1,0 +1,7 @@
+{
+  "name": "nullkomma-jscpd",
+  "private": true,
+  "dependencies": {
+    "jscpd": "4.0.8"
+  }
+}

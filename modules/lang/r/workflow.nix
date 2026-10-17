@@ -61,17 +61,17 @@
         };
         testthat.enable = lib.mkOption {
           type = lib.types.bool;
-          default = lib.elem "testthat" locked;
-          defaultText = lib.literalMD "whether testthat is in pkg.lock";
+          default = true;
           description = "Run testthat against both the development source and an installed package.";
+        };
+        testthat.parallel = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Run testthat files in parallel by default, including R CMD check. TESTTHAT_PARALLEL and TESTTHAT_CPUS remain native runtime overrides; workers respect NIX_BUILD_CORES, falling back to two locally.";
         };
         pkgdown.enable = lib.mkOption {
           type = lib.types.bool;
-          default =
-            lib.elem "pkgdown" locked
-            || builtins.pathExists (cfg.root + "/_pkgdown.yml")
-            || builtins.pathExists (cfg.root + "/pkgdown/_pkgdown.yml");
-          defaultText = lib.literalMD "whether pkgdown is in pkg.lock or a pkgdown configuration exists";
+          default = true;
           description = "Build a pkgdown website with the r-pkgdown task and packages.site (also checked in nix flake check).";
         };
         pkgdown.privacy = {
@@ -121,11 +121,7 @@
         };
         lintr.enable = lib.mkOption {
           type = lib.types.bool;
-          default =
-            lib.elem "lintr" locked
-            || builtins.pathExists (cfg.root + "/.lintr")
-            || builtins.pathExists (cfg.root + "/.lintr.R");
-          defaultText = lib.literalMD "whether lintr is locked or .lintr/.lintr.R exists";
+          default = true;
           description = "Load the package and run lintr through treefmt and r-lint, failing on lints. Native .lintr/.lintr.R files retain discovery and exclusions; linters_with_defaults extends the shared policy.";
         };
         lintr.linters = lib.mkOption {
@@ -196,6 +192,7 @@
           MD013 = lib.mkDefault false;
           MD033 = lib.mkDefault false;
         };
+        nullkomma.lint.markdownExcludes = [ "${root}tests/testthat/_snaps/**" ];
         nullkomma.lint.typos.type.r-description = {
           extend-glob = [ "DESCRIPTION" ];
           extend-words.fnd = lib.mkDefault "fnd";
@@ -329,6 +326,9 @@
               ''
               + ''
                 export NOT_CRAN=true LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+                export SHINYTEST="''${SHINYTEST:-true}"
+                export TESTTHAT_PARALLEL="''${TESTTHAT_PARALLEL:-${lib.boolToString cfg.testthat.parallel}}"
+                export TESTTHAT_CPUS="''${TESTTHAT_CPUS:-''${NIX_BUILD_CORES:-2}}"
               ''
               + lib.optionalString (pcfg.browser != null) ''
                 export CHROMOTE_CHROME=${browser}

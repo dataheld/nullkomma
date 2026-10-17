@@ -623,6 +623,8 @@
                 air = true;
                 tests = [
                   "r-cmd-check"
+                  "r-jscpd"
+                  "r-lintr"
                   "r-namespace"
                   "r-testthat"
                   "r-testthat-installed"
@@ -637,6 +639,8 @@
                 profile = false;
                 optedInProfile = "source";
                 checkDisabled = [
+                  "r-jscpd"
+                  "r-lintr"
                   "r-namespace"
                   "r-testthat"
                   "r-testthat-installed"
@@ -998,20 +1002,66 @@
                 website = rWithWebsite.packages.${system} ? site;
                 ignored = lib.elem "/man/*.Rd" fixtures.r.debug.config.nullkomma.gitignore;
                 keepsFigures = !(lib.elem "/man/" fixtures.r.debug.config.nullkomma.gitignore);
+                errorOn = fixtures.r.debug.config.nullkomma.r.check.errorOn;
+                parallel = fixtures.r.debug.config.nullkomma.r.testthat.parallel;
+                snapshots = (perSystem fixtures.r).treefmt.programs.markdownlint-cli2.excludes;
+                nestedSnapshots = (perSystem rNestedTreefmt).treefmt.programs.markdownlint-cli2.excludes;
+                optOut =
+                  let
+                    project = callFlakeWith {
+                      nullkomma.r = {
+                        lintr.enable = false;
+                        pkgdown.enable = false;
+                        testthat.enable = false;
+                        testthat.parallel = false;
+                        jscpd.enable = false;
+                      };
+                    } ../../tests/fixtures/r;
+                  in
+                  {
+                    tests = lib.attrNames (perSystem project).nullkomma.tests;
+                    site = project.packages.${system} ? site;
+                    tools = lib.intersectLists [
+                      "lintr"
+                      "pkgdown"
+                      "testthat"
+                    ] project.debug.config.nullkomma.r.extraPackages;
+                    serial = lib.hasInfix "TESTTHAT_PARALLEL=\"\${TESTTHAT_PARALLEL:-false}\"" (perSystem project)
+                    .nullkomma.r.setup;
+                  };
               };
               expected = {
                 tasks = [
                   "r-check"
                   "r-document"
+                  "r-jscpd"
+                  "r-lint"
                   "r-lock"
+                  "r-pkgdown"
                   "r-test"
                   "r-test-installed"
                 ];
-                heavyweightDefaults = [ ];
+                heavyweightDefaults = [
+                  "pkgdown"
+                  "lintr"
+                ];
                 browserByDefault = false;
                 website = true;
                 ignored = true;
                 keepsFigures = true;
+                errorOn = "note";
+                parallel = true;
+                snapshots = [ "tests/testthat/_snaps/**" ];
+                nestedSnapshots = [ "r/tests/testthat/_snaps/**" ];
+                optOut = {
+                  tests = [
+                    "r-cmd-check"
+                    "r-namespace"
+                  ];
+                  site = false;
+                  tools = [ ];
+                  serial = true;
+                };
               };
             };
             testTasksAllSkipsMutatingTasks = {
@@ -1598,6 +1648,84 @@
                 grep -q 'hello.R' coverage.xml
                 touch "$out"
               '';
+              r-jscpd = pkgs.runCommand "r-jscpd-native-config" { } ''
+                cp -R ${../../tests/fixtures/r} project
+                chmod -R u+w project
+                cd project
+                export HOME="$TMPDIR/home"
+                mkdir -p "$HOME" custom docs git-ignored tests/testthat/_snaps
+                printf 'git-ignored/\n' > .gitignore
+                cat > custom/one.js <<'JS'
+                export function greetPeople(names, prefix) {
+                  const greetings = [];
+                  for (const name of names) {
+                    const normalized = name.trim().toLowerCase();
+                    const greeting = prefix + normalized;
+                    console.log(greeting);
+                    greetings.push(greeting);
+                  }
+                  return greetings.join("\\n");
+                }
+                JS
+                cp custom/one.js custom/two.js
+                cp custom/one.js docs/one.js
+                cp custom/one.js docs/two.js
+                cp custom/one.js git-ignored/one.js
+                cp custom/one.js git-ignored/two.js
+                cp custom/one.js tests/testthat/_snaps/one.js
+                cp custom/one.js tests/testthat/_snaps/two.js
+                printf '{"ignore":["custom/**"]}\n' > .jscpd.json
+                ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-jscpd.package}
+                cp custom/one.js one.js
+                cp custom/one.js two.js
+                if ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-jscpd.package} > duplicate.log 2>&1; then
+                  echo "Duplicated code unexpectedly passed" >&2
+                  exit 1
+                fi
+                grep -qi threshold duplicate.log
+                printf '{"ignore":["custom/**"],"threshold":100}\n' > .jscpd.json
+                ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-jscpd.package}
+                rm one.js two.js .jscpd.json
+                printf '{"jscpd":{"ignore":["custom/**"]}}\n' > package.json
+                ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-jscpd.package}
+                touch "$out"
+              '';
+              r-parallel-testthat = pkgs.runCommand "r-parallel-testthat" { } ''
+                cp -R ${../../tests/fixtures/r} project
+                chmod -R u+w project
+                cd project
+                export HOME="$TMPDIR/home" NULLKOMMA_TEST_PIDS="$TMPDIR/pids"
+                export NIX_BUILD_CORES=2
+                unset TESTTHAT_CPUS TESTTHAT_PARALLEL
+                mkdir -p "$HOME"
+                for file in first second; do
+                  cat > "tests/testthat/test-worker-$file.R" <<RS
+                test_that("$file runs with the requested workers", {
+                  expect_identical(Sys.getenv("TESTTHAT_CPUS"), "2")
+                  expect_identical(Sys.getenv("SHINYTEST"), "true")
+                  writeLines(as.character(Sys.getpid()), file.path(Sys.getenv("NULLKOMMA_TEST_PIDS"), "$file"))
+                  if (Sys.getenv("TESTTHAT_PARALLEL") == "true") {
+                    deadline <- Sys.time() + 15
+                    while (length(list.files(Sys.getenv("NULLKOMMA_TEST_PIDS"))) < 2 && Sys.time() < deadline) Sys.sleep(0.05)
+                    expect_length(list.files(Sys.getenv("NULLKOMMA_TEST_PIDS")), 2)
+                  }
+                })
+                RS
+                done
+                for runner in \
+                  ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-testthat.package} \
+                  ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-testthat-installed.package} \
+                  ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-cmd-check.package}; do
+                  mkdir "$NULLKOMMA_TEST_PIDS"
+                  "$runner"
+                  test "$(sort -u "$NULLKOMMA_TEST_PIDS"/* | wc -l | tr -d ' ')" = 2
+                  rm -r "$NULLKOMMA_TEST_PIDS"
+                done
+                mkdir "$NULLKOMMA_TEST_PIDS"
+                TESTTHAT_PARALLEL=false ${lib.getExe (perSystem fixtures.r).nullkomma.tests.r-testthat.package}
+                test "$(sort -u "$NULLKOMMA_TEST_PIDS"/* | wc -l | tr -d ' ')" = 1
+                touch "$out"
+              '';
               r-installed-is-not-development = pkgs.runCommand "r-installed-is-not-development" { } ''
                 cp -R ${../../tests/fixtures/r} project
                 chmod -R u+w project
@@ -1808,7 +1936,7 @@
                   }
                   ''
                     Rscript --vanilla -e 'library(nullkommafixture, lib.loc = "${package}/library"); stopifnot(hello() == "Hello, world!")'
-                    if grep -E '/r-(testthat|pak|languageserver|assertthat|rematch|rcmdcheck|roxygen2|pkgdown|lintr|covr|shinytest2)-[0-9]' closure; then
+                    if grep -E '/r-(testthat|pak|languageserver|assertthat|rematch|rcmdcheck|roxygen2|pkgdown|lintr|covr|shinytest2)-[0-9]|/(nodejs|jscpd|nullkomma-jscpd)-' closure; then
                       echo "Production package includes development dependencies" >&2
                       exit 1
                     fi

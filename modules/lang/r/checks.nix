@@ -38,7 +38,7 @@
             "warning"
             "note"
           ];
-          default = "warning";
+          default = "note";
           description = "Least severe `R CMD check` finding that fails the test.";
         };
       };
