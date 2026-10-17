@@ -26,7 +26,6 @@
         "^[.]direnv$"
         "^[.]github$"
         "^[.]vscode$"
-        "^[.]idea$"
         "^result(-.*)?$"
         "^docs$"
         "^pkgdown$"
