@@ -108,7 +108,22 @@
               })
             )
           ) pcfg.buildInputs;
-          final = base.override { overrides = sourceOverrides // systemLibraries; };
+          final = base.override {
+            overrides =
+              sourceOverrides
+              // systemLibraries
+              // lib.optionalAttrs cfg.pkgdown.enable {
+                pkgdown =
+                  (systemLibraries.pkgdown or (sourceOverrides.pkgdown or base.pkgdown)).overrideAttrs
+                    (old: {
+                      postPatch = (old.postPatch or "") + ''
+                        # Keep pkgdown's metadata sidebar, without online CRAN/Bioconductor discovery.
+                        substituteInPlace R/build-home-index.R \
+                          --replace-fail 'repo <- cran_link(pkg$package)' 'repo <- NULL'
+                      '';
+                    });
+              };
+          };
         in
         {
           config.nullkomma.r = {

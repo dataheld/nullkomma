@@ -324,14 +324,18 @@ not to deployable package outputs.
 With pkgdown enabled, `nix build .#site` produces the website and
 `nix flake check` builds it too. The existing Cloudflare plugin can publish this
 same `packages.site` output; no R-specific deployment pipeline is needed.
-The sandboxed build disables pkgdown's default home sidebar, whose CRAN and
-Bioconductor lookups require network access; the local `r-pkgdown` task keeps
-the normal sidebar. `nullkomma.r.pkgdown.override` can instead select a
-local `home.sidebar.html` file. Bootstrap 5's JavaScript dependencies (including
-Headroom and search) are fetched by Nix with pinned integrity hashes, not by R
-during the build. Remote templates, web fonts and network-dependent articles
-must still be supplied locally for a reproducible Nix build. If both Quarto and
-pkgdown are enabled, select the intended `perSystem.packages.site` explicitly.
+Both builds keep pkgdown's metadata-generated sidebar: source and bug-report
+links, license, citation and authors come from the package itself. When pkgdown
+is enabled, nullkomma applies a small Nix package patch to skip only its online
+CRAN/Bioconductor repository discovery. Automatic “View on CRAN/Bioconductor”
+links are omitted; add any known repository links through native `home.links`
+settings instead. Sidebar ordering, custom components, `home.sidebar = false`
+and local `home.sidebar.html` overrides keep their usual pkgdown behavior.
+Bootstrap 5's JavaScript dependencies (including Headroom and search) are fetched
+by Nix with pinned integrity hashes, not by R during the build. Remote templates,
+web fonts and network-dependent articles must still be supplied locally for a
+reproducible Nix build. If both Quarto and pkgdown are enabled, select the intended
+`perSystem.packages.site` explicitly.
 
 `nullkomma.r.pkgdown.config` supplies native pkgdown settings to both
 `r-pkgdown` and the sandboxed build, merged over the project's `_pkgdown.yml`.

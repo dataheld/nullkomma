@@ -98,8 +98,8 @@
         };
         pkgdown.override = lib.mkOption {
           type = lib.types.attrsOf lib.types.anything;
-          default.home.sidebar = false;
-          description = "Sandbox-only overrides merged over pkgdown.config. The default disables the network-dependent home sidebar; set home.sidebar.html to a local HTML file to supply your own.";
+          default = { };
+          description = "Sandbox-only native pkgdown overrides merged over pkgdown.config. The metadata-generated sidebar works offline by default; home.sidebar = false or home.sidebar.html retain pkgdown's usual behavior.";
         };
         lintr.enable = lib.mkOption {
           type = lib.types.bool;

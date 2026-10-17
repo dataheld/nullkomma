@@ -68,7 +68,6 @@
           enable = true;
           assets = ../../tests/fixtures/r-brand/assets;
           override = {
-            home.sidebar = false;
             footer.components.brand = ''<span id="sandbox-brand">Sandbox brand footer · 🌲</span>'';
           };
           config = {
@@ -76,7 +75,6 @@
               bootstrap = 5;
               bslib.brand = ../../tests/fixtures/r-brand/_brand.yml;
             };
-            home.sidebar = false;
             footer = {
               structure.left = "brand";
               components.brand = ''<span id="shared-brand">Shared brand footer · 🌲</span>'';
@@ -1131,6 +1129,11 @@
               r-pkgdown-brand = pkgs.runCommand "r-pkgdown-brand" { } ''
                 site=${rWithBrand.packages.${system}.site}
                 grep -qF 'Sandbox brand footer · 🌲' "$site/index.html"
+                for text in 'Browse source code' 'Report a bug' 'CC0' 'Citing nullkommafixture' 'Developers'; do
+                  grep -qF "$text" "$site/index.html"
+                done
+                grep -qF 'https://github.com/dataheld/nullkomma/issues' "$site/index.html"
+                ! grep -qF 'View on CRAN' "$site/index.html"
                 test -s "$site"/deps/bootstrap-*/bootstrap.bundle.min.js
                 test -s "$site"/deps/bootstrap-*/bootstrap.bundle.min.js.map
                 grep -qF '#123456' "$site"/deps/bootstrap-*/*.css
@@ -1162,6 +1165,11 @@
                 }
                 build_site
                 grep -qF 'Shared brand footer · 🌲' docs/index.html
+                for text in 'Browse source code' 'Report a bug' 'CC0' 'Citing nullkommafixture' 'Developers'; do
+                  grep -qF "$text" docs/index.html
+                done
+                grep -qF 'https://github.com/dataheld/nullkomma/issues' docs/index.html
+                ! grep -qF 'View on CRAN' docs/index.html
                 test -s docs/deps/bootstrap-*/bootstrap.bundle.min.js
                 test -s docs/deps/bootstrap-*/bootstrap.bundle.min.js.map
                 grep -qF '#123456' docs/deps/bootstrap-*/*.css
@@ -1169,8 +1177,30 @@
                 test ! -e docs/.nullkomma-generated
                 test -s docs/deps/headroom-0.11.0/headroom.min.js
                 touch pkgdown/assets/stale.txt
+                substituteInPlace DESCRIPTION \
+                  --replace-fail 'nullkomma/issues' 'nullkomma/issues/new' \
+                  --replace-fail 'person("nullkomma"' 'person("Updated Author"'
+                printf 'home:\n  links:\n  - text: Extra documentation\n    href: https://example.com/extra\n  sidebar:\n    structure: [authors, links, custom, license]\n    components:\n      custom:\n        title: Extra details\n        text: Offline **Markdown**\n' > _pkgdown.yml
                 build_site
+                grep -qF 'Updated Author' docs/index.html
+                grep -qF 'https://github.com/dataheld/nullkomma/issues/new' docs/index.html
+                grep -qF 'https://example.com/extra' docs/index.html
+                grep -qF 'Extra details' docs/index.html
+                grep -qF '<strong>Markdown</strong>' docs/index.html
+                developers="$(grep -n 'data-toc-skip>Developers' docs/index.html | cut -d: -f1)"
+                links="$(grep -n 'data-toc-skip>Links' docs/index.html | cut -d: -f1)"
+                custom="$(grep -n 'data-toc-skip>Extra details' docs/index.html | cut -d: -f1)"
+                test "$developers" -lt "$links"
+                test "$links" -lt "$custom"
                 test ! -e pkgdown/assets/stale.txt
+                printf 'home:\n  sidebar: false\n' > _pkgdown.yml
+                build_site
+                ! grep -qF 'Browse source code' docs/index.html
+                printf '<p id="custom-sidebar">Consumer sidebar</p>\n' > pkgdown/sidebar.html
+                printf 'home:\n  sidebar:\n    html: pkgdown/sidebar.html\n' > _pkgdown.yml
+                build_site
+                grep -qF 'id="custom-sidebar"' docs/index.html
+                ! grep -qF 'Browse source code' docs/index.html
                 rm pkgdown/assets/.nullkomma-generated
                 printf 'project-owned asset\n' > pkgdown/assets/keep.txt
                 if ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.r-pkgdown.package} > failure.log 2>&1; then
