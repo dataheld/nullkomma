@@ -59,6 +59,7 @@
       } ../../tests/fixtures/r;
       rWithProfile = callFlakeWith {
         nullkomma.r-non-nix.enable = true;
+        nullkomma.neovim.enable = true;
       } ../../tests/fixtures/r;
       rWithWebsite = callFlakeWith {
         nullkomma.r.pkgdown.enable = true;
@@ -1155,8 +1156,9 @@
                 ${lib.getExe (perSystem rWithProfile).nullkomma.tasks.write-files.package}
                 cmp expected README.md
                 cmp expected-buildignore .Rbuildignore
+                ${lib.getExe (perSystem rWithProfile).nullkomma.tasks.generate-files.package}
                 mkdir $out
-                cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .Rprofile .Renviron .Rbuildignore README.md flake.nix $out/
+                cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .Rprofile .Renviron .Rbuildignore .nvim.lua README.md flake.nix $out/
                 mkdir "$out/.R"
                 cp .R/install.R "$out/.R/"
               '';
@@ -1850,6 +1852,44 @@
                     touch "$out"
                   '';
               r-non-nix-files = nonNixProject;
+              r-non-nix-nix-workflows = pkgs.runCommand "nullkomma-r-non-nix-nix-workflows" { } ''
+                cp -R ${nonNixProject} project
+                chmod -R u+w project
+                cd project
+                export HOME="$TMPDIR/home" NULLKOMMA_R_WORKDIR="$PWD"
+                export NIX_BUILD_CORES=2
+                unset IN_NIX_SHELL R_PROFILE_USER R_ENVIRON_USER
+                mkdir -p "$HOME"
+                substituteInPlace DESCRIPTION --replace-fail '    stats' '    stats, assertthat'
+                substituteInPlace R/hello.R \
+                  --replace-fail "#' @importFrom stats setNames" "#' @importFrom stats setNames
+                #' @importFrom assertthat assert_that"
+                for file in first second; do
+                  cat > "tests/testthat/test-nix-$file.R" <<'RS'
+                test_that("Nix dependencies remain available in parallel workers", {
+                  expect_true(assertthat::assert_that(TRUE))
+                  expect_null(getOption("nullkomma.r.library"))
+                })
+                RS
+                done
+                for runner in \
+                  ${lib.getExe (perSystem rWithProfile).nullkomma.tests.r-testthat-installed.package} \
+                  ${lib.getExe (perSystem rWithProfile).nullkomma.tests.r-testthat.package} \
+                  ${lib.getExe (perSystem rWithProfile).nullkomma.tests.r-cmd-check.package}; do
+                  "$runner"
+                done
+                test ! -d .R/library
+                rm .Renviron
+                unset NIX_BUILD_TOP
+                for runner in \
+                  ${lib.getExe (perSystem rWithProfile).nullkomma.tests.r-testthat-installed.package} \
+                  ${lib.getExe (perSystem rWithProfile).nullkomma.tests.r-testthat.package}; do
+                  "$runner"
+                  IN_NIX_SHELL=impure "$runner"
+                done
+                test ! -d .R/library
+                touch "$out"
+              '';
               r-non-nix-profile =
                 pkgs.runCommand "nullkomma-r-non-nix-profile" { nativeBuildInputs = [ pkgs.R ]; }
                   ''
@@ -1858,7 +1898,7 @@
                     cd project
                     export HOME="$TMPDIR/home"
                     mkdir -p "$HOME"
-                    unset IN_NIX_SHELL R_LIBS_USER
+                    unset IN_NIX_SHELL NIX_BUILD_TOP NULLKOMMA_R_NIX R_LIBS_USER
                     export R_LIBS_USER="$HOME/user-library"
                     export R_LIBS_SITE="$HOME/site-library"
                     mkdir -p "$R_LIBS_USER" "$R_LIBS_SITE"
@@ -1885,11 +1925,13 @@
                       exit 1
                     fi
                     grep -qF 'with its .Rprofile enabled' failure.log
-                    if IN_NIX_SHELL=impure Rscript .R/install.R > failure.log 2>&1; then
-                      echo "Installer accepted a Nix environment" >&2
-                      exit 1
-                    fi
-                    grep -qF 'outside Nix' failure.log
+                    for indicator in IN_NIX_SHELL NIX_BUILD_TOP NULLKOMMA_R_NIX; do
+                      if env "$indicator=nix" Rscript .R/install.R > failure.log 2>&1; then
+                        echo "Installer accepted a Nix environment: $indicator" >&2
+                        exit 1
+                      fi
+                      grep -qF 'outside Nix' failure.log
+                    done
                     Rscript - <<'RS'
                       local({
                         library <- getOption("nullkomma.r.library")
@@ -1909,7 +1951,7 @@
                     touch .R/library/sentinel project-only.txt
                     R CMD build --no-build-vignettes --no-manual .
                     tar -tf nullkommafixture_0.0.1.tar.gz > package-files
-                    if grep -E '/(flake[.]nix|pkg[.]lock|[.]R|[.]Renviron|[.]Rprofile|project-only[.]txt)(/|$)' package-files; then
+                    if grep -E '/(flake[.]nix|pkg[.]lock|[.]R|[.]Renviron|[.]Rprofile|[.]nvim[.]lua|project-only[.]txt)(/|$)' package-files; then
                       echo "Development files leaked into the R source package" >&2
                       exit 1
                     fi
@@ -1920,6 +1962,9 @@
                       exit 1
                     fi
                     grep -qF 'Missing project R settings' failure.log
+                    for indicator in IN_NIX_SHELL NIX_BUILD_TOP NULLKOMMA_R_NIX; do
+                      env "$indicator=nix" Rscript -e 'stopifnot(is.null(getOption("nullkomma.r.library")))'
+                    done
                     touch $out
                   '';
               r-production =

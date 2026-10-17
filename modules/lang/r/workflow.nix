@@ -326,6 +326,7 @@
               ''
               + ''
                 export NOT_CRAN=true LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+                export NULLKOMMA_R_NIX=true
                 export SHINYTEST="''${SHINYTEST:-true}"
                 export TESTTHAT_PARALLEL="''${TESTTHAT_PARALLEL:-${lib.boolToString cfg.testthat.parallel}}"
                 export TESTTHAT_CPUS="''${TESTTHAT_CPUS:-''${NIX_BUILD_CORES:-2}}"

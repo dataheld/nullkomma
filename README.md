@@ -618,7 +618,9 @@ files: later upstream changes use the normal conflict-aware `write-files` update
 This plugin imports and enables `r`; disabling `r` while enabling `r-non-nix`
 is an option conflict. Both plugins are off by default. For selective imports,
 use `nullkomma.flakeModules.r-non-nix` alongside `flakeModules.framework`;
-no additional flake input is needed.
+no additional flake input is needed. Its startup profile leaves Nix-provided
+settings and libraries untouched in development shells, builds and shared R tasks,
+including parallel test workers; it requires `.Renviron` only for native R sessions.
 The `r` plugin alone keeps Nix development shells, lock generation, checks and
 package workflows and `.Rbuildignore`, without emitting non-Nix startup files. Snapshot and PPM settings
 remain under `nullkomma.r` because `r-lock` also uses them.
