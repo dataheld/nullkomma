@@ -112,6 +112,21 @@
             overrides =
               sourceOverrides
               // systemLibraries
+              // lib.optionalAttrs cfg.lintr.enable {
+                lintr = (systemLibraries.lintr or (sourceOverrides.lintr or base.lintr)).overrideAttrs (old: {
+                  postPatch = (old.postPatch or "") + ''
+                    # Keep native discovery/evaluation; replace only its default linter list.
+                    substituteInPlace R/with.R \
+                      --replace-fail 'linters_with_defaults <- function(..., defaults = default_linters)' \
+                      'linters_with_defaults <- function(..., defaults = { path <- Sys.getenv("NULLKOMMA_LINTR_CONFIG"); if (nzchar(path)) dget(path) else default_linters })'
+                    substituteInPlace R/settings.R \
+                      --replace-fail '  config <- read_config_file(config_file, call = call)' ${lib.escapeShellArg ''
+                        path <- Sys.getenv("NULLKOMMA_LINTR_CONFIG")
+                        if (nzchar(path)) default_settings$linters <- dget(path)
+                        config <- read_config_file(config_file, call = call)''}
+                  '';
+                });
+              }
               // lib.optionalAttrs cfg.pkgdown.enable {
                 pkgdown =
                   (systemLibraries.pkgdown or (sourceOverrides.pkgdown or base.pkgdown)).overrideAttrs

@@ -126,7 +126,7 @@
             || builtins.pathExists (cfg.root + "/.lintr")
             || builtins.pathExists (cfg.root + "/.lintr.R");
           defaultText = lib.literalMD "whether lintr is locked or .lintr/.lintr.R exists";
-          description = "Load the package and run lintr through treefmt and r-lint, failing on lints. Native .lintr/.lintr.R configuration takes precedence over shared defaults.";
+          description = "Load the package and run lintr through treefmt and r-lint, failing on lints. Native .lintr/.lintr.R files retain discovery and exclusions; linters_with_defaults extends the shared policy.";
         };
         lintr.linters = lib.mkOption {
           type = lib.types.attrsOf (lib.types.nullOr lib.types.str);
@@ -134,7 +134,7 @@
           example = {
             line_length_linter = "lintr::line_length_linter(100L)";
           };
-          description = "Additional named R linter expressions for linters_with_defaults; null disables a rule. Object-name and object-length rules are disabled by default. Native .lintr/.lintr.R files replace this fallback configuration.";
+          description = "Additional named R linter expressions; null disables a rule. Object-name and object-length rules are disabled by default. Native .lintr/.lintr.R files using linters_with_defaults extend these defaults; an explicit list() or defaults argument replaces them.";
         };
         coverage.enable = lib.mkOption {
           type = lib.types.bool;
@@ -195,6 +195,10 @@
         nullkomma.lint.markdown = {
           MD013 = lib.mkDefault false;
           MD033 = lib.mkDefault false;
+        };
+        nullkomma.lint.typos.type.r-description = {
+          extend-glob = [ "DESCRIPTION" ];
+          extend-words.fnd = lib.mkDefault "fnd";
         };
         nullkomma.generatedPaths =
           lib.optional cfg.document.enable "${root}man/*.Rd"
@@ -452,12 +456,9 @@
             nullkomma.r.lintr.package = lib.mkIf cfg.lintr.enable (
               pkgs.writeShellScriptBin "r-lintr" ''
                 ${pcfg.setup}
-                # Native project configs win; the shared policy is lintr's user-config fallback.
-                export R_USER_CONFIG_DIR="$(mktemp -d)"
-                trap 'rm -rf "$R_USER_CONFIG_DIR"' EXIT
                 export NULLKOMMA_LINTR_CONFIG=${
-                  pkgs.writeText "lintr-config" (
-                    "linters: lintr::linters_with_defaults(\n"
+                  pkgs.writeText "lintr-config.R" (
+                    "lintr::modify_defaults(\n"
                     + lib.concatStringsSep ",\n" (
                       lib.mapAttrsToList (name: value: "    ${name} = ${if value == null then "NULL" else value}") (
                         {
@@ -467,14 +468,11 @@
                         // cfg.lintr.linters
                       )
                     )
-                    + "\n  )\n"
+                    + ",\n    defaults = lintr::default_linters\n)\n"
                   )
                 }
                 export LINTR_ERROR_ON_LINT=true
                 ${pcfg.package}/bin/Rscript --vanilla ${pkgs.writeText "lint.R" ''
-                  config_dir <- tools::R_user_dir("lintr", "config")
-                  dir.create(config_dir, recursive = TRUE, showWarnings = FALSE)
-                  invisible(file.copy(Sys.getenv("NULLKOMMA_LINTR_CONFIG"), file.path(config_dir, "config")))
                   files <- commandArgs(trailingOnly = TRUE)
                   root <- Sys.getenv("NULLKOMMA_R_WORKDIR", ${
                     builtins.toJSON (if root == "" then "." else lib.removeSuffix "/" root)

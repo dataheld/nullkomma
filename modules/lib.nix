@@ -29,6 +29,7 @@ in
       "flakehub"
       "git"
       "github"
+      "gitleaks"
       "json"
       "keepSorted"
       "markdown"

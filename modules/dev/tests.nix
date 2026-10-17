@@ -70,19 +70,36 @@
           override = {
             footer.components.brand = ''<span id="sandbox-brand">Sandbox brand footer · 🌲</span>'';
           };
-          config = {
-            template = {
-              bootstrap = 5;
-              bslib.brand = ../../tests/fixtures/r-brand/_brand.yml;
+          brand = {
+            lib = {
+              brand = ../../tests/fixtures/r-brand/_brand.yml;
+              footer = builtins.toFile "fixture-footer.html" ''
+                <footer id="shared-brand">Shared brand footer · 🌲 <a href="privacy.html">Privacy</a></footer>
+              '';
             };
-            footer = {
-              structure.left = "brand";
-              components.brand = ''<span id="shared-brand">Shared brand footer · 🌲</span>'';
+            flakeModules.privacy = {
+              nullkomma.privacy.sections.brand = {
+                order = 100;
+                markdown = {
+                  en = ../../tests/fixtures/quarto-branded/_privacy/local.en.md;
+                  de = ../../tests/fixtures/quarto-branded/_privacy/local.de.md;
+                };
+              };
             };
           };
         };
       };
       rWithBrand = callFlakeWith rBranded ../../tests/fixtures/r;
+      rWithPublishedBrand = callFlakeWith {
+        nullkomma.r.pkgdown = {
+          enable = true;
+          brand = inputs.brand;
+        };
+        nullkomma.cloudflare = {
+          enable = true;
+          worker = "r-branded-fixture";
+        };
+      } ../../tests/fixtures/r;
       rPrivacy = {
         nullkomma.r.pkgdown.enable = true;
         nullkomma.cloudflare = {
@@ -132,6 +149,14 @@
           pkgdown.enable = true;
         };
         nullkomma.generatedPaths = [ "generated/**" ];
+        nullkomma.lint.yaml = {
+          ignore = [ "shared-ignore.yaml" ];
+          rules.truthy.allowed-values = [
+            "true"
+            "false"
+            "yes"
+          ];
+        };
         perSystem.nullkomma.files."managed" = {
           mode = "generated";
           directory = true;
@@ -869,6 +894,11 @@
                 brandPackage = lib.elem "brand.yml" (perSystem rWithBrand).nullkomma.r.packages;
                 defaultBrandPackage = lib.elem "brand.yml" (perSystem rWithWebsite).nullkomma.r.packages;
                 defaultAssets = (perSystem rWithWebsite).nullkomma.files ? "pkgdown/assets";
+                privacyOrder = rWithBrand.debug.config.nullkomma.privacy.sections.brand.order;
+                privacy =
+                  lib.hasInfix "Local section in English"
+                    (perSystem rWithBrand).nullkomma.files."pkgdown/privacy.md".text;
+                footer = rWithBrand.debug.config.nullkomma.r.pkgdown.config.footer.components.brand;
               };
               expected = {
                 assets = "generated";
@@ -877,6 +907,11 @@
                 brandPackage = true;
                 defaultBrandPackage = false;
                 defaultAssets = false;
+                privacyOrder = 100;
+                privacy = true;
+                footer = ''
+                  <div id="shared-brand">Shared brand footer · 🌲 <a href="privacy.html">Privacy</a></div>
+                '';
               };
             };
             testRPkgdownPrivacy = {
@@ -1179,9 +1214,42 @@
                 grep -qF "last_built: $epoch" "$site/pkgdown.yml"
                 touch "$out"
               '';
+              gitleaks = pkgs.runCommand "gitleaks-treefmt" { } ''
+                scan=${(perSystem fixtures.md).treefmt.settings.formatter.gitleaks.command}
+                printf 'ordinary project text\n' > clean.txt
+                "$scan" clean.txt
+                printf '%s%s\n' 'ghp_' 'xcW3BwhFZwDiTfeZpXyE2KJm6RQbnVhqUsa7' > secret.txt
+                if "$scan" clean.txt secret.txt > scan.log 2>&1; then
+                  echo 'Secret scanner accepted a synthetic credential' >&2
+                  exit 1
+                fi
+                ! grep -qF 'xcW3BwhFZwDiTfeZpXyE2KJm6RQbnVhqUsa7' scan.log
+                cp secret.txt allowed.txt
+                cat > .gitleaks.toml <<'TOML'
+                [extend]
+                useDefault = true
+                [[allowlists]]
+                paths = ["^allowed[.]txt$"]
+                TOML
+                "$scan" allowed.txt
+                if "$scan" secret.txt > scan.log 2>&1; then
+                  echo 'Native allowlist disabled unrelated default rules' >&2
+                  exit 1
+                fi
+                rm .gitleaks.toml
+                printf 'secret.txt:github-pat:1\n' > .gitleaksignore
+                "$scan" secret.txt
+                mkdir docs
+                cp secret.txt docs/generated.md
+                touch flake.nix
+                ${lib.getExe (perSystem rWithWebsite).treefmt.build.wrapper} --no-cache --fail-on-change docs/generated.md
+                touch "$out"
+              '';
               r-pkgdown-brand = pkgs.runCommand "r-pkgdown-brand" { } ''
                 site=${rWithBrand.packages.${system}.site}
                 grep -qF 'Sandbox brand footer · 🌲' "$site/index.html"
+                grep -qF 'Local section in English' "$site/privacy.html"
+                grep -qF 'Lokaler Abschnitt auf Deutsch' "$site/privacy.html"
                 for text in 'Browse source code' 'Report a bug' 'CC0' 'Citing nullkommafixture' 'Developers'; do
                   grep -qF "$text" "$site/index.html"
                 done
@@ -1201,6 +1269,40 @@
                 test -s "$site/deps/search-1.0.0/mark.min.js"
                 touch "$out"
               '';
+              r-pkgdown-published-brand =
+                pkgs.runCommand "r-pkgdown-published-brand"
+                  {
+                    nativeBuildInputs = [ pkgs.python3 ];
+                  }
+                  ''
+                    site=${rWithPublishedBrand.packages.${system}.site}
+                    grep -qF '<div class="maxheld-footer">' "$site/index.html"
+                    grep -qF 'Max Held' "$site/index.html"
+                    grep -qF 'https://www.maxheld.de/imprint.html' "$site/index.html"
+                    grep -qF 'href="/privacy.html"' "$site/index.html"
+                    grep -qF '#453AA4' "$site"/deps/bootstrap-*/*.css
+                    grep -qF 'system-ui' "$site"/deps/bootstrap-*/*.css
+                    for text in 'Controller' 'Verantwortlicher' 'Cloudflare'; do
+                      grep -qF "$text" "$site/privacy.html"
+                    done
+                    python - "$site" <<'PY'
+                    import sys
+                    from html.parser import HTMLParser
+                    from pathlib import Path
+                    from urllib.parse import urlparse
+
+                    class Assets(HTMLParser):
+                        def handle_starttag(self, tag, attrs):
+                            attrs = dict(attrs)
+                            url = attrs.get("src") if tag == "script" else attrs.get("href") if tag == "link" and attrs.get("rel") != "canonical" else None
+                            if url:
+                                assert not urlparse(url).netloc, url
+
+                    for page in Path(sys.argv[1]).rglob("*.html"):
+                        Assets().feed(page.read_text())
+                    PY
+                    touch "$out"
+                  '';
               r-pkgdown-brand-local = pkgs.runCommand "r-pkgdown-brand-local" { } ''
                 cp -R ${../../tests/fixtures/r} project
                 chmod -R u+w project
@@ -1218,6 +1320,11 @@
                 }
                 build_site
                 grep -qF 'Shared brand footer · 🌲' docs/index.html
+                grep -qF '<div id="shared-brand">' docs/index.html
+                test "$(grep -o '<footer' docs/index.html | wc -l)" -eq 1
+                grep -qF 'Local section in English' docs/privacy.html
+                grep -qF 'Lokaler Abschnitt auf Deutsch' docs/privacy.html
+                test ! -e privacy.md
                 for text in 'Browse source code' 'Report a bug' 'CC0' 'Citing nullkommafixture' 'Developers'; do
                   grep -qF "$text" docs/index.html
                 done
@@ -1265,10 +1372,10 @@
                 rm -rf pkgdown
                 ln -s "$TMPDIR" pkgdown
                 if ${lib.getExe (perSystem rWithBrand).nullkomma.tasks.r-pkgdown.package} > failure.log 2>&1; then
-                  echo "Symlinked pkgdown assets were overwritten" >&2
+                  echo "Symlinked pkgdown sources were overwritten" >&2
                   exit 1
                 fi
-                grep -qF 'pkgdown/assets is project-owned' failure.log
+                grep -qF 'Refusing symlinked privacy source: pkgdown/privacy.md' failure.log
                 test -L pkgdown
                 touch "$out"
               '';
@@ -1399,24 +1506,74 @@
                 format allowed.md
                 printf '# Title\n\n[broken]()\n' > 'literal[1].md'
                 rejects MD042 'literal[1].md'
-                printf 'default: false\nMD042: false\n' > .markdownlint.yml
-                printf 'globs: ["docs/nested/bad.md"]\n' > .markdownlint-cli2.yaml
-                format 'literal[1].md'
-                printf 'default: false\nMD013: true\n' > .markdownlint.yml
+                printf 'MD042: false\n' > .markdownlint.yml
+                printf 'globs: ["docs/nested/bad.md"]\nignores: ["ignored.md"]\n' > .markdownlint-cli2.yaml
+                printf '# Title\n\n[broken]()\n' > ignored.md
+                format 'literal[1].md' allowed.md ignored.md
+                printf 'MD013: true\n' > .markdownlint.yml
                 rejects MD013 allowed.md
-                rm .markdownlint.yml .markdownlint-cli2.yaml allowed.md 'literal[1].md'
+                mkdir nested-config
+                cp allowed.md nested-config/allowed.md
+                printf 'MD013: false\nMD033: true\n' > nested-config/.markdownlint.yaml
+                rejects MD033 nested-config/allowed.md
+                rm .markdownlint.yml
+                format ignored.md
+                rejects MD042 'literal[1].md'
+                printf 'config: {MD042: false}\nglobs: ["docs/nested/bad.md"]\n' > .markdownlint-cli2.yaml
+                format 'literal[1].md' allowed.md
+                rm -r .markdownlint-cli2.yaml allowed.md 'literal[1].md' ignored.md nested-config
                 printf 'name: value\n' > custom.yaml
-                printf 'extends: relaxed\nrules:\n  quoted-strings: {required: true}\n' > .yamllint
+                printf 'rules:\n  quoted-strings: {required: true}\nignore-from-file: .yamlignore\n' > .yamllint
+                printf 'ignored.yaml\n' > .yamlignore
+                cp custom.yaml ignored.yaml
+                cp custom.yaml shared-ignore.yaml
                 rejects quoted-strings custom.yaml
+                format ignored.yaml shared-ignore.yaml
+                printf 'name: "%0120d"\n' 0 > long.yaml
+                format long.yaml
+                printf 'rules:\n  line-length: {max: 20}\n' > .yamllint
+                rejects line-length long.yaml
                 printf 'rules: {}\n' > .yamllint
-                format custom.yaml
-                rm .yamllint custom.yaml
+                format custom.yaml long.yaml
+                printf 'rules:\n  truthy: {check-keys: false}\n' > .yamllint
+                printf 'name: yes\n' > partial.yaml
+                format partial.yaml
+                printf 'name: on\n' > partial.yaml
+                rejects truthy partial.yaml
+                rm .yamllint .yamlignore custom.yaml long.yaml ignored.yaml shared-ignore.yaml partial.yaml
+                printf 'fnd foobaar teh\n' > DESCRIPTION.spelling
+                cp DESCRIPTION DESCRIPTION.original
+                printf '\nConfig/nullkomma/test: fnd foobaar teh\n' >> DESCRIPTION
+                printf '[default.extend-words]\nfoobaar = "foobaar"\n[files]\nextend-exclude = ["ignored.txt"]\n[type.r-description.extend-words]\nfnd = "find"\n' > .typos.toml
+                printf 'teh\n' > ignored.txt
+                format --formatters typos DESCRIPTION DESCRIPTION.spelling ignored.txt
+                grep -q 'test: fnd foobaar the' DESCRIPTION
+                grep -qx 'find foobaar the' DESCRIPTION.spelling
+                grep -qx teh ignored.txt
+                mkdir nested-config
+                printf '[default.extend-words]\nfnd = "find"\n' > nested-config/.typos.toml
+                printf 'fnd teh\n' > nested-config/words.txt
+                format --formatters typos nested-config/words.txt
+                grep -qx 'find the' nested-config/words.txt
+                mv DESCRIPTION.original DESCRIPTION
+                rm -r .typos.toml DESCRIPTION.spelling ignored.txt nested-config
                 printf 'CamelCaseObjectWithAnIntentionallyLongName <- 1L\n# %090d\n' 0 > R/policy.R
                 format R/policy.R
                 printf '# %0101d\n' 0 >> R/policy.R
                 rejects line_length_linter R/policy.R
-                printf 'linters: list(object_name_linter = object_name_linter())\n' > .lintr
+                printf 'linters: linters_with_defaults(object_usage_linter = NULL)\n' > .lintr
+                rejects line_length_linter R/policy.R
+                sed -i '$d' R/policy.R
+                format R/policy.R
+                printf 'linters: linters_with_defaults(object_name_linter())\n' > .lintr
                 rejects object_name_linter R/policy.R
+                printf 'linters <- linters_with_defaults(line_length_linter(120L))\n' > R/.lintr.R
+                printf '# %0101d\n' 0 >> R/policy.R
+                format R/policy.R
+                printf '# %0121d\n' 0 >> R/policy.R
+                rejects line_length_linter R/policy.R
+                printf 'exclusions <- list("policy.R")\n' > R/.lintr.R
+                format R/policy.R
                 printf 'linters <- list()\n' > R/.lintr.R
                 format R/policy.R
                 cd ..

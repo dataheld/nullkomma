@@ -103,27 +103,28 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-| Plugin                              | Dev helpers | Format / lint          | Tests                                    | Files                                                              | Editor                                                           |
-| ----------------------------------- | ----------- | ---------------------- | ---------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| [`nix`][nix]                        |             | ✅, [`flake-checker`]¹ | [nix-unit]²                              | ignores `result`                                                   | [nixd]; VS Code: [Nix IDE]                                       |
-| [`markdown`][md]                    |             | ✅                     |                                          |                                                                    | [marksman]                                                       |
-| [`json`][json]                      |             | ✅                     |                                          |                                                                    | [JSON language server][jsonls]                                   |
-| [`yaml`][yaml]                      |             | ✅                     |                                          |                                                                    | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
-| [`toml`][toml]                      |             | ✅                     |                                          |                                                                    |                                                                  |
-| [`shell`][bash]                     |             | ✅³                    | [bats]³                                  |                                                                    | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
-| [`github`][gha]                     |             | ✅                     |                                          | `push.yml`⁴                                                        |                                                                  |
-| [`keepSorted`][keep-sorted]         |             | ✅                     |                                          |                                                                    |                                                                  |
-| [`typos`][typos]                    |             | ✅ spelling⁷           |                                          |                                                                    |                                                                  |
-| [`treefmt`][treefmt]                |             | runs all ✅            |                                          |                                                                    | formatter; VS Code: [treefmt][vscode-treefmt]                    |
-| [`git`][git]                        | git         |                        |                                          | `.gitignore`                                                       |                                                                  |
-| [`direnv`][direnv]                  |             |                        |                                          | `.envrc`, ignores `.direnv/`                                       | VS Code: [Nix Environment Selector]                              |
-| [`vscode`][vscode]                  |             |                        |                                          | `.vscode/`⁵                                                        | renders it for VS Code⁵                                          |
-| [`neovim`][neovim]                  |             |                        |                                          | `.nvim.lua`⁵                                                       | renders it for Neovim⁵                                           |
-| [`flakehub`][flakehub]              | [`fh`]      |                        |                                          |                                                                    |                                                                  |
-| [`quarto`][quarto] (opt-in)         | quarto⁹     |                        |                                          | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸      | VS Code: [Quarto][vscode-quarto]                                 |
-| [`cloudflare`][cloudflare] (opt-in) | wrangler⁶   |                        | OpenTofu validation                      | ignores `.nullkomma/cloudflare/`                                   |                                                                  |
-| [`r`][r] (opt-in)                   | R, pak      | ✅                     | rcmdcheck, testthat, namespace freshness | `.Rbuildignore`, R ignores, `pkgdown/privacy.md`⁸, pkgdown assets⁸ | R languageserver; VS Code: R, Air                                |
-| `r-non-nix` (opt-in, enables `r`)   |             |                        |                                          | `.Rprofile`, `.Renviron`, `.R/install.R`, README                   |                                                                  |
+| Plugin                              | Dev helpers    | Format / lint          | Tests                                    | Files                                                              | Editor                                                           |
+| ----------------------------------- | -------------- | ---------------------- | ---------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| [`nix`][nix]                        |                | ✅, [`flake-checker`]¹ | [nix-unit]²                              | ignores `result`                                                   | [nixd]; VS Code: [Nix IDE]                                       |
+| [`markdown`][md]                    |                | ✅                     |                                          |                                                                    | [marksman]                                                       |
+| [`json`][json]                      |                | ✅                     |                                          |                                                                    | [JSON language server][jsonls]                                   |
+| [`yaml`][yaml]                      |                | ✅                     |                                          |                                                                    | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
+| [`toml`][toml]                      |                | ✅                     |                                          |                                                                    |                                                                  |
+| [`shell`][bash]                     |                | ✅³                    | [bats]³                                  |                                                                    | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
+| [`github`][gha]                     |                |                        |                                          | `push.yml`⁴                                                        |                                                                  |
+| [`keepSorted`][keep-sorted]         |                | ✅                     |                                          |                                                                    |                                                                  |
+| [`gitleaks`][gitleaks]              | secret-history | ✅ secrets             |                                          |                                                                    |                                                                  |
+| [`typos`][typos]                    |                | ✅ spelling⁷           |                                          |                                                                    |                                                                  |
+| [`treefmt`][treefmt]                |                | runs all ✅            |                                          |                                                                    | formatter; VS Code: [treefmt][vscode-treefmt]                    |
+| [`git`][git]                        | git            |                        |                                          | `.gitignore`                                                       |                                                                  |
+| [`direnv`][direnv]                  |                |                        |                                          | `.envrc`, ignores `.direnv/`                                       | VS Code: [Nix Environment Selector]                              |
+| [`vscode`][vscode]                  |                |                        |                                          | `.vscode/`⁵                                                        | renders it for VS Code⁵                                          |
+| [`neovim`][neovim]                  |                |                        |                                          | `.nvim.lua`⁵                                                       | renders it for Neovim⁵                                           |
+| [`flakehub`][flakehub]              | [`fh`]         |                        |                                          |                                                                    |                                                                  |
+| [`quarto`][quarto] (opt-in)         | quarto⁹        |                        |                                          | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸      | VS Code: [Quarto][vscode-quarto]                                 |
+| [`cloudflare`][cloudflare] (opt-in) | wrangler⁶      |                        | OpenTofu validation                      | ignores `.nullkomma/cloudflare/`                                   |                                                                  |
+| [`r`][r] (opt-in)                   | R, pak         | ✅                     | rcmdcheck, testthat, namespace freshness | `.Rbuildignore`, R ignores, `pkgdown/privacy.md`⁸, pkgdown assets⁸ | R languageserver; VS Code: R, Air                                |
+| `r-non-nix` (opt-in, enables `r`)   |                |                        |                                          | `.Rprofile`, `.Renviron`, `.R/install.R`, README                   |                                                                  |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
 Nixpkgs. The `nix` plugin also adds the tasks `check` (`nix flake check`) and
@@ -137,7 +138,17 @@ exists; add the tools they call with `perSystem.nullkomma.shell.bats.packages`.
 `*.bats` files are formatted and linted like other shell scripts.
 
 ⁴ `.github/workflows/push.yml`, a stub calling nullkomma's reusable CI workflow,
-which runs `nix flake check` and can publish to FlakeHub.
+which runs `nix flake check` and can publish to FlakeHub. Workflow linting belongs
+to the YAML plugin, so custom workflows are still checked when `github` is disabled.
+
+The default `gitleaks` plugin scans treefmt-selected current files for secrets
+before formatters run, with redacted scanner diagnostics. It respects treefmt's
+generated-file exclusions. Commit `.gitleaks.toml` for native rules/allowlists and
+`.gitleaksignore` for finding fingerprints; include `[extend]` with
+`useDefault = true` in a custom config to retain Gitleaks' built-in rules.
+`GITLEAKS_CONFIG` and `GITLEAKS_CONFIG_TOML` keep their native precedence.
+`nix fmt` never scans Git history; run the optional `secret-history` task when
+needed. Disable the plugin with `nullkomma.gitleaks.enable = false`.
 
 ⁵ Generated (Git-ignored) from the Editor column: VS Code settings and
 recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
@@ -158,19 +169,76 @@ and re-rendering and live-reloading it on changes.
 checked by `nix flake check` (via treefmt). The exact tools are in the plugin's source.
 
 Markdown and YAML linting run after their formatters, through the same treefmt
-commands and editor integration. Native `.markdownlint.*`, `.markdownlint-cli2.*`
-and `.yamllint{,.yaml,.yml}` files keep their usual configuration discovery.
-Without project configuration, YAML uses relaxed rules without a line-length
-limit. Use `nullkomma.lint.markdown.<rule>` to extend shared Markdown defaults;
-a native `.markdownlint.*` file replaces that fallback rule configuration.
-Additional tools and per-tool exclusions use native `perSystem.treefmt.programs`
-and `perSystem.treefmt.settings.formatter` options.
+commands and editor integration. Commit ordinary native config files to extend
+shared defaults; nullkomma does not generate or overwrite these files. See
+[Customizing linting](#customizing-linting) for configuration, precedence and
+exclusions. Without project configuration, YAML uses relaxed rules without a
+line-length limit.
 
 Generated outputs are not formatted or linted: managed files and entire managed
 directories are excluded, along with R/pkgdown and Quarto build outputs. Add
 repository-relative treefmt globs to `nullkomma.generatedPaths` for other generated
 content, for example `[ "generated/**" ]`. These are treefmt globs, not Git ignore
 patterns; hand-maintained sources such as `man/figures/` remain included.
+
+### Customizing linting
+
+Prefer a committed native file for project-specific settings:
+
+| Tool         | Native configuration                                                                        | How it combines with shared policy                                                                                                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| typos        | `.typos.toml`, `typos.toml`, `_typos.toml`, or `[tool.typos]` in `pyproject.toml`           | Native discovery adds words, file types and `files.extend-exclude`; explicit shared settings win conflicting keys, following typos' `--config` precedence.                                                                                                          |
+| markdownlint | `.markdownlint.{jsonc,json,yaml,yml,cjs,mjs}` and `.markdownlint-cli2.{jsonc,yaml,cjs,mjs}` | Project rules override shared rules by rule name; other shared rules remain. CLI2 `ignores` and native nested discovery work normally; project `globs` cannot expand treefmt's selected files.                                                                      |
+| yamllint     | `.yamllint`, `.yamllint.yaml`, `.yamllint.yml`                                              | Project rules extend shared rules (including per-rule settings); project and shared ignore patterns are retained. Native discovery searches the working directory and parents, not per-file subdirectories. Explicit native `extends` still applies before merging. |
+| lintr        | `.lintr`, `.lintr.R`                                                                        | Use `linters_with_defaults(...)` for additive rules; `exclusions` and nested config discovery retain native behavior. See [R projects](#r-projects) for deliberate replacement.                                                                                     |
+| ShellCheck   | `.shellcheckrc` and source directives                                                       | Native settings supplement command-line defaults.                                                                                                                                                                                                                   |
+| actionlint   | `.github/actionlint.yaml` or `.github/actionlint.yml`                                       | Native repository configuration.                                                                                                                                                                                                                                    |
+| gitleaks     | `.gitleaks.toml`, `.gitleaksignore`                                                         | Include `[extend]` with `useDefault = true` in a native TOML config to retain upstream detection rules; add project rules or allowlists normally.                                                                                                                   |
+
+For example, add spellings and skip a vendor directory in `.typos.toml`:
+
+```toml
+[default.extend-words]
+foobaar = "foobaar"
+
+[files]
+extend-exclude = ["vendor/**"]
+```
+
+Add `MD042: false` in `.markdownlint.yaml` to disable that rule without losing
+shared Markdown policy. In `.yamllint`, `rules: {quoted-strings: {required: true}}`
+adds a rule without restoring the shared-disabled line-length limit. In `.lintr`:
+
+```text
+linters: linters_with_defaults(line_length_linter(120L))
+exclusions: list("R/generated.R")
+```
+
+For reusable policy in Nix, set `nullkomma.lint.typos`,
+`nullkomma.lint.markdown`, `nullkomma.lint.yaml` or `nullkomma.r.lintr.linters`.
+These settings merge through the module system; override the shared typos
+`type.r-description.extend-words.fnd` setting there if needed. Native files are
+user-owned and are not reformatted into a generated combined config. Without Nix,
+linters see only their native files, not nullkomma's shared policy.
+
+Tools without native config files (for example deadnix) use treefmt-nix options;
+no universal linter config format is imposed. The same interface also adds
+arguments and exclusions for any formatter/linter:
+
+```nix
+perSystem = { ... }: {
+  treefmt.programs.deadnix.no-lambda-arg = true;
+  treefmt.settings.formatter.typos.excludes = [ "snapshots/**" ];
+  treefmt.settings.excludes = [ "vendor/**" ];
+};
+```
+
+Use each tool's `perSystem.treefmt.programs.<name>` options for supported settings
+and `treefmt.settings.formatter.<name>.options` for extra command-line arguments.
+A committed `treefmt.toml` is **not** merged: treefmt-nix supplies its generated
+configuration explicitly. Replacing a tool's `package` or typos' `configFile`, or
+enabling typos' `isolated`, opts out of the corresponding shared/native merging.
+Linter ignores affect that linter only; treefmt exclusions skip formatters too.
 
 Every test runs locally with `test` (or `test <name> [args]`) and, sandboxed
 against the flake's source, as `checks.<system>.test-<name>` in
@@ -352,9 +420,30 @@ web fonts and network-dependent articles must still be supplied locally for a
 reproducible Nix build. If both Quarto and pkgdown are enabled, select the intended
 `perSystem.packages.site` explicitly.
 
+To use a brand flake, declare its input and select it:
+
+```nix
+inputs.brand = {
+  url = "https://flakehub.com/f/dataheld/brand/0.1.*";
+  inputs.nullkomma.follows = "nullkomma";
+};
+# Inside mkFlake's module:
+nullkomma.r.pkgdown = {
+  enable = true;
+  brand = inputs.brand;
+};
+```
+
+The brand supplies `lib.brand` (a brand.yml path), optionally `lib.footer` (HTML)
+and `flakeModules.privacy`. nullkomma connects Bootstrap 5, the theme, footer and
+ordered privacy sections in both builds. Footer wrappers are converted to divs
+so they do not nest inside pkgdown's own footer. No additional imports or
+integration tests are needed in the consumer.
+
 `nullkomma.r.pkgdown.config` supplies native pkgdown settings to both
 `r-pkgdown` and the sandboxed build, merged over the project's `_pkgdown.yml`.
-Use `template.bslib.brand` for a local `_brand.yml` path (automatically adding
+Its settings override brand defaults. Without a brand flake, use
+`template.bslib.brand` for a local `_brand.yml` path (automatically adding
 the `brand.yml` R package), and `footer.structure`/`footer.components` for shared
 footer markup. Sandbox-only `pkgdown.override` settings take precedence.
 Shared images and other site files
@@ -471,10 +560,15 @@ that file and relying on shared defaults.
 The shared policy disables object-name and object-length rules. Add or disable
 rules with `nullkomma.r.lintr.linters`, for example
 `line_length_linter = "lintr::line_length_linter(100L)"` or
-`object_usage_linter = null`. Native `.lintr`/`.lintr.R` files replace this fallback
-configuration, including the Nix-defined rules. R projects also allow HTML and
-unrestricted line length in Markdown (`MD033` and `MD013`); generated `docs/` is
-excluded globally, so pkgdown output needs no separate linter exceptions.
+`object_usage_linter = null`. Native `.lintr`/`.lintr.R` files using
+`linters_with_defaults(...)` extend this shared policy, including Nix-defined
+rules; named project rules take precedence. An explicit `list(...)` or
+`linters_with_defaults(..., defaults = ...)` deliberately replaces the defaults.
+Native config discovery and exclusions are unchanged. R projects also allow HTML
+and unrestricted line length in Markdown (`MD033` and `MD013`); generated `docs/`
+is excluded globally, so pkgdown output needs no separate linter exceptions.
+The valid author role `fnd` is protected from typos corrections in `DESCRIPTION`
+files, without accepting it in unrelated prose.
 Jarl linting is opt-in with
 `nullkomma.r.jarl.enable` (it builds from source with upstream tests disabled on
 macOS).
@@ -693,6 +787,7 @@ the broken one fails with the real tool's error, not just any error.
 [flakehub]: https://flakehub.com
 [gha]: https://docs.github.com/actions
 [git]: https://git-scm.com
+[gitleaks]: https://github.com/gitleaks/gitleaks
 [json]: https://www.json.org
 [jsonls]: https://github.com/hrsh7th/vscode-langservers-extracted
 [keep-sorted]: https://github.com/google/keep-sorted

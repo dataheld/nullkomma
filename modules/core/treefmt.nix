@@ -15,7 +15,17 @@
       options.nullkomma.lint.markdown = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = { };
-        description = "Shared markdownlint rule defaults. Native .markdownlint.* files replace these defaults; Nix attributes extend them.";
+        description = "Shared markdownlint rule defaults, extended by native .markdownlint.* and .markdownlint-cli2.* configuration. Project rules take precedence.";
+      };
+      options.nullkomma.lint.typos = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = { };
+        description = "Shared typos TOML settings, merged with discovered native configuration. Explicit shared settings take precedence, as with typos --config; projects can override these Nix defaults.";
+      };
+      options.nullkomma.lint.yaml = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = { };
+        description = "Shared yamllint defaults, extended by native .yamllint configuration. Project rules and exclusions take precedence.";
       };
       config.perSystem.treefmt = {
         flakeFormatter = lib.mkDefault (config.nullkomma.treefmt.enable or false);

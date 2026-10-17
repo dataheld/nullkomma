@@ -21,7 +21,18 @@
             package = pkgs.writeShellScriptBin "markdownlint-cli2" ''
               files=()
               for file in "$@"; do files+=(":$file"); done
-              exec ${lib.getExe pkgs.markdownlint-cli2} --fix --no-globs \
+              exec ${
+                lib.getExe (
+                  pkgs.markdownlint-cli2.overrideAttrs (old: {
+                    postPatch = (old.postPatch or "") + ''
+                      # Native rule files otherwise replace the CLI2 fallback wholesale.
+                      substituteInPlace markdownlint-cli2.mjs \
+                        --replace-fail '"config": markdownlintConfig || markdownlintOptions?.config,' \
+                        ${lib.escapeShellArg ''"config": { ...${builtins.toJSON config.nullkomma.lint.markdown}, ...(markdownlintConfig || markdownlintOptions?.config) },''}
+                    '';
+                  })
+                )
+              } --fix --no-globs \
                 --config ${
                   pkgs.writeText "nullkomma.markdownlint-cli2.jsonc" (
                     builtins.toJSON {
