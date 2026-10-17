@@ -17,6 +17,11 @@
         };
         gitignore = [ ".claude/" ];
         quarto.enable = true;
+        lint.markdown = {
+          MD013 = false;
+          MD028 = false;
+          MD041 = false;
+        };
       };
       # The workspace editor settings are tracked and hand-edited.
       perSystem.nullkomma.files = {

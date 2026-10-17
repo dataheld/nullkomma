@@ -125,6 +125,27 @@
         nullkomma.r.lintr.enable = true;
         nullkomma.r.coverage.enable = true;
       } ../../tests/fixtures/r;
+      rWithTreefmtLint = callFlakeWith {
+        nullkomma.r = {
+          lintr.enable = true;
+          lintr.linters.line_length_linter = "lintr::line_length_linter(100L)";
+          pkgdown.enable = true;
+        };
+        nullkomma.generatedPaths = [ "generated/**" ];
+        perSystem.nullkomma.files."managed" = {
+          mode = "generated";
+          directory = true;
+          source = ../../tests/fixtures/r-brand/assets;
+        };
+      } ../../tests/fixtures/r;
+      rNestedTreefmt = rawAt ../../tests/fixtures {
+        imports = [ nullkomma.flakeModules.default ];
+        nullkomma.r = {
+          enable = true;
+          root = ../../tests/fixtures/r;
+          lintr.enable = true;
+        };
+      };
       cloudflare = callFlakeWith {
         nullkomma.cloudflare = {
           enable = true;
@@ -1267,6 +1288,69 @@
                 fi
                 grep -qF 'set nullkomma.r.pkgdown.privacy.page = null' failure.log
                 test "$(cat privacy.md)" = 'own policy'
+                touch "$out"
+              '';
+              treefmt-linters = pkgs.runCommand "treefmt-linters" { } ''
+                cp -R ${../../tests/fixtures/r} project
+                chmod -R u+w project
+                cd project
+                export HOME="$TMPDIR/home"
+                mkdir -p "$HOME"
+                format() {
+                  ${lib.getExe (perSystem rWithTreefmtLint).treefmt.build.wrapper} \
+                    --no-cache --walk=filesystem "$@"
+                }
+                rejects() {
+                  rule="$1"
+                  shift
+                  if format "$@" > failure.log 2>&1; then
+                    echo "Expected treefmt to reject $rule" >&2
+                    exit 1
+                  fi
+                  grep -qF "$rule" failure.log || { cat failure.log; exit 1; }
+                }
+                for directory in docs/nested managed/nested generated/nested; do
+                  mkdir -p "$directory"
+                  printf 'x <- (\n' > "$directory/bad.R"
+                  printf 'broken: [\n' > "$directory/bad.yaml"
+                  printf '[broken]()\n' > "$directory/bad.md"
+                done
+                format
+                format docs/nested/bad.R managed/nested/bad.yaml generated/nested/bad.md
+                printf '# Title\n\n<div>HTML is allowed.</div>\n\n' > allowed.md
+                printf 'long line %.0s' {1..15} >> allowed.md
+                printf '\n' >> allowed.md
+                format allowed.md
+                printf '# Title\n\n[broken]()\n' > 'literal[1].md'
+                rejects MD042 'literal[1].md'
+                printf 'default: false\nMD042: false\n' > .markdownlint.yml
+                printf 'globs: ["docs/nested/bad.md"]\n' > .markdownlint-cli2.yaml
+                format 'literal[1].md'
+                printf 'default: false\nMD013: true\n' > .markdownlint.yml
+                rejects MD013 allowed.md
+                rm .markdownlint.yml .markdownlint-cli2.yaml allowed.md 'literal[1].md'
+                printf 'name: value\n' > custom.yaml
+                printf 'extends: relaxed\nrules:\n  quoted-strings: {required: true}\n' > .yamllint
+                rejects quoted-strings custom.yaml
+                printf 'rules: {}\n' > .yamllint
+                format custom.yaml
+                rm .yamllint custom.yaml
+                printf 'CamelCaseObjectWithAnIntentionallyLongName <- 1L\n# %090d\n' 0 > R/policy.R
+                format R/policy.R
+                printf '# %0101d\n' 0 >> R/policy.R
+                rejects line_length_linter R/policy.R
+                printf 'linters: list(object_name_linter = object_name_linter())\n' > .lintr
+                rejects object_name_linter R/policy.R
+                printf 'linters <- list()\n' > R/.lintr.R
+                format R/policy.R
+                cd ..
+                mkdir nested
+                cp -R ${../../tests/fixtures/r} nested/r
+                chmod -R u+w nested/r
+                cd nested
+                touch flake.nix
+                ${lib.getExe (perSystem rNestedTreefmt).treefmt.build.wrapper} \
+                  --no-cache --walk=filesystem r/R/hello.R
                 touch "$out"
               '';
               r-lintr = rWithQuality.checks.${system}.test-r-lintr;

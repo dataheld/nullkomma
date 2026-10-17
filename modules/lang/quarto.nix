@@ -92,6 +92,14 @@
         }
       );
       config = lib.mkIf cfg.enable {
+        nullkomma.generatedPaths =
+          let
+            root = lib.removePrefix "${toString self}/" "${toString cfg.root}/";
+          in
+          [
+            "${root}.quarto/**"
+            "${root}_site/**"
+          ];
         nullkomma.gitignore = [
           ".quarto/"
           "_site/"

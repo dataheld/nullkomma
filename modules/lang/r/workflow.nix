@@ -108,7 +108,15 @@
             || builtins.pathExists (cfg.root + "/.lintr")
             || builtins.pathExists (cfg.root + "/.lintr.R");
           defaultText = lib.literalMD "whether lintr is locked or .lintr/.lintr.R exists";
-          description = "Load the package and run lintr, failing on lints. Uses the project's own linter configuration.";
+          description = "Load the package and run lintr through treefmt and r-lint, failing on lints. Native .lintr/.lintr.R configuration takes precedence over shared defaults.";
+        };
+        lintr.linters = lib.mkOption {
+          type = lib.types.attrsOf (lib.types.nullOr lib.types.str);
+          default = { };
+          example = {
+            line_length_linter = "lintr::line_length_linter(100L)";
+          };
+          description = "Additional named R linter expressions for linters_with_defaults; null disables a rule. Object-name and object-length rules are disabled by default. Native .lintr/.lintr.R files replace this fallback configuration.";
         };
         coverage.enable = lib.mkOption {
           type = lib.types.bool;
@@ -130,6 +138,11 @@
                   null;
               defaultText = lib.literalMD "Chromium on Linux when shinytest2 is in pkg.lock or extraPackages; otherwise null";
               description = "Chrome-compatible browser for shinytest2/chromote. On macOS, null uses chromote's locally installed Chrome discovery; sandboxed browser tests require Linux or a supplied Nix browser.";
+            };
+            lintr.package = lib.mkOption {
+              type = lib.types.package;
+              internal = true;
+              description = "Shared selected-file/package lintr runner.";
             };
             setup = lib.mkOption {
               type = lib.types.lines;
@@ -161,6 +174,14 @@
             "covr"
             "xml2"
           ];
+        nullkomma.lint.markdown = {
+          MD013 = lib.mkDefault false;
+          MD033 = lib.mkDefault false;
+        };
+        nullkomma.generatedPaths =
+          lib.optional cfg.document.enable "${root}man/*.Rd"
+          ++ lib.optional cfg.pkgdown.enable "${root}docs/**"
+          ++ lib.optional cfg.coverage.enable "${root}coverage.xml";
         nullkomma.gitignore =
           lib.optional cfg.document.enable "/${root}man/*.Rd"
           ++ lib.optionals cfg.pkgdown.enable [
@@ -365,8 +386,7 @@
                   check = check "r-lintr";
                   command = ''
                     ${prepare}
-                    export LINTR_ERROR_ON_LINT=true
-                    Rscript --vanilla -e 'pkgload::load_all(); lintr::lint_package()'
+                    NULLKOMMA_R_WORKDIR="$PWD" ${lib.getExe pcfg.lintr.package}
                   '';
                 };
               })
@@ -394,6 +414,45 @@
                     };
                   }
                 );
+            nullkomma.r.lintr.package = lib.mkIf cfg.lintr.enable (
+              pkgs.writeShellScriptBin "r-lintr" ''
+                ${pcfg.setup}
+                # Native project configs win; the shared policy is lintr's user-config fallback.
+                export R_USER_CONFIG_DIR="$(mktemp -d)"
+                trap 'rm -rf "$R_USER_CONFIG_DIR"' EXIT
+                export NULLKOMMA_LINTR_CONFIG=${
+                  pkgs.writeText "lintr-config" (
+                    "linters: lintr::linters_with_defaults(\n"
+                    + lib.concatStringsSep ",\n" (
+                      lib.mapAttrsToList (name: value: "    ${name} = ${if value == null then "NULL" else value}") (
+                        {
+                          object_name_linter = null;
+                          object_length_linter = null;
+                        }
+                        // cfg.lintr.linters
+                      )
+                    )
+                    + "\n  )\n"
+                  )
+                }
+                export LINTR_ERROR_ON_LINT=true
+                ${pcfg.package}/bin/Rscript --vanilla ${pkgs.writeText "lint.R" ''
+                  config_dir <- tools::R_user_dir("lintr", "config")
+                  dir.create(config_dir, recursive = TRUE, showWarnings = FALSE)
+                  invisible(file.copy(Sys.getenv("NULLKOMMA_LINTR_CONFIG"), file.path(config_dir, "config")))
+                  files <- commandArgs(trailingOnly = TRUE)
+                  root <- Sys.getenv("NULLKOMMA_R_WORKDIR", ${
+                    builtins.toJSON (if root == "" then "." else lib.removeSuffix "/" root)
+                  })
+                  pkgload::load_all(root, quiet = TRUE)
+                  if (length(files)) {
+                    for (file in files) print(lintr::lint(file))
+                  } else {
+                    print(lintr::lint_package(root))
+                  }
+                ''} "$@"
+              ''
+            );
             packages = lib.mkIf cfg.pkgdown.enable {
               site = lib.mkDefault (
                 pkgs.runCommand "r-pkgdown-site"

@@ -157,6 +157,21 @@ and re-rendering and live-reloading it on changes.
 ✅ means the plugin's files are formatted/linted by the `format` task (or `nix fmt`) and
 checked by `nix flake check` (via treefmt). The exact tools are in the plugin's source.
 
+Markdown and YAML linting run after their formatters, through the same treefmt
+commands and editor integration. Native `.markdownlint.*`, `.markdownlint-cli2.*`
+and `.yamllint{,.yaml,.yml}` files keep their usual configuration discovery.
+Without project configuration, YAML uses relaxed rules without a line-length
+limit. Use `nullkomma.lint.markdown.<rule>` to extend shared Markdown defaults;
+a native `.markdownlint.*` file replaces that fallback rule configuration.
+Additional tools and per-tool exclusions use native `perSystem.treefmt.programs`
+and `perSystem.treefmt.settings.formatter` options.
+
+Generated outputs are not formatted or linted: managed files and entire managed
+directories are excluded, along with R/pkgdown and Quarto build outputs. Add
+repository-relative treefmt globs to `nullkomma.generatedPaths` for other generated
+content, for example `[ "generated/**" ]`. These are treefmt globs, not Git ignore
+patterns; hand-maintained sources such as `man/figures/` remain included.
+
 Every test runs locally with `test` (or `test <name> [args]`) and, sandboxed
 against the flake's source, as `checks.<system>.test-<name>` in
 `nix flake check` and CI.
@@ -443,7 +458,16 @@ This gets you two benefits:
 
 [Posit's Air](https://posit-dev.github.io/air/) extends treefmt for R by default.
 The editor-neutral R language server defers formatting
-to the configured editor formatter, when present. Jarl linting is opt-in with
+to the configured editor formatter, when present. When lintr is enabled, it also
+runs after Air through treefmt, using the same package-aware runner as `r-lint`.
+The shared policy disables object-name and object-length rules. Add or disable
+rules with `nullkomma.r.lintr.linters`, for example
+`line_length_linter = "lintr::line_length_linter(100L)"` or
+`object_usage_linter = null`. Native `.lintr`/`.lintr.R` files replace this fallback
+configuration, including the Nix-defined rules. R projects also allow HTML and
+unrestricted line length in Markdown (`MD033` and `MD013`); generated `docs/` is
+excluded globally, so pkgdown output needs no separate linter exceptions.
+Jarl linting is opt-in with
 `nullkomma.r.jarl.enable` (it builds from source with upstream tests disabled on
 macOS).
 

@@ -7,7 +7,17 @@
       # `treefmt` plugin turns on `nix fmt` and the check; reading its option with
       # `or false` avoids priority tricks and works when the plugin isn't imported.
       imports = [ inputs.treefmt-nix.flakeModule ];
-      perSystem.treefmt = {
+      options.nullkomma.generatedPaths = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "Repository-relative treefmt exclusion globs for generated outputs, including directory descendants. Plugins contribute their outputs; projects may add their own.";
+      };
+      options.nullkomma.lint.markdown = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = { };
+        description = "Shared markdownlint rule defaults. Native .markdownlint.* files replace these defaults; Nix attributes extend them.";
+      };
+      config.perSystem.treefmt = {
         flakeFormatter = lib.mkDefault (config.nullkomma.treefmt.enable or false);
         flakeCheck = lib.mkDefault (config.nullkomma.treefmt.enable or false);
       };
@@ -16,6 +26,7 @@
     { config, lib, ... }:
     let
       enabled = config.nullkomma.treefmt.enable;
+      generatedPaths = config.nullkomma.generatedPaths;
     in
     {
       config.perSystem =
@@ -40,7 +51,13 @@
             packages = [ config.treefmt.build.wrapper ];
             command = ''exec treefmt "$@"'';
           };
-          treefmt.settings.excludes = lib.attrNames (lib.filterAttrs (_: f: f.enable) config.nullkomma.files);
+          treefmt.settings.excludes =
+            generatedPaths
+            ++ lib.concatLists (
+              lib.mapAttrsToList (path: file: [ path ] ++ lib.optional file.directory "${path}/**") (
+                lib.filterAttrs (_: file: file.enable) config.nullkomma.files
+              )
+            );
         };
     };
 }

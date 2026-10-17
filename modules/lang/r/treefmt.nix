@@ -15,9 +15,17 @@
         '';
       };
       config.perSystem = lib.mkIf cfg.enable (
-        { pkgs, ... }:
+        { config, pkgs, ... }:
         {
           treefmt.programs.air.enable = lib.mkDefault true;
+          treefmt.settings.formatter.lintr = lib.mkIf cfg.lintr.enable {
+            command = lib.getExe config.nullkomma.r.lintr.package;
+            includes = [
+              "*.R"
+              "*.r"
+            ];
+            priority = 1;
+          };
           treefmt.settings.formatter.jarl = lib.mkIf cfg.jarl.enable {
             command = lib.getExe (
               if pkgs.stdenv.hostPlatform.isDarwin then
