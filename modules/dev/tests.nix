@@ -1949,9 +1949,10 @@
                       stopifnot(!startsWith(.libPaths()[1], file.path(getwd(), ".R", "library")))
                     '
                     touch .R/library/sentinel project-only.txt
+                    printf 'gitdir: /unavailable/worktree\n' > .git
                     R CMD build --no-build-vignettes --no-manual .
                     tar -tf nullkommafixture_0.0.1.tar.gz > package-files
-                    if grep -E '/(flake[.]nix|pkg[.]lock|[.]R|[.]Renviron|[.]Rprofile|[.]nvim[.]lua|project-only[.]txt)(/|$)' package-files; then
+                    if grep -E '/(flake[.]nix|pkg[.]lock|[.]R|[.]Renviron|[.]Rprofile|[.]nvim[.]lua|[.]git|project-only[.]txt)(/|$)' package-files; then
                       echo "Development files leaked into the R source package" >&2
                       exit 1
                     fi

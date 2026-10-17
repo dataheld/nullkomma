@@ -24,6 +24,7 @@
         "^[.]Rprofile$"
         "^[.]R$"
         "^[.]direnv$"
+        "^[.]git$"
         "^[.]github$"
         "^[.]vscode$"
         "^[.]nvim[.]lua$"
