@@ -25,7 +25,10 @@
         "^pkg[.]lock$"
       ]
       ++ lib.optional (
-        cfg.pkgdown.enable && cfg.pkgdown.privacy.page != null && config.nullkomma.privacy.policy != { }
+        cfg.pkgdown.enable
+        && cfg.pkgdown.privacy.page != null
+        && !lib.hasPrefix ".github/" cfg.pkgdown.privacy.page
+        && config.nullkomma.privacy.policy != { }
       ) "^${lib.escapeRegex cfg.pkgdown.privacy.page}$";
     in
     {

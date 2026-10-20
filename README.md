@@ -124,7 +124,7 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 | [`flakehub`][flakehub]              | [`fh`]         |                        |                                                                          |                                                                    |                                                                  |
 | [`quarto`][quarto] (opt-in)         | quarto⁹        |                        |                                                                          | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸      | VS Code: [Quarto][vscode-quarto]                                 |
 | [`cloudflare`][cloudflare] (opt-in) | wrangler⁶      |                        | OpenTofu validation                                                      | ignores `.nullkomma/cloudflare/`                                   |                                                                  |
-| [`r`][r] (opt-in)                   | R, pak         | ✅                     | strict rcmdcheck, parallel testthat, lintr, pkgdown, namespace freshness | `.Rbuildignore`, R ignores, `pkgdown/privacy.md`⁸, pkgdown assets⁸ | R languageserver; VS Code: R, Air                                |
+| [`r`][r] (opt-in)                   | R, pak         | ✅                     | strict rcmdcheck, parallel testthat, lintr, pkgdown, namespace freshness | `.Rbuildignore`, R ignores, `.github/privacy.md`⁸, pkgdown assets⁸ | R languageserver; VS Code: R, Air                                |
 | `r-non-nix` (opt-in, enables `r`)   |                |                        |                                                                          | `.Rprofile`, `.Renviron`, `.R/install.R`, README                   |                                                                  |
 
 ¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
@@ -482,16 +482,16 @@ not a dependency of nullkomma.
 
 pkgdown also renders `nullkomma.privacy.sections`, including hosting and brand
 sections, to `privacy.html`. Both the local task and the sandboxed build generate
-Git-ignored `pkgdown/privacy.md`, excluded from R package tarballs. A small Nix
-package patch lets pkgdown discover this configured extra source while retaining
-its native renderer and the root-level `/privacy.html` URL. Sections follow their
+Git-ignored `.github/privacy.md`, excluded from R package tarballs, where pkgdown
+finds it natively, with or without Nix, and renders it to the root-level
+`/privacy.html` URL. Sections follow their
 configured order; each must provide every configured privacy language. Multiple
 languages appear in expandable sections without extra JavaScript or dependencies.
 Set `nullkomma.r.pkgdown.privacy.page = null` to supply your own page, or choose
-another Markdown filename in `pkgdown/` or the package root. Project-owned files,
+another Markdown filename in `.github/` or the package root. Project-owned files,
 symlinked sources and conflicting root, `.github/` or asset pages are refused.
-When upgrading from root-level `privacy.md`, remove that old generated file before
-building; it is not deleted automatically.
+When upgrading from `pkgdown/privacy.md` or root-level `privacy.md`, remove that
+old generated file before building; it is not deleted automatically.
 Link to the HTML page from your pkgdown navigation or brand footer.
 
 Declaring shinytest2 in DESCRIPTION (and refreshing `pkg.lock`) also supplies

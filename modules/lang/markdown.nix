@@ -19,27 +19,16 @@
             enable = lib.mkDefault true;
             priority = 1;
             package = pkgs.writeShellScriptBin "markdownlint-cli2" ''
+              export NULLKOMMA_MARKDOWNLINT_CONFIG=${pkgs.writeText "nullkomma-markdownlint.json" (builtins.toJSON config.nullkomma.lint.markdown)}
               files=()
               for file in "$@"; do files+=(":$file"); done
               exec ${
                 lib.getExe (
                   pkgs.markdownlint-cli2.overrideAttrs (old: {
-                    postPatch = (old.postPatch or "") + ''
-                      # Native rule files otherwise replace the CLI2 fallback wholesale.
-                      substituteInPlace markdownlint-cli2.mjs \
-                        --replace-fail '"config": markdownlintConfig || markdownlintOptions?.config,' \
-                        ${lib.escapeShellArg ''"config": { ...${builtins.toJSON config.nullkomma.lint.markdown}, ...(markdownlintConfig || markdownlintOptions?.config) },''}
-                    '';
+                    patches = (old.patches or [ ]) ++ [ ../../patches/markdownlint-cli2.patch ];
                   })
                 )
-              } --fix --no-globs \
-                --config ${
-                  pkgs.writeText "nullkomma.markdownlint-cli2.jsonc" (
-                    builtins.toJSON {
-                      config = config.nullkomma.lint.markdown;
-                    }
-                  )
-                } "''${files[@]}"
+              } --fix --no-globs "''${files[@]}"
             '';
           };
           nullkomma.editor.languageServers.marksman = {

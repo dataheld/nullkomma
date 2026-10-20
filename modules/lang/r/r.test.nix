@@ -246,9 +246,8 @@
           grep -qF 'Shared brand footer' docs/index.html
           grep -qF 'Lokaler Abschnitt auf Deutsch' docs/privacy.html
           cmp ${root + "/tests/fixtures/r-brand/assets/brand.svg"} docs/brand.svg
-          git check-ignore -q pkgdown/privacy.md
+          git check-ignore -q .github/privacy.md
           git check-ignore -q pkgdown/assets
-          grep -qxF '^pkgdown/privacy\.md$' .Rbuildignore
         '';
         r-coverage =
           let

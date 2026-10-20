@@ -45,9 +45,9 @@
           description = "Build a pkgdown website with the r-pkgdown task and packages.site (also checked in nix flake check).";
         };
         pkgdown.privacy.page = lib.mkOption {
-          type = lib.types.nullOr (lib.types.strMatching "(pkgdown/)?[^/\n]+[.]md");
-          default = "pkgdown/privacy.md";
-          description = "Generated page rendering `nullkomma.privacy`, in pkgdown/ or the package root; null to supply your own. Its basename determines the root-level HTML URL.";
+          type = lib.types.nullOr (lib.types.strMatching "([.]github/)?[^/\n]+[.]md");
+          default = ".github/privacy.md";
+          description = "Generated page rendering `nullkomma.privacy`, in .github/ or the package root where pkgdown finds it; null to supply your own. Its basename determines the root-level HTML URL.";
         };
         pkgdown.config = lib.mkOption {
           type = lib.types.attrsOf lib.types.anything;

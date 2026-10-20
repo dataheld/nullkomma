@@ -1,0 +1,55 @@
+--- a/yamllint/cli.py
++++ b/yamllint/cli.py
+@@ -187,20 +187,23 @@
+     else:
+         user_global_config = os.path.expanduser('~/.config/yamllint/config')
+ 
++    # nullkomma: shared rules from the file NULLKOMMA_YAMLLINT_CONFIG names, extended by native configuration.
++    shared_path = os.environ.get('NULLKOMMA_YAMLLINT_CONFIG')
++    shared = YamlLintConfig(file=shared_path) if shared_path else None
+     project_config_filepath = find_project_config_filepath()
+     try:
+         if args.config_data is not None:
+             if args.config_data != '' and ':' not in args.config_data:
+                 args.config_data = f'extends: {args.config_data}'
+-            conf = YamlLintConfig(content=args.config_data)
++            conf = YamlLintConfig(content=args.config_data, base=shared)
+         elif args.config_file is not None:
+-            conf = YamlLintConfig(file=args.config_file)
++            conf = YamlLintConfig(file=args.config_file, base=shared)
+         elif project_config_filepath:
+-            conf = YamlLintConfig(file=project_config_filepath)
++            conf = YamlLintConfig(file=project_config_filepath, base=shared)
+         elif os.path.isfile(user_global_config):
+-            conf = YamlLintConfig(file=user_global_config)
++            conf = YamlLintConfig(file=user_global_config, base=shared)
+         else:
+-            conf = YamlLintConfig('extends: default')
++            conf = shared if shared is not None else YamlLintConfig('extends: default')
+     except YamlLintConfigError as e:
+         print(e, file=sys.stderr)
+         sys.exit(-1)
+--- a/yamllint/config.py
++++ b/yamllint/config.py
+@@ -27,7 +27,7 @@
+ 
+ 
+ class YamlLintConfig:
+-    def __init__(self, content=None, file=None):
++    def __init__(self, content=None, file=None, base=None):
+         assert (content is None) ^ (file is None)
+ 
+         self.ignore = None
+@@ -42,6 +42,12 @@
+                 content = decoder.auto_decode(f.read())
+ 
+         self.parse(content)
++        # nullkomma: extend the shared base before validation fills in per-rule defaults.
++        if base is not None:
++            ignore = self.ignore
++            self.extend(base)
++            if ignore is not None:
++                self.ignore = base.ignore + ignore if base.ignore is not None else ignore
+         self.validate()
+ 
+     def is_file_ignored(self, filepath):

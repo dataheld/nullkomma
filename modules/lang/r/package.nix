@@ -144,25 +144,7 @@
                 pkgdown =
                   (systemLibraries.pkgdown or (sourceOverrides.pkgdown or base.pkgdown)).overrideAttrs
                     (old: {
-                      postPatch =
-                        (old.postPatch or "")
-                        + ''
-                          # Keep pkgdown's metadata sidebar, without online CRAN/Bioconductor discovery.
-                          substituteInPlace R/build-home-index.R \
-                            --replace-fail 'repo <- cran_link(pkg$package)' 'repo <- NULL'
-                        ''
-                        +
-                          lib.optionalString
-                            (cfg.pkgdown.privacy.page != null && lib.hasPrefix "pkgdown/" cfg.pkgdown.privacy.page)
-                            ''
-                              # Extra home pages are normally discovered only in the root and .github/.
-                              substituteInPlace R/build-home-md.R \
-                                --replace-fail 'mds <- dir_ls(path, glob = "*.md")' ${lib.escapeShellArg ''
-                                  mds <- dir_ls(path, glob = "*.md")
-                                  extra <- file.path(path, ${builtins.toJSON cfg.pkgdown.privacy.page})
-                                  if (file_exists(extra)) mds <- c(mds, extra)
-                                ''}
-                            '';
+                      patches = (old.patches or [ ]) ++ [ ../../../patches/pkgdown.patch ];
                     });
               };
           };

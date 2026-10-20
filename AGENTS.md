@@ -49,3 +49,12 @@ Candidates for upstreaming instead of keeping here:
 - source-of-truth/generated file modes in
   [mightyiam/files](https://github.com/mightyiam/files);
 - editor-neutral language servers (`nullkomma.editor`) as a standalone module.
+
+## Patching upstream tools
+
+Keep behavior patches as `patches/<tool>.patch`, applied through `overrideAttrs`
+`patches`; temporary fixes for upstream breakage may stay inline.
+A tool that merges shared defaults with project config reads them from the file
+named by `NULLKOMMA_<TOOL>_CONFIG`, which its wrapper sets, so the patched package
+never depends on project settings. Native project configuration extends the
+shared defaults. Prefer a native mechanism whenever one exists.
