@@ -66,11 +66,6 @@
                   noReadme = lib.hasInfix "## Development" (docs.withNonNixDocumentation "");
                   rejectsIncomplete =
                     (builtins.tryEval (docs.withNonNixDocumentation "<!-- nullkomma:r-development:start -->")).success;
-                  sharedDocumentation = lib.hasInfix (lib.replaceStrings
-                    [ "### R development without Nix" "\n#### " ]
-                    [ "#### R development without Nix" "\n##### " ]
-                    docs.nonNixDocumentation
-                  ) (builtins.readFile (root + "/README.md"));
                 };
               expected = {
                 preservesNotes = true;
@@ -78,7 +73,6 @@
                 headingCount = 1;
                 noReadme = true;
                 rejectsIncomplete = false;
-                sharedDocumentation = true;
               };
             };
             testRNonNixPlugin = {

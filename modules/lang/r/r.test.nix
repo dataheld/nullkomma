@@ -345,37 +345,6 @@
           ${test nested "r-testthat"}
           ${test nested "r-cmd-check"}
         '';
-        # Ported in phase 3 to the cross-cutting jscpd plugin.
-        r-jscpd = check "r-jscpd" ''
-          mkdir -p custom docs git-ignored tests/testthat/_snaps
-          printf 'git-ignored/\n' > .gitignore
-          cat > custom/one.js <<'JS'
-          export function greetPeople(names, prefix) {
-            const greetings = [];
-            for (const name of names) {
-              const normalized = name.trim().toLowerCase();
-              const greeting = prefix + normalized;
-              console.log(greeting);
-              greetings.push(greeting);
-            }
-            return greetings.join("\\n");
-          }
-          JS
-          for copy in custom/two.js docs/one.js docs/two.js git-ignored/one.js git-ignored/two.js tests/testthat/_snaps/one.js tests/testthat/_snaps/two.js; do
-            cp custom/one.js "$copy"
-          done
-          printf '{"ignore":["custom/**"]}\n' > .jscpd.json
-          jscpd=${test fixtures.r "r-jscpd"}
-          "$jscpd"
-          cp custom/one.js one.js
-          cp custom/one.js two.js
-          fails threshold "$jscpd"
-          printf '{"ignore":["custom/**"],"threshold":100}\n' > .jscpd.json
-          "$jscpd"
-          rm one.js two.js .jscpd.json
-          printf '{"jscpd":{"ignore":["custom/**"]}}\n' > package.json
-          "$jscpd"
-        '';
       }
       // lib.optionalAttrs pkgs.stdenv.isLinux {
         r-shinytest2 =

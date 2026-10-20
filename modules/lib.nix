@@ -16,20 +16,13 @@ in
     });
   };
   flake.lib = {
-    r = import ../lib/r.nix { inherit lib; };
-    r-non-nix = import ../lib/r-non-nix.nix { inherit lib; };
-    importTree = import ../lib/import-tree.nix lib;
-    # Privacy sections plugins contribute, for sites assembling their policy without nullkomma.
-    privacy.cloudflare = {
-      en = ./deploy/_cloudflare/privacy.en.md;
-      de = ./deploy/_cloudflare/privacy.de.md;
-    };
     defaultPlugins = [
       "direnv"
       "flakehub"
       "git"
       "github"
       "gitleaks"
+      "jscpd"
       "json"
       "keepSorted"
       "markdown"

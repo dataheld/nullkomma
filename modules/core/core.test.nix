@@ -238,6 +238,7 @@
               expected = [
                 "check"
                 "flake-checker"
+                "test"
               ];
             };
             testTemplatesAreFixtures = {

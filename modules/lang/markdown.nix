@@ -18,7 +18,6 @@
           treefmt.programs.markdownlint-cli2 = {
             enable = lib.mkDefault true;
             priority = 1;
-            excludes = config.nullkomma.lint.markdownExcludes;
             package = pkgs.writeShellScriptBin "markdownlint-cli2" ''
               files=()
               for file in "$@"; do files+=(":$file"); done

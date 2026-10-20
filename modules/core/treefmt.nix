@@ -10,17 +10,12 @@
       options.nullkomma.generatedPaths = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ ];
-        description = "Repository-relative treefmt exclusion globs for generated outputs, including directory descendants. Plugins contribute their outputs; projects may add their own.";
+        description = "Repository-relative globs for generated outputs, including directory descendants, which are neither formatted, linted nor checked for duplication. Plugins contribute their outputs; projects may add their own.";
       };
       options.nullkomma.lint.markdown = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = { };
         description = "Shared markdownlint rule defaults, extended by native .markdownlint.* and .markdownlint-cli2.* configuration. Project rules take precedence.";
-      };
-      options.nullkomma.lint.markdownExcludes = lib.mkOption {
-        type = lib.types.listOf lib.types.str;
-        default = [ ];
-        description = "Repository-relative markdownlint exclusion globs contributed by language plugins and projects.";
       };
       options.nullkomma.lint.typos = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
@@ -32,16 +27,31 @@
         default = { };
         description = "Shared yamllint defaults, extended by native .yamllint configuration. Project rules and exclusions take precedence.";
       };
-      config.perSystem.treefmt = {
-        flakeFormatter = lib.mkDefault (config.nullkomma.treefmt.enable or false);
-        flakeCheck = lib.mkDefault (config.nullkomma.treefmt.enable or false);
-      };
+      config.perSystem =
+        let
+          enabled = config.nullkomma.treefmt.enable or false;
+          inherit (config.nullkomma) generatedPaths;
+        in
+        { config, ... }:
+        {
+          treefmt = {
+            flakeFormatter = lib.mkDefault enabled;
+            flakeCheck = lib.mkDefault enabled;
+            # Also what other tools, like jscpd, skip as not hand-written.
+            settings.excludes =
+              generatedPaths
+              ++ lib.concatLists (
+                lib.mapAttrsToList (path: file: [ path ] ++ lib.optional file.directory "${path}/**") (
+                  lib.filterAttrs (_: file: file.enable) config.nullkomma.files
+                )
+              );
+          };
+        };
     };
   plugins.treefmt =
     { config, lib, ... }:
     let
       enabled = config.nullkomma.treefmt.enable;
-      generatedPaths = config.nullkomma.generatedPaths;
     in
     {
       config.perSystem =
@@ -66,13 +76,6 @@
             packages = [ config.treefmt.build.wrapper ];
             command = ''exec treefmt "$@"'';
           };
-          treefmt.settings.excludes =
-            generatedPaths
-            ++ lib.concatLists (
-              lib.mapAttrsToList (path: file: [ path ] ++ lib.optional file.directory "${path}/**") (
-                lib.filterAttrs (_: file: file.enable) config.nullkomma.files
-              )
-            );
         };
     };
 }

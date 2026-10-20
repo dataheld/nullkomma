@@ -94,15 +94,17 @@
           MD013 = lib.mkDefault false;
           MD033 = lib.mkDefault false;
         };
-        nullkomma.lint.markdownExcludes = [ "${prefix}tests/testthat/_snaps/**" ];
         nullkomma.lint.typos.type.r-description = {
           extend-glob = [ "DESCRIPTION" ];
           extend-words.fnd = lib.mkDefault "fnd";
         };
-        nullkomma.generatedPaths =
-          lib.optional cfg.document.enable "${prefix}man/*.Rd"
-          ++ lib.optional cfg.pkgdown.enable "${prefix}docs/**"
-          ++ lib.optional cfg.coverage.enable "${prefix}coverage.xml";
+        nullkomma.generatedPaths = [
+          # testthat compares snapshots byte for byte.
+          "${prefix}tests/testthat/_snaps/**"
+        ]
+        ++ lib.optional cfg.document.enable "${prefix}man/*.Rd"
+        ++ lib.optional cfg.pkgdown.enable "${prefix}docs/**"
+        ++ lib.optional cfg.coverage.enable "${prefix}coverage.xml";
         nullkomma.gitignore =
           lib.optional cfg.document.enable "/${prefix}man/*.Rd"
           ++ lib.optional cfg.pkgdown.enable "/${prefix}docs/"
