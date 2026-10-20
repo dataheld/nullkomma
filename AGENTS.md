@@ -22,16 +22,16 @@ Every new input lands in every consumer's `flake.lock`; dev-only inputs go in
 
 ### Decisions so far
 
-| Module                                                              | Decision                                                                                                        |
-| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| treefmt-nix                                                         | used, imported by the framework                                                                                 |
-| flake-parts `flakeModules`, `modules`, `partitions`                 | used for exports and dev-only evaluation                                                                        |
-| nix-unit                                                            | not its flake module: the `nix` plugin runs `pkgs.nix-unit` itself, so projects get no extra input              |
-| [files](https://flake.parts/options/files.html)                     | not used: its files are generated _and committed_; ours are user-owned (3-way updates) or generated and ignored |
-| [devshell](https://flake.parts/options/devshell.html)               | not used: own builder and command menu overlap with up tasks                                                    |
-| [make-shell](https://flake.parts/options/make-shell.html)           | not used: would add a consumer input for ~30 lines of `mkShell` wrapper                                         |
-| [std](https://flake.parts/options/std.html)                         | not used: heavy framework with many inputs                                                                      |
-| [mission-control](https://flake.parts/options/mission-control.html) | not used: deprecated; tasks use DeterminateSystems/up                                                           |
+| Module                                                              | Decision                                                                                                                           |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| treefmt-nix                                                         | used, imported by the framework                                                                                                    |
+| flake-parts `flakeModules`, `modules`, `partitions`                 | used for exports and dev-only evaluation                                                                                           |
+| nix-unit                                                            | not its flake module: the `nix` plugin runs `pkgs.nix-unit` itself, so projects get no extra input                                 |
+| [files](https://flake.parts/options/files.html)                     | not used: its files are generated _and committed_; ours are user-owned (3-way updates or marked sections) or generated and ignored |
+| [devshell](https://flake.parts/options/devshell.html)               | not used: own builder and command menu overlap with up tasks                                                                       |
+| [make-shell](https://flake.parts/options/make-shell.html)           | not used: would add a consumer input for ~30 lines of `mkShell` wrapper                                                            |
+| [std](https://flake.parts/options/std.html)                         | not used: heavy framework with many inputs                                                                                         |
+| [mission-control](https://flake.parts/options/mission-control.html) | not used: deprecated; tasks use DeterminateSystems/up                                                                              |
 
 Revisit these when the module or our needs change.
 
