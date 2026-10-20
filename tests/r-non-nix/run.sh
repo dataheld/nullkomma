@@ -6,7 +6,7 @@ if command -v nix; then
   exit 1
 fi
 test "$(id -u)" != 0
-grep -q '^VERSION_ID="24.04"$' /etc/os-release
+grep -qx "VERSION_ID=\"$UBUNTU_VERSION\"" /etc/os-release
 cp -R /fixture/. .
 chmod -R u+w .
 
@@ -28,7 +28,7 @@ test -s /tmp/external-before
 # Execute the actual R examples in the emitted documentation, in order.
 awk '/^```r$/ { code=1; next } /^```$/ { code=0 } code { print }' README.md >examples.R
 Rscript - <<'RS'
-  stopifnot(as.character(getRversion()) == Sys.getenv("NULLKOMMA_R_VERSION"))
+  stopifnot(as.character(getRversion()) == Sys.getenv("R_VERSION"))
   stopifnot(l10n_info()[["UTF-8"]])
   stopifnot(getOption("repos")[["CRAN"]] == Sys.getenv("NULLKOMMA_PPM_URL"))
   stopifnot(startsWith(.libPaths()[1], file.path(getwd(), ".R", "library")))
@@ -63,12 +63,9 @@ Rscript -e 'pak::pkg_remove("RColorBrewer", lib = getOption("nullkomma.r.library
 Rscript examples.R
 Rscript -e 'stopifnot(!requireNamespace("RColorBrewer", quietly = TRUE))'
 
-# The committed lock stays source-only and the project survives a fresh session.
-Rscript - <<'RS'
-  lock <- jsonlite::read_json("pkg.lock")
-  stopifnot(all(vapply(lock$packages, function(p) identical(p$platform, "source"), logical(1))))
-  stopifnot(file.exists("pkg.lock"), dir.exists(Sys.getenv("R_LIBS_USER")))
-RS
+# Only r-lock writes the lock; the project survives a fresh session.
+cmp pkg.lock /fixture/pkg.lock
+Rscript -e 'stopifnot(dir.exists(Sys.getenv("R_LIBS_USER")))'
 find "$R_LIBS_USER" "$R_LIBS_SITE" -type f -exec sha256sum {} + | sort >/tmp/external-after
 cmp /tmp/external-before /tmp/external-after
 

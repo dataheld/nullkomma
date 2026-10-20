@@ -618,7 +618,9 @@ remain under `nullkomma.r` because `r-lock` also uses them.
 Run `nix develop --command test-r-non-nix` locally on macOS or Linux with Docker
 running. Nix prepares the fixture and Docker client; Docker runs Ubuntu 24.04
 with the same R version as `nixpkgs-r`, as an unprivileged user, without Nix or a
-mounted Nix store. The test executes the documented R examples and checks an
+mounted Nix store. Extra arguments go to `docker build`, for example
+`test-r-non-nix --build-arg UBUNTU_VERSION=22.04 --build-arg R_VERSION=4.4.2`.
+The test executes the documented R examples and checks an
 ordinary source-package build. It uses `linux/amd64` (emulated on Apple Silicon)
 to verify PPM binaries, and requires network access. Docker caches the R image
 layers for subsequent runs. Sandboxed Nix checks cover startup, emitted files,

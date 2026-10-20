@@ -1,4 +1,4 @@
-{ config, inputs, ... }:
+{ config, ... }:
 let
   rModule = config.flake.flakeModules.r;
 in
@@ -22,13 +22,13 @@ in
         nullkomma.r.enable = true;
         nullkomma.gitignore = [ "${prefix}.R/library/" ];
         perSystem =
-          { system, ... }:
+          { config, ... }:
           {
             nullkomma.files = {
               "${prefix}.Rprofile".text = builtins.readFile ./_assets/profile.R;
               "${prefix}.R/install.R".text = builtins.readFile ./_assets/install.R;
               "${prefix}.Renviron".text = ''
-                NULLKOMMA_R_VERSION=${builtins.toJSON inputs.nixpkgs-r.legacyPackages.${system}.R.version}
+                NULLKOMMA_R_VERSION=${builtins.toJSON config.nullkomma.r.package.version}
                 NULLKOMMA_PPM_SNAPSHOT=${builtins.toJSON cfg.snapshot}
                 NULLKOMMA_PPM_URL=${builtins.toJSON cfg.ppmUrl}
                 NULLKOMMA_R_DEPENDENCIES=${builtins.toJSON (lib.concatStringsSep "," cfg.fields)}

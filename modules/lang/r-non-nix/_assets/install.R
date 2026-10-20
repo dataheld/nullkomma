@@ -18,22 +18,6 @@ local({
       .Platform$pkgType, R.Version()$os, R.Version()$arch
     ))
   }
-  # Resolve against an empty library so installed binaries stay out of the shared source-only lock.
-  local({
-    previous <- options(repos = c(CRAN = Sys.getenv("NULLKOMMA_PPM_URL")), pkg.platforms = "source")
-    empty <- tempfile()
-    dir.create(empty)
-    on.exit({
-      options(previous)
-      unlink(empty, recursive = TRUE)
-    })
-    pak::lockfile_create(
-      "deps::.",
-      dependencies = getOption("nullkomma.r.dependencies"),
-      lib = empty,
-      lockfile = "pkg.lock"
-    )
-  })
   if (identical(getOption("repos")[["CRAN"]], paste0(
     "https://packagemanager.posit.co/cran/", Sys.getenv("NULLKOMMA_PPM_SNAPSHOT")
   ))) {

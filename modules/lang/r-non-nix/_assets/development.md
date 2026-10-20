@@ -22,7 +22,7 @@ source(".R/install.R")
 Or run `Rscript .R/install.R` in a terminal from the project directory. This
 helper installs pak and the DESCRIPTION dependencies explicitly into the project
 library, even if pak is already installed elsewhere. Re-run it to update
-dependencies and `pkg.lock`. It refuses to run without the project profile or inside Nix.
+dependencies. It refuses to run without the project profile or inside Nix.
 
 The PPM resolver selects a platform-specific repository when supported; a custom
 repository URL is left unchanged. pak chooses binaries when available,
@@ -43,12 +43,12 @@ are already isolated; no extra bootstrap package or `pak_setup()` is needed.
 ### Add or remove dependencies
 
 - To add or update a package, list it in `DESCRIPTION`, restart R and re-run
-  `.R/install.R`. The installer also refreshes `pkg.lock`.
+  `.R/install.R`.
 - To remove a package, delete it from `DESCRIPTION`, re-run `.R/install.R`, and
   optionally remove it from the project library with
   `pak::pkg_remove("packageName", lib = getOption("nullkomma.r.library"))`.
-- Commit `DESCRIPTION` and `pkg.lock` together. Nix collaborators can refresh the
-  lockfile with `r-lock` instead.
+- Commit `DESCRIPTION`. `pkg.lock` pins the packages for Nix; a Nix collaborator
+  refreshes it with `r-lock`.
 
 The PPM date approximates the Nix package set: R package versions can differ,
 and neither your R installation nor system libraries are pinned by this setup.

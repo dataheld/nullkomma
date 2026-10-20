@@ -163,6 +163,7 @@
             );
             package = pkgs.symlinkJoin {
               name = "R-nullkomma";
+              inherit (pkgsR.R) version;
               paths = [ (pkgsR.rWrapper.override { packages = map lookup pcfg.packages; }) ];
               nativeBuildInputs = [ pkgs.makeWrapper ];
               postBuild = ''
