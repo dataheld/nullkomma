@@ -31,23 +31,35 @@
           default = self.outPath;
           defaultText = lib.literalExpression "self.outPath";
           example = lib.literalExpression "./pkg";
-          description = "R package directory (containing `DESCRIPTION`); a path literal if not the repo root.";
+          description = "R package directory (containing `DESCRIPTION` and its pak lockfile `pkg.lock`, written by `nix run .#r-lock`); a path literal inside the flake if not its root.";
         };
-        description = lib.mkOption {
-          type = lib.types.path;
-          default = config.nullkomma.r.root + "/DESCRIPTION";
-          defaultText = lib.literalExpression ''root + "/DESCRIPTION"'';
-          description = "DESCRIPTION of the R package, where its dependencies are declared; `nix run .#r-lock` resolves them into `nullkomma.r.lockfile`.";
+        prefix = lib.mkOption {
+          type = lib.types.str;
+          internal = true;
+          readOnly = true;
+          default =
+            let
+              root = toString config.nullkomma.r.root;
+              top = toString self.outPath;
+            in
+            if root == top then
+              ""
+            else if lib.hasPrefix "${top}/" root then
+              "${lib.removePrefix "${top}/" root}/"
+            else
+              throw "nullkomma.r.root must be inside the flake.";
+          description = "`root` relative to the flake, with a trailing slash (empty at the top).";
         };
-        lockfile = lib.mkOption {
-          type = lib.types.path;
-          default = config.nullkomma.r.root + "/pkg.lock";
-          defaultText = lib.literalExpression ''root + "/pkg.lock"'';
-          description = ''
-            pak lockfile (`pak::lockfile_create()`) of `nullkomma.r.description`, written by
-            `nix run .#r-lock` and committed. It decides which R packages are installed;
-            nixpkgs decides their versions (see `nullkomma.r.allowOffNixpkgs`).
-          '';
+        locked = lib.mkOption {
+          type = lib.types.nullOr lib.types.raw;
+          internal = true;
+          readOnly = true;
+          default =
+            let
+              lockfile = config.nullkomma.r.root + "/pkg.lock";
+            in
+            if builtins.pathExists lockfile then lib.importJSON lockfile else null;
+          description = "`pkg.lock`, the pak lockfile of DESCRIPTION written by `nix run .#r-lock`; null while missing.";
         };
         allowOffNixpkgs = lib.mkOption {
           type = lib.types.bool;
@@ -88,7 +100,13 @@
         fields = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           default =
-            rlib.defaultFields ++ rlib.configNeedsFields (builtins.readFile config.nullkomma.r.description);
+            let
+              description = config.nullkomma.r.root + "/DESCRIPTION";
+            in
+            rlib.defaultFields
+            ++ lib.optionals (builtins.pathExists description) (
+              rlib.configNeedsFields (builtins.readFile description)
+            );
           defaultText = lib.literalMD "`Depends`, `Imports`, `LinkingTo`, `Suggests`, and all `Config/Needs/*` fields in DESCRIPTION";
           description = "DESCRIPTION fields whose packages pak resolves. Override with only `Depends`, `Imports` and `LinkingTo` for runtime-only dependencies.";
         };

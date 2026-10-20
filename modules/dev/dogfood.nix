@@ -26,7 +26,7 @@
           default.extend-words.fnd = "fnd";
           type.nullkomma-lint-tests = {
             extend-glob = [
-              "tests.nix"
+              "*.test.nix"
               "dogfood.nix"
             ];
             extend-words.teh = "teh";

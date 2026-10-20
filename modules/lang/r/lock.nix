@@ -1,19 +1,12 @@
-# `nix run .#r-lock`: pak resolves DESCRIPTION into `nullkomma.r.lockfile`
+# `nix run .#r-lock`: pak resolves DESCRIPTION into `pkg.lock`
 # against the PPM snapshot matching nixpkgs (source packages, so the lockfile
 # does not depend on the platform it was created on).
 { inputs, ... }:
 {
   plugins.r =
-    {
-      config,
-      lib,
-      self,
-      ...
-    }:
+    { config, lib, ... }:
     let
       cfg = config.nullkomma.r;
-      relative = path: lib.removePrefix "${toString self}/" (toString path);
-      description = relative cfg.description;
       fields = lib.concatMapStringsSep ", " builtins.toJSON cfg.fields;
     in
     {
@@ -30,7 +23,7 @@
         {
           packages.r-lock = config.nullkomma.tasks.r-lock.package;
           nullkomma.tasks.r-lock = {
-            description = "Resolve DESCRIPTION into the R lockfile (${baseNameOf cfg.lockfile}) with pak";
+            description = "Resolve DESCRIPTION into the R lockfile (pkg.lock) with pak";
             skip = true;
             packages = [
               pkgs.coreutils
@@ -39,8 +32,8 @@
             ];
             command = ''
               while [ ! -f flake.nix ] && [ "$PWD" != / ]; do cd ..; done
-              description=${lib.escapeShellArg description}
-              lockfile=${lib.escapeShellArg (relative cfg.lockfile)}
+              description=${lib.escapeShellArg "./${cfg.prefix}DESCRIPTION"}
+              lockfile=${lib.escapeShellArg "./${cfg.prefix}pkg.lock"}
               if [ ! -f "$description" ]; then
                 echo "nullkomma: $description not found; R projects must be packages" >&2
                 exit 1

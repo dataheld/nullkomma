@@ -5,12 +5,14 @@
     {
       flake-parts-lib,
       lib,
-      self,
       ...
     }:
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption (
-        { pkgs, ... }:
+        { config, pkgs, ... }:
+        let
+          src = config.nullkomma.src;
+        in
         {
           options.nullkomma.tests = lib.mkOption {
             type = lib.types.attrsOf (
@@ -34,7 +36,7 @@
                     };
                     check = lib.mkOption {
                       type = lib.types.package;
-                      defaultText = lib.literalMD "`command` run in a copy of the flake's source, with shebangs patched and a writable `HOME`";
+                      defaultText = lib.literalMD "`command` run in a copy of `nullkomma.src`, with shebangs patched and a writable `HOME`";
                       description = "The sandboxed run in `nix flake check`; override it for tests that need more than the source.";
                     };
                   };
@@ -45,7 +47,7 @@
                   };
                   config.check = lib.mkDefault (
                     pkgs.runCommand "test-${name}" { } ''
-                      cp -r ${self} src
+                      cp -r ${src} src
                       chmod -R u+w src
                       patchShebangs --build src >/dev/null
                       export HOME="$PWD/home" XDG_CACHE_HOME="$PWD/cache" XDG_CONFIG_HOME="$PWD/config"

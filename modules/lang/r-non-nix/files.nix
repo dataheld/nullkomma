@@ -4,20 +4,19 @@ let
 in
 {
   plugins.r-non-nix =
-    {
-      config,
-      lib,
-      options,
-      self,
-      ...
-    }:
+    { config, lib, ... }:
     let
       cfg = config.nullkomma.r;
-      relativeRoot = lib.removePrefix "${toString self}/" (toString cfg.root);
-      profile = if toString cfg.root == toString self then ".Rprofile" else "${relativeRoot}/.Rprofile";
-      prefix = if toString cfg.root == toString self then "" else "${relativeRoot}/";
+      inherit (cfg) prefix;
       rlib = import ../../../lib/r-non-nix.nix { inherit lib; };
       readme = cfg.root + "/README.md";
+      description = cfg.root + "/DESCRIPTION";
+      # Native R then follows Config/Needs fields added to DESCRIPTION later, as Nix does.
+      allConfigNeeds = lib.all (field: lib.elem field cfg.fields) (
+        lib.optionals (builtins.pathExists description) (
+          (import ../../../lib/r.nix { inherit lib; }).configNeedsFields (builtins.readFile description)
+        )
+      );
     in
     {
       imports = [ rModule ];
@@ -28,16 +27,14 @@ in
           { system, ... }:
           {
             nullkomma.files = {
-              ${profile}.text = builtins.readFile ./_assets/profile.R;
+              "${prefix}.Rprofile".text = builtins.readFile ./_assets/profile.R;
               "${prefix}.R/install.R".text = builtins.readFile ./_assets/install.R;
               "${prefix}.Renviron".text = ''
                 NULLKOMMA_R_VERSION=${builtins.toJSON inputs.nixpkgs-r.legacyPackages.${system}.R.version}
                 NULLKOMMA_PPM_SNAPSHOT=${builtins.toJSON cfg.snapshot}
                 NULLKOMMA_PPM_URL=${builtins.toJSON cfg.ppmUrl}
                 NULLKOMMA_R_DEPENDENCIES=${builtins.toJSON (lib.concatStringsSep "," cfg.fields)}
-                NULLKOMMA_R_ALL_CONFIG_NEEDS=${
-                  if options.nullkomma.r.fields.highestPrio == 1500 then "true" else "false"
-                }
+                NULLKOMMA_R_ALL_CONFIG_NEEDS=${lib.boolToString allConfigNeeds}
               '';
               "${prefix}README.md" = {
                 initialSource = if builtins.pathExists readme then readme else null;

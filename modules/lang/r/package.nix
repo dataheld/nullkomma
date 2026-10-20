@@ -15,44 +15,72 @@
       rlib = import ../../../lib/r.nix { inherit lib; };
     in
     {
-      options.perSystem = flake-parts-lib.mkPerSystemOption {
-        options.nullkomma.r.lock = lib.mkOption {
-          type = lib.types.raw;
-          readOnly = true;
-          description = "`nullkomma.r.lockfile`, as read by `nullkomma.lib.r.readLock` (empty without DESCRIPTION).";
-        };
-        options.nullkomma.r.packages = lib.mkOption {
-          type = lib.types.listOf lib.types.str;
-          readOnly = true;
-          description = "Names of the R packages in `nullkomma.r.package`: those of the lockfile and `nullkomma.r.extraPackages`, pak and languageserver.";
-        };
-        options.nullkomma.r.buildInputs = lib.mkOption {
-          type = lib.types.attrsOf (lib.types.listOf lib.types.package);
-          default = { };
-          example = lib.literalExpression "{ sf = [ pkgs.gdal ]; }";
-          description = "System libraries to add to the build of an R package, for packages whose needs nixpkgs does not know (typically `Remotes:`).";
-        };
-        options.nullkomma.r.package = lib.mkOption {
-          type = lib.types.package;
-          readOnly = true;
-          description = "R with every package of `nullkomma.r.packages`.";
-        };
-      };
+      options.perSystem = flake-parts-lib.mkPerSystemOption (
+        { pkgs, ... }:
+        {
+          options.nullkomma.r.browser = lib.mkOption {
+            type = lib.types.nullOr lib.types.package;
+            default =
+              if
+                pkgs.stdenv.isLinux
+                && lib.elem "shinytest2" (map (p: p.package) (cfg.locked.packages or [ ]) ++ cfg.extraPackages)
+              then
+                pkgs.chromium
+              else
+                null;
+            defaultText = lib.literalMD "Chromium on Linux when shinytest2 is in pkg.lock or extraPackages; otherwise null";
+            description = "Chrome-compatible browser for shinytest2/chromote. On macOS, null uses chromote's locally installed Chrome discovery; sandboxed browser tests require Linux or a supplied Nix browser.";
+          };
+          options.nullkomma.r.lock = lib.mkOption {
+            type = lib.types.raw;
+            readOnly = true;
+            description = "`pkg.lock`, split into nixpkgs packages and pinned sources by `readLock` in lib/r.nix.";
+          };
+          options.nullkomma.r.packages = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            readOnly = true;
+            description = "Names of the R packages in `nullkomma.r.package`: those of the lockfile and `nullkomma.r.extraPackages`, pak and languageserver.";
+          };
+          options.nullkomma.r.buildInputs = lib.mkOption {
+            type = lib.types.attrsOf (lib.types.listOf lib.types.package);
+            default = { };
+            example = lib.literalExpression "{ sf = [ pkgs.gdal ]; }";
+            description = "System libraries to add to the build of an R package, for packages whose needs nixpkgs does not know (typically `Remotes:`).";
+          };
+          options.nullkomma.r.package = lib.mkOption {
+            type = lib.types.package;
+            readOnly = true;
+            description = "R with every package of `nullkomma.r.packages`, and the locale, testthat and browser environment of nullkomma's R workflows.";
+          };
+        }
+      );
       config.perSystem = lib.mkIf cfg.enable (
-        { system, config, ... }:
+        {
+          system,
+          config,
+          pkgs,
+          ...
+        }:
         let
           pcfg = config.nullkomma.r;
+          browser = pkgs.writeShellScript "r-chromium" ''
+            # Chromium's namespace sandbox cannot nest inside the Nix build sandbox.
+            if [[ -n "''${NIX_BUILD_TOP:-}" ]]; then
+              exec ${lib.getExe pcfg.browser} --no-sandbox --disable-dev-shm-usage "$@"
+            fi
+            exec ${lib.getExe pcfg.browser} "$@"
+          '';
           pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
           base = pkgsR.rPackages;
 
           lock =
-            if !builtins.pathExists cfg.description then
-              throw "nullkomma.r: `${baseNameOf cfg.description}` is missing; R projects must be packages with a DESCRIPTION."
-            else if !builtins.pathExists cfg.lockfile then
-              throw "nullkomma.r: the lockfile `${baseNameOf cfg.lockfile}` of DESCRIPTION is missing; create it with `nix run .#r-lock` (flakes only see files known to git)."
+            if !builtins.pathExists (cfg.root + "/DESCRIPTION") then
+              throw "nullkomma.r: `DESCRIPTION` is missing; R projects must be packages with a DESCRIPTION."
+            else if cfg.locked == null then
+              throw "nullkomma.r: the lockfile `pkg.lock` of DESCRIPTION is missing; create it with `nix run .#r-lock` (flakes only see files known to git)."
             else
               rlib.readLock {
-                lock = lib.importJSON cfg.lockfile;
+                lock = cfg.locked;
                 available = base;
                 inherit (cfg) fields allowOffNixpkgs hashes;
               };
@@ -112,21 +140,6 @@
             overrides =
               sourceOverrides
               // systemLibraries
-              // lib.optionalAttrs cfg.lintr.enable {
-                lintr = (systemLibraries.lintr or (sourceOverrides.lintr or base.lintr)).overrideAttrs (old: {
-                  postPatch = (old.postPatch or "") + ''
-                    # Keep native discovery/evaluation; replace only its default linter list.
-                    substituteInPlace R/with.R \
-                      --replace-fail 'linters_with_defaults <- function(..., defaults = default_linters)' \
-                      'linters_with_defaults <- function(..., defaults = { path <- Sys.getenv("NULLKOMMA_LINTR_CONFIG"); if (nzchar(path)) dget(path) else default_linters })'
-                    substituteInPlace R/settings.R \
-                      --replace-fail '  config <- read_config_file(config_file, call = call)' ${lib.escapeShellArg ''
-                        path <- Sys.getenv("NULLKOMMA_LINTR_CONFIG")
-                        if (nzchar(path)) default_settings$linters <- dget(path)
-                        config <- read_config_file(config_file, call = call)''}
-                  '';
-                });
-              }
               // lib.optionalAttrs cfg.pkgdown.enable {
                 pkgdown =
                   (systemLibraries.pkgdown or (sourceOverrides.pkgdown or base.pkgdown)).overrideAttrs
@@ -166,7 +179,52 @@
                 "pak"
               ]
             );
-            package = pkgsR.rWrapper.override { packages = map lookup pcfg.packages; };
+            package = pkgs.symlinkJoin {
+              name = "R-nullkomma";
+              paths = [ (pkgsR.rWrapper.override { packages = map lookup pcfg.packages; }) ];
+              nativeBuildInputs = [ pkgs.makeWrapper ];
+              postBuild = ''
+                for bin in R Rscript; do
+                  wrapProgram "$out/bin/$bin" ${
+                    lib.escapeShellArgs (
+                      lib.optionals pkgs.stdenv.isLinux [
+                        "--set"
+                        "LOCALE_ARCHIVE"
+                        "${pkgs.glibcLocales}/lib/locale/locale-archive"
+                      ]
+                      ++ [
+                        "--set"
+                        "LANG"
+                        "en_US.UTF-8"
+                        "--set"
+                        "LC_ALL"
+                        "en_US.UTF-8"
+                        "--set"
+                        "NOT_CRAN"
+                        "true"
+                        # Tells the r-non-nix startup files to stand aside.
+                        "--set"
+                        "NULLKOMMA_R_NIX"
+                        "true"
+                        "--set-default"
+                        "SHINYTEST"
+                        "true"
+                        "--set-default"
+                        "TESTTHAT_PARALLEL"
+                        (lib.boolToString cfg.testthat.parallel)
+                        "--run"
+                        ''export TESTTHAT_CPUS="''${TESTTHAT_CPUS:-''${NIX_BUILD_CORES:-2}}"''
+                      ]
+                      ++ lib.optionals (pcfg.browser != null) [
+                        "--set-default"
+                        "CHROMOTE_CHROME"
+                        "${browser}"
+                      ]
+                    )
+                  }
+                done
+              '';
+            };
           };
         }
       );

@@ -3,28 +3,12 @@
     { config, lib, ... }:
     let
       cfg = config.nullkomma.r;
-      brand = cfg.pkgdown.brand;
-      privacy = lib.evalModules {
-        modules = [
-          (import ../../core/privacy.nix).framework
-          (brand.flakeModules.privacy or { })
-        ];
-      };
+      inherit (config.nullkomma) brand;
     in
     {
-      options.nullkomma.r.pkgdown.brand = lib.mkOption {
-        type = lib.types.nullOr lib.types.attrs;
-        default = null;
-        example = lib.literalExpression "inputs.brand";
-        description = "Optional brand flake exposing lib.brand (brand.yml), optional lib.footer (HTML), and optional flakeModules.privacy. Wires Bootstrap 5, the brand theme, footer and privacy sections into local and sandboxed pkgdown builds; no brand input is added by nullkomma.";
-      };
-      config = lib.mkIf (cfg.enable && cfg.pkgdown.enable && brand != null) {
-        nullkomma.privacy.sections = privacy.config.nullkomma.privacy.sections;
-        nullkomma.r.pkgdown.config = {
-          template = {
-            bootstrap = lib.mkDefault 5;
-            bslib.brand = lib.mkDefault brand.lib.brand;
-          };
+      config.nullkomma.r.pkgdown.config = lib.mkIf (cfg.enable && cfg.pkgdown.enable && brand != null) (
+        {
+          template.bslib.brand = lib.mkDefault brand.lib.brand;
         }
         // lib.optionalAttrs (brand.lib ? footer) {
           footer = {
@@ -36,7 +20,7 @@
               )
             );
           };
-        };
-      };
+        }
+      );
     };
 }

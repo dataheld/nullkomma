@@ -2,9 +2,25 @@
 # the processing: hosting plugins, brand modules or the project itself.
 {
   framework =
-    { lib, ... }:
+    { config, lib, ... }:
+    let
+      cfg = config.nullkomma.privacy;
+      sections = lib.sort (a: b: a.order < b.order) (
+        lib.filter (s: s.enable) (lib.attrValues cfg.sections)
+      );
+    in
     {
       options.nullkomma.privacy = {
+        title = lib.mkOption {
+          type = lib.types.str;
+          default = "Privacy Policy";
+          description = "Title of the privacy page that site plugins generate.";
+        };
+        policy = lib.mkOption {
+          type = lib.types.attrsOf lib.types.str;
+          readOnly = true;
+          description = "The policy's Markdown by language code: the enabled sections, in order; empty without sections. Site plugins wrap it in their page format.";
+        };
         languages = lib.mkOption {
           type = lib.types.listOf (
             lib.types.submodule {
@@ -61,5 +77,17 @@
           description = "Sections of the site's privacy policy, keyed by name. Plugins add sections for processing they set up; site plugins render them.";
         };
       };
+      config.nullkomma.privacy.policy = lib.optionalAttrs (sections != [ ]) (
+        lib.genAttrs (map (l: l.code) cfg.languages) (
+          code:
+          lib.concatMapStringsSep "\n" (
+            s:
+            builtins.readFile (
+              s.markdown.${code}
+                or (throw "Privacy section is missing language `${code}`: ${toString (lib.attrValues s.markdown)}")
+            )
+          ) sections
+        )
+      );
     };
 }
