@@ -8,8 +8,6 @@ in
     let
       cfg = config.nullkomma.r;
       inherit (cfg) prefix;
-      rlib = import ../../../lib/r-non-nix.nix { inherit lib; };
-      readme = cfg.root + "/README.md";
       description = cfg.root + "/DESCRIPTION";
       # Native R then follows Config/Needs fields added to DESCRIPTION later, as Nix does.
       allConfigNeeds = lib.all (field: lib.elem field cfg.fields) (
@@ -37,10 +35,9 @@ in
                 NULLKOMMA_R_ALL_CONFIG_NEEDS=${lib.boolToString allConfigNeeds}
               '';
               "${prefix}README.md" = {
-                initialSource = if builtins.pathExists readme then readme else null;
-                text = rlib.withNonNixDocumentation (
-                  if builtins.pathExists readme then builtins.readFile readme else ""
-                );
+                commentPrefix = "<!--";
+                commentSuffix = " -->";
+                sections.r-development = builtins.readFile ./_assets/development.md;
               };
             };
           };

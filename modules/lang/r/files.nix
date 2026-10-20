@@ -3,9 +3,6 @@
     { config, lib, ... }:
     let
       cfg = config.nullkomma.r;
-      buildignore = cfg.root + "/.Rbuildignore";
-      existing = if builtins.pathExists buildignore then builtins.readFile buildignore else "";
-      lines = lib.splitString "\n" existing;
       rules = [
         "[.]nix$"
         "^flake[.]lock$"
@@ -36,16 +33,14 @@
         type = lib.types.lines;
         internal = true;
         readOnly = true;
-        description = "Shared R build exclusions, including the project's existing rules.";
+        description = "Shared R build exclusions.";
       };
       config = lib.mkIf cfg.enable {
-        nullkomma.r.buildIgnore =
-          existing
-          + lib.optionalString (existing != "" && !lib.hasSuffix "\n" existing) "\n"
-          + lib.concatMapStrings (rule: lib.optionalString (!(lib.elem rule lines)) "${rule}\n") rules;
+        nullkomma.r.buildIgnore = lib.concatLines rules;
+        # R reads every line as a pattern; the markers match no file.
         perSystem.nullkomma.files."${cfg.prefix}.Rbuildignore" = {
-          initialSource = if builtins.pathExists buildignore then buildignore else null;
-          text = cfg.buildIgnore;
+          commentPrefix = "#";
+          sections.r = cfg.buildIgnore;
         };
       };
     };

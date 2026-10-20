@@ -14,6 +14,9 @@
         let
           fileModule =
             { name, config, ... }:
+            let
+              current = self.outPath + "/${name}";
+            in
             {
               options = {
                 enable = lib.mkOption {
@@ -32,12 +35,12 @@
                 commentPrefix = lib.mkOption {
                   type = lib.types.nullOr lib.types.str;
                   default = null;
-                  description = "Line-comment prefix for the \"do not edit\" header of generated files (for example // for JSONC). Required for generated files.";
+                  description = "Line-comment prefix for the \"do not edit\" header of generated files (for example // for JSONC) and for section markers. Required for both.";
                 };
                 commentSuffix = lib.mkOption {
                   type = lib.types.str;
                   default = "";
-                  description = "Closes the header comment of generated files, for formats without line comments (for example ` -->` with `<!--`).";
+                  description = "Closes the header comment and section markers, for formats without line comments (for example ` -->` with `<!--`).";
                 };
                 directory = lib.mkOption {
                   type = lib.types.bool;
@@ -56,12 +59,31 @@
                 initialSource = lib.mkOption {
                   type = lib.types.nullOr lib.types.path;
                   default = null;
-                  description = "Existing project content used as the initial source-of-truth baseline. The first update is applied only if the on-disk file still matches it.";
+                  description = "Project content `source` is derived from; `write-files` replaces the file while it still matches.";
+                };
+                sections = lib.mkOption {
+                  type = lib.types.attrsOf lib.types.lines;
+                  default = { };
+                  description = "Marked sections nullkomma owns inside an otherwise project-owned source file, by name: replaced in place, else appended, and removed once undeclared. Needs `commentPrefix`.";
                 };
               };
-              config.source = lib.mkIf (config.text != null) (
-                pkgs.writeText "nullkomma-${lib.replaceStrings [ "/" ] [ "-" ] name}" config.text
-              );
+              config = lib.mkMerge [
+                {
+                  source = lib.mkIf (config.text != null) (
+                    pkgs.writeText "nullkomma-${lib.replaceStrings [ "/" ] [ "-" ] name}" config.text
+                  );
+                }
+                (lib.mkIf (config.sections != { }) {
+                  initialSource = lib.mkIf (builtins.pathExists current) current;
+                  text =
+                    assert lib.assertMsg (
+                      config.commentPrefix != null
+                    ) "File ${name} needs a commentPrefix for its sections.";
+                    import ./_sections.nix { inherit lib; } {
+                      inherit (config) commentPrefix commentSuffix sections;
+                    } (if builtins.pathExists current then builtins.readFile current else "");
+                })
+              ];
             };
         in
         {
@@ -122,7 +144,7 @@
                     if mode == "generated" then generated.${path} else f.source;
                 in
                 ''
-                  process_file ${lib.escapeShellArg path} ${lib.escapeShellArg (toString source)} ${
+                  process_file ${lib.escapeShellArg path} ${lib.escapeShellArg "${source}"} ${
                     lib.escapeShellArg (if f.initialSource == null then "" else "${f.initialSource}")
                   }
                 ''

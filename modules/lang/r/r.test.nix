@@ -311,7 +311,6 @@
           git init -q
           ${task fixtures.r "write-files"}
           grep -qxF '^project-only[.]txt$' .Rbuildignore
-          test "$(grep -xcF '^[.]envrc$' .Rbuildignore)" = 1
           mkdir -p nix .github/workflows .vscode .direnv .R/library docs
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
             .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml

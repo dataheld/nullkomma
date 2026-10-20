@@ -388,9 +388,9 @@ workspace and without a save prompt on exit. Project startup profiles still run;
 `Rscript` and `R CMD` retain their normal behavior. The shell, tasks and checks
 share a UTF-8 locale on Linux and macOS.
 
-The `r` plugin supplies a shared `.Rbuildignore`; run `write-files` and commit it.
-Its Nix-defined exclusions apply to package checks inside and outside Nix,
-while preserving project-specific rules.
+The `r` plugin keeps its exclusions in a marked section of `.Rbuildignore`, next
+to your own rules; run `write-files` and commit it. They apply to package checks
+inside and outside Nix.
 
 #### Package development tasks
 
@@ -602,8 +602,8 @@ Enable the optional **`r-non-nix`** companion plugin with
 `nullkomma.r-non-nix.enable = true` for collaborators without Nix, then run
 `write-files` and commit the resulting `.Renviron`, `.Rprofile`, `.Rbuildignore`, `.R/install.R`
 and README changes.
-`r-non-nix` adds an [R development without Nix](modules/lang/r-non-nix/_assets/development.md)
-section to the project README under its `## Development` heading, preserving existing text. These are source-of-truth
+`r-non-nix` appends an [R development without Nix](modules/lang/r-non-nix/_assets/development.md)
+section to the project README, preserving existing text. These are source-of-truth
 files: later upstream changes use the normal conflict-aware `write-files` updates.
 This plugin imports and enables `r`; disabling `r` while enabling `r-non-nix`
 is an option conflict. Both plugins are off by default. For selective imports,
@@ -647,6 +647,11 @@ haven't edited it. Otherwise it keeps your version, saves the new one next to it
 and fails, pointing you to the
 [resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
 After resolving, `write-files --accept <path>` marks the file as up to date.
+A file can instead hold marked `sections` inside your own text (R's
+`.Rbuildignore` rules, the `r-non-nix` README section): `write-files` replaces
+only those, wherever you moved them. Once nullkomma no longer declares a file
+(say, you disabled its plugin), `write-files` strips its sections, deletes it
+if unedited, or keeps your edited version and says so.
 
 ### Conflict-resolution skill
 
@@ -666,7 +671,8 @@ untouched.
 "do not edit" comment and the `git` plugin adds them to `.gitignore`.
 To change one, change the Nix options. Directories (`directory = true`) are
 copied whole, without the comment. `generate-files` refuses to overwrite a file
-tracked by Git.
+tracked by Git, and removes the ones it generated before that are no longer
+declared.
 
 `update` updates `flake.lock` and then runs both commands. After any other
 `nix flake update` (e.g. by a bot), run `write-files` and `generate-files`

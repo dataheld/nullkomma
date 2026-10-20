@@ -24,7 +24,6 @@
             task
             test
             ;
-          docs = import (root + "/lib/r-non-nix.nix") { inherit lib; };
           fixture = root + "/tests/fixtures/r";
           withProfile = callFlakeWith {
             nullkomma.r-non-nix.enable = true;
@@ -53,28 +52,6 @@
         in
         {
           nullkomma.nix.unit.tests = {
-            testRNonNixDocumentation = {
-              expr =
-                let
-                  original = builtins.readFile (fixture + "/README.md");
-                  updated = docs.withNonNixDocumentation original;
-                in
-                {
-                  preservesNotes = lib.hasInfix "Keep these project-specific development notes." updated;
-                  idempotent = docs.withNonNixDocumentation updated == updated;
-                  headingCount = lib.length (lib.splitString "\n## Development\n" updated) - 1;
-                  noReadme = lib.hasInfix "## Development" (docs.withNonNixDocumentation "");
-                  rejectsIncomplete =
-                    (builtins.tryEval (docs.withNonNixDocumentation "<!-- nullkomma:r-development:start -->")).success;
-                };
-              expected = {
-                preservesNotes = true;
-                idempotent = true;
-                headingCount = 1;
-                noReadme = true;
-                rejectsIncomplete = false;
-              };
-            };
             testRNonNixPlugin = {
               expr =
                 let

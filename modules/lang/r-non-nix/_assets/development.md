@@ -1,4 +1,4 @@
-### R development without Nix {.callout-tip}
+## R development without Nix {.callout-tip}
 
 You do not need Nix or direnv. Install R (the recommended version is recorded in
 `.Renviron`), open this directory in R or RStudio, and start a fresh R session.
@@ -11,7 +11,7 @@ libraries and global defaults are not modified. Do not use `R --vanilla`: it ski
 these project settings. For a quiet terminal session that never restores or saves
 workspace contents, use `R --quiet --no-save --no-restore`.
 
-#### Install dependencies
+### Install dependencies
 
 Run this in the R console, from the directory containing `DESCRIPTION`:
 
@@ -40,7 +40,7 @@ to inspect the local library, or
 to inspect OS requirements without installing them. pak's private dependencies
 are already isolated; no extra bootstrap package or `pak_setup()` is needed.
 
-#### Add or remove dependencies
+### Add or remove dependencies
 
 - To add or update a package, list it in `DESCRIPTION`, restart R and re-run
   `.R/install.R`. The installer also refreshes `pkg.lock`.
