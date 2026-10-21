@@ -54,7 +54,7 @@ direnv allow
 
 The template adds `flake.nix` and an `.envrc` with `use flake`, keeping existing files;
 `write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
-From now on, entering the directory loads the [development shell](#development-shell);
+From now on, entering the directory loads the [development shell](#devshellsdefault);
 the first time takes a while.
 
 The template's `nixpkgs.follows = "nullkomma/nixpkgs"` uses nullkomma's tested Nixpkgs.
@@ -115,39 +115,23 @@ All plugins are optional; those marked under Default are enabled unless you opt 
 
 Dev helpers lists standalone commands added to the shell, plus R development packages such as `pkgload`. treefmt is built into the framework. Tests are test suites; Checks are other validations.
 
-## Outputs
+## Your flake outputs
 
-Your flake gets these outputs:
-
-| Output                                 | Use                                    | See                                               |
-| -------------------------------------- | -------------------------------------- | ------------------------------------------------- |
-| `devShells.default`                    | direnv, `nix develop`                  | [Development shell](#development-shell)           |
-| `formatter`, `checks.<system>.treefmt` | `format`, `nix fmt`, `nix flake check` | [Formatting and linting](#formatting-and-linting) |
-| `checks.<system>.test-<name>`          | `test <name>`, `nix flake check`       | [Tests](#tests)                                   |
-| `tests.systems.<system>`               | [nix-unit]                             | [Tests](#tests)                                   |
-| `packages.site`, `packages.deploy`     | `nix build .#site`, `nix run .#deploy` | [Websites](#websites)                             |
-| `packages.r-lock`                      | `nix run .#r-lock`                     | [R](#r)                                           |
-| `taskRunners.<system>`                 | `tasks`                                | [Development shell](#development-shell)           |
-
+These are the outputs of your project's flake, not of nullkomma itself.
 A `schemas` output describes them to [Determinate Nix](https://docs.determinate.systems)'s `nix flake show`.
 
-### Development shell
+### `devShells.default`
 
-`devShells.default` holds:
+Use: direnv, `nix develop`.
+
+The development shell holds:
 
 - every task as a command, taking arguments (e.g. `write-files --accept <path>`);
-- the `tasks` runner from [up] to list and run them;
+- the `tasks` runner;
 - language servers and the formatter for [editors](#editors);
 - the plugins' and your `nullkomma.devHelpers`.
 
-```sh
-tasks          # list tasks
-tasks check    # run one task
-tasks all      # run all tasks that don't change files
-```
-
 Tools a task or test needs stay inside it, off your `PATH`.
-Add your own tasks in `perSystem.nullkomma.tasks.<name>`.
 
 #### Editors
 
@@ -159,7 +143,21 @@ Neovim reads `.nvim.lua` only with `:set exrc`.
 Installing editors and extensions, themes and keybindings belong to your user environment,
 e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
 
-### Formatting and linting
+### `taskRunners.<system>`
+
+Use: `tasks`.
+
+[up]'s runner for the tasks in `perSystem.nullkomma.tasks.<name>`, where you can add your own:
+
+```sh
+tasks          # list tasks
+tasks check    # run one task
+tasks all      # run all tasks that don't change files
+```
+
+### `formatter` and `checks.<system>.treefmt`
+
+Use: `format`, `nix fmt`, `nix flake check`.
 
 `format` (or `nix fmt`) runs [treefmt] with every enabled plugin's formatters and linters;
 `nix flake check` checks the same as `checks.<system>.treefmt`.
@@ -223,11 +221,12 @@ A committed `treefmt.toml` is ignored.
 Replacing a tool's `package` or typos' `configFile` drops the shared policy; typos' `isolated` ignores native files.
 Linter ignores affect that linter only; treefmt exclusions skip formatters too.
 
-### Tests
+### `checks.<system>.test-<name>`
 
-Test suites in `perSystem.nullkomma.tests.<name>` run in your working tree with `test` (all)
-or `test <name> [args]`, and sandboxed against the flake's source as `checks.<system>.test-<name>`
-in `nix flake check` and CI.
+Use: `test [<name>] [args]`, `nix flake check`.
+
+Test suites in `perSystem.nullkomma.tests.<name>` run in your working tree with `test`,
+and sandboxed against the flake's source in `nix flake check` and CI.
 Plugins add their own (see the Tests column above); so can you:
 
 ```nix
@@ -239,9 +238,17 @@ perSystem = { pkgs, ... }: {
 };
 ```
 
-### Websites
+### `tests.systems.<system>`
 
-Opt-in `quarto` renders the project into `packages.site` (`nix build .#site`);
+Use: [nix-unit].
+
+With the `nix` plugin, the unit tests in `perSystem.nullkomma.nix.unit.tests`.
+
+### `packages.site` and `packages.deploy`
+
+Use: `nix build .#site`, `nix run .#deploy`.
+
+Opt-in `quarto` renders the project into `packages.site`;
 `preview` serves it locally and reloads on edits.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`.
 The `r` plugin builds a [pkgdown site](#pkgdown-website) into `packages.site` instead;
@@ -311,6 +318,12 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
 ```
+
+### `packages.r-lock`
+
+Use: `nix run .#r-lock`.
+
+With the `r` plugin, writes the [`pkg.lock`](#dependencies) the development shell needs.
 
 ## Files in your repository
 
@@ -553,7 +566,7 @@ the broken one fails with the real tool's error, not just any error.
     the privacy policy once there are `nullkomma.privacy.sections`.
 
 [^cloudflare]: Also adds the `terraform` (plan changes) and `deploy` tasks, and a section
-    to the privacy policy (see [Websites](#websites)).
+    to the privacy policy (see [Websites](#packagessite-and-packagesdeploy)).
 
 [air]: https://posit-dev.github.io/air/
 [bash]: https://www.gnu.org/software/bash/
