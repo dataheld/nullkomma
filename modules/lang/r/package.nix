@@ -159,6 +159,7 @@
               ++ [
                 "languageserver"
                 "pak"
+                "pkgload"
               ]
             );
             package = pkgs.symlinkJoin {

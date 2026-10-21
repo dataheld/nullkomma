@@ -181,6 +181,10 @@
           expr = (perSystem withoutLock).nullkomma.r.packages;
           expectedError.msg = "lockfile `pkg.lock` of DESCRIPTION is missing";
         };
+        testRIncludesPkgloadForDevelopment = {
+          expr = lib.elem "pkgload" (perSystem fixtures.r).nullkomma.r.packages;
+          expected = true;
+        };
         testRLockBootstrapsWithoutLock = {
           expr = lib.isString withoutLock.packages.${system}.r-lock.drvPath;
           expected = true;
