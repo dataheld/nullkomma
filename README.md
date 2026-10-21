@@ -139,21 +139,7 @@ exists; add the tools they call with `perSystem.nullkomma.shell.bats.packages`.
 `*.bats` files are formatted and linted like other shell scripts.
 
 ⁴ `.github/workflows/push.yml`, a stub calling nullkomma's reusable CI workflow,
-which runs `nix flake check` and can publish to FlakeHub. Workflow linting belongs
-to the YAML plugin, so custom workflows are still checked when `github` is disabled.
-
-The default `gitleaks` plugin scans treefmt-selected current files for secrets
-before formatters run, with redacted scanner diagnostics. It respects treefmt's
-generated-file exclusions. Commit `.gitleaks.toml` for native rules/allowlists and
-`.gitleaksignore` for finding fingerprints; include `[extend]` with
-`useDefault = true` in a custom config to retain Gitleaks' built-in rules.
-`GITLEAKS_CONFIG` and `GITLEAKS_CONFIG_TOML` keep their native precedence.
-`nix fmt` never scans Git history; run the optional `secret-history` task when
-needed. Disable the plugin with `nullkomma.gitleaks.enable = false`.
-
-The default `jscpd` plugin fails `nix flake check` (or `test jscpd`) on any
-duplicated code. Like treefmt, it skips Git-ignored, managed and generated files
-(`nullkomma.generatedPaths`). Disable it with `nullkomma.jscpd.enable = false`.
+which runs `nix flake check` and can publish to FlakeHub.
 
 ⁵ Generated (Git-ignored) from the Editor column: VS Code settings and
 recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
@@ -330,9 +316,6 @@ In `nix develop`, use `tasks` to select `terraform` (plan changes) or `deploy`
 (publish). Run `terraform <command> [args]` for other OpenTofu commands.
 Deployment uses [Terranix], including custom domains, `_headers` and `_redirects`;
 `workers.dev` is disabled. In CI, use `nix run .#deploy`.
-The devshell does not build the site: deployment, planning and local Cloudflare
-validation build it on demand. Sandboxed Cloudflare checks still validate the
-built site's configuration without credentials.
 
 Set these variables for an existing private R2 state bucket; in GitHub Actions:
 
@@ -370,18 +353,6 @@ git add DESCRIPTION pkg.lock
 Run it after dependency changes and Nix updates. For the first setup, if
 `DESCRIPTION` exists but `pkg.lock` does not, run `nix run .#r-lock` once:
 the development shell needs the lockfile before direnv can load it.
-Every nullkomma R project is a package with a `DESCRIPTION`; `test r-cmd-check`
-uses rcmdcheck to build and check it, including the usual
-package dependency checks. It runs automatically in `nix flake check`;
-`nullkomma.r.check.args` and `errorOn` control the check arguments and failure
-threshold (notes by default). The R template needs only
-`nullkomma.r.enable = true`: Jarl, pkgdown and testthat are all on,
-without per-project enable flags, npm dependencies or test wiring.
-
-In the development shell, `R` starts quietly without restoring or saving a
-workspace and without a save prompt on exit. Project startup profiles still run;
-`Rscript` and `R CMD` retain their normal behavior. The shell, tasks and checks
-share a UTF-8 locale on Linux and macOS.
 
 The `r` plugin keeps its exclusions in a marked section of `.Rbuildignore`, next
 to your own rules; run `write-files` and commit it. They apply to package checks
@@ -404,8 +375,10 @@ them all, sandboxed, as `checks.<system>.test-<name>`.
 
 Documentation is regenerated before checks, tests and website builds. Generated
 `man/*.Rd` files are Git-ignored, **not** the whole `man/` directory: keep
-hand-maintained figures. Commit `NAMESPACE`; `test r-namespace` rejects stale
-exports. testthat runs against both the development and installed package in
+hand-maintained figures.
+Commit `NAMESPACE`; `test r-namespace` rejects stale
+exports.
+testthat runs against both the development and installed package in
 `nix flake check`. Package dependencies remain in DESCRIPTION; nullkomma adds
 only the tools needed by enabled workflows to the development R environment,
 not to deployable package outputs. Set any workflow's `enable` option to `false`
@@ -416,10 +389,6 @@ Test files run in parallel in source tests, installed tests and R CMD check.
 a one-core allocation is respected. Override it to choose a worker count, or use
 `TESTTHAT_PARALLEL=false` for a single serial invocation. Set
 `nullkomma.r.testthat.parallel = false` for the project's default opt-out.
-Parallelism is across files, so a single test file cannot run concurrently.
-The test environment also defaults `SHINYTEST=true`; it does not install a
-browser or shinytest2 unless the package needs them. Native environment overrides
-are preserved.
 
 nullkomma uses testthat's native environment controls, without rewriting
 `DESCRIPTION` or changing the test edition. Use edition 3 for upstream-supported
