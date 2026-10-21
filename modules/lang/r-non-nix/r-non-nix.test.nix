@@ -200,7 +200,7 @@
             cp ${root + "/tests/r-non-nix/Dockerfile"} "$scratch/Dockerfile"
             cp ${root + "/tests/r-non-nix/run.sh"} "$scratch/run.sh"
             image=nullkomma-r-non-nix:${builtins.substring 11 12 (toString nonNixProject)}
-            docker build --platform linux/amd64 --progress=plain \
+            BUILDKIT_PROGRESS=plain docker build --platform linux/amd64 \
               --build-arg R_VERSION=${(perSystem withProfile).nullkomma.r.package.version} \
               --tag "$image" "$@" "$scratch"
             docker run --rm --platform linux/amd64 "$image" bash /test.sh
