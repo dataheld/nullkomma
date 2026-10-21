@@ -534,9 +534,6 @@ projects' `flake.lock`.
 
 nullkomma is tested against small example projects ("fixtures") in
 `tests/fixtures`, which use nullkomma the way a real project would.
-Each plugin's tests sit next to it in `*.test.nix`, sharing the harness in
-[`modules/dev/tests.nix`](modules/dev/tests.nix). They live in the `dev`
-partition, so projects using nullkomma don't inherit them.
 
 - **Unit tests** ([nix-unit], via the `nix` plugin) check
   the evaluated configuration of the fixtures, e.g. that every plugin can be
