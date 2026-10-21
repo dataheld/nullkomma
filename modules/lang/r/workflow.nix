@@ -34,11 +34,6 @@
           default = true;
           description = "Run testthat against both the development source and an installed package.";
         };
-        testthat.parallel = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Run testthat files in parallel by default, including R CMD check. TESTTHAT_PARALLEL and TESTTHAT_CPUS remain runtime overrides; workers respect NIX_BUILD_CORES, falling back to two locally.";
-        };
         pkgdown.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;

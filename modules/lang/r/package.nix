@@ -192,11 +192,6 @@
                         "--set-default"
                         "SHINYTEST"
                         "true"
-                        "--set-default"
-                        "TESTTHAT_PARALLEL"
-                        (lib.boolToString cfg.testthat.parallel)
-                        "--run"
-                        ''export TESTTHAT_CPUS="''${TESTTHAT_CPUS:-''${NIX_BUILD_CORES:-2}}"''
                       ]
                       ++ lib.optionals (pcfg.browser != null) [
                         "--set-default"

@@ -14,3 +14,4 @@ Remotes:
     r-lib/withr@d82e4bc2d69a34f044ad205210e26207bfb8f3e0,
     digest=url::https://cloud.r-project.org/src/contrib/Archive/digest/digest_0.6.37.tar.gz
 Config/testthat/edition: 3
+Config/testthat/parallel: true

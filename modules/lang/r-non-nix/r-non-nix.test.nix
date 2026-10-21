@@ -100,7 +100,6 @@
           # Nix's own R ignores the native startup files, also in parallel workers.
           r-non-nix-nix-workflows = pkgs.runCommand "nullkomma-r-non-nix-nix-workflows" { } ''
             ${project nonNixProject}
-            export NIX_BUILD_CORES=2
             unset IN_NIX_SHELL R_PROFILE_USER R_ENVIRON_USER
             substituteInPlace DESCRIPTION --replace-fail '    stats' '    stats, assertthat'
             substituteInPlace R/hello.R \

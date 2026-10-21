@@ -259,36 +259,6 @@
             grep -q '<coverage ' coverage.xml
             grep -q 'hello.R' coverage.xml
           '';
-        r-parallel-testthat = check "r-parallel-testthat" ''
-          export NULLKOMMA_TEST_PIDS="$TMPDIR/pids" NIX_BUILD_CORES=2
-          unset TESTTHAT_CPUS TESTTHAT_PARALLEL
-          for file in first second; do
-            cat > "tests/testthat/test-worker-$file.R" <<RS
-          test_that("$file runs with the requested workers", {
-            expect_identical(Sys.getenv("TESTTHAT_CPUS"), "2")
-            expect_identical(Sys.getenv("SHINYTEST"), "true")
-            writeLines(as.character(Sys.getpid()), file.path(Sys.getenv("NULLKOMMA_TEST_PIDS"), "$file"))
-            if (Sys.getenv("TESTTHAT_PARALLEL") == "true") {
-              deadline <- Sys.time() + 15
-              while (length(list.files(Sys.getenv("NULLKOMMA_TEST_PIDS"))) < 2 && Sys.time() < deadline) Sys.sleep(0.05)
-              expect_length(list.files(Sys.getenv("NULLKOMMA_TEST_PIDS")), 2)
-            }
-          })
-          RS
-          done
-          for runner in \
-            ${test fixtures.r "r-testthat"} \
-            ${test fixtures.r "r-testthat-installed"} \
-            ${test fixtures.r "r-cmd-check"}; do
-            mkdir "$NULLKOMMA_TEST_PIDS"
-            "$runner"
-            test "$(sort -u "$NULLKOMMA_TEST_PIDS"/* | wc -l | tr -d ' ')" = 2
-            rm -r "$NULLKOMMA_TEST_PIDS"
-          done
-          mkdir "$NULLKOMMA_TEST_PIDS"
-          TESTTHAT_PARALLEL=false ${test fixtures.r "r-testthat"}
-          test "$(sort -u "$NULLKOMMA_TEST_PIDS"/* | wc -l | tr -d ' ')" = 1
-        '';
         r-installed-is-not-development = check "r-installed-is-not-development" ''
           cat > tests/testthat/test-installed.R <<'RS'
           test_that("the installed namespace is tested", {
