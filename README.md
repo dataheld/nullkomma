@@ -174,18 +174,19 @@ patterns; hand-maintained sources such as `man/figures/` remain included.
 
 ### Customizing linting
 
-Prefer a committed native file for project-specific settings:
+Commit each tool's native configuration. nullkomma doesn't merge configurations:
+it hands its shared policy to each tool through the tool's own layering.
 
-| Tool         | Native configuration                                                                        | How it combines with shared policy                                                                                                                                                                                                                                  |
-| ------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| typos        | `.typos.toml`, `typos.toml`, `_typos.toml`, or `[tool.typos]` in `pyproject.toml`           | Native discovery adds words, file types and `files.extend-exclude`; explicit shared settings win conflicting keys, following typos' `--config` precedence.                                                                                                          |
-| markdownlint | `.markdownlint.{jsonc,json,yaml,yml,cjs,mjs}` and `.markdownlint-cli2.{jsonc,yaml,cjs,mjs}` | Project rules override shared rules by rule name; other shared rules remain. CLI2 `ignores` and native nested discovery work normally; project `globs` cannot expand treefmt's selected files.                                                                      |
-| yamllint     | `.yamllint`, `.yamllint.yaml`, `.yamllint.yml`                                              | Project rules extend shared rules (including per-rule settings); project and shared ignore patterns are retained. Native discovery searches the working directory and parents, not per-file subdirectories. Explicit native `extends` still applies before merging. |
-| Jarl         | `jarl.toml`                                                                                 | Native only: nullkomma passes no shared Jarl settings.                                                                                                                                                                                                              |
-| ShellCheck   | `.shellcheckrc` and source directives                                                       | Native settings supplement command-line defaults.                                                                                                                                                                                                                   |
-| actionlint   | `.github/actionlint.yaml` or `.github/actionlint.yml`                                       | Native repository configuration.                                                                                                                                                                                                                                    |
-| jscpd        | `.jscpd.json`, `.config/jscpd.json`, or the `jscpd` key in `package.json`                   | Project `ignore` globs add to the shared exclusions; other settings win, e.g. `threshold` (a percentage, default 0) or `"formatsExts": { "nix": ["nix"] }` to also scan Nix files.                                                                                  |
-| gitleaks     | `.gitleaks.toml`, `.gitleaksignore`                                                         | Include `[extend]` with `useDefault = true` in a native TOML config to retain upstream detection rules; add project rules or allowlists normally.                                                                                                                   |
+| Tool         | Native configuration                                                               | How it combines with shared policy                                                                                                                                 |
+| ------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| typos        | `.typos.toml`, `typos.toml`, `_typos.toml`, or `[tool.typos]` in `pyproject.toml`  | Shared settings are passed with `--config`: native files add words, file types and `files.extend-exclude`; shared settings win conflicting keys.                   |
+| markdownlint | `.markdownlint-cli2.{jsonc,yaml,cjs,mjs}` or `.markdownlint.{jsonc,json,yaml,yml}` | Shared rules are the `--config` base: `config` in `.markdownlint-cli2.*` overrides them by rule name, a `.markdownlint.*` file replaces them. `globs` are ignored. |
+| yamllint     | `.yamllint`, `.yamllint.yaml`, `.yamllint.yml`                                     | Shared defaults are yamllint's user-global config, so a project file replaces them.                                                                                |
+| Jarl         | `jarl.toml`                                                                        | Native only: nullkomma passes no shared Jarl settings.                                                                                                             |
+| ShellCheck   | `.shellcheckrc` and source directives                                              | Native only.                                                                                                                                                       |
+| actionlint   | `.github/actionlint.yaml` or `.github/actionlint.yml`                              | Native only.                                                                                                                                                       |
+| jscpd        | `.jscpd.json`, `.config/jscpd.json`, or the `jscpd` key in `package.json`          | Project `ignore` globs add to the shared exclusions; other settings win, e.g. `threshold` (a percentage, default 0) or `"formatsExts": { "nix": ["nix"] }`.        |
+| gitleaks     | `.gitleaks.toml`, `.gitleaksignore`                                                | Native only; include `[extend]` with `useDefault = true` to retain upstream detection rules.                                                                       |
 
 For example, add spellings and skip a vendor directory in `.typos.toml`:
 
@@ -197,16 +198,25 @@ foobaar = "foobaar"
 extend-exclude = ["vendor/**"]
 ```
 
-Add `MD042: false` in `.markdownlint.yaml` to disable that rule without losing
-shared Markdown policy. In `.yamllint`, `rules: {quoted-strings: {required: true}}`
-adds a rule without restoring the shared-disabled line-length limit.
+Disable a Markdown rule and keep the shared ones in `.markdownlint-cli2.yaml`:
 
-For reusable policy in Nix, set `nullkomma.lint.typos`,
-`nullkomma.lint.markdown` or `nullkomma.lint.yaml`.
-These settings merge through the module system; override the shared typos
-`type.r-description.extend-words.fnd` setting there if needed. Native files are
-user-owned and are not reformatted into a generated combined config. Without Nix,
-linters see only their native files, not nullkomma's shared policy.
+```yaml
+config:
+  MD042: false
+```
+
+A `.yamllint` starts from scratch; restate the shared defaults to keep them:
+
+```yaml
+extends: relaxed
+rules:
+  line-length: disable
+  quoted-strings: {required: true}
+```
+
+To change shared policy in Nix, set `nullkomma.lint.typos`, `nullkomma.lint.markdown`
+or `nullkomma.lint.yaml`; they merge through the module system. Without Nix,
+linters see only native files.
 
 Tools without native config files (for example deadnix) use treefmt-nix options;
 no universal linter config format is imposed. The same interface also adds
@@ -223,8 +233,8 @@ perSystem = { ... }: {
 Use each tool's `perSystem.treefmt.programs.<name>` options for supported settings
 and `treefmt.settings.formatter.<name>.options` for extra command-line arguments.
 A committed `treefmt.toml` is **not** merged: treefmt-nix supplies its generated
-configuration explicitly. Replacing a tool's `package` or typos' `configFile`, or
-enabling typos' `isolated`, opts out of the corresponding shared/native merging.
+configuration explicitly. Replacing a tool's `package` or typos' `configFile` drops
+the shared policy; typos' `isolated` ignores native files.
 Linter ignores affect that linter only; treefmt exclusions skip formatters too.
 
 Every test runs locally with `test` (or `test <name> [args]`) and, sandboxed

@@ -24,17 +24,12 @@
             treefmt.programs.yamllint = {
               enable = lib.mkDefault true;
               priority = 1;
+              # yamllint's user-global config: used unless the project has its own.
               package = pkgs.writeShellScriptBin "yamllint" ''
-                export NULLKOMMA_YAMLLINT_CONFIG=${
+                export YAMLLINT_CONFIG_FILE=${
                   (pkgs.formats.yaml { }).generate "nullkomma-yamllint.yaml" config.nullkomma.lint.yaml
                 }
-                exec ${
-                  lib.getExe (
-                    pkgs.yamllint.overrideAttrs (old: {
-                      patches = (old.patches or [ ]) ++ [ ../../patches/yamllint.patch ];
-                    })
-                  )
-                } "$@"
+                exec ${lib.getExe pkgs.yamllint} "$@"
               '';
             };
           };

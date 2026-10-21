@@ -24,23 +24,20 @@
         ${project (root + "/tests/fixtures/md")}
         ${treefmt flake}
         printf 'name: value\n' > custom.yaml
-        printf 'rules:\n  quoted-strings: {required: true}\nignore-from-file: .yamlignore\n' > .yamllint
+        printf 'name: "%0120d"\n' 0 > long.yaml
+        printf 'name: yes\n' > yes.yaml
+        format custom.yaml long.yaml yes.yaml
+        printf 'name: on\n' > on.yaml
+        rejects truthy on.yaml
+        cp on.yaml shared-ignore.yaml
+        format shared-ignore.yaml
+        # A native config replaces the shared one.
+        printf 'extends: default\nrules:\n  quoted-strings: {required: true}\nignore-from-file: .yamlignore\n' > .yamllint
         printf 'ignored.yaml\n' > .yamlignore
         cp custom.yaml ignored.yaml
-        cp custom.yaml shared-ignore.yaml
         rejects quoted-strings custom.yaml
-        format ignored.yaml shared-ignore.yaml
-        printf 'name: "%0120d"\n' 0 > long.yaml
-        format long.yaml
-        printf 'rules:\n  line-length: {max: 20}\n' > .yamllint
         rejects line-length long.yaml
-        printf 'rules: {}\n' > .yamllint
-        format custom.yaml long.yaml
-        printf 'rules:\n  truthy: {check-keys: false}\n' > .yamllint
-        printf 'name: yes\n' > partial.yaml
-        format partial.yaml
-        printf 'name: on\n' > partial.yaml
-        rejects truthy partial.yaml
+        format ignored.yaml
         touch "$out"
       '';
     };

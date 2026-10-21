@@ -15,7 +15,7 @@
       options.nullkomma.lint.markdown = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = { };
-        description = "Shared markdownlint rule defaults, extended by native .markdownlint.* and .markdownlint-cli2.* configuration. Project rules take precedence.";
+        description = "Shared markdownlint rules, passed as markdownlint-cli2's --config base: rules in a native .markdownlint-cli2.* config override them by name, a .markdownlint.* file replaces them.";
       };
       options.nullkomma.lint.typos = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
@@ -25,7 +25,7 @@
       options.nullkomma.lint.yaml = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = { };
-        description = "Shared yamllint defaults, extended by native .yamllint configuration. Project rules and exclusions take precedence.";
+        description = "Shared yamllint defaults, used as yamllint's user-global config: a native .yamllint replaces them.";
       };
       config.perSystem =
         let

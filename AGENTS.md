@@ -54,7 +54,6 @@ Candidates for upstreaming instead of keeping here:
 
 Keep behavior patches as `patches/<tool>.patch`, applied through `overrideAttrs`
 `patches`; temporary fixes for upstream breakage may stay inline.
-A tool that merges shared defaults with project config reads them from the file
-named by `NULLKOMMA_<TOOL>_CONFIG`, which its wrapper sets, so the patched package
-never depends on project settings. Native project configuration extends the
-shared defaults. Prefer a native mechanism whenever one exists.
+Don't patch tools to merge shared and project configuration: pass shared policy
+through the tool's own layering (a base `--config`, a user-global config) and let
+native files behave as the tool documents.

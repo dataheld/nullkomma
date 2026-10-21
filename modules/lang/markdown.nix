@@ -18,17 +18,13 @@
           treefmt.programs.markdownlint-cli2 = {
             enable = lib.mkDefault true;
             priority = 1;
+            # `--config` is markdownlint-cli2's base configuration, which native files then extend.
+            # shortcut: it also resolves top-level `customRules` from the store; use module names
+            # or a subdirectory config if a project needs local rule files.
             package = pkgs.writeShellScriptBin "markdownlint-cli2" ''
-              export NULLKOMMA_MARKDOWNLINT_CONFIG=${pkgs.writeText "nullkomma-markdownlint.json" (builtins.toJSON config.nullkomma.lint.markdown)}
               files=()
               for file in "$@"; do files+=(":$file"); done
-              exec ${
-                lib.getExe (
-                  pkgs.markdownlint-cli2.overrideAttrs (old: {
-                    patches = (old.patches or [ ]) ++ [ ../../patches/markdownlint-cli2.patch ];
-                  })
-                )
-              } --fix --no-globs "''${files[@]}"
+              exec ${lib.getExe pkgs.markdownlint-cli2} --config ${pkgs.writeText "nullkomma.markdownlint.json" (builtins.toJSON config.nullkomma.lint.markdown)} --fix --no-globs "''${files[@]}"
             '';
           };
           nullkomma.editor.languageServers.marksman = {
