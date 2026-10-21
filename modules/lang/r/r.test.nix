@@ -186,7 +186,7 @@
           expected = true;
         };
         testRLockBootstrapsWithoutLock = {
-          expr = lib.isString withoutLock.packages.${system}.r-lock.drvPath;
+          expr = lib.isString withoutLock.apps.${system}.r-lock.program;
           expected = true;
         };
         testRRejectsUnknownPackages = {

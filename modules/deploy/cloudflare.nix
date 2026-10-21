@@ -54,6 +54,12 @@
           in
           {
             nullkomma.devShell.packages = [ pkgs.wrangler ];
+            # terranix also exports packages.deploy, whose .init, .plan, ... `nix run` falls back to.
+            apps.deploy = {
+              type = "app";
+              program = lib.getExe config.packages.deploy;
+              meta.description = "Publish the site to Cloudflare";
+            };
             nullkomma.tasks = {
               deploy = {
                 skip = true;

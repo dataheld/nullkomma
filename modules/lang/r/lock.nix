@@ -21,7 +21,11 @@
           pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
         in
         {
-          packages.r-lock = config.nullkomma.tasks.r-lock.package;
+          apps.r-lock = {
+            type = "app";
+            program = lib.getExe config.nullkomma.tasks.r-lock.package;
+            meta.description = config.nullkomma.tasks.r-lock.description;
+          };
           nullkomma.tasks.r-lock = {
             description = "Resolve DESCRIPTION into the R lockfile (pkg.lock) with pak";
             skip = true;

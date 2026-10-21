@@ -185,9 +185,9 @@
               cp -R "$root/tests/fixtures/r" "$scratch/r"
               rm "$scratch/r/pkg.lock"
               # Bootstrapping must not evaluate the lock-dependent R environment.
-              nix build "path:$scratch/r#r-lock" \
+              nix eval --raw "path:$scratch/r#apps.${system}.r-lock.program" \
                 --override-input nullkomma "path:$root" \
-                --no-write-lock-file --no-link --print-build-logs
+                --no-write-lock-file > /dev/null
               if nix eval "path:$scratch/r#devShells.${system}.default.drvPath" \
                 --override-input nullkomma "path:$root" \
                 --no-write-lock-file > "$scratch/missing-lock.log" 2>&1; then
