@@ -84,10 +84,6 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
-With your own `flake-parts.lib.mkFlake`, import `inputs.nullkomma.flakeModules.default` for the same,
-or `flakeModules.framework` plus selected `flakeModules.<plugin>`, each enabled with `nullkomma.<plugin>.enable = true`.
-Options are documented in the modules' source.
-
 ### Plugins
 
 Everything nullkomma adds comes from a plugin.
