@@ -109,7 +109,7 @@ All are optional; those marked under Default are enabled unless you opt out.
 | [`vscode`][vscode]          | ✅      |                       |               |                                                                |                        |                                                 | `.vscode/`[^editor-files]                                                                | renders it for VS Code[^editor-files]                            |
 | [`neovim`][neovim]          | ✅      |                       |               |                                                                |                        |                                                 | `.nvim.lua`[^editor-files]                                                               | renders it for Neovim[^editor-files]                             |
 | [`flakehub`][flakehub]      | ✅      | [`fh`]                |               |                                                                |                        |                                                 |                                                                                          |                                                                  |
-| [`quarto`][quarto]          |         | quarto[^quarto]       |               |                                                                |                        |                                                 | ignores `.quarto/`, `_site/`; `_extensions/`[^generated], `privacy.qmd`[^generated]      | VS Code: [Quarto][vscode-quarto]                                 |
+| [`quarto`][quarto]          |         |                       |               |                                                                |                        |                                                 | ignores `.quarto/`, `_site/`; `_extensions/`[^generated], `privacy.qmd`[^generated]      | VS Code: [Quarto][vscode-quarto]                                 |
 | [`cloudflare`][cloudflare]  |         | wrangler[^cloudflare] |               |                                                                |                        | OpenTofu validation                             | ignores `.nullkomma/cloudflare/`                                                         |                                                                  |
 | [`r`][r]                    |         |                       | `air`         | `jarl`                                                         | `testthat`             | `rcmdcheck`, pkgdown build, NAMESPACE freshness | `.Rbuildignore`, R ignores, `.github/privacy.md`[^generated], pkgdown assets[^generated] | R languageserver; VS Code: R, Air                                |
 | `r-non-nix` (enables `r`)   |         |                       |               |                                                                |                        |                                                 | `.Rprofile`, `.Renviron`, `.R/install.R`, README                                         |                                                                  |
@@ -556,9 +556,6 @@ the broken one fails with the real tool's error, not just any error.
 
 [^editor-files]: Generated (Git-ignored) from the Editor column: VS Code settings and
     recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
-
-[^quarto]: Also adds the `preview` task: `quarto preview`, serving the site on localhost
-    and re-rendering and live-reloading it on changes.
 
 [^generated]: Generated: `nullkomma.quarto.extensions`, `nullkomma.r.pkgdown.assets`, and
     the privacy policy once there are `nullkomma.privacy.sections`.
