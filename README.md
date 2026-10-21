@@ -52,7 +52,6 @@ nix develop --command generate-files
 direnv allow
 ```
 
-For an R package, add `nullkomma.r.enable = true;` to `flake.nix` and [lock its dependencies](#dependencies) first.
 The template adds `flake.nix` and an `.envrc` with `use flake`, keeping existing files;
 `write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
 From now on, entering the directory loads the [development shell](#development-shell);
@@ -398,12 +397,15 @@ with the [resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SK
 In Copilot, install it with `/plugin install https://github.com/dataheld/nullkomma`
 and update it with `/plugin update nullkomma`; neither writes to your project.
 
-## R
+## Languages
 
-Enable it with `nullkomma.r.enable = true;` in `flake.nix`.
-For a package in a subdirectory, set `nullkomma.r.root = ./pkg`.
+### R
 
-### Dependencies
+1. Add `nullkomma.r.enable = true;` to `flake.nix`; for a package in a subdirectory, also `nullkomma.r.root = ./pkg;`.
+1. Run `nix run .#r-lock`: the development shell needs the [`pkg.lock`](#dependencies) it writes.
+1. Run `write-files` and commit the changes.
+
+#### Dependencies
 
 Declare dependencies in `DESCRIPTION`; [pak] locks them in `pkg.lock`.
 Refresh the lock after changing dependencies or updating Nix:
@@ -412,8 +414,6 @@ Refresh the lock after changing dependencies or updating Nix:
 r-lock
 git add DESCRIPTION pkg.lock
 ```
-
-The development shell needs `pkg.lock`, so create the first one with `nix run .#r-lock`.
 
 Nix takes package names from `pkg.lock`, but versions and builds from the `nixpkgs-r` input
 (which follows Nixpkgs; override `inputs.nullkomma.inputs.nixpkgs-r` for newer R).
@@ -432,7 +432,7 @@ The development environment adds pak, languageserver and the tools of enabled wo
 > Add missing system libraries with `perSystem.nullkomma.r.buildInputs.<package>`.
 > GitLab and local references are unsupported; use `git::` for GitLab.
 
-### Tasks and tests
+#### Tasks and tests
 
 | Command                     | What it does                                                            | Opt out                                                           |
 | --------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
@@ -462,7 +462,7 @@ Nix builds disable Chromium's sandbox, which can't nest in the build sandbox.
 Nixpkgs has no Chromium for macOS: there chromote finds your Chrome, or uses `CHROMOTE_CHROME`.
 `perSystem.nullkomma.r.browser` selects another browser.
 
-### pkgdown website
+#### pkgdown website
 
 `packages.site` builds the [pkgdown](https://pkgdown.r-lib.org) site in the sandbox,
 also in `nix flake check`; `r-pkgdown` builds it locally.
@@ -478,7 +478,7 @@ also in `nix flake check`; `r-pkgdown` builds it locally.
 - The [privacy policy](#privacy-policy) is generated into Git-ignored `.github/privacy.md`, which pkgdown renders to `/privacy.html`;
   set `nullkomma.r.pkgdown.privacy.page = null` to write your own.
 
-### Formatting and tools
+#### Formatting and tools
 
 [Air] formats R and [Jarl] lints and fixes it first, configured by `jarl.toml`
 (disable with `nullkomma.r.jarl.enable = false`).
@@ -495,7 +495,7 @@ Jarl replaces lintr: it needs no package load and fixes lints before Air formats
 Coverage stays local, without an upload service.
 Everything runs on one locked R version; add a CI matrix if you need Windows or other R releases.
 
-### Without Nix
+#### Without Nix
 
 For collaborators without Nix, enable `nullkomma.r-non-nix.enable = true` (it enables `r`),
 run `write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
