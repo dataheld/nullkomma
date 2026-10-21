@@ -28,80 +28,71 @@ It is **not**:
 This repo contributes to the broader IT infrastructure laid out in [aoshima](https://github.com/dataheld/aoshima).
 When making changes, adhere to [aoshima's charter](https://github.com/dataheld/aoshima#charter).
 
-## Installing
+## Getting started
 
-> [!TIP]
-> The steps below are **system / user** prerequisites.
-> Project-specific software is handled by the flake once you are inside the repo.
+### Prerequisites
 
-1. Install Nix (the package manager).
-   The [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer) is recommended.
+1. Install Nix; the [Determinate Nix Installer](https://github.com/DeterminateSystems/nix-installer) is recommended.
+   On Windows, use the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).
+1. For automatic shell activation, install [direnv] and [nix-direnv] in your user environment,
+   e.g. with [lap](https://github.com/dataheld/lap).
+   Set [`hide_env_diff = true`](https://direnv.net/man/direnv.toml.1.html) to quiet it.
 
-1. For automatic flake-shell activation, provide [direnv](https://direnv.net) and [nix-direnv](https://github.com/nix-community/nix-direnv) in your user environment (managed via [lap](https://github.com/dataheld/lap) or installed manually).
+Everything else comes from your project's flake.
 
-   > [!TIP]
-   > `nix-`/`direnv` can be a bit chatty on launch.
-   > Set [`hide_env_diff=true`](https://direnv.net/man/direnv.toml.1.html) to quiet it down.
+### Adding nullkomma to a project
 
-1. In your project, add a `flake.nix` from the `default` template:
-
-   ```sh
-   nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
-   ```
-
-   The template also includes `.envrc` containing `use flake`.
-   Existing files are preserved.
-
-   Its `nixpkgs.follows = "nullkomma/nixpkgs"` uses nullkomma's tested Nixpkgs
-   pin and lets `flake-checker` check it. To use your own Nixpkgs instead,
-   declare `nixpkgs.url` and set `nullkomma.inputs.nixpkgs.follows = "nixpkgs"`.
-
-1. Initialize remaining missing files (see below):
-
-   ```sh
-   git add flake.nix .envrc
-   nix develop --command write-files
-   nix develop --command generate-files
-   ```
-
-1. (one-time only) Inside the repo, run `direnv allow`.
-
-> [!TIP]
-> Windows is not supported by Nix,
-> but you can use the
-> [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).
-
-From now on, whenever you change into the directory of your project,
-all the necessary dependencies etc. will be ready.
-The first time you enter the directory, this might take some time.
-
-## Using
-
-Project tasks are plain commands in the development shell (they accept
-arguments, e.g. `write-files --accept <path>`). The
-[DeterminateSystems/up](https://github.com/DeterminateSystems/up) runner lists
-them and runs them without arguments:
+In your project, run:
 
 ```sh
-tasks          # list tasks
-tasks check    # run one task
-tasks all      # run all tasks that don't change files
+nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
+git add flake.nix .envrc
+nix develop --command write-files
+nix develop --command generate-files
+direnv allow
 ```
 
-### Plugins
+Use `#r` instead of `#default` for an R package, and first [lock its dependencies](#dependencies).
+The template adds `flake.nix` and an `.envrc` with `use flake`, keeping existing files;
+`write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
+From now on, entering the directory loads the [development shell](#development-shell);
+the first time takes a while.
 
-Everything nullkomma adds comes from **plugins**, exported as flake-parts modules
-`flakeModules.<plugin>` next to the shared `flakeModules.framework`.
-All plugins are optional; `nullkomma.lib.mkFlake` (or importing
-`flakeModules.default` into your own `flake-parts.lib.mkFlake`) enables the
-ones below by default (except opt-in ones), so you only list exceptions:
+The template's `nixpkgs.follows = "nullkomma/nixpkgs"` uses nullkomma's tested Nixpkgs.
+To use your own, declare `nixpkgs.url` and set `nullkomma.inputs.nixpkgs.follows = "nixpkgs"`.
+
+### Upgrading
+
+Run `update`: it updates `flake.lock`, then runs `write-files` and `generate-files`.
+After any other `nix flake update` (e.g. by a bot), run those two yourself.
+After editing `flake.nix`, run `direnv reload`.
+
+## Configuring
+
+`nullkomma.lib.mkFlake` is flake-parts' `mkFlake` with every plugin imported and the default ones enabled,
+so `flake.nix` lists only exceptions and options:
 
 ```nix
 inputs.nullkomma.lib.mkFlake { inherit inputs; } {
-  nullkomma.github.enable = false;
-  nullkomma.markdown.enable = false;
+  nullkomma.quarto.enable = true; # opt in
+  nullkomma.github.enable = false; # opt out
+  nullkomma.github.ci.inputs.visibility = "public"; # publish to FlakeHub
+  perSystem =
+    { pkgs, ... }:
+    {
+      nullkomma.devHelpers = [ pkgs.hello ];
+    };
 }
 ```
+
+With your own `flake-parts.lib.mkFlake`, import `inputs.nullkomma.flakeModules.default` for the same,
+or `flakeModules.framework` plus selected `flakeModules.<plugin>`, each enabled with `nullkomma.<plugin>.enable = true`.
+Options are documented in the modules' source.
+
+### Plugins
+
+Everything nullkomma adds comes from a plugin.
+All are optional; the ones not marked opt-in are enabled by default.
 
 | Plugin                              | Dev helpers    | Format / lint          | Tests                                                             | Files                                                              | Editor                                                           |
 | ----------------------------------- | -------------- | ---------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
@@ -145,7 +136,7 @@ which runs `nix flake check` and can publish to FlakeHub.
 recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
 
 ⁶ Also adds the `terraform` (plan changes) and `deploy` tasks, and a section
-to the privacy policy (see [Static websites](#static-websites)).
+to the privacy policy (see [Websites](#websites)).
 
 ⁷ Skips translations such as `*.de.md`, one pattern per non-English
 `nullkomma.privacy.languages`; typos only knows English.
@@ -159,23 +150,63 @@ and re-rendering and live-reloading it on changes.
 ✅ means the plugin's files are formatted/linted by the `format` task (or `nix fmt`) and
 checked by `nix flake check` (via treefmt). The exact tools are in the plugin's source.
 
-Markdown and YAML linting run after their formatters, through the same treefmt
-commands and editor integration. Commit ordinary native config files to extend
-shared defaults; nullkomma does not generate or overwrite these files. See
-[Customizing linting](#customizing-linting) for configuration, precedence and
-exclusions. Without project configuration, YAML uses relaxed rules without a
-line-length limit.
+## Outputs
 
-Generated outputs are not formatted or linted: managed files and entire managed
-directories are excluded, along with R/pkgdown and Quarto build outputs. Add
-repository-relative treefmt globs to `nullkomma.generatedPaths` for other generated
-content, for example `[ "generated/**" ]`. These are treefmt globs, not Git ignore
-patterns; hand-maintained sources such as `man/figures/` remain included.
+Your flake gets these outputs:
 
-### Customizing linting
+| Output                                 | Use                                    | See                                               |
+| -------------------------------------- | -------------------------------------- | ------------------------------------------------- |
+| `devShells.default`                    | direnv, `nix develop`                  | [Development shell](#development-shell)           |
+| `formatter`, `checks.<system>.treefmt` | `format`, `nix fmt`, `nix flake check` | [Formatting and linting](#formatting-and-linting) |
+| `checks.<system>.test-<name>`          | `test <name>`, `nix flake check`       | [Tests](#tests)                                   |
+| `tests.systems.<system>`               | [nix-unit]                             | [Tests](#tests)                                   |
+| `packages.site`, `packages.deploy`     | `nix build .#site`, `nix run .#deploy` | [Websites](#websites)                             |
+| `packages.r-lock`                      | `nix run .#r-lock`                     | [R](#r)                                           |
+| `taskRunners.<system>`                 | `tasks`                                | [Development shell](#development-shell)           |
 
-Commit each tool's native configuration. nullkomma doesn't merge configurations:
-it hands its shared policy to each tool through the tool's own layering.
+A `schemas` output describes them to [Determinate Nix](https://docs.determinate.systems)'s `nix flake show`.
+
+### Development shell
+
+`devShells.default` holds:
+
+- every task as a command, taking arguments (e.g. `write-files --accept <path>`);
+- the `tasks` runner from [up] to list and run them;
+- language servers and the formatter for [editors](#editors);
+- the plugins' and your `nullkomma.devHelpers`.
+
+```sh
+tasks          # list tasks
+tasks check    # run one task
+tasks all      # run all tasks that don't change files
+```
+
+Tools a task or test needs stay inside it, off your `PATH`.
+Add your own tasks in `perSystem.nullkomma.tasks.<name>`.
+
+#### Editors
+
+Plugins declare language servers once, editor-neutrally (`perSystem.nullkomma.editor`).
+The `vscode` and `neovim` plugins render them, with recommended extensions,
+into Git-ignored `.vscode/` and `.nvim.lua`, so nobody commits editor config.
+Neovim reads `.nvim.lua` only with `:set exrc`.
+
+Installing editors and extensions, themes and keybindings belong to your user environment,
+e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
+
+### Formatting and linting
+
+`format` (or `nix fmt`) runs [treefmt] with every enabled plugin's formatters and linters;
+`nix flake check` checks the same as `checks.<system>.treefmt`.
+
+Generated files aren't formatted or linted: managed files and directories,
+and R/pkgdown and Quarto build outputs.
+Add other generated content to `nullkomma.generatedPaths` as treefmt globs, e.g. `[ "generated/**" ]`.
+
+#### Customizing linting
+
+Commit each tool's native configuration; nullkomma never writes these files.
+It hands its shared policy to each tool through the tool's own layering, without merging configurations itself.
 
 | Tool         | Native configuration                                                               | How it combines with shared policy                                                                                                                                 |
 | ------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -218,9 +249,8 @@ To change shared policy in Nix, set `nullkomma.lint.typos`, `nullkomma.lint.mark
 or `nullkomma.lint.yaml`; they merge through the module system. Without Nix,
 linters see only native files.
 
-Tools without native config files (for example deadnix) use treefmt-nix options;
-no universal linter config format is imposed. The same interface also adds
-arguments and exclusions for any formatter/linter:
+Tools without native config files (e.g. deadnix) and extra arguments or exclusions
+use [treefmt-nix](https://github.com/numtide/treefmt-nix) options:
 
 ```nix
 perSystem = { ... }: {
@@ -230,81 +260,55 @@ perSystem = { ... }: {
 };
 ```
 
-Use each tool's `perSystem.treefmt.programs.<name>` options for supported settings
-and `treefmt.settings.formatter.<name>.options` for extra command-line arguments.
-A committed `treefmt.toml` is **not** merged: treefmt-nix supplies its generated
-configuration explicitly. Replacing a tool's `package` or typos' `configFile` drops
-the shared policy; typos' `isolated` ignores native files.
+A committed `treefmt.toml` is ignored.
+Replacing a tool's `package` or typos' `configFile` drops the shared policy; typos' `isolated` ignores native files.
 Linter ignores affect that linter only; treefmt exclusions skip formatters too.
 
-Every test runs locally with `test` (or `test <name> [args]`) and, sandboxed
-against the flake's source, as `checks.<system>.test-<name>` in
-`nix flake check` and CI.
+### Tests
 
-Each column is a framework: options (in `perSystem`, except `nullkomma.gitignore`)
-that plugins fill in, and so can you. Most plugins feed columns; a few render
-them (`git`, `vscode`, `neovim`) or run them (`treefmt`). Independent plugins read
-framework options; companion plugins can explicitly depend on a base plugin.
-
-| Column        | Options                                                        | Task                            | Ends up in                                                             |
-| ------------- | -------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------- |
-| Dev helpers   | `nullkomma.devHelpers`                                         |                                 | dev shell                                                              |
-| Format / lint | `treefmt.programs`                                             | `format`                        | `nix fmt`, `checks.<system>.treefmt`, editors                          |
-| Tests         | `nullkomma.tests.<name>`                                       | `test`                          | `checks.<system>.test-<name>`                                          |
-| Files         | `nullkomma.files.<path>` (and top-level `nullkomma.gitignore`) | `write-files`, `generate-files` | the repository                                                         |
-| Editor        | `nullkomma.editor`                                             |                                 | language servers and formatter in the dev shell; editor plugins' files |
-
-Tasks (`nullkomma.tasks.<name>`) aren't a column: they're the command layer
-under the columns. Each becomes a dev shell command and an entry in the `tasks`
-runner; plugins add a few more of their own (see the footnotes).
-
-The dev shell (`devShells.default`) is assembled from these: task commands,
-editor tools and dev helpers. Packages a test or task needs (e.g. bats and the
-tools your bats tests call) stay inside that test or task, off your `PATH`.
-
-### Knobs
-
-Options live under `nullkomma.*`, for example:
+Test suites in `perSystem.nullkomma.tests.<name>` run in your working tree with `test` (all)
+or `test <name> [args]`, and sandboxed against the flake's source as `checks.<system>.test-<name>`
+in `nix flake check` and CI.
+Plugins add their own (see the Tests column above); so can you:
 
 ```nix
-inputs.nullkomma.lib.mkFlake { inherit inputs; } {
-  nullkomma.github.ci.inputs.visibility = "public"; # publish to FlakeHub
-  perSystem =
-    { pkgs, ... }:
-    {
-      nullkomma.devHelpers = [ pkgs.hello ];
-      treefmt.programs.typos.enable = true;
-    };
-}
-```
-
-### Static websites
-
-Opt-in `quarto` renders the project into `packages.site`; opt-in `cloudflare`
-serves whatever `packages.site` holds as [Workers static assets][cloudflare].
-Use either with another builder or host.
-
-```nix
-inputs.nullkomma.lib.mkFlake { inherit inputs; } {
-  nullkomma.quarto.enable = true;
-  nullkomma.cloudflare = {
-    enable = true;
-    worker = "my-site";
-    domains."www.example.org" = "<zone ID>";
+perSystem = { pkgs, ... }: {
+  nullkomma.tests.greeting = {
+    packages = [ pkgs.hello ];
+    command = "hello | grep -q Hello";
   };
-}
+};
 ```
 
-In `nix develop`, run `preview` to serve the site on localhost; Quarto
-re-renders and reloads the page as you edit.
+### Websites
 
-Shared Quarto extensions, e.g. a brand from another flake, go in
-`nullkomma.quarto.extensions.<name>`: generated into `_extensions/<name>` and
-copied into the build.
+Opt-in `quarto` renders the project into `packages.site` (`nix build .#site`);
+`preview` serves it locally and reloads on edits.
+Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`.
+The `r` plugin builds a [pkgdown site](#pkgdown-website) into `packages.site` instead;
+if both are enabled, set `perSystem.packages.site` yourself.
 
-Plugins that set up processing of visitors' data add a section to
-`nullkomma.privacy.sections` (`cloudflare` adds one on hosting and analytics);
-so can a brand module or the project:
+#### Brand
+
+To theme sites from a brand flake, declare its input and select it:
+
+```nix
+inputs.brand = {
+  url = "https://flakehub.com/f/dataheld/brand/0.1.*";
+  inputs.nullkomma.follows = "nullkomma";
+};
+# Inside mkFlake's module:
+nullkomma.brand = inputs.brand;
+```
+
+The brand provides `lib.brand` (a [brand.yml](https://posit-dev.github.io/brand-yml/) file),
+optionally `lib.footer` (HTML) and `flakeModules.privacy`.
+Its privacy sections join every site's privacy policy; pkgdown also applies its theme and footer.
+
+#### Privacy policy
+
+Plugins that process visitors' data add a section to `nullkomma.privacy.sections`
+(`cloudflare` adds hosting and analytics); so can a brand or your project:
 
 ```nix
 nullkomma.privacy.sections.booking = {
@@ -316,18 +320,27 @@ nullkomma.privacy.sections.booking = {
 };
 ```
 
-`quarto` renders them, by `order`, into `privacy.qmd`
-(`nullkomma.quarto.privacy.page`), one tab per `nullkomma.privacy.languages`.
-Link it from your footer. To write your own, set the page to `null`; other
-builders get the sections' files from the same option.
-nullkomma's sections are a starting point, not legal advice.
+`quarto` renders them, by `order`, into `privacy.qmd` (`nullkomma.quarto.privacy.page`),
+one tab per `nullkomma.privacy.languages`; pkgdown renders them to `/privacy.html`.
+Link the page from your footer, or set it to `null` to write your own.
+The sections are a starting point, not legal advice.
 
-In `nix develop`, use `tasks` to select `terraform` (plan changes) or `deploy`
-(publish). Run `terraform <command> [args]` for other OpenTofu commands.
-Deployment uses [Terranix], including custom domains, `_headers` and `_redirects`;
-`workers.dev` is disabled. In CI, use `nix run .#deploy`.
+#### Deploying to Cloudflare
 
-Set these variables for an existing private R2 state bucket; in GitHub Actions:
+Opt-in `cloudflare` serves whatever `packages.site` holds as [Workers static assets][cloudflare],
+deployed with [Terranix], including custom domains, `_headers` and `_redirects`; `workers.dev` is disabled.
+
+```nix
+nullkomma.cloudflare = {
+  enable = true;
+  worker = "my-site";
+  domains."www.example.org" = "<zone ID>";
+};
+```
+
+Locally, run `terraform` to plan changes (or `terraform <command> [args]`) and `deploy` to publish;
+in CI, run `nix run .#deploy`.
+Both need an existing private R2 bucket for Terraform state; in GitHub Actions:
 
 ```yaml
 env:
@@ -340,267 +353,11 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
 ```
 
-### R projects
+## Files in your repository
 
-Enable `nullkomma.r.enable = true` (or use the `r` template).
-
-Dependencies are *declared* in `DESCRIPTION`.
-But because the `DESCRIPTION` alone does *not* record a reproducible R environment,
-dependencies are resolved and locked via [pak](https://pak.r-lib.org)'s `pkg.lock`.
-Nix reads the package names from `pkg.lock` and uses the versions and build
-instructions from the Nixpkgs revision recorded in `flake.lock`, rather than
-pak's recorded versions. With `allowOffNixpkgs` enabled, packages unavailable
-there or explicitly pinned in `Remotes` instead use the source revisions or
-download hashes recorded in `pkg.lock` and the flake configuration.
-
-After direnv loads the development shell, use `r-lock` to refresh dependencies:
-
-```sh
-r-lock
-git add DESCRIPTION pkg.lock
-```
-
-Run it after dependency changes and Nix updates. For the first setup, if
-`DESCRIPTION` exists but `pkg.lock` does not, run `nix run .#r-lock` once:
-the development shell needs the lockfile before direnv can load it.
-
-The `r` plugin keeps its exclusions in a marked section of `.Rbuildignore`, next
-to your own rules; run `write-files` and commit it. They apply to package checks
-inside and outside Nix.
-
-#### Package development tasks
-
-| Command                     | What it does                                                                | Enabled when                                                                        |
-| --------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `r-document`                | Generate `man/*.Rd` and `NAMESPACE` with roxygen2                           | Always; disable with `nullkomma.r.document.enable = false` for hand-written manuals |
-| `test r-cmd-check`          | Generate documentation, build, and run rcmdcheck                            | Default on; `nullkomma.r.check.enable`                                              |
-| `test r-testthat`           | Generate documentation and run parallel testthat on the development source  | Default on; `nullkomma.r.testthat.enable`                                           |
-| `test r-testthat-installed` | Install into a temporary library and test the installed package in parallel | Default on; `nullkomma.r.testthat.enable`                                           |
-| `test r-namespace`          | Fail if roxygen2 would change the committed `NAMESPACE`                     | With `r-document`                                                                   |
-| `r-pkgdown`                 | Build a website in `docs/` without opening a browser                        | Default on; `nullkomma.r.pkgdown.enable`                                            |
-| `r-coverage`                | Write a local Cobertura `coverage.xml` report with covr                     | covr is locked or `nullkomma.r.coverage.enable = true`                              |
-
-`test <name>` runs one test suite in the working tree; `nix flake check` runs
-them all, sandboxed, as `checks.<system>.test-<name>`.
-
-Documentation is regenerated before checks, tests and website builds. Generated
-`man/*.Rd` files are Git-ignored, **not** the whole `man/` directory: keep
-hand-maintained figures.
-Commit `NAMESPACE`; `test r-namespace` rejects stale
-exports.
-testthat runs against both the development and installed package in
-`nix flake check`. Package dependencies remain in DESCRIPTION; nullkomma adds
-only the tools needed by enabled workflows to the development R environment,
-not to deployable package outputs. Set any workflow's `enable` option to `false`
-to opt out; `nullkomma.r.check.errorOn = "warning"` relaxes the note threshold.
-
-Test files run in parallel in source tests, installed tests and R CMD check.
-`TESTTHAT_CPUS` defaults to Nix's `NIX_BUILD_CORES` allocation, or two locally;
-a one-core allocation is respected. Override it to choose a worker count, or use
-`TESTTHAT_PARALLEL=false` for a single serial invocation. Set
-`nullkomma.r.testthat.parallel = false` for the project's default opt-out.
-
-nullkomma uses testthat's native environment controls, without rewriting
-`DESCRIPTION` or changing the test edition. Use edition 3 for upstream-supported
-parallel testing. To enable parallelism outside the Nix environment too, commit:
-
-```dcf
-Config/testthat/edition: 3
-Config/testthat/parallel: true
-```
-
-With pkgdown enabled, `nix build .#site` produces the website and
-`nix flake check` builds it too. The existing Cloudflare plugin can publish this
-same `packages.site` output; no R-specific deployment pipeline is needed.
-Both builds keep pkgdown's metadata-generated sidebar: source and bug-report
-links, license, citation and authors come from the package itself. When pkgdown
-is enabled, nullkomma applies a small Nix package patch to skip only its online
-CRAN/Bioconductor repository discovery. Automatic “View on CRAN/Bioconductor”
-links are omitted; add any known repository links through native `home.links`
-settings instead. Sidebar ordering, custom components, `home.sidebar = false`
-and local `home.sidebar.html` overrides keep their usual pkgdown behavior.
-pkgdown defaults to Bootstrap 5 (`template.bootstrap`); Bootstrap 3 templates
-load their assets from CDNs. Bootstrap 5's JavaScript dependencies (including
-Headroom and search) are pinned in nullkomma and fetched by Nix, not by R during
-the build; maintainers refresh the pins with the `pkgdown-dependencies` task. Remote templates,
-web fonts and network-dependent articles must still be supplied locally for a
-reproducible Nix build. If both Quarto and pkgdown are enabled, select the intended
-`perSystem.packages.site` explicitly.
-
-To use a brand flake, declare its input and select it:
-
-```nix
-inputs.brand = {
-  url = "https://flakehub.com/f/dataheld/brand/0.1.*";
-  inputs.nullkomma.follows = "nullkomma";
-};
-# Inside mkFlake's module:
-nullkomma.brand = inputs.brand;
-```
-
-The brand supplies `lib.brand` (a brand.yml path), optionally `lib.footer` (HTML)
-and `flakeModules.privacy`. Its privacy sections join `nullkomma.privacy` for
-every site plugin; pkgdown also applies its theme and footer in both builds. Footer wrappers are converted to divs
-so they do not nest inside pkgdown's own footer. No additional imports or
-integration tests are needed in the consumer.
-
-`nullkomma.r.pkgdown.config` supplies native pkgdown settings to both
-`r-pkgdown` and the sandboxed build, merged over the project's `_pkgdown.yml`.
-Its settings override brand defaults. Without a brand flake, use
-`template.bslib.brand` for a local `_brand.yml` path (automatically adding
-the `brand.yml` R package), and `footer.structure`/`footer.components` for shared
-footer markup. Sandbox-only `pkgdown.override` settings take precedence.
-Shared images and other site files
-go in `pkgdown.assets`, a directory generated into Git-ignored `pkgdown/assets/`
-and copied by pkgdown to the website root; it is excluded from package tarballs.
-The pkgdown workflows refuse existing project-owned assets and symlinks; leave
-this option `null` to keep managing `pkgdown/assets/` yourself. Like other
-generated directories, `generate-files` replaces untracked contents at that path.
-Branding remains a consumer input,
-not a dependency of nullkomma.
-
-pkgdown also renders `nullkomma.privacy.sections`, including hosting and brand
-sections, to `privacy.html`. Both the local task and the sandboxed build generate
-Git-ignored `.github/privacy.md`, excluded from R package tarballs, where pkgdown
-finds it natively, with or without Nix, and renders it to the root-level
-`/privacy.html` URL. Sections follow their
-configured order; each must provide every configured privacy language. Multiple
-languages appear in expandable sections without extra JavaScript or dependencies.
-Set `nullkomma.r.pkgdown.privacy.page = null` to supply your own page, or choose
-another Markdown filename in `.github/` or the package root. Project-owned files,
-symlinked sources and conflicting root, `.github/` or asset pages are refused.
-When upgrading from `pkgdown/privacy.md` or root-level `privacy.md`, remove that
-old generated file before building; it is not deleted automatically.
-Link to the HTML page from your pkgdown navigation or brand footer.
-
-Declaring shinytest2 in DESCRIPTION (and refreshing `pkg.lock`) also supplies
-Chromium on Linux and configures chromote for the devshell, checks, and tasks.
-The browser is headless and managed by shinytest2; no background browser service
-is needed. In Nix builds only, Chromium's namespace sandbox is disabled because
-it cannot nest inside the build sandbox; it stays enabled for interactive use.
-macOS has no Nixpkgs Chromium package: local tasks use chromote's installed
-Chrome discovery, or `CHROMOTE_CHROME`; run hermetic browser checks on Linux.
-`perSystem.nullkomma.r.browser` can select another Nix-packaged browser.
-The Linux `r-shinytest2` fixture check drives a real app, changes an input,
-asserts the reactive output and browser user agent, and fails if tests skip.
-
-#### Upstream R tooling choices
-
-These workflows cover the R-specific targets of
-[crow's Makefile](https://github.com/dataheld/crow/blob/main/Makefile) and
-[CI](https://github.com/dataheld/crow/blob/main/.github/workflows/cicd.yaml):
-documentation, namespace freshness, checks, local/installed tests, linting and
-pkgdown publication. Nix replaces its dependency/system-library installation;
-the existing treefmt and Cloudflare integrations replace separate lint/deploy
-pipelines. Its Docker images, Make wrappers and container health checks are
-intentionally not reproduced.
-
-Current representative tidyverse/r-lib repositories still use
-[rcmdcheck](https://github.com/r-lib/actions/blob/v2/examples/check-standard.yaml),
-[roxygen2](https://github.com/r-lib/actions/blob/v2/examples/document.yaml),
-[pkgdown](https://github.com/r-lib/actions/blob/v2/examples/pkgdown.yaml),
-[lintr](https://github.com/r-lib/devtools/blob/main/.github/workflows/lint.yaml)
-and [covr/Cobertura](https://github.com/r-lib/actions/blob/v2/examples/test-coverage.yaml).
-[dplyr's Air workflow](https://github.com/tidyverse/dplyr/blob/main/.github/workflows/format-suggest.yaml)
-confirms Air is a current choice, rather than adding styler as a second formatter.
-nullkomma lints with [Jarl](https://jarl.etiennebacher.com) instead of lintr:
-it needs no package load and fixes lints before Air formats. Coverage remains
-optional. Coverage reporting stays local: no Codecov account,
-token or upload is required. Upstream's Windows and R release/devel/oldrel
-matrices test compatibility beyond our one locked R version; Nix does not
-replace those when a project needs them.
-
-pak and languageserver are always included. Declare test dependencies such as
-testthat in `DESCRIPTION`'s `Suggests` field, which is included by default.
-For development-only tools, use pak's `Config/Needs/development` field:
-
-```dcf
-Config/Needs/development: devtools
-```
-
-All `Config/Needs/*` fields are included automatically; run `r-lock` after edits.
-For a runtime-only environment, override `nullkomma.r.fields` with
-`[ "Depends" "Imports" "LinkingTo" ]` and generate a separate lockfile.
-Production package outputs should use `buildRPackage` with only their required
-dependencies, not the development R environment; see the `r-production` fixture,
-whose package output excludes testthat, pak, languageserver and development tools.
-
-Reserve `nullkomma.r.extraPackages` for Nix-only additions, not shared project
-dependencies.
-
-nullkomma will automatically set a snapshot date for R package sources to retrieve from [Posit's Public Package Manager (PPM)](https://packagemanager.posit.co).
-
-This gets you two benefits:
-
-1. All R packages come at the version, in which they were all on CRAN (and, by extension, PPM) on *some* defined day.
-   Packages on CRAN at the same time are known to work together as well as working with the version of R released at that time.
-   These compatibility guarantees are rare in software ecosystems and should be maintained in your project.
-   This date will be set by the Nixpkgs set in your nullkomma (see next point).
-1. Nix brings the correct version of R, as well as the system dependencies known to work with these versions of the R packages.
-   This too improves compatibility, because the nix project has run tests on the R packages, including the available system dependencies in nixpkgs for that release.
-
-> [!TIP]
-> If you need a more current version of R or its packages than are included in the current nixpkgs,
-> you can override it by setting `inputs.nullkomma.inputs.nixpkgs-r.url`.
-
-> [!INFO]
-> If you "hand-pick" a package using the `DESCRIPTION`s `Remotes:` field
-> (which be pinned *or* float!)
-> nix will download the source based on that information lock down the compute environment based on that download (a hash).
-> Such `Remotes:`-packages require `nullkomma.r.allowOffNixpkgs = true`.
-> Git sources use the locked commit; URL sources also require `nullkomma.r.hashes.<package>` from
-> `nix store prefetch-file <url>`.
-> These packages build against the selected R package set. Add missing system libraries through
-> `perSystem.nullkomma.r.buildInputs.<package>`.
-> GitLab-specific and local
-> references are unsupported; use `git::` for GitLab repositories.
-
-[Posit's Air](https://posit-dev.github.io/air/) extends treefmt for R by default.
-The editor-neutral R language server defers formatting
-to the configured editor formatter, when present. [Jarl](https://jarl.etiennebacher.com)
-lints and auto-fixes R before Air runs, through treefmt, configured only by the
-project's own `jarl.toml`; disable it with `nullkomma.r.jarl.enable = false`. On
-macOS it builds from source with upstream tests disabled.
-R projects also allow HTML and unrestricted line length in Markdown (`MD033` and
-`MD013`). testthat snapshots and generated `docs/` are in
-`nullkomma.generatedPaths`, so they need no separate linter exceptions.
-The valid author role `fnd` is protected from typos corrections in `DESCRIPTION`
-files, without accepting it in unrelated prose.
-
-Enable the optional **`r-non-nix`** companion plugin with
-`nullkomma.r-non-nix.enable = true` for collaborators without Nix, then run
-`write-files` and commit the resulting `.Renviron`, `.Rprofile`, `.Rbuildignore`, `.R/install.R`
-and README changes.
-`r-non-nix` appends an [R development without Nix](modules/lang/r-non-nix/_assets/development.md)
-section to the project README, preserving existing text. These are source-of-truth
-files: later upstream changes use the normal conflict-aware `write-files` updates.
-This plugin imports and enables `r`; disabling `r` while enabling `r-non-nix`
-is an option conflict. Both plugins are off by default. For selective imports,
-use `nullkomma.flakeModules.r-non-nix` alongside `flakeModules.framework`;
-no additional flake input is needed. Its startup profile leaves Nix-provided
-settings and libraries untouched in development shells, builds and shared R tasks,
-including parallel test workers; it requires `.Renviron` only for native R sessions.
-The `r` plugin alone keeps Nix development shells, lock generation, checks and
-package workflows and `.Rbuildignore`, without emitting non-Nix startup files. Snapshot and PPM settings
-remain under `nullkomma.r` because `r-lock` also uses them.
-
-Run `nix develop --command test-r-non-nix` locally on macOS or Linux with Docker
-running. Nix prepares the fixture and Docker client; Docker runs Ubuntu 24.04
-with the same R version as `nixpkgs-r`, as an unprivileged user, without Nix or a
-mounted Nix store. Extra arguments go to `docker build`, for example
-`test-r-non-nix --build-arg UBUNTU_VERSION=22.04 --build-arg R_VERSION=4.4.2`.
-The test executes the documented R examples and checks an
-ordinary source-package build. It uses `linux/amd64` (emulated on Apple Silicon)
-to verify PPM binaries, and requires network access. Docker caches the R image
-layers for subsequent runs. Sandboxed Nix checks cover startup, emitted files,
-and source-package exclusions; the live Docker test also runs on manually
-dispatched CI workflows, not every push.
-
-### Files in your repo
-
-nullkomma keeps files in your repo to a minimum; features live in Nix instead.
-Some tools still need real files (Git needs `.gitignore`, GitHub needs
-workflows, editors need settings). Each such file is one of two kinds:
+nullkomma keeps files in your repository to a minimum; features live in Nix.
+Some tools still need real files (Git needs `.gitignore`, GitHub needs workflows,
+editors need settings). Each is one of two kinds:
 
 |                             | **Source of truth** (committed, yours to edit) | **Generated from Nix** (Git-ignored, don't edit) |
 | --------------------------- | ---------------------------------------------- | ------------------------------------------------ |
@@ -608,70 +365,154 @@ workflows, editors need settings). Each such file is one of two kinds:
 | `write-files`               | `.gitignore`, GitHub workflows                 |                                                  |
 | `generate-files`            |                                                | `.vscode/*.json`, `.nvim.lua`, Quarto extensions |
 
-Templates can't take parameters, so anything that depends on your Nix
-configuration comes from `write-files` or `generate-files`.
+Templates can't take parameters, so anything that depends on your configuration
+comes from `write-files` or `generate-files`.
 
-**Source-of-truth files** (`nullkomma.files."<path>".mode = "source"`, the
-default) are written once, then they are yours: edit and commit them.
-When nullkomma later changes a file, `write-files` updates it only if you
-haven't edited it. Otherwise it keeps your version, saves the new one next to it
-and fails, pointing you to the
-[resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
+### Source-of-truth files
+
+`write-files` writes these once (`nullkomma.files."<path>".mode = "source"`, the default);
+then they are yours to edit and commit.
+When nullkomma later changes a file, `write-files` updates it only if you haven't edited it.
+Otherwise it keeps your version, saves the new one next to it and fails,
+pointing you to the [resolve-file-conflicts skill](#resolving-conflicts).
 After resolving, `write-files --accept <path>` marks the file as up to date.
-A file can instead hold marked `sections` inside your own text (R's
-`.Rbuildignore` rules, the `r-non-nix` README section): `write-files` replaces
-only those, wherever you moved them. Once nullkomma no longer declares a file
-(say, you disabled its plugin), `write-files` strips its sections, deletes it
-if unedited, or keeps your edited version and says so.
 
-### Conflict-resolution skill
+A file can instead hold marked `sections` inside your own text (e.g. R's `.Rbuildignore` rules):
+`write-files` replaces only those, wherever you moved them.
+Once nullkomma no longer declares a file (say, you disabled its plugin),
+`write-files` strips its sections, deletes it if unedited, or keeps your edited version and says so.
 
-The repository root is a portable [Agent Plugins 1.0 package](https://agent-plugin.org/en).
-Install it from this Git repository in a compatible client. In Copilot, run:
+### Generated files
 
-```text
-/plugin install https://github.com/dataheld/nullkomma
+`generate-files` overwrites these (`mode = "generated"`) on every run,
+starts them with a "do not edit" comment, and the `git` plugin ignores them.
+To change one, change the Nix options.
+Directories (`directory = true`) are copied whole, without the comment.
+`generate-files` refuses to overwrite a file tracked by Git,
+and removes files it generated before that are no longer declared.
+
+### Resolving conflicts
+
+The repository root is a portable [Agent Plugins 1.0 package](https://agent-plugin.org/en)
+with the [resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
+In Copilot, install it with `/plugin install https://github.com/dataheld/nullkomma`
+and update it with `/plugin update nullkomma`; neither writes to your project.
+
+## R
+
+Enable `nullkomma.r.enable = true`, or start from the `r` template.
+For a package in a subdirectory, set `nullkomma.r.root = ./pkg`.
+
+### Dependencies
+
+Declare dependencies in `DESCRIPTION`; [pak] locks them in `pkg.lock`.
+Refresh the lock after changing dependencies or updating Nix:
+
+```sh
+r-lock
+git add DESCRIPTION pkg.lock
 ```
 
-Update it with `/plugin update nullkomma`. Installing or updating the plugin
-does not write to the consumer project, so its source-of-truth edits remain
-untouched.
+The development shell needs `pkg.lock`, so create the first one with `nix run .#r-lock`.
 
-**Generated files** (`mode = "generated"`) always come from Nix.
-`generate-files` overwrites them on every run, starts them with a
-"do not edit" comment and the `git` plugin adds them to `.gitignore`.
-To change one, change the Nix options. Directories (`directory = true`) are
-copied whole, without the comment. `generate-files` refuses to overwrite a file
-tracked by Git, and removes the ones it generated before that are no longer
-declared.
+Nix takes package names from `pkg.lock`, but versions and builds from the `nixpkgs-r` input
+(which follows Nixpkgs; override `inputs.nullkomma.inputs.nixpkgs-r` for newer R).
+Outside Nix, `r-lock` and [`r-non-nix`](#without-nix) install from the [PPM] snapshot
+of the same date (`nullkomma.r.snapshot`), so every environment gets packages that were on CRAN together.
 
-`update` updates `flake.lock` and then runs both commands. After any other
-`nix flake update` (e.g. by a bot), run `write-files` and `generate-files`
-yourself.
+`Depends`, `Imports`, `LinkingTo`, `Suggests` and all `Config/Needs/*` fields are locked,
+e.g. `Config/Needs/development: devtools`; override `nullkomma.r.fields` for a runtime-only lockfile.
+The development environment adds pak, languageserver and the tools of enabled workflows;
+`nullkomma.r.extraPackages` adds other Nix-only packages.
 
-### Editors
+> [!NOTE]
+> Packages from `Remotes`, or missing from `nixpkgs-r`, need `nullkomma.r.allowOffNixpkgs = true`.
+> Git sources use the locked commit;
+> URL sources also need `nullkomma.r.hashes.<package>` from `nix store prefetch-file <url>`.
+> Add missing system libraries with `perSystem.nullkomma.r.buildInputs.<package>`.
+> GitLab and local references are unsupported; use `git::` for GitLab.
 
-Editor settings live in Nix. Plugins describe their language servers once,
-editor-neutrally (`perSystem.nullkomma.editor.languageServers`, including the
-package that puts them in the dev shell), plus anything only one editor has
-(e.g. `perSystem.nullkomma.editor.vscode.extensions`). Editor plugins (`vscode`,
-`neovim`) write these out as generated, Git-ignored files, so every developer
-gets support for their editor without committing editor config.
-Neovim reads `.nvim.lua` only with `:set exrc` and asks once to trust it.
-The editor plugins match the editors [lap](https://github.com/dataheld/lap)
-sets up: VS Code and Neovim.
+### Tasks and tests
 
-nullkomma only handles **project-specific** editor features: language servers,
-formatters and recommended extensions. Installing editors and extensions, themes,
-keybindings and personal preferences belong to your user environment, e.g.
-[lap](https://github.com/dataheld/lap).
+| Command                     | What it does                                                            | Opt out                                                           |
+| --------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `r-document`                | Generate `man/*.Rd` and `NAMESPACE` with roxygen2                       | `nullkomma.r.document.enable` (for hand-written manuals)          |
+| `test r-cmd-check`          | Build and run rcmdcheck                                                 | `nullkomma.r.check.enable`                                        |
+| `test r-testthat`           | Run testthat on the source                                              | `nullkomma.r.testthat.enable`                                     |
+| `test r-testthat-installed` | Install into a temporary library and run testthat on the installed copy | `nullkomma.r.testthat.enable`                                     |
+| `test r-namespace`          | Fail if roxygen2 would change the committed `NAMESPACE`                 | with `r-document`                                                 |
+| `r-pkgdown`                 | Build the [website](#pkgdown-website) into `docs/`                      | `nullkomma.r.pkgdown.enable`                                      |
+| `r-coverage`                | Write a local Cobertura `coverage.xml` with covr                        | off unless covr is locked or `nullkomma.r.coverage.enable = true` |
 
-### Development Shell
+Checks, tests and site builds regenerate documentation first.
+Generated `man/*.Rd` files are Git-ignored, but not `man/` itself; commit `NAMESPACE`.
+`nullkomma.r.check.errorOn` sets the failing severity (default `"note"`).
+testthat runs [in parallel](https://testthat.r-lib.org/articles/parallel.html)
+(`nullkomma.r.testthat.parallel`), with `TESTTHAT_CPUS` defaulting to Nix's build cores, or 2.
+The `r` plugin keeps its package-build exclusions in a marked section of `.Rbuildignore`.
 
-After changing `flake.nix`, run `direnv reload` (or `nix-direnv-reload`) to
-update your shell.
+Declaring [shinytest2](https://rstudio.github.io/shinytest2/) adds Chromium on Linux and points chromote at it.
+Nix builds disable Chromium's sandbox, which can't nest in the build sandbox.
+Nixpkgs has no Chromium for macOS: there chromote finds your Chrome, or uses `CHROMOTE_CHROME`.
+`perSystem.nullkomma.r.browser` selects another browser.
+
+### pkgdown website
+
+`packages.site` builds the [pkgdown](https://pkgdown.r-lib.org) site in the sandbox,
+also in `nix flake check`; `r-pkgdown` builds it locally.
+[Cloudflare](#deploying-to-cloudflare) can publish it.
+
+- A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
+- Bootstrap 5's JavaScript dependencies are pinned in nullkomma.
+  Other remote templates, web fonts and network-dependent articles must be local for the sandbox.
+- `nullkomma.r.pkgdown.config` is merged over `_pkgdown.yml` in both builds,
+  overriding the [brand](#brand); sandbox-only `pkgdown.override` wins over both.
+- `nullkomma.r.pkgdown.assets` is a directory generated into Git-ignored `pkgdown/assets/`,
+  which pkgdown copies to the site root; leave it `null` to manage that directory yourself.
+- The [privacy policy](#privacy-policy) is generated into Git-ignored `.github/privacy.md`, which pkgdown renders to `/privacy.html`;
+  set `nullkomma.r.pkgdown.privacy.page = null` to write your own.
+
+### Formatting and tools
+
+[Air] formats R and [Jarl] lints and fixes it first, configured by `jarl.toml`
+(disable with `nullkomma.r.jarl.enable = false`).
+R projects allow HTML and long lines in Markdown (`MD033`, `MD013`),
+keep typos from "correcting" the author role `fnd` in `DESCRIPTION`,
+and skip testthat snapshots and `docs/`.
+
+The tools follow current r-lib practice:
+[rcmdcheck](https://github.com/r-lib/actions/blob/v2/examples/check-standard.yaml),
+[roxygen2](https://github.com/r-lib/actions/blob/v2/examples/document.yaml),
+[pkgdown](https://github.com/r-lib/actions/blob/v2/examples/pkgdown.yaml)
+and [covr](https://github.com/r-lib/actions/blob/v2/examples/test-coverage.yaml).
+Jarl replaces lintr: it needs no package load and fixes lints before Air formats.
+Coverage stays local, without an upload service.
+Everything runs on one locked R version; add a CI matrix if you need Windows or other R releases.
+
+### Without Nix
+
+For collaborators without Nix, enable `nullkomma.r-non-nix.enable = true` (it enables `r`),
+run `write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
+and the [R development without Nix](modules/lang/r-non-nix/_assets/development.md) section added to your README.
+These are [source-of-truth files](#source-of-truth-files).
+The startup profile only acts in native R sessions, installing from the same PPM snapshot
+(`nullkomma.r.snapshot`, `nullkomma.r.ppmUrl`); it leaves Nix shells, builds and tasks alone.
 
 ## Design
+
+Each column of the [Plugins](#plugins) table is a framework: options (in `perSystem`,
+except `nullkomma.gitignore`) that plugins fill in, and so can you.
+Most plugins feed columns; a few render them (`git`, `vscode`, `neovim`) or run them (`treefmt`).
+
+| Column        | Options                                                        | Task                            | Ends up in                                                             |
+| ------------- | -------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------- |
+| Dev helpers   | `nullkomma.devHelpers`                                         |                                 | dev shell                                                              |
+| Format / lint | `treefmt.programs`                                             | `format`                        | `nix fmt`, `checks.<system>.treefmt`, editors                          |
+| Tests         | `nullkomma.tests.<name>`                                       | `test`                          | `checks.<system>.test-<name>`                                          |
+| Files         | `nullkomma.files.<path>` (and top-level `nullkomma.gitignore`) | `write-files`, `generate-files` | the repository                                                         |
+| Editor        | `nullkomma.editor`                                             |                                 | language servers and formatter in the dev shell; editor plugins' files |
+
+Tasks (`nullkomma.tasks.<name>`) aren't a column: they're the command layer under the columns.
 
 Independent plugins do not read each other's options. Values shared between plugins are
 framework options that any plugin may set or read. For example, `treefmt` sets
@@ -697,7 +538,7 @@ Each plugin's tests sit next to it in `*.test.nix`, sharing the harness in
 [`modules/dev/tests.nix`](modules/dev/tests.nix). They live in the `dev`
 partition, so projects using nullkomma don't inherit them.
 
-- **Unit tests** ([nix-unit](https://github.com/nix-community/nix-unit), via the `nix` plugin) check
+- **Unit tests** ([nix-unit], via the `nix` plugin) check
   the evaluated configuration of the fixtures, e.g. that every plugin can be
   switched off and that all off leaves just the framework. This repo's unit
   check uses the Nix plugin's network-enabled fixed-output derivation to fetch
@@ -712,15 +553,24 @@ partition, so projects using nullkomma don't inherit them.
   as a user would, against this checkout of nullkomma. The other tests evaluate fixtures from within
   nullkomma's own flake, so only this one catches problems with
   how a real project fetches and uses nullkomma. CI runs it on every push.
+- **Without Nix:** `test-r-non-nix` builds the `r-non-nix` fixture in Docker
+  (Ubuntu 24.04, `linux/amd64`, the R version of `nixpkgs-r`, no Nix), runs the
+  documented R examples and checks a source-package build. It needs Docker and network
+  access; extra arguments go to `docker build`, e.g.
+  `--build-arg R_VERSION=4.4.2`. CI runs it on manual dispatch.
 
 ```sh
 nix flake check   # unit, docs and build tests
 check-fixtures    # end-to-end test
+test-r-non-nix    # R without Nix, in Docker
 ```
 
 New plugins should add a valid and a deliberately broken fixture, and check that
 the broken one fails with the real tool's error, not just any error.
 
+`pkgdown-dependencies` refreshes the pinned pkgdown Bootstrap 5 dependencies.
+
+[air]: https://posit-dev.github.io/air/
 [bash]: https://www.gnu.org/software/bash/
 [bash ide]: https://marketplace.visualstudio.com/items?itemName=mads-hartmann.bash-ide-vscode
 [bash-language-server]: https://github.com/bash-lsp/bash-language-server
@@ -731,6 +581,7 @@ the broken one fails with the real tool's error, not just any error.
 [gha]: https://docs.github.com/actions
 [git]: https://git-scm.com
 [gitleaks]: https://github.com/gitleaks/gitleaks
+[jarl]: https://jarl.etiennebacher.com
 [jscpd]: https://github.com/kucherenko/jscpd
 [json]: https://www.json.org
 [jsonls]: https://github.com/hrsh7th/vscode-langservers-extracted
@@ -741,14 +592,18 @@ the broken one fails with the real tool's error, not just any error.
 [nix]: https://nixos.org
 [nix environment selector]: https://marketplace.visualstudio.com/items?itemName=arrterian.nix-env-selector
 [nix ide]: https://marketplace.visualstudio.com/items?itemName=jnoortheen.nix-ide
+[nix-direnv]: https://github.com/nix-community/nix-direnv
 [nix-unit]: https://github.com/nix-community/nix-unit
 [nixd]: https://github.com/nix-community/nixd
+[pak]: https://pak.r-lib.org
+[ppm]: https://packagemanager.posit.co
 [quarto]: https://quarto.org
 [r]: https://www.r-project.org
 [terranix]: https://terranix.org/flake-parts.html
 [toml]: https://toml.io
 [treefmt]: https://treefmt.com
 [typos]: https://github.com/crate-ci/typos
+[up]: https://github.com/DeterminateSystems/up
 [vscode]: https://code.visualstudio.com
 [vscode-bats]: https://marketplace.visualstudio.com/items?itemName=jetmartin.bats
 [vscode-quarto]: https://marketplace.visualstudio.com/items?itemName=quarto.quarto
