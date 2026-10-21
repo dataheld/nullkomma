@@ -133,8 +133,6 @@ The development shell holds:
 - language servers and the formatter for [editors](#vscode-and-neovim);
 - the plugins' and your `perSystem.nullkomma.devShell.packages`.
 
-Tools a task or check needs stay inside it, off your `PATH`.
-
 ### `formatter` and `checks.<system>.treefmt`
 
 Use: `format`, `nix fmt`, `nix flake check`.
