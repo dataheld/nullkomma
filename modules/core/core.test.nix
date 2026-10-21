@@ -297,16 +297,10 @@
                 flake = builtins.readFile (t.path + "/flake.nix");
                 envrc = builtins.readFile (t.path + "/.envrc");
               }) nullkomma.templates;
-              expected = lib.mapAttrs (
-                name: t:
-                let
-                  fixture = root + "/tests/fixtures/${if name == "default" then "md" else name}";
-                in
-                {
-                  flake = builtins.readFile (fixture + "/flake.nix");
-                  envrc = (perSystem (callFlake t.path)).nullkomma.files.".envrc".text;
-                }
-              ) nullkomma.templates;
+              expected = lib.mapAttrs (_: t: {
+                flake = builtins.readFile (root + "/tests/fixtures/md/flake.nix");
+                envrc = (perSystem (callFlake t.path)).nullkomma.files.".envrc".text;
+              }) nullkomma.templates;
             };
             testTestsBecomeTaskAndCheck = {
               expr = {

@@ -52,7 +52,7 @@ nix develop --command generate-files
 direnv allow
 ```
 
-Use `#r` instead of `#default` for an R package, and first [lock its dependencies](#dependencies).
+For an R package, add `nullkomma.r.enable = true;` to `flake.nix` and [lock its dependencies](#dependencies) first.
 The template adds `flake.nix` and an `.envrc` with `use flake`, keeping existing files;
 `write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
 From now on, entering the directory loads the [development shell](#development-shell);
@@ -400,7 +400,7 @@ and update it with `/plugin update nullkomma`; neither writes to your project.
 
 ## R
 
-Enable `nullkomma.r.enable = true`, or start from the `r` template.
+Enable it with `nullkomma.r.enable = true;` in `flake.nix`.
 For a package in a subdirectory, set `nullkomma.r.root = ./pkg`.
 
 ### Dependencies
