@@ -115,11 +115,59 @@ All plugins are optional; those marked under Default are enabled unless you opt 
 
 Dev helpers lists standalone commands added to the shell, plus R development packages such as `pkgload`. treefmt is built into the framework. Tests are test suites; Checks are other validations.
 
-### Formatting and linting
+## Your flake outputs
+
+These are the outputs of your project's flake, not of nullkomma itself.
+A `schemas` output describes them to [Determinate Nix](https://docs.determinate.systems)'s `nix flake show`.
+
+### `devShells.default`
+
+Use: direnv, `nix develop`.
+
+The development shell holds:
+
+- every task as a command, taking arguments (e.g. `write-files --accept <path>`);
+- the `tasks` runner;
+- language servers and the formatter for [editors](#editors);
+- the plugins' and your `nullkomma.devHelpers`.
+
+Tools a task or test needs stay inside it, off your `PATH`.
+
+#### Editors
+
+Plugins declare language servers once, editor-neutrally (`perSystem.nullkomma.editor`).
+The `vscode` and `neovim` plugins render them, with recommended extensions,
+into Git-ignored `.vscode/` and `.nvim.lua`, so nobody commits editor config.
+Neovim reads `.nvim.lua` only with `:set exrc`.
+
+Installing editors and extensions, themes and keybindings belong to your user environment,
+e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
+
+### `taskRunners.<system>`
+
+Use: `tasks`.
+
+[up]'s runner for the tasks in `perSystem.nullkomma.tasks.<name>`, where you can add your own:
+
+```sh
+tasks          # list tasks
+tasks check    # run one task
+tasks all      # run all tasks that don't change files
+```
+
+### `formatter` and `checks.<system>.treefmt`
+
+Use: `format`, `nix fmt`, `nix flake check`.
+
+`format` (or `nix fmt`) runs [treefmt] with every enabled plugin's formatters and linters;
+`nix flake check` checks the same as `checks.<system>.treefmt`.
+Editors format with treefmt too (VS Code: [treefmt][vscode-treefmt]).
 
 Generated files aren't formatted or linted: managed files and directories,
 and R/pkgdown and Quarto build outputs.
 Add other generated content to `nullkomma.generatedPaths` as treefmt globs, e.g. `[ "generated/**" ]`.
+
+#### Customizing linting
 
 Commit each tool's native configuration; nullkomma never writes these files.
 It hands its shared policy to each tool through the tool's own layering, without merging configurations itself.
@@ -173,9 +221,13 @@ A committed `treefmt.toml` is ignored.
 Replacing a tool's `package` or typos' `configFile` drops the shared policy; typos' `isolated` ignores native files.
 Linter ignores affect that linter only; treefmt exclusions skip formatters too.
 
-### Tests
+### `checks.<system>.test-<name>`
 
-Add your own test suites next to the plugins' (see the Tests column above):
+Use: `test [<name>] [args]`, `nix flake check`.
+
+Test suites in `perSystem.nullkomma.tests.<name>` run in your working tree with `test`,
+and sandboxed against the flake's source in `nix flake check` and CI.
+Plugins add their own (see the Tests column above); so can you:
 
 ```nix
 perSystem = { pkgs, ... }: {
@@ -186,19 +238,18 @@ perSystem = { pkgs, ... }: {
 };
 ```
 
-### Editors
+### `tests.systems.<system>`
 
-Plugins declare language servers once, editor-neutrally (`perSystem.nullkomma.editor`).
-The `vscode` and `neovim` plugins render them, with recommended extensions,
-into Git-ignored `.vscode/` and `.nvim.lua`, so nobody commits editor config.
-Neovim reads `.nvim.lua` only with `:set exrc`.
+Use: [nix-unit].
 
-Installing editors and extensions, themes and keybindings belong to your user environment,
-e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
+With the `nix` plugin, the unit tests in `perSystem.nullkomma.nix.unit.tests`.
 
-### Websites
+### `packages.site` and `packages.deploy`
 
-Opt-in `quarto` renders the project into `packages.site`.
+Use: `nix build .#site`, `nix run .#deploy`.
+
+Opt-in `quarto` renders the project into `packages.site`;
+`preview` serves it locally and reloads on edits.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`.
 The `r` plugin builds a [pkgdown site](#pkgdown-website) into `packages.site` instead;
 if both are enabled, set `perSystem.packages.site` yourself.
@@ -253,7 +304,9 @@ nullkomma.cloudflare = {
 };
 ```
 
-Deploying needs an existing private R2 bucket for Terraform state; in GitHub Actions:
+Locally, run `terraform` to plan changes (or `terraform <command> [args]`) and `deploy` to publish;
+in CI, run `nix run .#deploy`.
+Both need an existing private R2 bucket for Terraform state; in GitHub Actions:
 
 ```yaml
 env:
@@ -266,71 +319,11 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
 ```
 
-## Your flake outputs
-
-These are the outputs of your project's flake, not of nullkomma itself.
-A `schemas` output describes them to [Determinate Nix](https://docs.determinate.systems)'s `nix flake show`.
-
-### `devShells.default`
-
-Your development environment, with every tool the project needs pinned by Nix.
-It holds every task as a command, the `tasks` runner, language servers, the formatter and your `nullkomma.devHelpers`.
-
-- `direnv allow`: once per clone; the shell then loads whenever you enter the directory.
-- `direnv reload`: after editing `flake.nix`.
-- `nix develop`: without direnv.
-
-### `taskRunners.<system>`
-
-Lists and runs the project's tasks with [up].
-Plugins add tasks such as `check`, `update` and `write-files`; add yours in `perSystem.nullkomma.tasks.<name>`.
-
-- `tasks`: list tasks.
-- `tasks <name>`: run one, e.g. `tasks check`; each task is also a command, e.g. `check`.
-- `tasks all`: run every task that doesn't change files, before pushing.
-
-### `formatter` and `checks.<system>.treefmt`
-
-Formats and lints every hand-written file with [treefmt].
-It runs the tools in the Format and Lint columns above; see [Formatting and linting](#formatting-and-linting) to configure them.
-
-- `format` (or `nix fmt`): fix files in your working tree.
-- `nix flake check`: fail on unformatted or failing files without changing them, as CI does.
-- Your editor: formats on save through treefmt.
-
-### `checks.<system>.test-<name>`
-
-Your project's test suites, e.g. `testthat` or `bats`, as listed in the Tests and Checks columns.
-Plugins add their own; add yours as [Tests](#tests).
-
-- `test`: run all suites in your working tree.
-- `test <name> [args]`: run one, e.g. `test bats`.
-- `nix flake check`: run all, sandboxed against your committed source, as CI does.
-
-### `tests.systems.<system>`
-
-Unit tests for your flake's Nix code, run with [nix-unit].
-With the `nix` plugin, they come from `perSystem.nullkomma.nix.unit.tests`.
-
-- `test nix-unit`: run them in your working tree.
-- `nix flake check`: run them sandboxed, as CI does.
-
-### `packages.site` and `packages.deploy`
-
-Your project's website and its deployment.
-`quarto` or `r` (pkgdown) builds the site; `cloudflare` deploys it; see [Websites](#websites).
-
-- `preview`: serve the Quarto site locally, reloading on edits.
-- `nix build .#site`: build the site into `result/`.
-- `terraform [command] [args]`: plan Cloudflare changes locally.
-- `deploy` (or `nix run .#deploy` in CI): publish.
-
 ### `packages.r-lock`
 
-Locks the R packages the development shell installs, with the `r` plugin.
-It resolves `DESCRIPTION` into [`pkg.lock`](#dependencies).
+Use: `nix run .#r-lock`.
 
-- `nix run .#r-lock`: when adding R, and after changing dependencies or updating Nix.
+With the `r` plugin, writes the [`pkg.lock`](#dependencies) the development shell needs.
 
 ## Files in your repository
 
@@ -573,7 +566,7 @@ the broken one fails with the real tool's error, not just any error.
     the privacy policy once there are `nullkomma.privacy.sections`.
 
 [^cloudflare]: Also adds the `terraform` (plan changes) and `deploy` tasks, and a section
-    to the privacy policy (see [Websites](#websites)).
+    to the privacy policy (see [Websites](#packagessite-and-packagesdeploy)).
 
 [air]: https://posit-dev.github.io/air/
 [bash]: https://www.gnu.org/software/bash/
@@ -612,6 +605,7 @@ the broken one fails with the real tool's error, not just any error.
 [vscode]: https://code.visualstudio.com
 [vscode-bats]: https://marketplace.visualstudio.com/items?itemName=jetmartin.bats
 [vscode-quarto]: https://marketplace.visualstudio.com/items?itemName=quarto.quarto
+[vscode-treefmt]: https://marketplace.visualstudio.com/items?itemName=ibecker.treefmt-vscode
 [vscode-yaml]: https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml
 [yaml]: https://yaml.org
 [yaml-language-server]: https://github.com/redhat-developer/yaml-language-server
