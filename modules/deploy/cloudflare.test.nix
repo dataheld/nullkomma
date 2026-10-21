@@ -52,7 +52,10 @@
               "deploy"
               "site"
             ];
-            checks = [ "test-cloudflare" ];
+            checks = [
+              "test-cloudflare"
+              "treefmt"
+            ];
           };
         };
         testCloudflareProvidesWranglerOnlyWhenEnabled = {

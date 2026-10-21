@@ -3,9 +3,8 @@
   framework =
     { config, lib, ... }:
     {
-      # Imported by the framework so any plugin can set `treefmt.programs`. Only the
-      # `treefmt` plugin turns on `nix fmt` and the check; reading its option with
-      # `or false` avoids priority tricks and works when the plugin isn't imported.
+      # treefmt is how plugins format and lint: they set `treefmt.programs`, and the
+      # framework runs them via `nix fmt`, the check, editors and the `format` task.
       imports = [ inputs.treefmt-nix.flakeModule ];
       options.nullkomma.generatedPaths = lib.mkOption {
         type = lib.types.listOf lib.types.str;
@@ -29,14 +28,11 @@
       };
       config.perSystem =
         let
-          enabled = config.nullkomma.treefmt.enable or false;
           inherit (config.nullkomma) generatedPaths;
         in
         { config, ... }:
         {
           treefmt = {
-            flakeFormatter = lib.mkDefault enabled;
-            flakeCheck = lib.mkDefault enabled;
             # Also what other tools, like jscpd, skip as not hand-written.
             settings.excludes =
               generatedPaths
@@ -46,17 +42,6 @@
                 )
               );
           };
-        };
-    };
-  plugins.treefmt =
-    { config, lib, ... }:
-    let
-      enabled = config.nullkomma.treefmt.enable;
-    in
-    {
-      config.perSystem =
-        { config, ... }:
-        lib.mkIf enabled {
           nullkomma.editor = {
             formatter = {
               package = config.treefmt.build.wrapper;

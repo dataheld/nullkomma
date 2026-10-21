@@ -73,23 +73,30 @@
               expected = lib.replicate 3 {
                 files = [ ];
                 tools = [
+                  "format"
                   "generate-files"
                   "write-files"
                   "tasks"
+                  "treefmt"
                 ];
                 formatters = [ ];
                 tasks = [
+                  "format"
                   "generate-files"
                   "write-files"
                 ];
-                checks = [ ];
+                checks = [ "treefmt" ];
                 shells = [ ];
                 editor = {
-                  formatter = null;
+                  formatter = [
+                    "treefmt"
+                    "--stdin"
+                    "{file}"
+                  ];
                   languageServers = { };
                   vscode = {
-                    extensions = [ ];
-                    settings = { };
+                    extensions = [ "ibecker.treefmt-vscode" ];
+                    settings."editor.defaultFormatter" = "ibecker.treefmt-vscode";
                   };
                 };
               };
@@ -314,11 +321,15 @@
               };
               expected = {
                 tasks = [
+                  "format"
                   "generate-files"
                   "test"
                   "write-files"
                 ];
-                checks = [ "test-custom" ];
+                checks = [
+                  "test-custom"
+                  "treefmt"
+                ];
               };
             };
             # keep-sorted end

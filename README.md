@@ -87,8 +87,8 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 
 ### Plugins
 
-Everything nullkomma adds comes from a plugin.
-All are optional; those marked under Default are enabled unless you opt out.
+Plugins add the tools below; the framework runs them.
+All plugins are optional; those marked under Default are enabled unless you opt out.
 
 | Plugin                      | Default | Dev helpers                    | Format        | Lint                       | Tests                  | Checks                                                | Files                                                                                    | Editor                                                           |
 | --------------------------- | ------- | ------------------------------ | ------------- | -------------------------- | ---------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -103,7 +103,6 @@ All are optional; those marked under Default are enabled unless you opt out.
 | [`gitleaks`][gitleaks]      | ✅      |                                |               | `gitleaks`                 |                        | `secret-history` task                                 |                                                                                          |                                                                  |
 | [`typos`][typos]            | ✅      |                                |               | `typos`                    |                        |                                                       |                                                                                          |                                                                  |
 | [`jscpd`][jscpd]            | ✅      |                                |               |                            |                        | `jscpd`                                               |                                                                                          |                                                                  |
-| [`treefmt`][treefmt]        | ✅      |                                | `treefmt`     | `treefmt`                  |                        |                                                       |                                                                                          | formatter; VS Code: [treefmt][vscode-treefmt]                    |
 | [`git`][git]                | ✅      |                                |               |                            |                        |                                                       | `.gitignore`                                                                             |                                                                  |
 | [`direnv`][direnv]          | ✅      |                                |               |                            |                        |                                                       | `.envrc`, ignores `.direnv/`                                                             | VS Code: [Nix Environment Selector]                              |
 | [`vscode`][vscode]          | ✅      |                                |               |                            |                        |                                                       | `.vscode/`[^editor-files]                                                                | renders it for VS Code[^editor-files]                            |
@@ -114,7 +113,7 @@ All are optional; those marked under Default are enabled unless you opt out.
 | [`r`][r]                    |         | `pkgload` (dev-time R package) | `air`         | `jarl`                     | `testthat`             | `rcmdcheck`, pkgdown build, NAMESPACE freshness       | `.Rbuildignore`, R ignores, `.github/privacy.md`[^generated], pkgdown assets[^generated] | R languageserver; VS Code: R, Air                                |
 | `r-non-nix` (enables `r`)   |         |                                |               |                            |                        |                                                       | `.Rprofile`, `.Renviron`, `.R/install.R`, README                                         |                                                                  |
 
-Dev helpers lists standalone commands added to the shell, plus R development packages such as `pkgload`. Format and Lint name tools; `treefmt` runs the file-based formatters and linters. Tests are test suites; Checks are other validations.
+Dev helpers lists standalone commands added to the shell, plus R development packages such as `pkgload`. Format and Lint name the tools that [treefmt], built into the framework, runs. Tests are test suites; Checks are other validations.
 
 ## Outputs
 
@@ -164,6 +163,7 @@ e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
 
 `format` (or `nix fmt`) runs [treefmt] with every enabled plugin's formatters and linters;
 `nix flake check` checks the same as `checks.<system>.treefmt`.
+Editors format with treefmt too (VS Code: [treefmt][vscode-treefmt]).
 
 Generated files aren't formatted or linted: managed files and directories,
 and R/pkgdown and Quarto build outputs.
@@ -469,7 +469,8 @@ The startup profile only acts in native R sessions, installing from the same PPM
 
 Each column of the [Plugins](#plugins) table is a framework: options (in `perSystem`,
 except `nullkomma.gitignore`) that plugins fill in, and so can you.
-Most plugins feed columns; a few render them (`git`, `vscode`, `neovim`) or run them (`treefmt`).
+Most plugins feed columns; a few render them (`git`, `vscode`, `neovim`).
+The framework runs Format / lint with treefmt: plugins add `treefmt.programs`, not their own runner.
 
 | Column        | Options                                                        | Task                            | Ends up in                                                             |
 | ------------- | -------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------- |
@@ -482,10 +483,9 @@ Most plugins feed columns; a few render them (`git`, `vscode`, `neovim`) or run 
 Tasks (`nullkomma.tasks.<name>`) aren't a column: they're the command layer under the columns.
 
 Independent plugins do not read each other's options. Values shared between plugins are
-framework options that any plugin may set or read. For example, `treefmt` sets
-`nullkomma.editor.formatter` and the `nix` language server uses it, without
-knowing which plugin set it. Another formatter plugin can replace `treefmt`
-without changing `nix`.
+framework options that any plugin may set or read. For example, `r` relaxes Markdown
+rules through `nullkomma.lint.markdown`, which `markdown` hands to rumdl; neither
+knows about the other.
 
 A companion plugin may import and enable its base plugin and reuse its options:
 `r-non-nix` depends on `r`, but `r` does not depend on the compatibility layer.

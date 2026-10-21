@@ -56,7 +56,11 @@
               "nixf-diagnose"
               "nixfmt"
             ];
-            settings = { };
+            settings.nixd.formatting.command = [
+              "treefmt"
+              "--stdin"
+              "{file}"
+            ];
           };
         };
       };

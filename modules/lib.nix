@@ -30,7 +30,6 @@ in
       "nix"
       "shell"
       "toml"
-      "treefmt"
       "typos"
       "vscode"
       "yaml"
