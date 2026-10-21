@@ -73,6 +73,7 @@ so `flake.nix` lists only exceptions and options:
 
 ```nix
 inputs.nullkomma.lib.mkFlake { inherit inputs; } {
+  # All plugins and their settings: see "Plugins" below.
   nullkomma.quarto.enable = true; # opt in
   nullkomma.github.enable = false; # opt out
   nullkomma.github.ci.inputs.visibility = "public"; # publish to FlakeHub
