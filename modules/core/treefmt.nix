@@ -15,7 +15,7 @@
       options.nullkomma.lint.markdown = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = { };
-        description = "Shared markdownlint rules, passed as markdownlint-cli2's --config base: rules in a native .markdownlint-cli2.* config override them by name, a .markdownlint.* file replaces them.";
+        description = "Shared Markdown lint rules in markdownlint style (`MD013 = false;` or rule settings), used as rumdl's user-level config: a native .rumdl.toml or .markdownlint.* replaces them.";
       };
       options.nullkomma.lint.typos = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;

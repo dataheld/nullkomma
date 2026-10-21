@@ -93,7 +93,7 @@ All are optional; those marked under Default are enabled unless you opt out.
 | Plugin                      | Default | Dev helpers                    | Format        | Lint                       | Tests                  | Checks                                                | Files                                                                                    | Editor                                                           |
 | --------------------------- | ------- | ------------------------------ | ------------- | -------------------------- | ---------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | [`nix`][nix]                | ✅      |                                | `nixfmt`      | `deadnix`, `nixf-diagnose` | [nix-unit] [^nix-unit] | `nix flake check`, [`flake-checker`] [^flake-checker] | ignores `result`                                                                         | [nixd]; VS Code: [Nix IDE]                                       |
-| [`markdown`][md]            | ✅      |                                | `mdformat`    | `markdownlint-cli2`        |                        |                                                       |                                                                                          | [marksman]                                                       |
+| [`markdown`][md]            | ✅      |                                | `mdformat`    | `rumdl`                    |                        |                                                       |                                                                                          | [marksman]                                                       |
 | [`json`][json]              | ✅      |                                | `jsonfmt`     |                            |                        |                                                       |                                                                                          | [JSON language server][jsonls]                                   |
 | [`yaml`][yaml]              | ✅      |                                | `yamlfmt`     | `yamllint`, `actionlint`   |                        |                                                       |                                                                                          | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
 | [`toml`][toml]              | ✅      |                                | `toml-sort`   |                            |                        |                                                       |                                                                                          |                                                                  |
@@ -174,16 +174,16 @@ Add other generated content to `nullkomma.generatedPaths` as treefmt globs, e.g.
 Commit each tool's native configuration; nullkomma never writes these files.
 It hands its shared policy to each tool through the tool's own layering, without merging configurations itself.
 
-| Tool         | Native configuration                                                               | How it combines with shared policy                                                                                                                                 |
-| ------------ | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| typos        | `.typos.toml`, `typos.toml`, `_typos.toml`, or `[tool.typos]` in `pyproject.toml`  | Shared settings are passed with `--config`: native files add words, file types and `files.extend-exclude`; shared settings win conflicting keys.                   |
-| markdownlint | `.markdownlint-cli2.{jsonc,yaml,cjs,mjs}` or `.markdownlint.{jsonc,json,yaml,yml}` | Shared rules are the `--config` base: `config` in `.markdownlint-cli2.*` overrides them by rule name, a `.markdownlint.*` file replaces them. `globs` are ignored. |
-| yamllint     | `.yamllint`, `.yamllint.yaml`, `.yamllint.yml`                                     | Shared defaults are yamllint's user-global config, so a project file replaces them.                                                                                |
-| Jarl         | `jarl.toml`                                                                        | Native only: nullkomma passes no shared Jarl settings.                                                                                                             |
-| ShellCheck   | `.shellcheckrc` and source directives                                              | Native only.                                                                                                                                                       |
-| actionlint   | `.github/actionlint.yaml` or `.github/actionlint.yml`                              | Native only.                                                                                                                                                       |
-| jscpd        | `.jscpd.json`, `.config/jscpd.json`, or the `jscpd` key in `package.json`          | Project `ignore` globs add to the shared exclusions; other settings win, e.g. `threshold` (a percentage, default 0) or `"formatsExts": { "nix": ["nix"] }`.        |
-| gitleaks     | `.gitleaks.toml`, `.gitleaksignore`                                                | Native only; include `[extend]` with `useDefault = true` to retain upstream detection rules.                                                                       |
+| Tool       | Native configuration                                                                                                               | How it combines with shared policy                                                                                                                          |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| typos      | `.typos.toml`, `typos.toml`, `_typos.toml`, or `[tool.typos]` in `pyproject.toml`                                                  | Shared settings are passed with `--config`: native files add words, file types and `files.extend-exclude`; shared settings win conflicting keys.            |
+| rumdl      | `.rumdl.toml`, `rumdl.toml`, `.config/rumdl.toml`, `[tool.rumdl]` in `pyproject.toml`, or markdownlint's `.markdownlint{,-cli2}.*` | Shared rules are rumdl's user-level config, so a project file replaces them.                                                                                |
+| yamllint   | `.yamllint`, `.yamllint.yaml`, `.yamllint.yml`                                                                                     | Shared defaults are yamllint's user-global config, so a project file replaces them.                                                                         |
+| Jarl       | `jarl.toml`                                                                                                                        | Native only: nullkomma passes no shared Jarl settings.                                                                                                      |
+| ShellCheck | `.shellcheckrc` and source directives                                                                                              | Native only.                                                                                                                                                |
+| actionlint | `.github/actionlint.yaml` or `.github/actionlint.yml`                                                                              | Native only.                                                                                                                                                |
+| jscpd      | `.jscpd.json`, `.config/jscpd.json`, or the `jscpd` key in `package.json`                                                          | Project `ignore` globs add to the shared exclusions; other settings win, e.g. `threshold` (a percentage, default 0) or `"formatsExts": { "nix": ["nix"] }`. |
+| gitleaks   | `.gitleaks.toml`, `.gitleaksignore`                                                                                                | Native only; include `[extend]` with `useDefault = true` to retain upstream detection rules.                                                                |
 
 For example, add spellings and skip a vendor directory in `.typos.toml`:
 
@@ -195,14 +195,7 @@ foobaar = "foobaar"
 extend-exclude = ["vendor/**"]
 ```
 
-Disable a Markdown rule and keep the shared ones in `.markdownlint-cli2.yaml`:
-
-```yaml
-config:
-  MD042: false
-```
-
-A `.yamllint` starts from scratch; restate the shared defaults to keep them:
+A `.yamllint` or Markdown config starts from scratch; restate the shared defaults to keep them:
 
 ```yaml
 extends: relaxed
