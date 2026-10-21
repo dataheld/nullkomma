@@ -90,58 +90,29 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 Everything nullkomma adds comes from a plugin.
 All are optional; the ones not marked opt-in are enabled by default.
 
-| Plugin                              | Dev helpers    | Format / lint          | Tests                                                    | Files                                                              | Editor                                                           |
-| ----------------------------------- | -------------- | ---------------------- | -------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| [`nix`][nix]                        |                | ✅, [`flake-checker`]¹ | [nix-unit]²                                              | ignores `result`                                                   | [nixd]; VS Code: [Nix IDE]                                       |
-| [`markdown`][md]                    |                | ✅                     |                                                          |                                                                    | [marksman]                                                       |
-| [`json`][json]                      |                | ✅                     |                                                          |                                                                    | [JSON language server][jsonls]                                   |
-| [`yaml`][yaml]                      |                | ✅                     |                                                          |                                                                    | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
-| [`toml`][toml]                      |                | ✅                     |                                                          |                                                                    |                                                                  |
-| [`shell`][bash]                     |                | ✅³                    | [bats]³                                                  |                                                                    | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
-| [`github`][gha]                     |                |                        |                                                          | `push.yml`⁴                                                        |                                                                  |
-| [`keepSorted`][keep-sorted]         |                | ✅                     |                                                          |                                                                    |                                                                  |
-| [`gitleaks`][gitleaks]              | secret-history | ✅ secrets             |                                                          |                                                                    |                                                                  |
-| [`typos`][typos]                    |                | ✅ spelling⁷           |                                                          |                                                                    |                                                                  |
-| [`jscpd`][jscpd]                    |                |                        | duplicated code                                          |                                                                    |                                                                  |
-| [`treefmt`][treefmt]                |                | runs all ✅            |                                                          |                                                                    | formatter; VS Code: [treefmt][vscode-treefmt]                    |
-| [`git`][git]                        | git            |                        |                                                          | `.gitignore`                                                       |                                                                  |
-| [`direnv`][direnv]                  |                |                        |                                                          | `.envrc`, ignores `.direnv/`                                       | VS Code: [Nix Environment Selector]                              |
-| [`vscode`][vscode]                  |                |                        |                                                          | `.vscode/`⁵                                                        | renders it for VS Code⁵                                          |
-| [`neovim`][neovim]                  |                |                        |                                                          | `.nvim.lua`⁵                                                       | renders it for Neovim⁵                                           |
-| [`flakehub`][flakehub]              | [`fh`]         |                        |                                                          |                                                                    |                                                                  |
-| [`quarto`][quarto] (opt-in)         | quarto⁹        |                        |                                                          | ignores `.quarto/`, `_site/`; `_extensions/`⁸, `privacy.qmd`⁸      | VS Code: [Quarto][vscode-quarto]                                 |
-| [`cloudflare`][cloudflare] (opt-in) | wrangler⁶      |                        | OpenTofu validation                                      | ignores `.nullkomma/cloudflare/`                                   |                                                                  |
-| [`r`][r] (opt-in)                   | R, pak         | ✅                     | strict rcmdcheck, testthat, pkgdown, namespace freshness | `.Rbuildignore`, R ignores, `.github/privacy.md`⁸, pkgdown assets⁸ | R languageserver; VS Code: R, Air                                |
-| `r-non-nix` (opt-in, enables `r`)   |                |                        |                                                          | `.Rprofile`, `.Renviron`, `.R/install.R`, README                   |                                                                  |
-
-¹ The `flake-checker` task lints `flake.lock` for outdated or non-upstream
-Nixpkgs. The `nix` plugin also adds the tasks `check` (`nix flake check`) and
-`update` (`nix flake update`, then refresh files).
-
-² Tests in `perSystem.nullkomma.nix.unit.tests`, once there are any; exported as
-`tests.systems.<system>`.
-
-³ Tests in `test/` (`nullkomma.shell.bats.testDir`), once that directory
-exists; add the tools they call with `perSystem.nullkomma.shell.bats.packages`.
-`*.bats` files are formatted and linted like other shell scripts.
-
-⁴ `.github/workflows/push.yml`, a stub calling nullkomma's reusable CI workflow,
-which runs `nix flake check` and can publish to FlakeHub.
-
-⁵ Generated (Git-ignored) from the Editor column: VS Code settings and
-recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
-
-⁶ Also adds the `terraform` (plan changes) and `deploy` tasks, and a section
-to the privacy policy (see [Websites](#websites)).
-
-⁷ Skips translations such as `*.de.md`, one pattern per non-English
-`nullkomma.privacy.languages`; typos only knows English.
-
-⁸ Generated: `nullkomma.quarto.extensions`, `nullkomma.r.pkgdown.assets`, and
-the privacy policy once there are `nullkomma.privacy.sections`.
-
-⁹ Also adds the `preview` task: `quarto preview`, serving the site on localhost
-and re-rendering and live-reloading it on changes.
+| Plugin                              | Dev helpers           | Format / lint                          | Tests                                                    | Files                                                                                    | Editor                                                           |
+| ----------------------------------- | --------------------- | -------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`nix`][nix]                        |                       | ✅, [`flake-checker`] [^flake-checker] | [nix-unit] [^nix-unit]                                   | ignores `result`                                                                         | [nixd]; VS Code: [Nix IDE]                                       |
+| [`markdown`][md]                    |                       | ✅                                     |                                                          |                                                                                          | [marksman]                                                       |
+| [`json`][json]                      |                       | ✅                                     |                                                          |                                                                                          | [JSON language server][jsonls]                                   |
+| [`yaml`][yaml]                      |                       | ✅                                     |                                                          |                                                                                          | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
+| [`toml`][toml]                      |                       | ✅                                     |                                                          |                                                                                          |                                                                  |
+| [`shell`][bash]                     |                       | ✅[^bats]                              | [bats] [^bats]                                           |                                                                                          | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
+| [`github`][gha]                     |                       |                                        |                                                          | `push.yml`[^push]                                                                        |                                                                  |
+| [`keepSorted`][keep-sorted]         |                       | ✅                                     |                                                          |                                                                                          |                                                                  |
+| [`gitleaks`][gitleaks]              | secret-history        | ✅ secrets                             |                                                          |                                                                                          |                                                                  |
+| [`typos`][typos]                    |                       | ✅ spelling[^typos]                    |                                                          |                                                                                          |                                                                  |
+| [`jscpd`][jscpd]                    |                       |                                        | duplicated code                                          |                                                                                          |                                                                  |
+| [`treefmt`][treefmt]                |                       | runs all ✅                            |                                                          |                                                                                          | formatter; VS Code: [treefmt][vscode-treefmt]                    |
+| [`git`][git]                        | git                   |                                        |                                                          | `.gitignore`                                                                             |                                                                  |
+| [`direnv`][direnv]                  |                       |                                        |                                                          | `.envrc`, ignores `.direnv/`                                                             | VS Code: [Nix Environment Selector]                              |
+| [`vscode`][vscode]                  |                       |                                        |                                                          | `.vscode/`[^editor-files]                                                                | renders it for VS Code[^editor-files]                            |
+| [`neovim`][neovim]                  |                       |                                        |                                                          | `.nvim.lua`[^editor-files]                                                               | renders it for Neovim[^editor-files]                             |
+| [`flakehub`][flakehub]              | [`fh`]                |                                        |                                                          |                                                                                          |                                                                  |
+| [`quarto`][quarto] (opt-in)         | quarto[^quarto]       |                                        |                                                          | ignores `.quarto/`, `_site/`; `_extensions/`[^generated], `privacy.qmd`[^generated]      | VS Code: [Quarto][vscode-quarto]                                 |
+| [`cloudflare`][cloudflare] (opt-in) | wrangler[^cloudflare] |                                        | OpenTofu validation                                      | ignores `.nullkomma/cloudflare/`                                                         |                                                                  |
+| [`r`][r] (opt-in)                   | R, pak                | ✅                                     | strict rcmdcheck, testthat, pkgdown, namespace freshness | `.Rbuildignore`, R ignores, `.github/privacy.md`[^generated], pkgdown assets[^generated] | R languageserver; VS Code: R, Air                                |
+| `r-non-nix` (opt-in, enables `r`)   |                       |                                        |                                                          | `.Rprofile`, `.Renviron`, `.R/install.R`, README                                         |                                                                  |
 
 ✅ means the plugin's files are formatted/linted by the `format` task (or `nix fmt`) and
 checked by `nix flake check` (via treefmt). The exact tools are in the plugin's source.
@@ -569,6 +540,35 @@ New plugins should add a valid and a deliberately broken fixture, and check that
 the broken one fails with the real tool's error, not just any error.
 
 `pkgdown-dependencies` refreshes the pinned pkgdown Bootstrap 5 dependencies.
+
+[^flake-checker]: The `flake-checker` task lints `flake.lock` for outdated or non-upstream
+    Nixpkgs. The `nix` plugin also adds the tasks `check` (`nix flake check`) and
+    `update` (`nix flake update`, then refresh files).
+
+[^nix-unit]: Tests in `perSystem.nullkomma.nix.unit.tests`, once there are any; exported as
+    `tests.systems.<system>`.
+
+[^bats]: Tests in `test/` (`nullkomma.shell.bats.testDir`), once that directory
+    exists; add the tools they call with `perSystem.nullkomma.shell.bats.packages`.
+    `*.bats` files are formatted and linted like other shell scripts.
+
+[^push]: `.github/workflows/push.yml`, a stub calling nullkomma's reusable CI workflow,
+    which runs `nix flake check` and can publish to FlakeHub.
+
+[^typos]: Skips translations such as `*.de.md`, one pattern per non-English
+    `nullkomma.privacy.languages`; typos only knows English.
+
+[^editor-files]: Generated (Git-ignored) from the Editor column: VS Code settings and
+    recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
+
+[^quarto]: Also adds the `preview` task: `quarto preview`, serving the site on localhost
+    and re-rendering and live-reloading it on changes.
+
+[^generated]: Generated: `nullkomma.quarto.extensions`, `nullkomma.r.pkgdown.assets`, and
+    the privacy policy once there are `nullkomma.privacy.sections`.
+
+[^cloudflare]: Also adds the `terraform` (plan changes) and `deploy` tasks, and a section
+    to the privacy policy (see [Websites](#websites)).
 
 [air]: https://posit-dev.github.io/air/
 [bash]: https://www.gnu.org/software/bash/
