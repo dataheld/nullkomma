@@ -10,7 +10,7 @@
         enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Whether to add the `r-cmd-check` test (build and check the package with rcmdcheck).";
+          description = "Whether to add the `r-cmd-check` check (build and check the package with rcmdcheck).";
         };
         args = lib.mkOption {
           type = lib.types.listOf lib.types.str;
@@ -27,13 +27,13 @@
             "note"
           ];
           default = "note";
-          description = "Least severe `R CMD check` finding that fails the test.";
+          description = "Least severe `R CMD check` finding that fails the check.";
         };
       };
       config.perSystem = lib.mkIf (cfg.enable && cfg.check.enable) (
         { config, pkgs, ... }:
         {
-          nullkomma.tests.r-cmd-check = {
+          nullkomma.checks.r-cmd-check = {
             packages = [ config.nullkomma.r.package ];
             command = ''
               scratch="$(mktemp -d)"

@@ -80,40 +80,40 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
   perSystem =
     { pkgs, ... }:
     {
-      nullkomma.devHelpers = [ pkgs.hello ];
+      nullkomma.devShell.packages = [ pkgs.hello ];
     };
 }
 ```
 
 ### Plugins
 
-Plugins add the tools below; the framework runs them.
+Each plugin is one of nullkomma's `flakeModules.<name>`; each column is an output of your flake that it adds to.
 All plugins are optional; those marked under Default are enabled unless you opt out.
+Files and editor settings that plugins write into your repository are under [Plugin details](#plugin-details).
 
-| Plugin                      | Default | Dev helpers                    | Format via [treefmt] | Lint via [treefmt]         | Tests                  | Checks                                                | Files                                                                                    | Editor                                                           |
-| --------------------------- | ------- | ------------------------------ | -------------------- | -------------------------- | ---------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [`nix`][nix]                | ✅      |                                | `nixfmt`             | `deadnix`, `nixf-diagnose` | [nix-unit] [^nix-unit] | `nix flake check`, [`flake-checker`] [^flake-checker] | ignores `result`                                                                         | [nixd]; VS Code: [Nix IDE]                                       |
-| [`markdown`][md]            | ✅      |                                | `mdformat`           | `rumdl`                    |                        |                                                       |                                                                                          | [marksman]                                                       |
-| [`json`][json]              | ✅      |                                | `jsonfmt`            |                            |                        |                                                       |                                                                                          | [JSON language server][jsonls]                                   |
-| [`yaml`][yaml]              | ✅      |                                | `yamlfmt`            | `yamllint`, `actionlint`   |                        |                                                       |                                                                                          | [yaml-language-server]; VS Code: [YAML][vscode-yaml]             |
-| [`toml`][toml]              | ✅      |                                | `toml-sort`          |                            |                        |                                                       |                                                                                          |                                                                  |
-| [`shell`][bash]             | ✅      |                                | `shfmt`              | `shellcheck`               | [bats] [^bats]         |                                                       |                                                                                          | [bash-language-server]; VS Code: [Bash IDE], [Bats][vscode-bats] |
-| [`github`][gha]             | ✅      |                                |                      |                            |                        | CI matrix across supported systems[^push]             | `push.yml`[^push]                                                                        |                                                                  |
-| [`keepSorted`][keep-sorted] | ✅      |                                | `keep-sorted`        |                            |                        |                                                       |                                                                                          |                                                                  |
-| [`gitleaks`][gitleaks]      | ✅      |                                |                      | `gitleaks`                 |                        | `secret-history` task                                 |                                                                                          |                                                                  |
-| [`typos`][typos]            | ✅      |                                |                      | `typos`                    |                        |                                                       |                                                                                          |                                                                  |
-| [`jscpd`][jscpd]            | ✅      |                                |                      |                            |                        | `jscpd`                                               |                                                                                          |                                                                  |
-| [`git`][git]                | ✅      |                                |                      |                            |                        |                                                       | `.gitignore`                                                                             |                                                                  |
-| [`direnv`][direnv]          | ✅      |                                |                      |                            |                        |                                                       | `.envrc`, ignores `.direnv/`                                                             | VS Code: [Nix Environment Selector]                              |
-| [`vscode`][vscode]          | ✅      |                                |                      |                            |                        |                                                       | `.vscode/`[^editor-files]                                                                | renders it for VS Code[^editor-files]                            |
-| [`neovim`][neovim]          | ✅      |                                |                      |                            |                        |                                                       | `.nvim.lua`[^editor-files]                                                               | renders it for Neovim[^editor-files]                             |
-| [`flakehub`][flakehub]      | ✅      | [`fh`]                         |                      |                            |                        |                                                       |                                                                                          |                                                                  |
-| [`quarto`][quarto]          |         |                                |                      |                            |                        |                                                       | ignores `.quarto/`, `_site/`; `_extensions/`[^generated], `privacy.qmd`[^generated]      | VS Code: [Quarto][vscode-quarto]                                 |
-| [`cloudflare`][cloudflare]  |         | wrangler[^cloudflare]          |                      |                            |                        | OpenTofu validation                                   | ignores `.nullkomma/cloudflare/`                                                         |                                                                  |
-| [`r`][r]                    |         | `pkgload` (dev-time R package) | `air`                | `jarl`                     | `testthat`             | `rcmdcheck`, pkgdown build, NAMESPACE freshness       | `.Rbuildignore`, R ignores, `.github/privacy.md`[^generated], pkgdown assets[^generated] | R languageserver; VS Code: R, Air                                |
-| `r-non-nix` (enables `r`)   |         |                                |                      |                            |                        |                                                       | `.Rprofile`, `.Renviron`, `.R/install.R`, README                                         |                                                                  |
-
-Dev helpers lists standalone commands added to the shell, plus R development packages such as `pkgload`. treefmt is built into the framework. Tests are test suites; Checks are other validations.
+| Plugin                                  | Default | `devShells`                              | `formatter`[^treefmt]                | `checks`                                                                        | `packages`                 | `taskRunners`                                      |
+| --------------------------------------- | ------- | ---------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------- | -------------------------- | -------------------------------------------------- |
+| framework                               | always  | every task, `tasks` runner               | [treefmt]                            | `treefmt`                                                                       |                            | `check`, `format`, `write-files`, `generate-files` |
+| [`nix`](#nix)                           | ✅      | [nixd]                                   | `nixfmt`, `deadnix`, `nixf-diagnose` | [nix-unit] [^nix-unit]                                                          |                            | `update`, [`flake-checker`] [^flake-checker]       |
+| [`markdown`][md]                        | ✅      | [marksman]                               | `mdformat`, `rumdl`                  |                                                                                 |                            |                                                    |
+| [`json`][json]                          | ✅      | [JSON language server][jsonls]           | `jsonfmt`                            |                                                                                 |                            |                                                    |
+| [`yaml`][yaml]                          | ✅      | [yaml-language-server]                   | `yamlfmt`, `yamllint`, `actionlint`  |                                                                                 |                            |                                                    |
+| [`toml`][toml]                          | ✅      |                                          | `toml-sort`                          |                                                                                 |                            |                                                    |
+| [`shell`][bash]                         | ✅      | [bash-language-server]                   | `shfmt`, `shellcheck`                | [bats] [^bats]                                                                  |                            |                                                    |
+| [`github`](#github)                     | ✅      |                                          |                                      |                                                                                 |                            |                                                    |
+| [`keepSorted`][keep-sorted]             | ✅      |                                          | `keep-sorted`                        |                                                                                 |                            |                                                    |
+| [`gitleaks`][gitleaks]                  | ✅      |                                          | `gitleaks`                           |                                                                                 |                            | `secret-history`                                   |
+| [`typos`][typos]                        | ✅      |                                          | `typos`                              |                                                                                 |                            |                                                    |
+| [`jscpd`][jscpd]                        | ✅      |                                          |                                      | `jscpd`                                                                         |                            |                                                    |
+| [`git`](#git)                           | ✅      | `git`                                    |                                      |                                                                                 |                            |                                                    |
+| [`direnv`](#direnv)                     | ✅      |                                          |                                      |                                                                                 |                            |                                                    |
+| [`vscode`](#vscode-and-neovim)          | ✅      |                                          |                                      |                                                                                 |                            |                                                    |
+| [`neovim`](#vscode-and-neovim)          | ✅      |                                          |                                      |                                                                                 |                            |                                                    |
+| [`flakehub`][flakehub]                  | ✅      | [`fh`]                                   |                                      |                                                                                 |                            |                                                    |
+| [`quarto`](#quarto)                     |         | `quarto`                                 |                                      |                                                                                 | `site`                     | `preview`                                          |
+| [`cloudflare`](#cloudflare)             |         | `wrangler`                               |                                      | `cloudflare` (OpenTofu validation)                                              | `deploy`                   | `terraform`, `deploy`                              |
+| [`r`](#r)                               |         | R with languageserver, `pkgload` and pak | `air`, `jarl`                        | `r-testthat`, `r-testthat-installed`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown), `r-lock` | `r-document`, `r-pkgdown`, `r-coverage`, `r-lock`  |
+| [`r-non-nix`](#r-non-nix) (enables `r`) |         |                                          |                                      |                                                                                 |                            |                                                    |
 
 ## Your flake outputs
 
@@ -128,20 +128,10 @@ The development shell holds:
 
 - every task as a command, taking arguments (e.g. `write-files --accept <path>`);
 - the `tasks` runner;
-- language servers and the formatter for [editors](#editors);
-- the plugins' and your `nullkomma.devHelpers`.
+- language servers and the formatter for [editors](#vscode-and-neovim);
+- the plugins' and your `perSystem.nullkomma.devShell.packages`.
 
-Tools a task or test needs stay inside it, off your `PATH`.
-
-#### Editors
-
-Plugins declare language servers once, editor-neutrally (`perSystem.nullkomma.editor`).
-The `vscode` and `neovim` plugins render them, with recommended extensions,
-into Git-ignored `.vscode/` and `.nvim.lua`, so nobody commits editor config.
-Neovim reads `.nvim.lua` only with `:set exrc`.
-
-Installing editors and extensions, themes and keybindings belong to your user environment,
-e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
+Tools a task or check needs stay inside it, off your `PATH`.
 
 ### `taskRunners.<system>`
 
@@ -221,17 +211,17 @@ A committed `treefmt.toml` is ignored.
 Replacing a tool's `package` or typos' `configFile` drops the shared policy; typos' `isolated` ignores native files.
 Linter ignores affect that linter only; treefmt exclusions skip formatters too.
 
-### `checks.<system>.test-<name>`
+### `checks.<system>.<name>`
 
-Use: `test [<name>] [args]`, `nix flake check`.
+Use: `check [<name>] [args]`, `nix flake check`.
 
-Test suites in `perSystem.nullkomma.tests.<name>` run in your working tree with `test`,
+Checks in `perSystem.nullkomma.checks.<name>`, e.g. test suites, run in your working tree with `check`,
 and sandboxed against the flake's source in `nix flake check` and CI.
-Plugins add their own (see the Tests column above); so can you:
+Plugins add their own (see the `checks` column above); so can you:
 
 ```nix
 perSystem = { pkgs, ... }: {
-  nullkomma.tests.greeting = {
+  nullkomma.checks.greeting = {
     packages = [ pkgs.hello ];
     command = "hello | grep -q Hello";
   };
@@ -240,21 +230,19 @@ perSystem = { pkgs, ... }: {
 
 ### `tests.systems.<system>`
 
-Use: `test nix-unit`.
+Use: `check nix-unit`.
 
 Only for Nix code: with the `nix` plugin, the [nix-unit] tests in `perSystem.nullkomma.nix.unit.tests`.
-`tests` is nix-unit's own output convention, not a standard flake output; it holds test data, which the `nix-unit` test suite above runs.
-Other suites, e.g. testthat, are only `checks.<system>.test-<name>`.
+`tests` is nix-unit's own output convention, not a standard flake output; it holds test data, which the `nix-unit` check above runs.
+Other suites, e.g. testthat, are only `checks.<system>.<name>`.
 
 ### `packages.site` and `packages.deploy`
 
 Use: `nix build .#site`, `nix run .#deploy`.
 
-Opt-in `quarto` renders the project into `packages.site`;
-`preview` serves it locally and reloads on edits.
-Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`.
-The `r` plugin builds a [pkgdown site](#pkgdown-website) into `packages.site` instead;
+[`quarto`](#quarto) or the [`r` plugin's pkgdown](#pkgdown-website) builds `packages.site`;
 if both are enabled, set `perSystem.packages.site` yourself.
+[`cloudflare`](#cloudflare) deploys it with `packages.deploy`.
 
 #### Brand
 
@@ -292,34 +280,6 @@ nullkomma.privacy.sections.booking = {
 one tab per `nullkomma.privacy.languages`; pkgdown renders them to `/privacy.html`.
 Link the page from your footer, or set it to `null` to write your own.
 The sections are a starting point, not legal advice.
-
-#### Deploying to Cloudflare
-
-Opt-in `cloudflare` serves whatever `packages.site` holds as [Workers static assets][cloudflare],
-deployed with [Terranix], including custom domains, `_headers` and `_redirects`; `workers.dev` is disabled.
-
-```nix
-nullkomma.cloudflare = {
-  enable = true;
-  worker = "my-site";
-  domains."www.example.org" = "<zone ID>";
-};
-```
-
-Locally, run `terraform` to plan changes (or `terraform <command> [args]`) and `deploy` to publish;
-in CI, run `nix run .#deploy`.
-Both need an existing private R2 bucket for Terraform state; in GitHub Actions:
-
-```yaml
-env:
-  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-  CLOUDFLARE_STATE_BUCKET: ${{ vars.CLOUDFLARE_STATE_BUCKET }}
-  # Account API token: Workers Scripts Edit
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_WORKERS }}
-  # R2 API token: Object Read & Write on the state bucket only
-  AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
-```
 
 ### `packages.r-lock`
 
@@ -372,9 +332,86 @@ with the [resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SK
 In Copilot, install it with `/plugin install https://github.com/dataheld/nullkomma`
 and update it with `/plugin update nullkomma`; neither writes to your project.
 
-## Languages
+## Plugin details
 
-### R
+What plugins write into your repository ([source-of-truth or generated](#files-in-your-repository))
+and how to configure them, where the table doesn't say it all.
+Linters' native config files are under [Customizing linting](#customizing-linting).
+
+### `nix`
+
+Ignores `result` in `.gitignore`.
+Unit tests for your flake's Nix code go in `perSystem.nullkomma.nix.unit.tests`;
+see [`tests.systems.<system>`](#testssystemssystem).
+
+### `github`
+
+Writes `.github/workflows/push.yml`, a stub calling nullkomma's reusable CI workflow,
+which runs `nix flake check` on each supported system.
+`nullkomma.github.ci.inputs.visibility = "public"` also publishes to FlakeHub;
+`nullkomma.github.ci.secrets` passes repository secrets.
+
+### `git`
+
+Writes `.gitignore` from the top-level `nullkomma.gitignore` lines that plugins and you add,
+plus every generated file.
+
+### `direnv`
+
+Writes `.envrc` (`use flake`), which loads the development shell on entering the directory,
+and ignores `.direnv/`.
+
+### `vscode` and `neovim`
+
+Plugins declare language servers once, editor-neutrally (`perSystem.nullkomma.editor`).
+The `vscode` and `neovim` plugins render them, with recommended extensions,
+into generated, Git-ignored `.vscode/settings.json`, `.vscode/extensions.json` and `.nvim.lua`,
+so nobody commits editor config.
+Recommended VS Code extensions: [treefmt][vscode-treefmt] (always), [Nix IDE] (`nix`),
+[YAML][vscode-yaml] (`yaml`), [Bash IDE] and [Bats][vscode-bats] (`shell`),
+[Nix Environment Selector] (`direnv`), [Quarto][vscode-quarto] (`quarto`), R and Air (`r`).
+Neovim reads `.nvim.lua` only with `:set exrc`.
+
+Installing editors and extensions, themes and keybindings belong to your user environment,
+e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
+
+### `quarto`
+
+Opt-in `quarto` renders the project into `packages.site`; `preview` serves it locally and reloads on edits.
+It ignores `.quarto/` and `_site/`.
+Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`,
+generated into `_extensions/<name>`; the [privacy policy](#privacy-policy) is generated into `privacy.qmd`.
+
+### `cloudflare`
+
+Opt-in `cloudflare` serves whatever `packages.site` holds as [Workers static assets][cloudflare],
+deployed with [Terranix], including custom domains, `_headers` and `_redirects`; `workers.dev` is disabled.
+It adds hosting and analytics to the [privacy policy](#privacy-policy) and ignores `.nullkomma/cloudflare/`.
+
+```nix
+nullkomma.cloudflare = {
+  enable = true;
+  worker = "my-site";
+  domains."www.example.org" = "<zone ID>";
+};
+```
+
+Locally, run `terraform` to plan changes (or `terraform <command> [args]`) and `deploy` to publish;
+in CI, run `nix run .#deploy`.
+Both need an existing private R2 bucket for Terraform state; in GitHub Actions:
+
+```yaml
+env:
+  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+  CLOUDFLARE_STATE_BUCKET: ${{ vars.CLOUDFLARE_STATE_BUCKET }}
+  # Account API token: Workers Scripts Edit
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_WORKERS }}
+  # R2 API token: Object Read & Write on the state bucket only
+  AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+```
+
+### `r`
 
 1. Add `nullkomma.r.enable = true;` to `flake.nix`; for a package in a subdirectory, also `nullkomma.r.root = ./pkg;`.
 1. Run `nix run .#r-lock`: the development shell needs the [`pkg.lock`](#dependencies) it writes.
@@ -392,7 +429,7 @@ git add DESCRIPTION pkg.lock
 
 Nix takes package names from `pkg.lock`, but versions and builds from the `nixpkgs-r` input
 (which follows Nixpkgs; override `inputs.nullkomma.inputs.nixpkgs-r` for newer R).
-Outside Nix, `r-lock` and [`r-non-nix`](#without-nix) install from the [PPM] snapshot
+Outside Nix, `r-lock` and [`r-non-nix`](#r-non-nix) install from the [PPM] snapshot
 of the same date (`nullkomma.r.snapshot`), so every environment gets packages that were on CRAN together.
 
 `Depends`, `Imports`, `LinkingTo`, `Suggests` and all `Config/Needs/*` fields are locked,
@@ -408,22 +445,23 @@ The development environment always includes `pkgload` for loading and reloading 
 > Add missing system libraries with `perSystem.nullkomma.r.buildInputs.<package>`.
 > GitLab and local references are unsupported; use `git::` for GitLab.
 
-#### Tasks and tests
+#### Tasks and checks
 
-| Command                     | What it does                                                            | Opt out                                                           |
-| --------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `r-document`                | Generate `man/*.Rd` and `NAMESPACE` with roxygen2                       | `nullkomma.r.document.enable` (for hand-written manuals)          |
-| `test r-cmd-check`          | Build and run rcmdcheck                                                 | `nullkomma.r.check.enable`                                        |
-| `test r-testthat`           | Run testthat on the source                                              | `nullkomma.r.testthat.enable`                                     |
-| `test r-testthat-installed` | Install into a temporary library and run testthat on the installed copy | `nullkomma.r.testthat.enable`                                     |
-| `test r-namespace`          | Fail if roxygen2 would change the committed `NAMESPACE`                 | with `r-document`                                                 |
-| `r-pkgdown`                 | Build the [website](#pkgdown-website) into `docs/`                      | `nullkomma.r.pkgdown.enable`                                      |
-| `r-coverage`                | Write a local Cobertura `coverage.xml` with covr                        | off unless covr is locked or `nullkomma.r.coverage.enable = true` |
+| Command                      | What it does                                                            | Opt out                                                           |
+| ---------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `r-document`                 | Generate `man/*.Rd` and `NAMESPACE` with roxygen2                       | `nullkomma.r.document.enable` (for hand-written manuals)          |
+| `check r-cmd-check`          | Build and run rcmdcheck                                                 | `nullkomma.r.check.enable`                                        |
+| `check r-testthat`           | Run testthat on the source                                              | `nullkomma.r.testthat.enable`                                     |
+| `check r-testthat-installed` | Install into a temporary library and run testthat on the installed copy | `nullkomma.r.testthat.enable`                                     |
+| `check r-namespace`          | Fail if roxygen2 would change the committed `NAMESPACE`                 | with `r-document`                                                 |
+| `r-pkgdown`                  | Build the [website](#pkgdown-website) into `docs/`                      | `nullkomma.r.pkgdown.enable`                                      |
+| `r-coverage`                 | Write a local Cobertura `coverage.xml` with covr                        | off unless covr is locked or `nullkomma.r.coverage.enable = true` |
 
 Checks, tests and site builds regenerate documentation first.
 Generated `man/*.Rd` files are Git-ignored, but not `man/` itself; commit `NAMESPACE`.
 `nullkomma.r.check.errorOn` sets the failing severity (default `"note"`).
-The `r` plugin keeps its package-build exclusions in a marked section of `.Rbuildignore`.
+The `r` plugin keeps its package-build exclusions in a marked section of `.Rbuildignore`,
+and ignores R build outputs in `.gitignore`.
 
 Run tests [in parallel](https://testthat.r-lib.org/articles/parallel.html), with and without Nix,
 by committing these to `DESCRIPTION` (or running `usethis::use_testthat(3, parallel = TRUE)`):
@@ -442,7 +480,7 @@ Nixpkgs has no Chromium for macOS: there chromote finds your Chrome, or uses `CH
 
 `packages.site` builds the [pkgdown](https://pkgdown.r-lib.org) site in the sandbox,
 also in `nix flake check`; `r-pkgdown` builds it locally.
-[Cloudflare](#deploying-to-cloudflare) can publish it.
+[Cloudflare](#cloudflare) can publish it.
 
 - A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
 - Bootstrap 5's JavaScript dependencies are pinned in nullkomma.
@@ -471,7 +509,7 @@ Jarl replaces lintr: it needs no package load and fixes lints before Air formats
 Coverage stays local, without an upload service.
 Everything runs on one locked R version; add a CI matrix if you need Windows or other R releases.
 
-#### Without Nix
+### `r-non-nix`
 
 For collaborators without Nix, enable `nullkomma.r-non-nix.enable = true` (it enables `r`),
 run `write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
@@ -482,20 +520,22 @@ The startup profile only acts in native R sessions, installing from the same PPM
 
 ## Design
 
-Each column of the [Plugins](#plugins) table is a framework: options (in `perSystem`,
-except `nullkomma.gitignore`) that plugins fill in, and so can you.
-Most plugins feed columns; a few render them (`git`, `vscode`, `neovim`).
-The framework runs Format / lint with treefmt: plugins add `treefmt.programs`, not their own runner.
+The [Plugins](#plugins) table maps nullkomma's outputs onto yours:
+each row is one of nullkomma's `flakeModules.<name>`, each column an output of your flake.
+Every output is fed by framework options (in `perSystem`) that plugins fill in, and so can you:
 
-| Column        | Options                                                        | Task                            | Ends up in                                                             |
-| ------------- | -------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------- |
-| Dev helpers   | `nullkomma.devHelpers`                                         |                                 | dev shell                                                              |
-| Format / lint | `treefmt.programs`                                             | `format`                        | `nix fmt`, `checks.<system>.treefmt`, editors                          |
-| Tests         | `nullkomma.tests.<name>`                                       | `test`                          | `checks.<system>.test-<name>`                                          |
-| Files         | `nullkomma.files.<path>` (and top-level `nullkomma.gitignore`) | `write-files`, `generate-files` | the repository                                                         |
-| Editor        | `nullkomma.editor`                                             |                                 | language servers and formatter in the dev shell; editor plugins' files |
+| Your output                   | Options                   | Task     |
+| ----------------------------- | ------------------------- | -------- |
+| `devShells.default`           | `nullkomma.devShell.*`    |          |
+| `formatter`, `checks.treefmt` | `treefmt.programs`        | `format` |
+| `checks.<name>`               | `nullkomma.checks.<name>` | `check`  |
+| `packages.<name>`             | `packages.<name>`         |          |
+| `taskRunners`                 | `nullkomma.tasks.<name>`  | `tasks`  |
 
-Tasks (`nullkomma.tasks.<name>`) aren't a column: they're the command layer under the columns.
+Formatting and linting are treefmt's job: plugins add `treefmt.programs`, not their own runner.
+Two more framework options act on your working tree rather than on outputs:
+`nullkomma.files.<path>` (and the top-level `nullkomma.gitignore`), written by `write-files` and `generate-files`;
+and `nullkomma.editor`, whose language servers join the dev shell and which `vscode` and `neovim` render into files.
 
 Independent plugins do not read each other's options. Values shared between plugins are
 framework options that any plugin may set or read. For example, `r` relaxes Markdown
@@ -504,6 +544,10 @@ knows about the other.
 
 A companion plugin may import and enable its base plugin and reuse its options:
 `r-non-nix` depends on `r`, but `r` does not depend on the compatibility layer.
+
+Because plugins only meet through framework options, one could live in its own flake,
+e.g. a `nullkomma-r` exporting `flakeModules.r` against `flakeModules.framework`,
+keeping R-only inputs out of other projects' lockfiles.
 
 ## Development
 
@@ -549,6 +593,9 @@ the broken one fails with the real tool's error, not just any error.
 
 `pkgdown-dependencies` refreshes the pinned pkgdown Bootstrap 5 dependencies.
 
+[^treefmt]: `nix fmt` and the `format` task fix what they can; `checks.<system>.treefmt`
+    fails `nix flake check` (and CI) on any remaining formatting or lint issue.
+
 [^nix-unit]: Tests in `perSystem.nullkomma.nix.unit.tests`, once there are any; exported as
     `tests.systems.<system>`.
 
@@ -558,18 +605,6 @@ the broken one fails with the real tool's error, not just any error.
     exists; add the tools they call with `perSystem.nullkomma.shell.bats.packages`.
     `*.bats` files are formatted and linted like other shell scripts.
 
-[^push]: `.github/workflows/push.yml`, a stub calling nullkomma's reusable CI workflow,
-    which runs `nix flake check` on each supported system and can publish to FlakeHub.
-
-[^editor-files]: Generated (Git-ignored) from the Editor column: VS Code settings and
-    recommended extensions in `.vscode/`, language servers in `.nvim.lua`.
-
-[^generated]: Generated: `nullkomma.quarto.extensions`, `nullkomma.r.pkgdown.assets`, and
-    the privacy policy once there are `nullkomma.privacy.sections`.
-
-[^cloudflare]: Also adds the `terraform` (plan changes) and `deploy` tasks, and a section
-    to the privacy policy (see [Websites](#packagessite-and-packagesdeploy)).
-
 [air]: https://posit-dev.github.io/air/
 [bash]: https://www.gnu.org/software/bash/
 [bash ide]: https://marketplace.visualstudio.com/items?itemName=mads-hartmann.bash-ide-vscode
@@ -578,8 +613,6 @@ the broken one fails with the real tool's error, not just any error.
 [cloudflare]: https://developers.cloudflare.com/workers/static-assets/
 [direnv]: https://direnv.net
 [flakehub]: https://flakehub.com
-[gha]: https://docs.github.com/actions
-[git]: https://git-scm.com
 [gitleaks]: https://github.com/gitleaks/gitleaks
 [jarl]: https://jarl.etiennebacher.com
 [jscpd]: https://github.com/kucherenko/jscpd
@@ -588,8 +621,6 @@ the broken one fails with the real tool's error, not just any error.
 [keep-sorted]: https://github.com/google/keep-sorted
 [marksman]: https://github.com/artempyanykh/marksman
 [md]: https://commonmark.org
-[neovim]: https://neovim.io
-[nix]: https://nixos.org
 [nix environment selector]: https://marketplace.visualstudio.com/items?itemName=arrterian.nix-env-selector
 [nix ide]: https://marketplace.visualstudio.com/items?itemName=jnoortheen.nix-ide
 [nix-direnv]: https://github.com/nix-community/nix-direnv
@@ -597,14 +628,11 @@ the broken one fails with the real tool's error, not just any error.
 [nixd]: https://github.com/nix-community/nixd
 [pak]: https://pak.r-lib.org
 [ppm]: https://packagemanager.posit.co
-[quarto]: https://quarto.org
-[r]: https://www.r-project.org
 [terranix]: https://terranix.org/flake-parts.html
 [toml]: https://toml.io
 [treefmt]: https://treefmt.com
 [typos]: https://github.com/crate-ci/typos
 [up]: https://github.com/DeterminateSystems/up
-[vscode]: https://code.visualstudio.com
 [vscode-bats]: https://marketplace.visualstudio.com/items?itemName=jetmartin.bats
 [vscode-quarto]: https://marketplace.visualstudio.com/items?itemName=quarto.quarto
 [vscode-treefmt]: https://marketplace.visualstudio.com/items?itemName=ibecker.treefmt-vscode

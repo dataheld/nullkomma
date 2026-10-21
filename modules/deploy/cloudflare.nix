@@ -53,7 +53,7 @@
             '';
           in
           {
-            nullkomma.devHelpers = [ pkgs.wrangler ];
+            nullkomma.devShell.packages = [ pkgs.wrangler ];
             nullkomma.tasks = {
               deploy = {
                 skip = true;
@@ -136,13 +136,13 @@
                 };
               };
             };
-            nullkomma.tests.cloudflare = {
+            nullkomma.checks.cloudflare = {
               packages = [ pkgs.nix ];
               command = ''
                 configuration="$(nix build --no-link --print-out-paths .#deploy.config)"
                 ${validate ''"$configuration"''}
               '';
-              check = pkgs.runCommand "test-cloudflare" { } ''
+              sandboxed = pkgs.runCommand "check-cloudflare" { } ''
                 export HOME="$TMPDIR"
                 ${validate tf.result.terraformConfiguration}
                 touch "$out"

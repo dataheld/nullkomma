@@ -6,10 +6,10 @@
         callFlakeWith
         project
         root
-        test
+        runCheck
         ;
       fixture = root + "/tests/fixtures/md";
-      jscpd = test (callFlakeWith { nullkomma.generatedPaths = [ "generated/**" ]; } fixture) "jscpd";
+      jscpd = runCheck (callFlakeWith { nullkomma.generatedPaths = [ "generated/**" ]; } fixture) "jscpd";
     in
     {
       checks.jscpd-native-config = pkgs.runCommand "jscpd-native-config" { } ''

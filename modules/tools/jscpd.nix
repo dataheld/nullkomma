@@ -54,7 +54,7 @@
             });
           in
           {
-            nullkomma.tests.jscpd = {
+            nullkomma.checks.jscpd = {
               packages = [
                 jscpd
                 pkgs.jq

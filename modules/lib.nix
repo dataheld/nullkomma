@@ -11,7 +11,7 @@ in
   # The framework and every plugin, with the default plugins enabled.
   flake.flakeModules.default = {
     imports = map (name: flakeModules.${name}) ([ "framework" ] ++ lib.attrNames config.plugins);
-    nullkomma = lib.genAttrs (config.flake.lib.defaultPlugins ++ [ "devshell" ]) (_: {
+    nullkomma = lib.genAttrs (config.flake.lib.defaultPlugins ++ [ "devShell" ]) (_: {
       enable = lib.mkDefault true;
     });
   };

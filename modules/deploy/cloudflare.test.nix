@@ -15,7 +15,7 @@
         plugins
         raw
         root
-        test
+        runCheck
         ;
       tfConfig =
         flake: (perSystem flake).terranix.terranixConfigurations.deploy.result.terraformConfiguration;
@@ -53,13 +53,13 @@
               "site"
             ];
             checks = [
-              "test-cloudflare"
+              "cloudflare"
               "treefmt"
             ];
           };
         };
         testCloudflareProvidesWranglerOnlyWhenEnabled = {
-          expr = map (flake: lib.elem pkgs.wrangler (perSystem flake).nullkomma.devshell.packages) [
+          expr = map (flake: lib.elem pkgs.wrangler (perSystem flake).nullkomma.devShell.packages) [
             cloudflare
             fixtures.quarto
           ];
@@ -70,7 +70,7 @@
         };
       };
       checks = {
-        cloudflare-config = cloudflare.checks.${system}.test-cloudflare;
+        cloudflare-config = cloudflare.checks.${system}.cloudflare;
         cloudflare-validation-local =
           let
             nix = pkgs.writeShellScriptBin "nix" ''
@@ -80,18 +80,18 @@
             '';
             flake = raw {
               imports = [ bare ];
-              perSystem.nullkomma.tests.cloudflare.packages = lib.mkForce [ nix ];
+              perSystem.nullkomma.checks.cloudflare.packages = lib.mkForce [ nix ];
             };
           in
           pkgs.runCommand "nullkomma-cloudflare-validation-local" { } ''
             export HOME="$TMPDIR"
-            ${test flake "cloudflare"}
+            ${runCheck flake "cloudflare"}
             touch "$out"
           '';
         cloudflare-devshell =
           (raw {
             imports = [ bare ];
-            nullkomma.devshell.enable = true;
+            nullkomma.devShell.enable = true;
             perSystem =
               { pkgs, ... }:
               {

@@ -97,13 +97,13 @@
               perSystem
               ;
             raw = rawAt (root + "/tests/fixtures/md");
-            # Executables of a flake's nullkomma tasks and tests.
+            # Executables of a flake's nullkomma tasks and checks.
             task = flake: name: lib.getExe (perSystem flake).nullkomma.tasks.${name}.package;
-            test = flake: name: lib.getExe (perSystem flake).nullkomma.tests.${name}.package;
+            runCheck = flake: name: lib.getExe (perSystem flake).nullkomma.checks.${name}.package;
             # What plugins can contribute to a consumer flake.
             summary = flake: {
               files = lib.attrNames (perSystem flake).nullkomma.files;
-              tools = map lib.getName (perSystem flake).nullkomma.devshell.packages;
+              tools = map lib.getName (perSystem flake).nullkomma.devShell.packages;
               formatters = lib.attrNames (perSystem flake).treefmt.build.programs;
               tasks = lib.attrNames (perSystem flake).nullkomma.tasks;
               checks = lib.attrNames flake.checks.${system};

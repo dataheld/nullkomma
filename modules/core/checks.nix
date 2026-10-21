@@ -1,4 +1,4 @@
-# Tests: plugins declare them, the framework runs each one locally (`test` task)
+# Checks: plugins declare them, the framework runs each one locally (`check` task)
 # and sandboxed in `nix flake check`, the way treefmt handles formatters.
 {
   framework =
@@ -14,7 +14,7 @@
           src = config.nullkomma.src;
         in
         {
-          options.nullkomma.tests = lib.mkOption {
+          options.nullkomma.checks = lib.mkOption {
             type = lib.types.attrsOf (
               lib.types.submodule (
                 { name, config, ... }:
@@ -22,31 +22,31 @@
                   options = {
                     command = lib.mkOption {
                       type = lib.types.lines;
-                      description = "Bash script run from the project root; arguments of `test <name>` are in `$@`.";
+                      description = "Bash script run from the project root; arguments of `check <name>` are in `$@`.";
                     };
                     packages = lib.mkOption {
                       type = lib.types.listOf lib.types.package;
                       default = [ ];
-                      description = "Packages on `PATH` while the test runs.";
+                      description = "Packages on `PATH` while the check runs.";
                     };
                     package = lib.mkOption {
                       type = lib.types.package;
                       readOnly = true;
-                      description = "The test's command.";
+                      description = "The check's command.";
                     };
-                    check = lib.mkOption {
+                    sandboxed = lib.mkOption {
                       type = lib.types.package;
                       defaultText = lib.literalMD "`command` run in a copy of `nullkomma.src`, with shebangs patched and a writable `HOME`";
-                      description = "The sandboxed run in `nix flake check`; override it for tests that need more than the source.";
+                      description = "The sandboxed run in `nix flake check`; override it for checks that need more than the source.";
                     };
                   };
                   config.package = pkgs.writeShellApplication {
-                    name = "test-${name}";
+                    name = "check-${name}";
                     runtimeInputs = config.packages;
                     text = config.command;
                   };
-                  config.check = lib.mkDefault (
-                    pkgs.runCommand "test-${name}" { } ''
+                  config.sandboxed = lib.mkDefault (
+                    pkgs.runCommand "check-${name}" { } ''
                       cp -r ${src} src
                       chmod -R u+w src
                       patchShebangs --build src >/dev/null
@@ -60,34 +60,34 @@
               )
             );
             default = { };
-            description = "Test suites; each runs in the `test` task and as sandboxed `checks.<system>.test-<name>`.";
+            description = "Checks, e.g. test suites; each runs in the `check` task and sandboxed as `checks.<system>.<name>`.";
           };
         }
       );
       config.perSystem =
         { config, pkgs, ... }:
         let
-          tests = lib.mapAttrs (_: t: t.package) config.nullkomma.tests;
+          commands = lib.mapAttrs (_: t: t.package) config.nullkomma.checks;
         in
-        lib.mkIf (tests != { }) {
-          nullkomma.tasks.test = {
-            description = "Run all tests, or one: test <name> [args]";
+        lib.mkIf (commands != { }) {
+          nullkomma.tasks.check = {
+            description = "Run all checks in the working tree, or one: check <name> [args]";
             packages = [ pkgs.git ];
             command = ''
               cd "$(git rev-parse --show-toplevel)"
               case "''${1-}" in
               ${lib.concatMapStrings (name: ''
-                ${lib.escapeShellArg name}) shift; exec ${lib.getExe tests.${name}} "$@" ;;
-              '') (lib.attrNames tests)}
+                ${lib.escapeShellArg name}) shift; exec ${lib.getExe commands.${name}} "$@" ;;
+              '') (lib.attrNames commands)}
               "") ;;
-              *) echo "unknown test: $1 (have: ${toString (lib.attrNames tests)})" >&2; exit 2 ;;
+              *) echo "unknown check: $1 (have: ${toString (lib.attrNames commands)})" >&2; exit 2 ;;
               esac
               ${lib.concatMapStrings (t: ''
                 ${lib.getExe t}
-              '') (lib.attrValues tests)}
+              '') (lib.attrValues commands)}
             '';
           };
-          checks = lib.mapAttrs' (name: t: lib.nameValuePair "test-${name}" t.check) config.nullkomma.tests;
+          checks = lib.mapAttrs (_: t: t.sandboxed) config.nullkomma.checks;
         };
     };
 }

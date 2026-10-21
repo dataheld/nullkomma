@@ -65,7 +65,7 @@
                 (raw { })
                 (raw { imports = lib.attrValues plugins; })
                 (callFlakeWith {
-                  nullkomma = lib.genAttrs (lib.attrNames plugins ++ [ "devshell" ]) (_: {
+                  nullkomma = lib.genAttrs (lib.attrNames plugins ++ [ "devShell" ]) (_: {
                     enable = false;
                   });
                 } md)
@@ -101,6 +101,29 @@
                 };
               };
             };
+            testChecksBecomeTaskAndCheck = {
+              expr = {
+                inherit
+                  (summary (raw {
+                    perSystem.nullkomma.checks.custom.command = "true";
+                  }))
+                  tasks
+                  checks
+                  ;
+              };
+              expected = {
+                tasks = [
+                  "check"
+                  "format"
+                  "generate-files"
+                  "write-files"
+                ];
+                checks = [
+                  "custom"
+                  "treefmt"
+                ];
+              };
+            };
             testConsumersCustomizeDefaults =
               let
                 customized = perSystem (
@@ -109,7 +132,7 @@
                       { pkgs, ... }:
                       {
                         nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
-                        nullkomma.devHelpers = [ pkgs.hello ];
+                        nullkomma.devShell.packages = [ pkgs.hello ];
                         treefmt.programs.deadnix.enable = false;
                         treefmt.programs.typos.enable = true;
                       };
@@ -118,7 +141,7 @@
               in
               {
                 expr = {
-                  package = lib.elem pkgs.hello customized.nullkomma.devshell.packages;
+                  package = lib.elem pkgs.hello customized.nullkomma.devShell.packages;
                   disabled = customized.treefmt.programs.deadnix.enable;
                   enabled = customized.treefmt.programs.typos.enable;
                   setting = customized.nullkomma.editor.vscode.settings."nix.serverPath";
@@ -296,7 +319,6 @@
               expected = [
                 "check"
                 "flake-checker"
-                "test"
               ];
             };
             testTemplatesAreFixtures = {
@@ -308,29 +330,6 @@
                 flake = builtins.readFile (root + "/tests/fixtures/md/flake.nix");
                 envrc = (perSystem (callFlake t.path)).nullkomma.files.".envrc".text;
               }) nullkomma.templates;
-            };
-            testTestsBecomeTaskAndCheck = {
-              expr = {
-                inherit
-                  (summary (raw {
-                    perSystem.nullkomma.tests.custom.command = "true";
-                  }))
-                  tasks
-                  checks
-                  ;
-              };
-              expected = {
-                tasks = [
-                  "format"
-                  "generate-files"
-                  "test"
-                  "write-files"
-                ];
-                checks = [
-                  "test-custom"
-                  "treefmt"
-                ];
-              };
             };
             # keep-sorted end
           };
@@ -349,7 +348,7 @@
             # Every language server an editor is told to start is in the dev shell.
             language-servers =
               pkgs.runCommandLocal "nullkomma-language-servers"
-                { nativeBuildInputs = (perSystem fixtures.md).nullkomma.devshell.packages; }
+                { nativeBuildInputs = (perSystem fixtures.md).nullkomma.devShell.packages; }
                 ''
                   ${lib.concatMapStrings (s: ''
                     command -v ${lib.escapeShellArg (lib.head s.command)}

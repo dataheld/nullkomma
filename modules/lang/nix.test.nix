@@ -33,13 +33,13 @@
       nullkomma.nix.unit.tests = {
         testNixUnitTestsBecomeTest = {
           expr = {
-            checks = lib.filter (lib.hasPrefix "test-") (summary withTests).checks;
+            checks = lib.filter (c: c != "treefmt") (summary withTests).checks;
             tests = lib.attrNames withTests.tests.systems.${system};
             schema = withTests.schemas ? tests;
             withoutTests = (nix { }).tests.systems.${system};
           };
           expected = {
-            checks = [ "test-nix-unit" ];
+            checks = [ "nix-unit" ];
             tests = [ "testTrue" ];
             schema = true;
             withoutTests = { };

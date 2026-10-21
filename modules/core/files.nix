@@ -95,7 +95,7 @@
           options.nullkomma.src = lib.mkOption {
             type = lib.types.package;
             readOnly = true;
-            description = "The flake's source with every generated file in place, as after `generate-files`: where sandboxed tests and site builds start.";
+            description = "The flake's source with every generated file in place, as after `generate-files`: where sandboxed checks and site builds start.";
           };
         }
       );

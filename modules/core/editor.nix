@@ -69,7 +69,7 @@
               };
             };
           };
-          config.nullkomma.devshell.packages =
+          config.nullkomma.devShell.packages =
             lib.mapAttrsToList (_: s: s.package) cfg.languageServers
             ++ lib.optional (cfg.formatter != null) cfg.formatter.package;
         }

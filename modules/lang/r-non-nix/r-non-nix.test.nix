@@ -19,7 +19,7 @@
           root
           summary
           task
-          test
+          runCheck
           ;
         fixture = root + "/tests/fixtures/r";
         withProfile = callFlakeWith {
@@ -114,16 +114,16 @@
             RS
             done
             for runner in \
-              ${test withProfile "r-testthat-installed"} \
-              ${test withProfile "r-testthat"} \
-              ${test withProfile "r-cmd-check"}; do
+              ${runCheck withProfile "r-testthat-installed"} \
+              ${runCheck withProfile "r-testthat"} \
+              ${runCheck withProfile "r-cmd-check"}; do
               "$runner"
             done
             # Keep NIX_BUILD_TOP for R CMD check: Nix's cc-wrapper needs it.
             unset NIX_BUILD_TOP
             rm .Renviron
-            ${test withProfile "r-testthat-installed"}
-            ${test withProfile "r-testthat"}
+            ${runCheck withProfile "r-testthat-installed"}
+            ${runCheck withProfile "r-testthat"}
             test ! -d .R/library
             touch $out
           '';

@@ -108,7 +108,7 @@
           { config, pkgs, ... }:
           let
             pcfg = config.nullkomma.r;
-            # Tests start at the project root; tasks may start anywhere in it.
+            # Checks start at the project root; tasks may start anywhere in it.
             cd = lib.optionalString (prefix != "") "cd ${lib.escapeShellArg prefix}\n";
             top = ''
               cd "$(git rev-parse --show-toplevel)"
@@ -205,7 +205,7 @@
                 };
               })
             ];
-            nullkomma.tests = lib.mkMerge [
+            nullkomma.checks = lib.mkMerge [
               (lib.mkIf cfg.testthat.enable {
                 r-testthat = test false;
                 r-testthat-installed = test true;

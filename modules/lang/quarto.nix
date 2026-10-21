@@ -101,7 +101,7 @@
             quarto = config.nullkomma.quarto.package;
           in
           {
-            nullkomma.devHelpers = [ quarto ];
+            nullkomma.devShell.packages = [ quarto ];
             nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
             # Quarto watches the working tree and live-reloads the browser itself.
             nullkomma.tasks.preview = {
