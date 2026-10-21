@@ -240,9 +240,11 @@ perSystem = { pkgs, ... }: {
 
 ### `tests.systems.<system>`
 
-Use: [nix-unit].
+Use: `test nix-unit`.
 
-With the `nix` plugin, the unit tests in `perSystem.nullkomma.nix.unit.tests`.
+Only for Nix code: with the `nix` plugin, the [nix-unit] tests in `perSystem.nullkomma.nix.unit.tests`.
+`tests` is nix-unit's own output convention, not a standard flake output; it holds test data, which the `nix-unit` test suite above runs.
+Other suites, e.g. testthat, are only `checks.<system>.test-<name>`.
 
 ### `packages.site` and `packages.deploy`
 
