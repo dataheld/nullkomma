@@ -147,21 +147,33 @@ Add other generated content to `nullkomma.generatedPaths` as treefmt globs, e.g.
 
 #### Customizing linting
 
-Commit each tool's native configuration; nullkomma never writes these files.
-It hands its shared policy to each tool through the tool's own layering, without merging configurations itself.
+**Choose one place for a rule:** use the linter's own config file if it must also work
+outside Nix (e.g. in a collaborator's editor). Use Nix if you want to keep settings in
+`flake.nix` and retain nullkomma's shared defaults without copying them.
+Neither route is required: without project settings, the plugin defaults apply.
 
-| Tool       | Native configuration                                                                                                               | How it combines with shared policy                                                                                                                          |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| typos      | `.typos.toml`, `typos.toml`, `_typos.toml`, or `[tool.typos]` in `pyproject.toml`                                                  | Shared settings are passed with `--config`: native files add words, file types and `files.extend-exclude`; shared settings win conflicting keys.            |
-| rumdl      | `.rumdl.toml`, `rumdl.toml`, `.config/rumdl.toml`, `[tool.rumdl]` in `pyproject.toml`, or markdownlint's `.markdownlint{,-cli2}.*` | Shared rules are rumdl's user-level config, so a project file replaces them.                                                                                |
-| yamllint   | `.yamllint`, `.yamllint.yaml`, `.yamllint.yml`                                                                                     | Shared defaults are yamllint's user-global config, so a project file replaces them.                                                                         |
-| Jarl       | `jarl.toml`                                                                                                                        | Native only: nullkomma passes no shared Jarl settings.                                                                                                      |
-| ShellCheck | `.shellcheckrc` and source directives                                                                                              | Native only.                                                                                                                                                |
-| actionlint | `.github/actionlint.yaml` or `.github/actionlint.yml`                                                                              | Native only.                                                                                                                                                |
-| jscpd      | `.jscpd.json`, `.config/jscpd.json`, or the `jscpd` key in `package.json`                                                          | Project `ignore` globs add to the shared exclusions; other settings win, e.g. `threshold` (a percentage, default 0) or `"formatsExts": { "nix": ["nix"] }`. |
-| gitleaks   | `.gitleaks.toml`, `.gitleaksignore`                                                                                                | Native only; include `[extend]` with `useDefault = true` to retain upstream detection rules.                                                                |
+`nix fmt`, the `format` task, nullkomma's editor formatter and the CI treefmt check
+all use the same configured tools. Nix generates treefmt's configuration and supplies
+any shared linter settings; the linters themselves discover your native config files.
+nullkomma does not write or merge those files.
 
-For example, add spellings and skip a vendor directory in `.typos.toml`:
+**Native config files.** Commit these alongside your code. The interaction with
+Nix-provided settings depends on the tool; adding a file does **not** always mean
+adding to the defaults:
+
+| Linter     | Where to put project settings                                                                                                      | What happens to nullkomma's settings                                                                                                                                |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| typos      | `.typos.toml`, `typos.toml`, `_typos.toml`, or `[tool.typos]` in `pyproject.toml`                                                  | Both apply. Native files can add spellings, file types and `files.extend-exclude`; explicit Nix settings win conflicting keys.                                      |
+| rumdl      | `.rumdl.toml`, `rumdl.toml`, `.config/rumdl.toml`, `[tool.rumdl]` in `pyproject.toml`, or markdownlint's `.markdownlint{,-cli2}.*` | The project config replaces the shared rules, including R's allowance for HTML and long lines. Restate any you want to keep.                                        |
+| yamllint   | `.yamllint`, `.yamllint.yaml`, `.yamllint.yml`                                                                                     | The project config replaces `extends: relaxed` and the disabled line-length rule, plus any Nix additions. Restate any you want to keep.                             |
+| Jarl       | `jarl.toml`                                                                                                                        | No shared rule settings to merge; the file configures Jarl directly.                                                                                                |
+| ShellCheck | `.shellcheckrc` and source directives                                                                                              | No shared rule settings to merge.                                                                                                                                   |
+| actionlint | `.github/actionlint.yaml` or `.github/actionlint.yml`                                                                              | No shared rule settings to merge.                                                                                                                                   |
+| gitleaks   | `.gitleaks.toml`, `.gitleaksignore`                                                                                                | No nullkomma rule settings to merge. A custom rules file replaces upstream detection rules unless it includes `[extend]` with `useDefault = true`.                  |
+| jscpd      | `.jscpd.json`, `.config/jscpd.json`, or the `jscpd` key in `package.json`                                                          | Project settings win, including `threshold` (default 0 percent). Project `ignore` globs are added to nullkomma's exclusions. Runs as a separate check, not treefmt. |
+
+For example, `.typos.toml` adds an accepted spelling and a linter-only exclusion
+without dropping nullkomma's R-specific spellings:
 
 ```toml
 [default.extend-words]
@@ -171,7 +183,8 @@ foobaar = "foobaar"
 extend-exclude = ["vendor/**"]
 ```
 
-A `.yamllint` or Markdown config starts from scratch; restate the shared defaults to keep them:
+By contrast, to require quoted YAML strings **and** keep nullkomma's YAML defaults,
+your `.yamllint` must include all three settings:
 
 ```yaml
 extends: relaxed
@@ -180,12 +193,42 @@ rules:
   quoted-strings: {required: true}
 ```
 
-To change shared policy in Nix, set `nullkomma.lint.typos`, `nullkomma.lint.markdown`
-or `nullkomma.lint.yaml`; they merge through the module system. Without Nix,
-linters see only native files.
+**Settings in Nix.** nullkomma exposes rule configuration for three linters:
 
-Tools without native config files (e.g. deadnix) and extra arguments or exclusions
-use [treefmt-nix](https://github.com/numtide/treefmt-nix) options:
+| Linter   | Top-level option          | Setting format                             |
+| -------- | ------------------------- | ------------------------------------------ |
+| typos    | `nullkomma.lint.typos`    | Attributes matching typos' TOML config     |
+| rumdl    | `nullkomma.lint.markdown` | Markdownlint rule IDs and settings         |
+| yamllint | `nullkomma.lint.yaml`     | Attributes matching yamllint's YAML config |
+
+These options merge by key with plugin contributions; an ordinary assignment overrides
+a plugin's `lib.mkDefault` value, while unspecified defaults remain.
+For example, inside your `mkFlake` module:
+
+```nix
+nullkomma.lint = {
+  typos.default.extend-words.foobaar = "foobaar";
+  markdown.MD013 = false;
+  yaml.rules.quoted-strings.required = true;
+};
+```
+
+The YAML setting above retains `extends: relaxed` and the disabled line-length rule.
+But a native `.yamllint` would still replace this entire YAML configuration;
+a native Markdown config likewise replaces `nullkomma.lint.markdown`.
+For typos, Nix wins conflicting native settings.
+Avoid defining the same rule in both places.
+
+Both routes exist because Nix lets plugins compose policy without creating files in
+your repository, whereas native files also work with independently installed linters.
+Outside nullkomma's Nix-configured commands, those linters do not receive the Nix settings.
+
+**Tool switches and file selection.** For linters without rule config files, such as
+deadnix and nixf-diagnose, use the switches exposed by
+[treefmt-nix](https://github.com/numtide/treefmt-nix).
+Its `perSystem.treefmt.programs.<tool>` options vary by tool; they are not a universal
+replacement for the native files listed above.
+Treefmt exclusions work regardless of the tool:
 
 ```nix
 perSystem = { ... }: {
@@ -195,9 +238,13 @@ perSystem = { ... }: {
 };
 ```
 
-A committed `treefmt.toml` is ignored.
-Replacing a tool's `package` or typos' `configFile` drops the shared policy; typos' `isolated` ignores native files.
-Linter ignores affect that linter only; treefmt exclusions skip formatters too.
+The typos exclusion affects only typos; the global exclusion skips every treefmt
+formatter and linter (and is shared with jscpd).
+A committed `treefmt.toml` is not read: configure treefmt in Nix.
+
+Advanced overrides bypass the integration: replacing rumdl's or yamllint's `package`
+removes its shared-config wrapper; replacing typos' `configFile` replaces its Nix policy,
+and typos' `isolated` option disables native-file discovery.
 
 ### `checks.<system>.<name>`
 
