@@ -5,7 +5,13 @@
       "ref": "deps::.",
       "package": "nullkommashinyfixture-deps",
       "type": "deps",
-      "dep_types": ["Depends", "Imports", "LinkingTo", "Suggests", "Config/Needs/development"]
+      "dep_types": [
+        "Depends",
+        "Imports",
+        "LinkingTo",
+        "Suggests",
+        "Config/Needs/development"
+      ]
     },
     {
       "ref": "shiny",
@@ -20,6 +26,16 @@
     {
       "ref": "pkgload",
       "package": "pkgload",
+      "type": "standard"
+    },
+    {
+      "ref": "shinytest2",
+      "package": "shinytest2",
+      "type": "standard"
+    },
+    {
+      "ref": "chromote",
+      "package": "chromote",
       "type": "standard"
     }
   ]

@@ -29,6 +29,12 @@
                       default = [ ];
                       description = "Packages on `PATH` while the check runs.";
                     };
+                    sandboxArgs = lib.mkOption {
+                      type = lib.types.listOf lib.types.str;
+                      default = [ ];
+                      example = [ "--installed" ];
+                      description = "Arguments for the sandboxed run, e.g. to select a slower, stricter variant than the local default.";
+                    };
                     package = lib.mkOption {
                       type = lib.types.package;
                       readOnly = true;
@@ -52,7 +58,7 @@
                       patchShebangs --build src >/dev/null
                       export HOME="$PWD/home" XDG_CACHE_HOME="$PWD/cache" XDG_CONFIG_HOME="$PWD/config"
                       mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
-                      (cd src && ${lib.getExe config.package})
+                      (cd src && ${lib.getExe config.package} ${lib.escapeShellArgs config.sandboxArgs})
                       touch $out
                     ''
                   );

@@ -32,7 +32,7 @@
         testthat.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Run testthat against both the development source and an installed package.";
+          description = "Run testthat: on the pkgload-loaded source in the check task, on the installed package in nix flake check (or with `check r-testthat --installed`).";
         };
         pkgdown.enable = lib.mkOption {
           type = lib.types.bool;
@@ -150,17 +150,24 @@
               ''}
               RS
             '';
-            test = installed: {
+            testthat = {
               packages = [ pcfg.package ];
+              # pkgload is fast for development; the sandbox tests what users install.
+              sandboxArgs = [ "--installed" ];
               command = ''
                 ${cd}${document}
-                ${lib.optionalString installed ''
+                load=source
+                if [[ "''${1-}" == --installed ]]; then
+                  shift
+                  load=installed
                   scratch="$(mktemp -d)"
                   trap 'rm -rf "$scratch"' EXIT
                   export R_LIBS_USER="$scratch"
                   R CMD INSTALL --library="$R_LIBS_USER" .
-                ''}
-                Rscript --vanilla -e 'testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE${lib.optionalString installed ", load_package = \"installed\""})' "$@"
+                  # Like R CMD check: shinytest2 then runs apps from the installed package, not pkgload.
+                  export TESTTHAT_IS_CHECKING=true
+                fi
+                Rscript --vanilla -e 'testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = commandArgs(TRUE)[[1]])' "$load"
               '';
             };
           in
@@ -207,10 +214,7 @@
               })
             ];
             nullkomma.checks = lib.mkMerge [
-              (lib.mkIf cfg.testthat.enable {
-                r-testthat = test false;
-                r-testthat-installed = test true;
-              })
+              (lib.mkIf cfg.testthat.enable { r-testthat = testthat; })
               (lib.mkIf cfg.document.enable {
                 r-namespace = {
                   packages = [ pcfg.package ];

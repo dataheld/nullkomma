@@ -113,16 +113,13 @@
             })
             RS
             done
-            for runner in \
-              ${runCheck withProfile "r-testthat-installed"} \
-              ${runCheck withProfile "r-testthat"} \
-              ${runCheck withProfile "r-cmd-check"}; do
-              "$runner"
-            done
+            ${runCheck withProfile "r-testthat"} --installed
+            ${runCheck withProfile "r-testthat"}
+            ${runCheck withProfile "r-cmd-check"}
             # Keep NIX_BUILD_TOP for R CMD check: Nix's cc-wrapper needs it.
             unset NIX_BUILD_TOP
             rm .Renviron
-            ${runCheck withProfile "r-testthat-installed"}
+            ${runCheck withProfile "r-testthat"} --installed
             ${runCheck withProfile "r-testthat"}
             test ! -d .R/library
             touch $out

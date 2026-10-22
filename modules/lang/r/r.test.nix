@@ -270,7 +270,7 @@
             expect_true(startsWith(find.package("nullkommafixture"), Sys.getenv("R_LIBS_USER")))
           })
           RS
-          ${runCheck fixtures.r "r-testthat-installed"}
+          ${runCheck fixtures.r "r-testthat"} --installed
         '';
         r-rejects-drift = check "r-rejects-drift" ''
           cp NAMESPACE "$TMPDIR/NAMESPACE"
@@ -323,26 +323,6 @@
           ${runCheck nested "r-testthat"}
           ${runCheck nested "r-cmd-check"}
         '';
-      }
-      // lib.optionalAttrs pkgs.stdenv.isLinux {
-        r-shinytest2 =
-          let
-            flake = callFlakeWith { nullkomma.r.extraPackages = [ "shinytest2" ]; } fixture;
-          in
-          pkgs.runCommand "nullkomma-r-shinytest2"
-            { nativeBuildInputs = [ (perSystem flake).nullkomma.r.package ]; }
-            ''
-              export HOME="$TMPDIR/home" SHINY_FIXTURE=${root + "/tests/r-shiny"}
-              mkdir -p "$HOME"
-              Rscript --vanilla - <<'RS'
-              results <- testthat::test_file("${
-                root + "/tests/r-shiny/test-browser.R"
-              }", stop_on_failure = TRUE, stop_on_warning = TRUE)
-              results <- as.data.frame(results)
-              stopifnot(sum(results$passed) >= 3L, !any(results$skipped))
-              RS
-              touch $out
-            '';
       };
     };
 }
