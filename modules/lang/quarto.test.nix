@@ -25,6 +25,9 @@
           }
         ];
       } (root + "/tests/fixtures/quarto-branded");
+      themed = callFlakeWith {
+        nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
+      } (root + "/tests/fixtures/quarto-branded");
     in
     {
       nullkomma.nix.unit.tests.testQuartoGeneratesExtensionsAndPrivacyPage =
@@ -97,6 +100,10 @@
         quarto-branded-site =
           pkgs.runCommand "nullkomma-quarto-branded-site" { nativeBuildInputs = [ pkgs.python3 ]; }
             ''
+              grep -qi '#123456' ${themed.packages.${system}.site}/site_libs/bootstrap/*.css
+              cmp ${(perSystem themed).nullkomma.files."_brand".source}/assets/brand.svg ${
+                root + "/tests/fixtures/r-brand/assets/brand.svg"
+              }
               python - ${fixtures.quarto-branded.packages.${system}.site} ${
                 englishCloudflare.packages.${system}.site
               } <<'PY'

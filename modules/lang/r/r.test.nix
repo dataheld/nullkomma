@@ -301,6 +301,12 @@
           printf 'x <- any(is.na(y))\n' > R/lint.R
           format R/lint.R
           grep -qx 'x <- anyNA(y)' R/lint.R
+          printf '[lint]\nignore = ["any_is_na"]\n' > jarl.toml
+          rejects 'configure Jarl in' R/lint.R
+          rm jarl.toml
+          printf '[lint]\nignore = []\n' > R/.jarl.toml
+          rejects 'configure Jarl in' R/lint.R
+          rm R/.jarl.toml
           # `fnd` (funder) is an Authors@R role, not a typo.
           printf 'Config/nullkomma/test: fnd teh\n' >> DESCRIPTION
           format --formatters typos DESCRIPTION

@@ -7,6 +7,7 @@
         lib.mkIf config.nullkomma.typos.enable {
           treefmt.programs.typos = {
             enable = lib.mkDefault true;
+            isolated = true;
             configFile = lib.mkDefault (
               toString ((pkgs.formats.toml { }).generate "nullkomma-typos.toml" config.nullkomma.lint.typos)
             );

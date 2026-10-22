@@ -168,6 +168,7 @@
             nullkomma.tasks = lib.mkMerge [
               (lib.mkIf cfg.document.enable {
                 r-document = {
+                  skip = true;
                   description = "Generate R manuals and NAMESPACE with roxygen2";
                   packages = [
                     pcfg.package

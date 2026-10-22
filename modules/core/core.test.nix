@@ -312,7 +312,7 @@
                 missingLanguage = false;
               };
             };
-            testTasksAllSkipsMutatingTasks = {
+            testTasksAllHonorsSkip = {
               expr = lib.attrNames (
                 lib.filterAttrs (_: t: !(t.skip or false)) (perSystem fixtures.md).nullkomma.tasks
               );
@@ -335,13 +335,55 @@
           };
           checks = {
             neovim-config =
-              pkgs.runCommandLocal "nullkomma-neovim-config" { nativeBuildInputs = [ pkgs.neovim-unwrapped ]; }
+              pkgs.runCommandLocal "nullkomma-neovim-config"
+                {
+                  nativeBuildInputs = [
+                    pkgs.neovim-unwrapped
+                    (perSystem fixtures.md).treefmt.build.wrapper
+                  ];
+                }
                 ''
+                  ${harness.project md}
                   HOME=$TMPDIR nvim --clean -l ${pkgs.writeText "check.lua" ''
                     dofile("${(perSystem fixtures.md).nullkomma.files.".nvim.lua".source}")
                     assert(vim.lsp.config.nixd.cmd[1] == "nixd")
                     assert(vim.lsp.config.nixd.settings.nixd.formatting.command[1] == "treefmt")
                     assert(vim.lsp.is_enabled("nixd"))
+                    vim.cmd.edit(vim.fn.fnameescape(vim.fn.getcwd() .. "/a % space.nix"))
+                    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "{foo=1;}" })
+                    vim.cmd.Format()
+                    assert(vim.api.nvim_buf_get_lines(0, 0, -1, false)[1] == "{ foo = 1; }")
+                    assert(vim.fn.filereadable("a % space.nix") == 0)
+                    vim.api.nvim_set_current_buf(vim.api.nvim_create_buf(true, false))
+                    vim.cmd.file("format.md")
+                    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# Title", "", "* item" })
+                    vim.cmd.Format()
+                    assert(vim.api.nvim_buf_get_lines(0, 0, -1, false)[3] == "- item")
+                    local failure
+                    vim.notify = function(message, level)
+                      assert(level == vim.log.levels.ERROR)
+                      failure = message
+                    end
+                    vim.api.nvim_set_current_buf(vim.api.nvim_create_buf(true, false))
+                    vim.cmd.Format()
+                    assert(failure:find("Save the buffer", 1, true))
+                    failure = nil
+                    dofile("${
+                      (perSystem (
+                        callFlakeWith {
+                          perSystem.nullkomma.editor.formatter.command = lib.mkForce [
+                            "sh"
+                            "-c"
+                            "echo formatter-failed >&2; exit 1"
+                          ];
+                        } md
+                      )).nullkomma.files.".nvim.lua".source
+                    }")
+                    vim.cmd.file("broken.nix")
+                    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "{" })
+                    vim.cmd.Format()
+                    assert(failure:find("formatter-failed", 1, true))
+                    assert(vim.api.nvim_buf_get_lines(0, 0, -1, false)[1] == "{")
                   ''}
                   touch $out
                 '';

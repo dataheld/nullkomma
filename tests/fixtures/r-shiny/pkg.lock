@@ -1,0 +1,26 @@
+{
+  "lockfile_version": 1,
+  "packages": [
+    {
+      "ref": "deps::.",
+      "package": "nullkommashinyfixture-deps",
+      "type": "deps",
+      "dep_types": ["Depends", "Imports", "LinkingTo", "Suggests", "Config/Needs/development"]
+    },
+    {
+      "ref": "shiny",
+      "package": "shiny",
+      "type": "standard"
+    },
+    {
+      "ref": "testthat",
+      "package": "testthat",
+      "type": "standard"
+    },
+    {
+      "ref": "pkgload",
+      "package": "pkgload",
+      "type": "standard"
+    }
+  ]
+}

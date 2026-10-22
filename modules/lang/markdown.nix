@@ -6,26 +6,23 @@
         { pkgs, ... }:
         let
           rules = config.nullkomma.lint.markdown;
+          ruleConfig = (pkgs.formats.toml { }).generate "rumdl.toml" (
+            lib.filterAttrs (_: lib.isAttrs) rules
+            // {
+              global.disable = builtins.attrNames (lib.filterAttrs (_: v: v == false) rules);
+            }
+          );
         in
         lib.mkIf config.nullkomma.markdown.enable {
           treefmt.programs.rumdl-check = {
             enable = lib.mkDefault true;
             priority = 1;
-            # Shared rules are rumdl's user-level config, so a native config replaces them.
-            package = pkgs.writeShellScriptBin "rumdl" ''
-              XDG_CONFIG_HOME=${
-                pkgs.linkFarm "rumdl-config" {
-                  "rumdl/rumdl.toml" = (pkgs.formats.toml { }).generate "rumdl.toml" (
-                    lib.filterAttrs (_: lib.isAttrs) rules
-                    // {
-                      global.disable = builtins.attrNames (lib.filterAttrs (_: v: v == false) rules);
-                    }
-                  );
-                }
-              } exec ${lib.getExe pkgs.rumdl} "$@"
-            '';
           };
-          treefmt.settings.formatter.rumdl-check.options = [ "--no-cache" ];
+          treefmt.settings.formatter.rumdl-check.options = [
+            "--no-cache"
+            "--config"
+            (toString ruleConfig)
+          ];
           nullkomma.editor.languageServers.marksman = {
             package = pkgs.marksman;
             command = [

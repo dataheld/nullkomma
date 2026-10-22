@@ -10,9 +10,14 @@
         ;
       fixture = root + "/tests/fixtures/md";
       jscpd = runCheck (callFlakeWith { nullkomma.generatedPaths = [ "generated/**" ]; } fixture) "jscpd";
+      customized = runCheck (callFlakeWith {
+        nullkomma.generatedPaths = [ "generated/**" ];
+        nullkomma.lint.jscpd.ignore = [ "custom/**" ];
+      } fixture) "jscpd";
+      relaxed = runCheck (callFlakeWith { nullkomma.lint.jscpd.threshold = 100; } fixture) "jscpd";
     in
     {
-      checks.jscpd-native-config = pkgs.runCommand "jscpd-native-config" { } ''
+      checks.jscpd-nix-config = pkgs.runCommand "jscpd-nix-config" { } ''
         ${project fixture}
         mkdir generated custom
         cat > generated/one.R <<'R'
@@ -31,14 +36,19 @@
           cp generated/one.R "$copy"
         done
         fails threshold ${jscpd}
-        # Native ignores extend the generated paths.
-        printf '{"ignore":["custom/**"]}\n' > .jscpd.json
-        ${jscpd}
+        # Native configuration cannot relax the threshold.
+        printf '{"ignore":["**"],"threshold":100}\n' > .jscpd.json
+        fails threshold ${jscpd}
+        rm .jscpd.json
+        printf '{"jscpd":{"threshold":100,"ignore":["**"]}}\n' > package.json
+        mkdir .config
+        printf '{"threshold":100}\n' > .config/jscpd.json
+        fails threshold ${jscpd}
+        ${customized}
         cp custom/one.R one.R
         cp custom/one.R two.R
-        fails threshold ${jscpd}
-        printf '{"ignore":["custom/**"],"threshold":100}\n' > .jscpd.json
-        ${jscpd}
+        fails threshold ${customized}
+        ${relaxed}
         touch "$out"
       '';
     };

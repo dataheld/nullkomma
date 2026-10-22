@@ -54,6 +54,6 @@ Candidates for upstreaming instead of keeping here:
 
 Keep behavior patches as `patches/<tool>.patch`, applied through `overrideAttrs`
 `patches`; temporary fixes for upstream breakage may stay inline.
-Don't patch tools to merge shared and project configuration: pass shared policy
-through the tool's own layering (a base `--config`, a user-global config) and let
-native files behave as the tool documents.
+Linter configuration lives in Nix. Reuse treefmt-nix options, generate any required
+config files in the Nix store and pass them explicitly; disable native discovery.
+Don't patch tools to merge shared and project configuration.

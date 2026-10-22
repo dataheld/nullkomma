@@ -2,14 +2,21 @@
   plugins.gitleaks =
     { config, lib, ... }:
     {
+      config.nullkomma.lint.gitleaks.extend.useDefault = lib.mkIf config.nullkomma.gitleaks.enable (
+        lib.mkDefault true
+      );
       config.perSystem = lib.mkIf config.nullkomma.gitleaks.enable (
         { pkgs, ... }:
+        let
+          configFile = (pkgs.formats.toml { }).generate "gitleaks.toml" config.nullkomma.lint.gitleaks;
+          flags = "--config ${configFile} --gitleaks-ignore-path ${pkgs.writeText "gitleaksignore" ""}";
+        in
         {
           nullkomma.tasks.secret-history = {
             description = "Scan Git history for secrets";
             packages = [ pkgs.gitleaks ];
             skip = true;
-            command = "gitleaks git --no-banner --redact .";
+            command = "gitleaks git ${flags} --no-banner --redact .";
           };
           treefmt.settings.formatter.gitleaks = {
             command = lib.getExe (
@@ -17,11 +24,8 @@
                 name = "nullkomma-gitleaks";
                 runtimeInputs = [ pkgs.gitleaks ];
                 text = ''
-                  if [[ -f .gitleaks.toml && -z "''${GITLEAKS_CONFIG:-}" && -z "''${GITLEAKS_CONFIG_TOML:-}" ]]; then
-                    export GITLEAKS_CONFIG="$PWD/.gitleaks.toml"
-                  fi
                   for file in "$@"; do
-                    gitleaks dir --no-banner --no-color --redact --log-level=error "$file"
+                    gitleaks dir ${flags} --no-banner --no-color --redact --log-level=error "$file"
                   done
                 '';
               }

@@ -18,7 +18,7 @@
       } md;
     in
     {
-      checks.markdown-native-config = pkgs.runCommand "markdown-native-config" { } ''
+      checks.markdown-nix-config = pkgs.runCommand "markdown-nix-config" { } ''
         ${project md}
         ${treefmt withDefaults}
         printf '# Title\n\n<div>HTML is allowed.</div>\n\n' > allowed.md
@@ -27,13 +27,18 @@
         format allowed.md
         printf '# Title\n\n[broken]()\n' > 'literal[1].md'
         rejects MD042 'literal[1].md'
-        # A native config (`.rumdl.toml`, `.markdownlint.*`, …) replaces them, also in subdirectories.
+        # Native files cannot replace Nix policy, even in subdirectories.
         printf 'MD042: false\n' > .markdownlint.yml
-        rejects MD013 allowed.md
+        format allowed.md
+        rejects MD042 'literal[1].md'
         mkdir nested-config
         cp allowed.md nested-config/allowed.md
         printf 'MD013: false\nMD033: true\n' > nested-config/.markdownlint.yaml
-        rejects MD033 nested-config/allowed.md
+        format nested-config/allowed.md
+        printf '[global]\ndisable = ["MD042"]\n' > .rumdl.toml
+        printf '[global]\ndisable = ["MD013"]\n' > nested-config/.rumdl.toml
+        rejects MD042 'literal[1].md'
+        format nested-config/allowed.md
         touch "$out"
       '';
     };

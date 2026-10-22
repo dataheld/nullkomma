@@ -54,7 +54,7 @@ direnv allow
 
 The template adds `flake.nix` and an `.envrc` with `use flake`, keeping existing files;
 `write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
-From now on, entering the directory loads the [development shell](#devshellsdefault);
+From now on, entering the directory loads the [development shell](#devshells);
 the first time takes a while.
 
 The template's `nixpkgs.follows = "nullkomma/nixpkgs"` uses nullkomma's tested Nixpkgs.
@@ -77,7 +77,7 @@ For example:
 inputs.nullkomma.lib.mkFlake { inherit inputs; } {
   # All plugins and their settings: see "Plugins" below.
   nullkomma.quarto.enable = true; # opt in
-  nullkomma.github.enable = false; # opt out
+  nullkomma.neovim.enable = false; # opt out
   nullkomma.github.ci.inputs.visibility = "public"; # publish to FlakeHub
   perSystem =
     { pkgs, ... }:
@@ -93,36 +93,43 @@ Each plugin is one of nullkomma's `flakeModules.<name>`; each column is an outpu
 All plugins are optional; those marked under Default are enabled unless you opt out.
 Files and editor settings that plugins write into your repository are under [Plugin details](#plugin-details).
 
-| Plugin                                  | Default | `devShells`                              | `formatter`[^treefmt]                | `checks`                                                                        | `packages`       | `apps`[^apps]     | `taskRunners`                                      |
-| --------------------------------------- | ------- | ---------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------- | ---------------- | ----------------- | -------------------------------------------------- |
-| framework                               | always  | every task, `tasks` runner               | [treefmt]                            | `treefmt`                                                                       |                  |                   | `check`, `format`, `write-files`, `generate-files` |
-| [`nix`](#nix)                           | ✅      | [nixd]                                   | `nixfmt`, `deadnix`, `nixf-diagnose` | [nix-unit] [^nix-unit]                                                          |                  |                   | `update`, [`flake-checker`] [^flake-checker]       |
-| [`markdown`][md]                        | ✅      | [marksman]                               | `mdformat`, `rumdl`                  |                                                                                 |                  |                   |                                                    |
-| [`json`][json]                          | ✅      | [JSON language server][jsonls]           | `jsonfmt`                            |                                                                                 |                  |                   |                                                    |
-| [`yaml`][yaml]                          | ✅      | [yaml-language-server]                   | `yamlfmt`, `yamllint`, `actionlint`  |                                                                                 |                  |                   |                                                    |
-| [`toml`][toml]                          | ✅      |                                          | `toml-sort`                          |                                                                                 |                  |                   |                                                    |
-| [`shell`][bash]                         | ✅      | [bash-language-server]                   | `shfmt`, `shellcheck`                | [bats] [^bats]                                                                  |                  |                   |                                                    |
-| [`github`](#github)                     | ✅      |                                          |                                      |                                                                                 |                  |                   |                                                    |
-| [`keepSorted`][keep-sorted]             | ✅      |                                          | `keep-sorted`                        |                                                                                 |                  |                   |                                                    |
-| [`gitleaks`][gitleaks]                  | ✅      |                                          | `gitleaks`                           |                                                                                 |                  |                   | `secret-history`                                   |
-| [`typos`][typos]                        | ✅      |                                          | `typos`                              |                                                                                 |                  |                   |                                                    |
-| [`jscpd`][jscpd]                        | ✅      |                                          |                                      | `jscpd`                                                                         |                  |                   |                                                    |
-| [`git`](#git)                           | ✅      | `git`                                    |                                      |                                                                                 |                  |                   |                                                    |
-| [`direnv`](#direnv)                     | ✅      |                                          |                                      |                                                                                 |                  |                   |                                                    |
-| [`vscode`](#vscode-and-neovim)          | ✅      |                                          |                                      |                                                                                 |                  |                   |                                                    |
-| [`neovim`](#vscode-and-neovim)          | ✅      |                                          |                                      |                                                                                 |                  |                   |                                                    |
-| [`flakehub`][flakehub]                  | ✅      | [`fh`]                                   |                                      |                                                                                 |                  |                   |                                                    |
-| [`quarto`](#quarto)                     |         | `quarto`                                 |                                      |                                                                                 | `site`           |                   | `preview`                                          |
-| [`cloudflare`](#cloudflare)             |         | `wrangler`                               |                                      | `cloudflare` (OpenTofu validation)                                              |                  | `deploy`[^deploy] | `terraform`, `deploy`                              |
-| [`r`](#r)                               |         | R with languageserver, `pkgload` and pak | `air`, `jarl`                        | `r-testthat`, `r-testthat-installed`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`          | `r-document`, `r-pkgdown`, `r-coverage`, `r-lock`  |
-| [`r-non-nix`](#r-non-nix) (enables `r`) |         |                                          |                                      |                                                                                 |                  |                   |                                                    |
+| Plugin                                  | Default | `devShells`                              | `formatter`[^treefmt]                | `checks`                                                                        | `packages`       | `apps`[^apps]              | `taskRunners`                                                          |
+| --------------------------------------- | ------- | ---------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------- | ---------------- | -------------------------- | ---------------------------------------------------------------------- |
+| framework                               | always  | every task, `tasks` runner               | [treefmt]                            | `treefmt`                                                                       |                  |                            | `check` (when checks exist), `format`, `write-files`, `generate-files` |
+| [`nix`](#nix)                           | ✅      | [nixd]                                   | `nixfmt`, `deadnix`, `nixf-diagnose` | [nix-unit] [^nix-unit]                                                          |                  |                            | `update`, [`flake-checker`] [^flake-checker]                           |
+| [`markdown`][md]                        | ✅      | [marksman]                               | `mdformat`, `rumdl`                  |                                                                                 |                  |                            |                                                                        |
+| [`json`][json]                          | ✅      | [JSON language server][jsonls]           | `jsonfmt`                            |                                                                                 |                  |                            |                                                                        |
+| [`yaml`][yaml]                          | ✅      | [yaml-language-server]                   | `yamlfmt`, `yamllint`, `actionlint`  |                                                                                 |                  |                            |                                                                        |
+| [`toml`][toml]                          | ✅      |                                          | `toml-sort`                          |                                                                                 |                  |                            |                                                                        |
+| [`shell`][bash]                         | ✅      | [bash-language-server]                   | `shfmt`, `shellcheck`                | [bats] [^bats]                                                                  |                  |                            |                                                                        |
+| [`github`](#github)                     | ✅      |                                          |                                      |                                                                                 |                  |                            |                                                                        |
+| [`keepSorted`][keep-sorted]             | ✅      |                                          | `keep-sorted`                        |                                                                                 |                  |                            |                                                                        |
+| [`gitleaks`][gitleaks]                  | ✅      |                                          | `gitleaks`                           |                                                                                 |                  |                            | `secret-history`                                                       |
+| [`typos`][typos]                        | ✅      |                                          | `typos`                              |                                                                                 |                  |                            |                                                                        |
+| [`jscpd`][jscpd]                        | ✅      |                                          |                                      | `jscpd`                                                                         |                  |                            |                                                                        |
+| [`git`](#git)                           | ✅      | `git`                                    |                                      |                                                                                 |                  |                            |                                                                        |
+| [`direnv`](#direnv)                     | ✅      |                                          |                                      |                                                                                 |                  |                            |                                                                        |
+| [`vscode`](#vscode-and-neovim)          | ✅      |                                          |                                      |                                                                                 |                  |                            |                                                                        |
+| [`neovim`](#vscode-and-neovim)          | ✅      |                                          |                                      |                                                                                 |                  |                            |                                                                        |
+| [`flakehub`][flakehub]                  | ✅      | [`fh`]                                   |                                      |                                                                                 |                  |                            |                                                                        |
+| [`quarto`](#quarto)                     |         | `quarto`                                 |                                      |                                                                                 | `site`           |                            | `preview`                                                              |
+| [`cloudflare`](#cloudflare)             |         | `wrangler`                               |                                      | `cloudflare` (OpenTofu validation)                                              |                  | `deploy`[^deploy]          | `terraform`, `deploy`                                                  |
+| [`r`](#r)                               |         | R with languageserver, `pkgload` and pak | `air`, `jarl`                        | `r-testthat`, `r-testthat-installed`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `r-document`, `r-pkgdown`, `r-coverage`, `r-lock`                      |
+| [`r-non-nix`](#r-non-nix) (enables `r`) |         |                                          |                                      |                                                                                 |                  |                            |                                                                        |
 
 ## Your flake outputs
 
 These are the outputs of your project's flake, not of nullkomma itself.
 A `schemas` output describes them to [Determinate Nix](https://docs.determinate.systems)'s `nix flake show`.
 
-### `devShells.default`
+The headings below omit the system name: `perSystem` handles it in your configuration,
+and commands such as `nix build .#site` select the current system automatically.
+The raw outputs still contain it: e.g. `packages.<system>.site` and `checks.<system>.<name>`.
+Nix-unit uses its own `tests.systems.<system>` convention instead.
+
+### `devShells`
+
+#### `default`
 
 Use: direnv, `nix develop`.
 
@@ -133,12 +140,12 @@ The development shell holds:
 - language servers and the formatter for [editors](#vscode-and-neovim);
 - the plugins' and your `perSystem.nullkomma.devShell.packages`.
 
-### `formatter` and `checks.<system>.treefmt`
+### `formatter`
 
 Use: `format`, `nix fmt`, `nix flake check`.
 
 `format` (or `nix fmt`) runs [treefmt] with every enabled plugin's formatters and linters;
-`nix flake check` checks the same as `checks.<system>.treefmt`.
+`nix flake check` checks the same through [`checks.treefmt`](#treefmt).
 Editors format with treefmt too (VS Code: [treefmt][vscode-treefmt]).
 
 Generated files aren't formatted or linted: managed files and directories,
@@ -147,106 +154,67 @@ Add other generated content to `nullkomma.generatedPaths` as treefmt globs, e.g.
 
 #### Customizing linting
 
-**Choose one place for a rule:** use the linter's own config file if it must also work
-outside Nix (e.g. in a collaborator's editor). Use Nix if you want to keep settings in
-`flake.nix` and retain nullkomma's shared defaults without copying them.
-Neither route is required: without project settings, the plugin defaults apply.
+**Configure linters in Nix, not in separate config files.**
+Plugins and your project contribute settings through the module system.
+An ordinary assignment overrides a plugin's `lib.mkDefault` value; unspecified defaults
+remain, and lists concatenate (use `lib.mkForce` to replace a list).
+Nix generates any required tool config files in the Nix store, not your repository.
 
-`nix fmt`, the `format` task, nullkomma's editor formatter and the CI treefmt check
-all use the same configured tools. Nix generates treefmt's configuration and supplies
-any shared linter settings; the linters themselves discover your native config files.
-nullkomma does not write or merge those files.
+`nix fmt`, the `format` task, nullkomma's editor formatter and CI use the same configuration.
+Native linter config files are ignored; Jarl reports an error instead because its pinned
+version cannot disable config discovery.
+Source-code suppression comments, such as `# shellcheck disable=SC2086`, still work.
 
-**Native config files.** Commit these alongside your code. The interaction with
-Nix-provided settings depends on the tool; adding a file does **not** always mean
-adding to the defaults:
+| Linter        | Nix configuration                                   | Settings to use                                                                                   |
+| ------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| yamllint      | `perSystem.treefmt.programs.yamllint.settings`      | Attributes matching yamllint's YAML config                                                        |
+| typos         | `nullkomma.lint.typos`                              | Attributes matching typos' TOML config                                                            |
+| rumdl         | `nullkomma.lint.markdown`                           | Markdownlint rule IDs: `MD013 = false;` or rule settings                                          |
+| actionlint    | `nullkomma.lint.actionlint`                         | Attributes matching actionlint's YAML config                                                      |
+| gitleaks      | `nullkomma.lint.gitleaks`                           | Attributes matching its TOML config; upstream rules are retained by default                       |
+| jscpd         | `nullkomma.lint.jscpd`                              | Attributes matching its JSON config; threshold defaults to zero, ignores extend shared exclusions |
+| ShellCheck    | `perSystem.treefmt.programs.shellcheck`             | treefmt-nix options, e.g. `severity` and `extra-checks`                                           |
+| deadnix       | `perSystem.treefmt.programs.deadnix`                | treefmt-nix switches, e.g. `no-lambda-arg`                                                        |
+| nixf-diagnose | `perSystem.treefmt.programs.nixf-diagnose`          | treefmt-nix options, e.g. `ignore`                                                                |
+| Jarl          | `perSystem.treefmt.settings.formatter.jarl.options` | CLI arguments, e.g. `[ "--ignore=any_is_na" ]`; file-only settings are not supported              |
 
-| Linter     | Where to put project settings                                                                                                      | What happens to nullkomma's settings                                                                                                                                |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| typos      | `.typos.toml`, `typos.toml`, `_typos.toml`, or `[tool.typos]` in `pyproject.toml`                                                  | Both apply. Native files can add spellings, file types and `files.extend-exclude`; explicit Nix settings win conflicting keys.                                      |
-| rumdl      | `.rumdl.toml`, `rumdl.toml`, `.config/rumdl.toml`, `[tool.rumdl]` in `pyproject.toml`, or markdownlint's `.markdownlint{,-cli2}.*` | The project config replaces the shared rules, including R's allowance for HTML and long lines. Restate any you want to keep.                                        |
-| yamllint   | `.yamllint`, `.yamllint.yaml`, `.yamllint.yml`                                                                                     | The project config replaces `extends: relaxed` and the disabled line-length rule, plus any Nix additions. Restate any you want to keep.                             |
-| Jarl       | `jarl.toml`                                                                                                                        | No shared rule settings to merge; the file configures Jarl directly.                                                                                                |
-| ShellCheck | `.shellcheckrc` and source directives                                                                                              | No shared rule settings to merge.                                                                                                                                   |
-| actionlint | `.github/actionlint.yaml` or `.github/actionlint.yml`                                                                              | No shared rule settings to merge.                                                                                                                                   |
-| gitleaks   | `.gitleaks.toml`, `.gitleaksignore`                                                                                                | No nullkomma rule settings to merge. A custom rules file replaces upstream detection rules unless it includes `[extend]` with `useDefault = true`.                  |
-| jscpd      | `.jscpd.json`, `.config/jscpd.json`, or the `jscpd` key in `package.json`                                                          | Project settings win, including `threshold` (default 0 percent). Project `ignore` globs are added to nullkomma's exclusions. Runs as a separate check, not treefmt. |
-
-For example, `.typos.toml` adds an accepted spelling and a linter-only exclusion
-without dropping nullkomma's R-specific spellings:
-
-```toml
-[default.extend-words]
-foobaar = "foobaar"
-
-[files]
-extend-exclude = ["vendor/**"]
-```
-
-By contrast, to require quoted YAML strings **and** keep nullkomma's YAML defaults,
-your `.yamllint` must include all three settings:
-
-```yaml
-extends: relaxed
-rules:
-  line-length: disable
-  quoted-strings: {required: true}
-```
-
-**Settings in Nix.** nullkomma exposes rule configuration for three linters:
-
-| Linter   | Top-level option          | Setting format                             |
-| -------- | ------------------------- | ------------------------------------------ |
-| typos    | `nullkomma.lint.typos`    | Attributes matching typos' TOML config     |
-| rumdl    | `nullkomma.lint.markdown` | Markdownlint rule IDs and settings         |
-| yamllint | `nullkomma.lint.yaml`     | Attributes matching yamllint's YAML config |
-
-These options merge by key with plugin contributions; an ordinary assignment overrides
-a plugin's `lib.mkDefault` value, while unspecified defaults remain.
 For example, inside your `mkFlake` module:
 
 ```nix
 nullkomma.lint = {
   typos.default.extend-words.foobaar = "foobaar";
   markdown.MD013 = false;
-  yaml.rules.quoted-strings.required = true;
+  jscpd.threshold = 5;
 };
-```
 
-The YAML setting above retains `extends: relaxed` and the disabled line-length rule.
-But a native `.yamllint` would still replace this entire YAML configuration;
-a native Markdown config likewise replaces `nullkomma.lint.markdown`.
-For typos, Nix wins conflicting native settings.
-Avoid defining the same rule in both places.
-
-Both routes exist because Nix lets plugins compose policy without creating files in
-your repository, whereas native files also work with independently installed linters.
-Outside nullkomma's Nix-configured commands, those linters do not receive the Nix settings.
-
-**Tool switches and file selection.** For linters without rule config files, such as
-deadnix and nixf-diagnose, use the switches exposed by
-[treefmt-nix](https://github.com/numtide/treefmt-nix).
-Its `perSystem.treefmt.programs.<tool>` options vary by tool; they are not a universal
-replacement for the native files listed above.
-Treefmt exclusions work regardless of the tool:
-
-```nix
 perSystem = { ... }: {
+  treefmt.programs.yamllint.settings.rules.quoted-strings.required = true;
   treefmt.programs.deadnix.no-lambda-arg = true;
   treefmt.settings.formatter.typos.excludes = [ "snapshots/**" ];
   treefmt.settings.excludes = [ "vendor/**" ];
 };
 ```
 
-The typos exclusion affects only typos; the global exclusion skips every treefmt
-formatter and linter (and is shared with jscpd).
-A committed `treefmt.toml` is not read: configure treefmt in Nix.
+This adds a spelling, disables the Markdown line-length rule, permits five percent
+duplication and requires quoted YAML strings. YAML's other defaults (`extends: relaxed`
+and disabled line-length) remain; so do R-specific spellings when `r` is enabled.
+The typos exclusion affects only typos; the global exclusion skips every treefmt tool
+and is shared with jscpd.
 
-Advanced overrides bypass the integration: replacing rumdl's or yamllint's `package`
-removes its shared-config wrapper; replacing typos' `configFile` replaces its Nix policy,
-and typos' `isolated` option disables native-file discovery.
+Use [treefmt-nix's options](https://flake.parts/options/treefmt-nix.html) for other tool
+switches and file selection. A committed `treefmt.toml` is not read.
+When migrating, move your linter settings into the options above and remove the old
+config files, including `[tool.typos]` or `[tool.rumdl]` sections in `pyproject.toml`.
 
-### `checks.<system>.<name>`
+### `checks`
+
+#### `treefmt`
+
+Use: `nix flake check`.
+
+Runs the [formatter](#formatter) and fails on formatting changes or lint errors.
+
+#### `<name>`
 
 Use: `check [<name>] [args]`, `nix flake check`.
 
@@ -263,22 +231,24 @@ perSystem = { pkgs, ... }: {
 };
 ```
 
-### `tests.systems.<system>`
+### `tests`
 
 Use: `check nix-unit`.
 
 Only for Nix code: with the `nix` plugin, the [nix-unit] tests in `perSystem.nullkomma.nix.unit.tests`.
 `tests` is nix-unit's own output convention, not a standard flake output; it holds test data, which the `nix-unit` check above runs.
-Other suites, e.g. testthat, are only `checks.<system>.<name>`.
+Other suites, e.g. testthat, are only `checks`.
 
-### `packages.site`
+### `packages`
+
+#### `site`
 
 Use: `nix build .#site`.
 
 [`quarto`](#quarto) or the [`r` plugin's pkgdown](#pkgdown-website) builds `packages.site`;
 if both are enabled, set `perSystem.packages.site` yourself.
 
-#### Brand
+##### Brand
 
 To theme sites from a brand flake, declare its input and select it:
 
@@ -293,9 +263,11 @@ nullkomma.brand = inputs.brand;
 
 The brand provides `lib.brand` (a [brand.yml](https://posit-dev.github.io/brand-yml/) file),
 optionally `lib.footer` (HTML) and `flakeModules.privacy`.
-Its privacy sections join every site's privacy policy; pkgdown also applies its theme and footer.
+Its privacy sections join every site's privacy policy.
+Quarto uses its native brand installer to generate `_brand/` with the theme and its assets;
+pkgdown applies the theme and footer.
 
-#### Privacy policy
+##### Privacy policy
 
 Plugins that process visitors' data add a section to `nullkomma.privacy.sections`
 (`cloudflare` adds hosting and analytics); so can a brand or your project:
@@ -315,14 +287,30 @@ one tab per `nullkomma.privacy.languages`; pkgdown renders them to `/privacy.htm
 Link the page from your footer, or set it to `null` to write your own.
 The sections are a starting point, not legal advice.
 
-### `apps.deploy` and `apps.r-lock`
+### `apps`
 
-Use: `nix run .#deploy`, `nix run .#r-lock`.
+#### `deploy`
 
-- With [`cloudflare`](#cloudflare), `deploy` publishes `packages.site`.
-- With the `r` plugin, `r-lock` writes the [`pkg.lock`](#dependencies) the development shell needs.
+Use: `nix run .#deploy`.
 
-### `taskRunners.<system>`
+With [`cloudflare`](#cloudflare), publishes `packages.site`.
+
+#### `r-lock`
+
+Use: `nix run .#r-lock`.
+
+With the `r` plugin, writes the [`pkg.lock`](#dependencies) the development shell needs.
+
+#### `shiny`
+
+Use: `nix run .#shiny`.
+
+With `nullkomma.r.shiny.enable = true`, serves the project's [Shiny app](#shiny-app)
+at `http://127.0.0.1:3838` using the pinned R environment.
+
+### `taskRunners`
+
+#### `default`
 
 Use: `tasks`.
 
@@ -331,8 +319,11 @@ Use: `tasks`.
 ```sh
 tasks          # list tasks
 tasks check    # run one task
-tasks all      # run all tasks that don't change files
+tasks all      # run all tasks not marked skip
 ```
+
+Tasks can change files: R checks regenerate documentation and `NAMESPACE`.
+Set `skip = true` on custom tasks that should not run as part of `tasks all`.
 
 ## Files in your repository
 
@@ -340,11 +331,11 @@ nullkomma keeps files in your repository to a minimum; features live in Nix.
 Some tools still need real files (Git needs `.gitignore`, GitHub needs workflows,
 editors need settings). Each is one of two kinds:
 
-|                             | **Source of truth** (committed, yours to edit) | **Generated from Nix** (Git-ignored, don't edit) |
-| --------------------------- | ---------------------------------------------- | ------------------------------------------------ |
-| `nix flake init --template` | `flake.nix`, `.envrc`                          | (not possible)                                   |
-| `write-files`               | `.gitignore`, GitHub workflows                 |                                                  |
-| `generate-files`            |                                                | `.vscode/*.json`, `.nvim.lua`, Quarto extensions |
+|                             | **Source of truth** (committed, yours to edit) | **Generated from Nix** (Git-ignored, don't edit)           |
+| --------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
+| `nix flake init --template` | `flake.nix`, `.envrc`                          | (not possible)                                             |
+| `write-files`               | `.gitignore`, GitHub workflows                 |                                                            |
+| `generate-files`            |                                                | `.vscode/*.json`, `.nvim.lua`, Quarto brand and extensions |
 
 Templates can't take parameters, so anything that depends on your configuration
 comes from `write-files` or `generate-files`.
@@ -354,8 +345,8 @@ comes from `write-files` or `generate-files`.
 `write-files` writes these once (`nullkomma.files."<path>".mode = "source"`, the default);
 then they are yours to edit and commit.
 When nullkomma later changes a file, `write-files` updates it only if you haven't edited it.
-Otherwise it keeps your version, saves the new one next to it and fails,
-pointing you to the [resolve-file-conflicts skill](#resolving-conflicts).
+Otherwise it keeps your version, saves an incoming copy in Git's metadata directory and fails,
+printing the copy's path and pointing you to the [resolve-file-conflicts skill](#resolving-conflicts).
 After resolving, `write-files --accept <path>` marks the file as up to date.
 
 A file can instead hold marked `sections` inside your own text (e.g. R's `.Rbuildignore` rules):
@@ -383,13 +374,13 @@ and update it with `/plugin update nullkomma`; neither writes to your project.
 
 What plugins write into your repository ([source-of-truth or generated](#files-in-your-repository))
 and how to configure them, where the table doesn't say it all.
-Linters' native config files are under [Customizing linting](#customizing-linting).
+Linter settings are under [Customizing linting](#customizing-linting).
 
 ### `nix`
 
 Ignores `result` in `.gitignore`.
 Unit tests for your flake's Nix code go in `perSystem.nullkomma.nix.unit.tests`;
-see [`tests.systems.<system>`](#testssystemssystem).
+see [`tests`](#tests).
 
 ### `github`
 
@@ -418,6 +409,7 @@ Recommended VS Code extensions: [treefmt][vscode-treefmt] (always), [Nix IDE] (`
 [YAML][vscode-yaml] (`yaml`), [Bash IDE] and [Bats][vscode-bats] (`shell`),
 [Nix Environment Selector] (`direnv`), [Quarto][vscode-quarto] (`quarto`), R and Air (`r`).
 Neovim reads `.nvim.lua` only with `:set exrc`.
+Its `:Format` command formats the current buffer through treefmt.
 
 Installing editors and extensions, themes and keybindings belong to your user environment,
 e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
@@ -427,7 +419,8 @@ e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
 Opt-in `quarto` renders the project into `packages.site`; `preview` serves it locally and reloads on edits.
 It ignores `.quarto/` and `_site/`.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`,
-generated into `_extensions/<name>`; the [privacy policy](#privacy-policy) is generated into `privacy.qmd`.
+generated into `_extensions/<name>`; a selected [brand](#brand) themes rendering and preview.
+The [privacy policy](#privacy-policy) is generated into `privacy.qmd`.
 
 ### `cloudflare`
 
@@ -476,8 +469,9 @@ git add DESCRIPTION pkg.lock
 
 Nix takes package names from `pkg.lock`, but versions and builds from the `nixpkgs-r` input
 (which follows Nixpkgs; override `inputs.nullkomma.inputs.nixpkgs-r` for newer R).
-Outside Nix, `r-lock` and [`r-non-nix`](#r-non-nix) install from the [PPM] snapshot
-of the same date (`nullkomma.r.snapshot`), so every environment gets packages that were on CRAN together.
+`r-lock` resolves against the [PPM] snapshot of the same date (`nullkomma.r.snapshot`);
+it writes the lockfile, not an installed library, and requires Nix.
+Outside Nix, [`r-non-nix`](#r-non-nix) installs from that PPM snapshot.
 
 `Depends`, `Imports`, `LinkingTo`, `Suggests` and all `Config/Needs/*` fields are locked,
 e.g. `Config/Needs/development: devtools`; override `nullkomma.r.fields` for a runtime-only lockfile.
@@ -539,9 +533,40 @@ also in `nix flake check`; `r-pkgdown` builds it locally.
 - The [privacy policy](#privacy-policy) is generated into Git-ignored `.github/privacy.md`, which pkgdown renders to `/privacy.html`;
   set `nullkomma.r.pkgdown.privacy.page = null` to write your own.
 
+#### Shiny app
+
+Export a zero-argument function from your R package that returns a `shiny.appobj`,
+and enable its launcher:
+
+```nix
+nullkomma.r.shiny = {
+  enable = true;
+  function = "app"; # default: yourpackage::app()
+};
+```
+
+For example, an exported `app()` can return
+`shiny::shinyApp(ui = ui, server = server)`. Declare `shiny` in `DESCRIPTION` and
+refresh `pkg.lock` as for other package dependencies.
+
+`nix run .#shiny` installs your package from the flake's source (generating roxygen
+documentation first when enabled), calls its exported function and serves the returned app.
+It works outside the development shell and does not open a browser.
+There is no `app.R` directory interface and no `pkgload` at runtime.
+The runtime contains R, Shiny and the package's transitive `Depends`/`Imports` dependencies,
+not `Suggests`, `Config/Needs/*`, `extraPackages` or nullkomma's development helpers
+(unless they are themselves runtime dependencies).
+Put bundled assets in `inst/` and locate them with `system.file()`; write runtime
+data to a writable location, not the installed package.
+Add new source files to Git before running the flake.
+
+`nullkomma.r.shiny.host` and `.port` change the listening address and port.
+The default host is localhost; `"0.0.0.0"` exposes the server to other machines.
+Shiny is only added when this feature is enabled; hosting and authentication are not included.
+
 #### Formatting and tools
 
-[Air] formats R and [Jarl] lints and fixes it first, configured by `jarl.toml`
+[Air] formats R and [Jarl] lints and fixes it first, configured through [Nix](#customizing-linting)
 (disable with `nullkomma.r.jarl.enable = false`).
 R projects allow HTML and long lines in Markdown (`MD033`, `MD013`),
 keep typos from "correcting" the author role `fnd` in `DESCRIPTION`,
@@ -616,9 +641,10 @@ nullkomma is tested against small example projects ("fixtures") in
   dev-only partition inputs, which root input overrides cannot replace.
 - **Docs test:** `options-doc` renders every option the way
   [flake.parts](https://flake.parts) would, so each needs a description.
-- **Build tests** run the real tools on the fixtures inside `nix flake check`:
-  valid files must pass, and for every formatter/linter plugin a deliberately
-  bad file (listed in `rejects`) must fail with that tool's error.
+- **Build tests** run the real tools on the fixtures inside `nix flake check`.
+  Valid fixtures must pass; Nix and Markdown also have deliberately bad files
+  listed in `rejects` that must fail. Co-located tool tests cover additional
+  lint failures and configuration behavior, not a universal rejection matrix.
 - **End-to-end test:** `check-fixtures` copies a fixture to a temporary
   directory and runs `nix flake check` there (with valid and bad files), exactly
   as a user would, against this checkout of nullkomma. The other tests evaluate fixtures from within

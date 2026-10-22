@@ -14,17 +14,27 @@
       options.nullkomma.lint.markdown = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = { };
-        description = "Shared Markdown lint rules in markdownlint style (`MD013 = false;` or rule settings), used as rumdl's user-level config: a native .rumdl.toml or .markdownlint.* replaces them.";
+        description = "Markdown lint rules in markdownlint style (`MD013 = false;` or rule settings), passed explicitly to rumdl. Configure here, not in native config files.";
       };
       options.nullkomma.lint.typos = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = { };
-        description = "Shared typos TOML settings, merged with discovered native configuration. Explicit shared settings take precedence, as with typos --config; projects can override these Nix defaults.";
+        description = "Typos TOML settings. Passed explicitly with native config discovery disabled.";
       };
-      options.nullkomma.lint.yaml = lib.mkOption {
+      options.nullkomma.lint.actionlint = lib.mkOption {
         type = lib.types.attrsOf lib.types.anything;
         default = { };
-        description = "Shared yamllint defaults, used as yamllint's user-global config: a native .yamllint replaces them.";
+        description = "Actionlint YAML settings, passed explicitly instead of discovering .github/actionlint.yaml.";
+      };
+      options.nullkomma.lint.gitleaks = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = { };
+        description = "Gitleaks TOML settings for both working-tree and history scans. Plugin defaults retain upstream rules.";
+      };
+      options.nullkomma.lint.jscpd = lib.mkOption {
+        type = lib.types.attrsOf lib.types.anything;
+        default = { };
+        description = "Jscpd JSON settings. Ignore globs extend treefmt's shared exclusions; the default threshold is zero percent.";
       };
       config.perSystem =
         let

@@ -7,7 +7,15 @@
       ...
     }:
     let
-      inherit (harness) fixtures perSystem;
+      inherit (harness)
+        fixtures
+        perSystem
+        callFlakeWith
+        root
+        ;
+      customized = callFlakeWith {
+        nullkomma.lint.gitleaks.allowlists = [ { paths = [ "^allowed[.]txt$" ]; } ];
+      } (root + "/tests/fixtures/md");
     in
     {
       checks.gitleaks = pkgs.runCommand "gitleaks-treefmt" { } ''
@@ -27,14 +35,21 @@
         [[allowlists]]
         paths = ["^allowed[.]txt$"]
         TOML
-        "$scan" allowed.txt
+        ${(perSystem customized).treefmt.settings.formatter.gitleaks.command} allowed.txt
+        if "$scan" allowed.txt > scan.log 2>&1; then
+          echo 'Native configuration bypassed Nix policy' >&2
+          exit 1
+        fi
         if "$scan" secret.txt > scan.log 2>&1; then
-          echo 'Native allowlist disabled unrelated default rules' >&2
+          echo 'Default rules were disabled' >&2
           exit 1
         fi
         rm .gitleaks.toml
         printf 'secret.txt:github-pat:1\n' > .gitleaksignore
-        "$scan" secret.txt
+        if "$scan" secret.txt > scan.log 2>&1; then
+          echo 'Native ignore file bypassed Nix policy' >&2
+          exit 1
+        fi
         # Generated site output is excluded.
         mkdir docs
         cp secret.txt docs/generated.md

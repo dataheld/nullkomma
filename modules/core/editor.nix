@@ -129,6 +129,35 @@
                 vim.lsp.config(name, server)
                 vim.lsp.enable(name)
               end
+            ''
+            + lib.optionalString (config.nullkomma.editor.formatter != null) ''
+              vim.api.nvim_create_user_command("Format", function()
+                local file = vim.api.nvim_buf_get_name(0)
+                if file == "" then
+                  vim.notify("Save the buffer before formatting", vim.log.levels.ERROR)
+                  return
+                end
+                local command = vim.json.decode([==[${builtins.toJSON config.nullkomma.editor.formatter.command}]==])
+                for i, arg in ipairs(command) do
+                  command[i] = arg:gsub("{file}", function() return file end)
+                end
+                local input = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+                  .. (vim.bo.endofline and "\n" or "")
+                local result = vim.system(command, {
+                  stdin = input, text = true, cwd = vim.fs.dirname(file),
+                }):wait()
+                if result.code ~= 0 then
+                  vim.notify(result.stderr, vim.log.levels.ERROR)
+                  return
+                end
+                local view = vim.fn.winsaveview()
+                local lines = vim.split(result.stdout, "\n", { plain = true })
+                local endofline = lines[#lines] == ""
+                if endofline then table.remove(lines) end
+                vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+                vim.bo.endofline = endofline
+                vim.fn.winrestview(view)
+              end, { desc = "Format this buffer with the project's formatter" })
             '';
           };
         };

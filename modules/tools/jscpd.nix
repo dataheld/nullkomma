@@ -3,6 +3,7 @@
     { config, lib, ... }:
     let
       enabled = config.nullkomma.jscpd.enable;
+      settings = config.nullkomma.lint.jscpd;
     in
     {
       config.perSystem =
@@ -55,21 +56,20 @@
           in
           {
             nullkomma.checks.jscpd = {
-              packages = [
-                jscpd
-                pkgs.jq
-              ];
-              # jscpd's `--ignore` replaces configured ignores, so pass them along with ours.
-              # shortcut: jscpd splits `--ignore` at commas, so brace globs like `{a,b}` don't work; write a
-              # merged config file instead if someone needs them.
+              packages = [ jscpd ];
               command = ''
                 export JSCPD_NO_TIPS=1
-                resolved=$(jscpd --debug "$@")
-                mapfile -t defaults < <(jq -r --argjson shared ${lib.escapeShellArg (builtins.toJSON config.treefmt.settings.excludes)} '
-                  if .threshold == null then "--threshold=0" else empty end,
-                  ($shared + .ignore | .[] | select(. != "") | "--ignore=\(.)")
-                ' <<<"$resolved")
-                exec jscpd "''${defaults[@]}" "$@"
+                exec jscpd --config ${
+                  (pkgs.formats.json { }).generate "jscpd.json" (
+                    {
+                      threshold = 0;
+                    }
+                    // settings
+                    // {
+                      ignore = config.treefmt.settings.excludes ++ (settings.ignore or [ ]);
+                    }
+                  )
+                } "$@"
               '';
             };
           }

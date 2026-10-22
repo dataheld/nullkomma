@@ -9,7 +9,7 @@
     }:
     let
       cfg = config.nullkomma.quarto;
-      inherit (config.nullkomma) privacy;
+      inherit (config.nullkomma) brand privacy;
       prefix =
         let
           root = toString cfg.root;
@@ -99,6 +99,9 @@
           { config, pkgs, ... }:
           let
             quarto = config.nullkomma.quarto.package;
+            brandExtension = (pkgs.formats.yaml { }).generate "_extension.yml" {
+              contributes.metadata.project.brand = "origin/${baseNameOf brand.lib.brand}";
+            };
           in
           {
             nullkomma.devShell.packages = [ quarto ];
@@ -126,6 +129,21 @@
                   inherit source;
                 }
               ) cfg.extensions
+              // lib.optionalAttrs (brand != null) {
+                "${prefix}_brand" = {
+                  mode = "generated";
+                  directory = true;
+                  source = pkgs.runCommand "quarto-brand" { nativeBuildInputs = [ quarto ]; } ''
+                    export HOME="$TMPDIR"
+                    mkdir source
+                    cp ${brandExtension} source/_extension.yml
+                    ln -s ${lib.escapeShellArg "${dirOf brand.lib.brand}"} source/origin
+                    quarto use brand ./source --force
+                    test -f _brand/_brand.yml
+                    mv _brand "$out"
+                  '';
+                };
+              }
               // lib.optionalAttrs (cfg.privacy.page != null && privacy.policy != { }) {
                 "${prefix}${cfg.privacy.page}" = {
                   mode = "generated";

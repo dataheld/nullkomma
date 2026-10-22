@@ -62,9 +62,13 @@
                 shellcheck.enable = lib.mkDefault true;
                 shfmt.enable = lib.mkDefault true;
               };
-              treefmt.settings.formatter = lib.genAttrs [ "shellcheck" "shfmt" ] (_: {
-                includes = [ "*.bats" ];
-              });
+              treefmt.settings.formatter = {
+                shellcheck = {
+                  includes = [ "*.bats" ];
+                  options = [ "--norc" ];
+                };
+                shfmt.includes = [ "*.bats" ];
+              };
             }
             (lib.mkIf hasTests {
               nullkomma.checks.bats = {
