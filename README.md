@@ -112,7 +112,7 @@ Files and editor settings that plugins write into your repository are under [Plu
 | [`vscode`](#vscode-and-neovim)          | ✅      |                                          |                                      |                                                         |                  |                            |                                                                        |
 | [`neovim`](#vscode-and-neovim)          | ✅      |                                          |                                      |                                                         |                  |                            |                                                                        |
 | [`flakehub`][flakehub]                  | ✅      | [`fh`]                                   |                                      |                                                         |                  |                            |                                                                        |
-| [`quarto`](#quarto)                     |         | `quarto`                                 |                                      |                                                         | `site`           |                            | `preview`                                                              |
+| [`quarto`](#quarto)                     |         | `quarto`, configured execution engines   |                                      |                                                         | `site`           |                            | `preview`                                                              |
 | [`cloudflare`](#cloudflare)             |         | `wrangler`                               |                                      | `cloudflare` (OpenTofu validation)                      |                  | `deploy`[^deploy]          | `terraform`, `deploy`                                                  |
 | [`r`](#r)                               |         | R with languageserver, `pkgload` and pak | `air`, `jarl`                        | `r-testthat`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `r-document`, `r-pkgdown`, `r-coverage`, `r-lock`                      |
 | [`r-non-nix`](#r-non-nix) (enables `r`) |         |                                          |                                      |                                                         |                  |                            |                                                                        |
@@ -369,6 +369,29 @@ which runs `nix flake check` on each supported system.
 `nullkomma.github.ci.inputs.visibility = "public"` also publishes to FlakeHub;
 `nullkomma.github.ci.secrets` passes repository secrets.
 
+For a Cloudflare site, opt into deployment after the shared CI succeeds:
+
+```nix
+nullkomma.github.ci = {
+  inputs = {
+    deploy = true;
+    cloudflare-account-id = "<account ID>";
+    cloudflare-state-bucket = "<existing private R2 bucket>";
+  };
+  secrets = [
+    "CLOUDFLARE_API_TOKEN"
+    "CLOUDFLARE_R2_ACCESS_KEY_ID"
+    "CLOUDFLARE_R2_SECRET_ACCESS_KEY"
+  ];
+};
+```
+
+Deployment runs `nix run .#deploy` only on non-fork default-branch pushes after
+all checks and builds pass. Pull requests never run it. Production applies are
+serialized and are not cancelled by newer pushes; the generated caller also
+keeps default-branch runs alive. The token and R2 credentials use the permissions
+described under [Cloudflare](#cloudflare).
+
 ### `git`
 
 Writes `.gitignore` from the top-level `nullkomma.gitignore` lines that plugins and you add,
@@ -398,6 +421,35 @@ It ignores `.quarto/` and `_site/`.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`,
 generated into `_extensions/<name>`; a selected [brand](#brand) themes rendering and preview.
 The [privacy policy](#privacy-policy) is generated into `privacy.qmd`.
+
+Preview refreshes generated files before starting. Rendering, preview and the
+development shell share `perSystem.nullkomma.quarto.runtimeInputs`, so execution
+engines and PDF tools need not be installed separately:
+
+```nix
+nullkomma.quarto.renderArgs = [ "-M" "latex-clean:false" ];
+perSystem = { config, pkgs, ... }: {
+  nullkomma.quarto = {
+    runtimeInputs = [
+      config.nullkomma.r.package
+      pkgs.texliveSmall
+    ];
+    postRender = ''
+      if grep -q 'WARN' render.log; then
+        echo "Quarto emitted a warning" >&2
+        exit 1
+      fi
+    '';
+  };
+};
+```
+
+This example assumes the `r` plugin is enabled and its package dependencies include
+`rmarkdown`. Customize TeX with Nixpkgs' `texliveSmall.withPackages`. TeX is an
+optional rendering dependency, not a separate editor/linter stack.
+`renderArgs` applies to sandboxed rendering; `postRender` runs in the Quarto root
+with the captured `render.log` and the rendered site at `$out`. Both render failures
+and failed post-render checks fail the build.
 
 ### `cloudflare`
 

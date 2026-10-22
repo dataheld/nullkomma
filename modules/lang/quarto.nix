@@ -51,6 +51,12 @@
           example = lib.literalExpression ''{ my-brand = inputs.my-brand + "/_extensions/my-brand"; }'';
           description = "Quarto extensions by name, placed in `_extensions/<name>` (generated and Git-ignored) and in the build.";
         };
+        renderArgs = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ ];
+          example = [ "--no-clean" ];
+          description = "Additional arguments to the sandboxed `quarto render` command.";
+        };
         privacy.page = lib.mkOption {
           type = lib.types.nullOr lib.types.str;
           default = "privacy.qmd";
@@ -74,6 +80,17 @@
             defaultText = lib.literalMD "`pkgs.quartoMinimal`, patched for Nixpkgs' Pandoc";
             description = "Quarto, without R, Python or TeX; override to add execution engines.";
           };
+          options.nullkomma.quarto.runtimeInputs = lib.mkOption {
+            type = lib.types.listOf lib.types.package;
+            default = [ ];
+            example = lib.literalExpression "[ config.nullkomma.r.package pkgs.texliveSmall ]";
+            description = "Execution engines and tools on PATH for rendering, preview and the development shell, e.g. the project's wrapped R and TeX.";
+          };
+          options.nullkomma.quarto.postRender = lib.mkOption {
+            type = lib.types.lines;
+            default = "";
+            description = "Shell checks after a successful sandboxed render, in the Quarto root; render.log holds its output and `$out` holds the rendered site. A failing check fails the build.";
+          };
         }
       );
       config = lib.mkIf cfg.enable {
@@ -89,12 +106,13 @@
           { config, pkgs, ... }:
           let
             quarto = config.nullkomma.quarto.package;
+            inherit (config.nullkomma.quarto) runtimeInputs postRender;
             brandExtension = (pkgs.formats.yaml { }).generate "_extension.yml" {
               contributes.metadata.project.brand = "origin/${baseNameOf brand.lib.brand}";
             };
           in
           {
-            nullkomma.devShell.packages = [ quarto ];
+            nullkomma.devShell.packages = [ quarto ] ++ runtimeInputs;
             nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
             # Quarto watches the working tree and live-reloads the browser itself.
             nullkomma.tasks.preview = {
@@ -104,8 +122,10 @@
               packages = [
                 pkgs.git
                 quarto
-              ];
+              ]
+              ++ runtimeInputs;
               command = ''
+                ${lib.getExe config.nullkomma.tasks.generate-files.package}
                 cd "$(git rev-parse --show-toplevel)"/${lib.escapeShellArg prefix}
                 exec quarto preview "$@"
               '';
@@ -143,9 +163,11 @@
                 };
               };
             packages.site = lib.mkDefault (
-              pkgs.runCommand "site" { nativeBuildInputs = [ quarto ]; } ''
+              pkgs.runCommand "site" { nativeBuildInputs = [ quarto ] ++ runtimeInputs; } ''
+                set -o pipefail
                 cp -r ${config.nullkomma.src} src && chmod -R u+w src && cd src/${lib.escapeShellArg prefix}
-                HOME=$TMPDIR quarto render --output-dir "$out"
+                HOME=$TMPDIR quarto render ${lib.escapeShellArgs cfg.renderArgs} --output-dir "$out" 2>&1 | tee render.log
+                ${postRender}
               ''
             );
           };

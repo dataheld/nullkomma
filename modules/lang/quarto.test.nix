@@ -28,6 +28,15 @@
       themed = callFlakeWith {
         nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
       } (root + "/tests/fixtures/quarto-branded");
+      render =
+        package: postRender:
+        callFlakeWith {
+          nullkomma.quarto.renderArgs = [ "--no-clean" ];
+          perSystem.nullkomma.quarto = {
+            inherit package postRender;
+            runtimeInputs = [ pkgs.hello ];
+          };
+        } (root + "/tests/fixtures/quarto");
     in
     {
       nullkomma.nix.unit.tests.testQuartoGeneratesExtensionsAndPrivacyPage =
@@ -74,6 +83,84 @@
           };
         };
       checks = {
+        quarto-r-site =
+          let
+            flake = callFlakeWith {
+              nullkomma = {
+                quarto.enable = true;
+                r.pkgdown.enable = false;
+                r.extraPackages = [ "rmarkdown" ];
+              };
+              perSystem =
+                { config, ... }:
+                {
+                  nullkomma.quarto.runtimeInputs = [ config.nullkomma.r.package ];
+                  nullkomma.files = {
+                    "_quarto.yml" = {
+                      mode = "generated";
+                      commentPrefix = "#";
+                      text = ''
+                        project:
+                          type: website
+                      '';
+                    };
+                    "index.qmd" = {
+                      mode = "generated";
+                      commentPrefix = "<!--";
+                      commentSuffix = " -->";
+                      text = ''
+                        # R rendering
+
+                        ```{r}
+                        stopifnot(l10n_info()[["UTF-8"]])
+                        cat(paste0("Answer: ", 6 * 7, "; Grüße"))
+                        ```
+                      '';
+                    };
+                  };
+                };
+            } (root + "/tests/fixtures/r");
+          in
+          pkgs.runCommand "nullkomma-quarto-r-site" { } ''
+            grep -q 'Answer: 42; Grüße' ${flake.packages.${system}.site}/index.html
+            touch "$out"
+          '';
+        quarto-render-runtime =
+          let
+            quarto = pkgs.writeShellScriptBin "quarto" ''
+              set -eu
+              test "$*" = "render --no-clean --output-dir $out"
+              hello
+              mkdir "$out"
+              echo rendered > "$out/index.html"
+            '';
+            flake = render quarto ''
+              grep -q 'Hello, world!' render.log
+              grep -q rendered "$out/index.html"
+            '';
+          in
+          flake.packages.${system}.site;
+        quarto-render-failure = pkgs.testers.testBuildFailure' {
+          name = "nullkomma-quarto-render-failure";
+          drv =
+            (render (pkgs.writeShellScriptBin "quarto" ''
+              echo 'render failed'
+              exit 9
+            '') "").packages.${system}.site;
+          expectedBuilderExitCode = 9;
+          expectedBuilderLogEntries = [ "render failed" ];
+        };
+        quarto-post-render-failure = pkgs.testers.testBuildFailure' {
+          name = "nullkomma-quarto-post-render-failure";
+          drv =
+            (render (pkgs.writeShellScriptBin "quarto" "echo 'render succeeded'") ''
+              grep -q 'render succeeded' render.log
+              echo 'post-render failed'
+              exit 8
+            '').packages.${system}.site;
+          expectedBuilderExitCode = 8;
+          expectedBuilderLogEntries = [ "post-render failed" ];
+        };
         quarto-site = pkgs.runCommand "nullkomma-quarto-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           site=${fixtures.quarto.packages.${system}.site}
           python - "$site/index.html" <<'PY'
@@ -138,13 +225,25 @@
         quarto-preview =
           let
             quarto = pkgs.writeShellScriptBin "quarto" ''
+              test -f generated.txt
+              hello > "$CALLED-runtime"
               printf '%s\n' "$PWD" "$@" > "$CALLED"
             '';
             flake = callFlakeWith (
               { self, ... }:
               {
                 nullkomma.quarto.root = self.outPath + "/docs";
-                perSystem.nullkomma.quarto.package = quarto;
+                perSystem = {
+                  nullkomma.quarto = {
+                    package = quarto;
+                    runtimeInputs = [ pkgs.hello ];
+                  };
+                  nullkomma.files."docs/generated.txt" = {
+                    mode = "generated";
+                    commentPrefix = "#";
+                    text = "preview generation";
+                  };
+                };
               }
             ) (root + "/tests/fixtures/quarto");
           in
@@ -154,6 +253,7 @@
             ${task flake "preview"} --no-browser
             printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
             cmp expected "$CALLED"
+            grep -q 'Hello, world!' "$CALLED-runtime"
             touch $out
           '';
       };
