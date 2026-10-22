@@ -10,7 +10,6 @@
         "${cfg.workflows.source}/${name}.yml"
         + lib.optionalString (cfg.workflows.ref != null) "@${cfg.workflows.ref}";
       scalar = v: if lib.isBool v then lib.boolToString v else builtins.toJSON v;
-      deploying = cfg.ci.inputs.deploy or false == true;
       ci = ''
         name: CI
         on:
@@ -19,12 +18,7 @@
           workflow_dispatch:
         concurrency:
           group: ''${{ github.workflow }}-''${{ github.event.pull_request.number || github.ref }}
-          cancel-in-progress: ${
-            if deploying then
-              "\${{ github.event_name == 'pull_request' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}"
-            else
-              "true"
-          }
+          cancel-in-progress: true
         jobs:
           nullkomma:
             uses: ${uses "ci"}
