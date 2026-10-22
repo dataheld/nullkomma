@@ -399,6 +399,8 @@ Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.exten
 generated into `_extensions/<name>`; a selected [brand](#brand) themes rendering and preview.
 The [privacy policy](#privacy-policy) is generated into `privacy.qmd`.
 
+Preview refreshes generated files before starting.
+
 ### `cloudflare`
 
 Opt-in `cloudflare` serves whatever `packages.site` holds as [Workers static assets][cloudflare],

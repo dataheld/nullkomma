@@ -138,13 +138,22 @@
         quarto-preview =
           let
             quarto = pkgs.writeShellScriptBin "quarto" ''
+              set -e
+              test -f generated.txt
               printf '%s\n' "$PWD" "$@" > "$CALLED"
             '';
             flake = callFlakeWith (
               { self, ... }:
               {
                 nullkomma.quarto.root = self.outPath + "/docs";
-                perSystem.nullkomma.quarto.package = quarto;
+                perSystem = {
+                  nullkomma.quarto.package = quarto;
+                  nullkomma.files."docs/generated.txt" = {
+                    mode = "generated";
+                    commentPrefix = "#";
+                    text = "preview generation";
+                  };
+                };
               }
             ) (root + "/tests/fixtures/quarto");
           in
