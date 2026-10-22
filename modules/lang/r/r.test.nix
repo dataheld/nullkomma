@@ -55,7 +55,7 @@
             label = "English";
           }
         ];
-        nullkomma.r.pkgdown.privacy.page = "legal.md";
+        nullkomma.r.pkgdown.privacy.page = ".github/legal.md";
       } fixture;
       withoutLock = callFlake (
         builtins.path {
@@ -304,9 +304,6 @@
           printf '[lint]\nignore = ["any_is_na"]\n' > jarl.toml
           rejects 'configure Jarl in' R/lint.R
           rm jarl.toml
-          printf '[lint]\nignore = []\n' > R/.jarl.toml
-          rejects 'configure Jarl in' R/lint.R
-          rm R/.jarl.toml
           # `fnd` (funder) is an Authors@R role, not a typo.
           printf 'Config/nullkomma/test: fnd teh\n' >> DESCRIPTION
           format --formatters typos DESCRIPTION

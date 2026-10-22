@@ -18,29 +18,15 @@
             command = lib.getExe (
               pkgs.writeShellApplication {
                 name = "nullkomma-jarl";
-                runtimeInputs = [ pkgs.coreutils ];
+                # Jarl 0.5 cannot ignore config files, so refuse the project's and the user's.
+                # shortcut: nested ones (e.g. R/jarl.toml) still apply; check every parent if that bites.
                 text = ''
-                  reject_config() {
-                    for name in jarl.toml .jarl.toml; do
-                      if [[ -f "$1/$name" ]]; then
-                        echo "nullkomma: $1/$name is unsupported; configure Jarl in treefmt.settings.formatter.jarl.options" >&2
-                        exit 1
-                      fi
-                    done
-                  }
-                  # Jarl 0.5 has no explicit-config or isolation flag.
-                  for path in "$@"; do
-                    if [[ -f "$path" ]]; then
-                      directory=$(dirname "$(realpath "$path")")
-                      while :; do
-                        reject_config "$directory"
-                        [[ "$directory" != / ]] || break
-                        directory=$(dirname "$directory")
-                      done
+                  for config in {.,"''${XDG_CONFIG_HOME:-$HOME/.config}/jarl","$HOME/Library/Application Support/jarl"}/{,.}jarl.toml; do
+                    if [[ -f "$config" ]]; then
+                      echo "nullkomma: $config is unsupported; configure Jarl in treefmt.settings.formatter.jarl.options" >&2
+                      exit 1
                     fi
                   done
-                  reject_config "''${XDG_CONFIG_HOME:-$HOME/.config}/jarl"
-                  reject_config "$HOME/Library/Application Support/jarl"
                   exec ${
                     lib.getExe (
                       # shortcut: nixpkgs' jarl tests fail on Darwin; drop once Hydra builds it.

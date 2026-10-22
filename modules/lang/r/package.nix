@@ -31,11 +31,6 @@
             defaultText = lib.literalMD "Chromium on Linux when chromote (e.g. via shinytest2) is in pkg.lock or extraPackages; otherwise null";
             description = "Chrome-compatible browser for shinytest2/chromote. On macOS, null uses chromote's locally installed Chrome discovery; sandboxed browser tests require Linux or a supplied Nix browser.";
           };
-          options.nullkomma.r.lock = lib.mkOption {
-            type = lib.types.raw;
-            readOnly = true;
-            description = "`pkg.lock`, split into nixpkgs packages and pinned sources by `readLock` in lib/r.nix.";
-          };
           options.nullkomma.r.packages = lib.mkOption {
             type = lib.types.listOf lib.types.str;
             readOnly = true;
@@ -151,7 +146,6 @@
         in
         {
           config.nullkomma.r = {
-            inherit lock;
             packages = lib.unique (
               lock.nixpkgs
               ++ lib.attrNames lock.sources
@@ -189,9 +183,6 @@
                         # Tells the r-non-nix startup files to stand aside.
                         "--set"
                         "NULLKOMMA_R_NIX"
-                        "true"
-                        "--set-default"
-                        "SHINYTEST"
                         "true"
                       ]
                       ++ lib.optionals (pcfg.browser != null) [

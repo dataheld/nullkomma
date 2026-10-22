@@ -11,31 +11,24 @@
         default = [ ];
         description = "Repository-relative globs for generated outputs, including directory descendants, which are neither formatted, linted nor checked for duplication. Plugins contribute their outputs; projects may add their own.";
       };
-      options.nullkomma.lint.markdown = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = { };
-        description = "Markdown lint rules in markdownlint style (`MD013 = false;` or rule settings), passed explicitly to rumdl. Configure here, not in native config files.";
-      };
-      options.nullkomma.lint.typos = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = { };
-        description = "Typos TOML settings. Passed explicitly with native config discovery disabled.";
-      };
-      options.nullkomma.lint.actionlint = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = { };
-        description = "Actionlint YAML settings, passed explicitly instead of discovering .github/actionlint.yaml.";
-      };
-      options.nullkomma.lint.gitleaks = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = { };
-        description = "Gitleaks TOML settings for both working-tree and history scans. Plugin defaults retain upstream rules.";
-      };
-      options.nullkomma.lint.jscpd = lib.mkOption {
-        type = lib.types.attrsOf lib.types.anything;
-        default = { };
-        description = "Jscpd JSON settings. Ignore globs extend treefmt's shared exclusions; the default threshold is zero percent.";
-      };
+      # Shared, so plugins can adjust each other's linters; native config files are not read.
+      options.nullkomma.lint =
+        lib.mapAttrs
+          (
+            _: description:
+            lib.mkOption {
+              type = lib.types.attrsOf lib.types.anything;
+              default = { };
+              inherit description;
+            }
+          )
+          {
+            markdown = "Markdown lint rules in markdownlint style (`MD013 = false;` or rule settings), for rumdl.";
+            typos = "Typos TOML settings.";
+            actionlint = "Actionlint YAML settings.";
+            gitleaks = "Gitleaks TOML settings for working-tree and history scans; upstream rules are kept.";
+            jscpd = "Jscpd JSON settings; `ignore` extends treefmt's exclusions, `threshold` defaults to zero.";
+          };
       config.perSystem =
         let
           inherit (config.nullkomma) generatedPaths;

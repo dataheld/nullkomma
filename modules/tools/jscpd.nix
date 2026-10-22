@@ -20,10 +20,6 @@
                 name = "darwin-arm64";
                 hash = "sha256-CCmtzMlKYDWkMjoQ8X+g1a7mQl6wHnxaiMxh71+HpWs=";
               };
-              x86_64-darwin = {
-                name = "darwin-x64";
-                hash = "sha256-9Nsk7nVeAqoIv1EDm4U6mSf2B8nYZVSiGTrGCxRog0M=";
-              };
               aarch64-linux = {
                 name = "linux-arm64-musl";
                 hash = "sha256-qOblrgTSeYqT6TUHOwie4mum+qpzTOHcrp9pF2nUA4w=";

@@ -10,17 +10,7 @@
     let
       cfg = config.nullkomma.quarto;
       inherit (config.nullkomma) brand privacy;
-      prefix =
-        let
-          root = toString cfg.root;
-          top = toString self.outPath;
-        in
-        if root == top then
-          ""
-        else if lib.hasPrefix "${top}/" root then
-          "${lib.removePrefix "${top}/" root}/"
-        else
-          throw "nullkomma.quarto.root must be inside the flake.";
+      prefix = import ../../lib/prefix.nix lib self cfg.root;
       privacyPage = ''
 
         ---

@@ -40,9 +40,9 @@
           description = "Build a pkgdown website with the r-pkgdown task and packages.site (also checked in nix flake check).";
         };
         pkgdown.privacy.page = lib.mkOption {
-          type = lib.types.nullOr (lib.types.strMatching "([.]github/)?[^/\n]+[.]md");
+          type = lib.types.nullOr (lib.types.strMatching "[.]github/[^/\n]+[.]md");
           default = ".github/privacy.md";
-          description = "Generated page rendering `nullkomma.privacy`, in .github/ or the package root where pkgdown finds it; null to supply your own. Its basename determines the root-level HTML URL.";
+          description = "Generated page in `.github/` rendering `nullkomma.privacy`, which pkgdown publishes at the site root by its basename; null to supply your own.";
         };
         pkgdown.config = lib.mkOption {
           type = lib.types.attrsOf lib.types.anything;
@@ -53,11 +53,6 @@
           type = lib.types.nullOr lib.types.path;
           default = null;
           description = "Directory generated into pkgdown/assets and copied by pkgdown to the website root in both local and sandboxed builds. Git-ignored; null keeps project-owned assets.";
-        };
-        pkgdown.override = lib.mkOption {
-          type = lib.types.attrsOf lib.types.anything;
-          default = { };
-          description = "Sandbox-only native pkgdown overrides merged over pkgdown.config. The metadata-generated sidebar works offline by default; home.sidebar = false or home.sidebar.html retain pkgdown's usual behavior.";
         };
         coverage.enable = lib.mkOption {
           type = lib.types.bool;
@@ -73,11 +68,7 @@
           ++ lib.optional cfg.testthat.enable "testthat"
           ++ lib.optional cfg.pkgdown.enable "pkgdown"
           ++ lib.optional (
-            cfg.pkgdown.enable
-            && (
-              (cfg.pkgdown.config.template.bslib.brand or null) != null
-              || (cfg.pkgdown.override.template.bslib.brand or null) != null
-            )
+            cfg.pkgdown.enable && cfg.pkgdown.config.template.bslib.brand or null != null
           ) "brand.yml"
           ++ lib.optionals cfg.coverage.enable [
             "covr"
@@ -134,11 +125,7 @@
               # Cached Sass paths make repeated Bootstrap copies overwrite read-only Nix assets.
               options(sass.cache = FALSE)
               override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
-              ${lib.optionalString sandbox ''
-                sandbox <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.override)}, simplifyVector = FALSE)
-                override <- utils::modifyList(override, sandbox)
-                override$destination <- Sys.getenv("out")
-              ''}
+              ${lib.optionalString sandbox ''override$destination <- Sys.getenv("out")''}
               pkgdown::build_site(override = override, preview = FALSE, new_process = FALSE)
               ${lib.optionalString sandbox ''
                 # pkgdown records wall-clock time even in otherwise reproducible builds.

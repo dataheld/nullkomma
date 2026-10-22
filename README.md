@@ -96,7 +96,7 @@ Files and editor settings that plugins write into your repository are under [Plu
 | Plugin                                  | Default | `devShells`                              | `formatter`[^treefmt]                | `checks`                                                | `packages`       | `apps`[^apps]              | `taskRunners`                                                          |
 | --------------------------------------- | ------- | ---------------------------------------- | ------------------------------------ | ------------------------------------------------------- | ---------------- | -------------------------- | ---------------------------------------------------------------------- |
 | framework                               | always  | every task, `tasks` runner               | [treefmt]                            | `treefmt`                                               |                  |                            | `check` (when checks exist), `format`, `write-files`, `generate-files` |
-| [`nix`](#nix)                           | ✅      | [nixd]                                   | `nixfmt`, `deadnix`, `nixf-diagnose` | [nix-unit] [^nix-unit]                                  |                  |                            | `update`, [`flake-checker`] [^flake-checker]                           |
+| [`nix`](#nix)                           | ✅      | [nixd]                                   | `nixfmt`, `deadnix`, `nixf-diagnose` | [`nix-unit`](#tests)                                    |                  |                            | `update`, [`flake-checker`] [^flake-checker]                           |
 | [`markdown`][md]                        | ✅      | [marksman]                               | `mdformat`, `rumdl`                  |                                                         |                  |                            |                                                                        |
 | [`json`][json]                          | ✅      | [JSON language server][jsonls]           | `jsonfmt`                            |                                                         |                  |                            |                                                                        |
 | [`yaml`][yaml]                          | ✅      | [yaml-language-server]                   | `yamlfmt`, `yamllint`, `actionlint`  |                                                         |                  |                            |                                                                        |
@@ -119,13 +119,8 @@ Files and editor settings that plugins write into your repository are under [Plu
 
 ## Your flake outputs
 
-These are the outputs of your project's flake, not of nullkomma itself.
-A `schemas` output describes them to [Determinate Nix](https://docs.determinate.systems)'s `nix flake show`.
-
-The headings below omit the system name: `perSystem` handles it in your configuration,
-and commands such as `nix build .#site` select the current system automatically.
-The raw outputs still contain it: e.g. `packages.<system>.site` and `checks.<system>.<name>`.
-Nix-unit uses its own `tests.systems.<system>` convention instead.
+These are your project's flake outputs; a `schemas` output describes them to [Determinate Nix](https://docs.determinate.systems)'s `nix flake show`.
+Headings omit the system, which `perSystem` and commands like `nix build .#site` fill in: `site` is `packages.<system>.site`.
 
 ### `devShells`
 
@@ -154,16 +149,9 @@ Add other generated content to `nullkomma.generatedPaths` as treefmt globs, e.g.
 
 #### Customizing linting
 
-**Configure linters in Nix, not in separate config files.**
-Plugins and your project contribute settings through the module system.
-An ordinary assignment overrides a plugin's `lib.mkDefault` value; unspecified defaults
-remain, and lists concatenate (use `lib.mkForce` to replace a list).
-Nix generates any required tool config files in the Nix store, not your repository.
-
-`nix fmt`, the `format` task, nullkomma's editor formatter and CI use the same configuration.
-Native linter config files are ignored; Jarl reports an error instead because its pinned
-version cannot disable config discovery.
-Source-code suppression comments, such as `# shellcheck disable=SC2086`, still work.
+**Configure linters in Nix, not in config files.** Native config files are ignored
+(Jarl, which can't ignore them, fails instead); suppression comments such as `# shellcheck disable=SC2086` still work.
+Your settings override plugins' `lib.mkDefault` values, and lists concatenate (`lib.mkForce` replaces one).
 
 | Linter        | Nix configuration                                   | Settings to use                                                                                   |
 | ------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
@@ -195,16 +183,9 @@ perSystem = { ... }: {
 };
 ```
 
-This adds a spelling, disables the Markdown line-length rule, permits five percent
-duplication and requires quoted YAML strings. YAML's other defaults (`extends: relaxed`
-and disabled line-length) remain; so do R-specific spellings when `r` is enabled.
-The typos exclusion affects only typos; the global exclusion skips every treefmt tool
-and is shared with jscpd.
-
-Use [treefmt-nix's options](https://flake.parts/options/treefmt-nix.html) for other tool
-switches and file selection. A committed `treefmt.toml` is not read.
-When migrating, move your linter settings into the options above and remove the old
-config files, including `[tool.typos]` or `[tool.rumdl]` sections in `pyproject.toml`.
+`treefmt.settings.excludes` skips files for every tool, jscpd included;
+see [treefmt-nix's options](https://flake.parts/options/treefmt-nix.html) for more.
+When migrating, move linter settings here and delete the old config files and `pyproject.toml` sections.
 
 ### `checks`
 
@@ -235,9 +216,8 @@ perSystem = { pkgs, ... }: {
 
 Use: `check nix-unit`.
 
-Only for Nix code: with the `nix` plugin, the [nix-unit] tests in `perSystem.nullkomma.nix.unit.tests`.
-`tests` is nix-unit's own output convention, not a standard flake output; it holds test data, which the `nix-unit` check above runs.
-Other suites, e.g. testthat, are only `checks`.
+With the `nix` plugin, the [nix-unit] tests in `perSystem.nullkomma.nix.unit.tests`,
+exported as `tests.systems.<system>` (nix-unit's convention) and run by the `nix-unit` check.
 
 ### `packages`
 
@@ -405,9 +385,6 @@ Plugins declare language servers once, editor-neutrally (`perSystem.nullkomma.ed
 The `vscode` and `neovim` plugins render them, with recommended extensions,
 into generated, Git-ignored `.vscode/settings.json`, `.vscode/extensions.json` and `.nvim.lua`,
 so nobody commits editor config.
-Recommended VS Code extensions: [treefmt][vscode-treefmt] (always), [Nix IDE] (`nix`),
-[YAML][vscode-yaml] (`yaml`), [Bash IDE] and [Bats][vscode-bats] (`shell`),
-[Nix Environment Selector] (`direnv`), [Quarto][vscode-quarto] (`quarto`), R and Air (`r`).
 Neovim reads `.nvim.lua` only with `:set exrc`.
 Its `:Format` command formats the current buffer through treefmt.
 
@@ -475,9 +452,10 @@ Outside Nix, [`r-non-nix`](#r-non-nix) installs from that PPM snapshot.
 
 `Depends`, `Imports`, `LinkingTo`, `Suggests` and all `Config/Needs/*` fields are locked,
 e.g. `Config/Needs/development: devtools`; override `nullkomma.r.fields` for a runtime-only lockfile.
-The development environment always includes `pkgload` for loading and reloading package code, plus pak, languageserver and the tools of enabled workflows.
-`pkgload` is dev-time only, not a runtime dependency of the package you build.
-`nullkomma.r.extraPackages` adds other Nix-only packages.
+The development environment holds exactly these, plus pkgload, pak, languageserver and the tools of enabled workflows;
+`nullkomma.r.extraPackages` adds more.
+So a package with three dependencies gets those three, one with Shiny gets Shiny,
+and system libraries come with the packages that need them.
 
 > [!NOTE]
 > Packages from `Remotes`, or missing from `nixpkgs-r`, need `nullkomma.r.allowOffNixpkgs = true`.
@@ -503,23 +481,12 @@ Generated `man/*.Rd` files are Git-ignored, but not `man/` itself; commit `NAMES
 The `r` plugin keeps its package-build exclusions in a marked section of `.Rbuildignore`,
 and ignores R build outputs in `.gitignore`.
 
-Run tests [in parallel](https://testthat.r-lib.org/articles/parallel.html), with and without Nix,
-by committing these to `DESCRIPTION` (or running `usethis::use_testthat(3, parallel = TRUE)`):
-
-```dcf
-Config/testthat/edition: 3
-Config/testthat/parallel: true
-```
-
 `check r-testthat` is quick: it loads the source with pkgload instead of installing it.
-`nix flake check` and CI run `check r-testthat --installed`, which installs into a temporary library and tests that copy, as `R CMD check` does.
+`nix flake check` and CI run `check r-testthat --installed`, which tests an installed copy, as `R CMD check` does.
+`Config/testthat/parallel: true` in `DESCRIPTION` runs tests [in parallel](https://testthat.r-lib.org/articles/parallel.html).
 
-The environment follows `pkg.lock`: a package with three dependencies gets those three,
-one with Shiny gets Shiny, and system libraries come with the packages that need them.
-Locking chromote (e.g. via [shinytest2](https://rstudio.github.io/shinytest2/)) adds Chromium on Linux and points chromote at it.
-Nix builds disable Chromium's sandbox, which can't nest in the build sandbox.
-Nixpkgs has no Chromium for macOS: there chromote finds your Chrome, or uses `CHROMOTE_CHROME`.
-`perSystem.nullkomma.r.browser` selects another browser.
+Locking chromote (e.g. via [shinytest2](https://rstudio.github.io/shinytest2/)) adds Chromium on Linux
+(`perSystem.nullkomma.r.browser`); on macOS, which Nixpkgs' Chromium doesn't support, chromote finds your Chrome.
 
 #### pkgdown website
 
@@ -530,8 +497,7 @@ also in `nix flake check`; `r-pkgdown` builds it locally.
 - A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
 - Bootstrap 5's JavaScript dependencies are pinned in nullkomma.
   Other remote templates, web fonts and network-dependent articles must be local for the sandbox.
-- `nullkomma.r.pkgdown.config` is merged over `_pkgdown.yml` in both builds,
-  overriding the [brand](#brand); sandbox-only `pkgdown.override` wins over both.
+- `nullkomma.r.pkgdown.config` is merged over `_pkgdown.yml`, overriding the [brand](#brand).
 - `nullkomma.r.pkgdown.assets` is a directory generated into Git-ignored `pkgdown/assets/`,
   which pkgdown copies to the site root; leave it `null` to manage that directory yourself.
 - The [privacy policy](#privacy-policy) is generated into Git-ignored `.github/privacy.md`, which pkgdown renders to `/privacy.html`;
@@ -539,41 +505,26 @@ also in `nix flake check`; `r-pkgdown` builds it locally.
 
 #### Shiny app
 
-Export a zero-argument function from your R package that returns a `shiny.appobj`,
-and enable its launcher:
+Export a zero-argument function returning a `shiny.appobj`, e.g. `app <- function() shiny::shinyApp(ui, server)`,
+declare `shiny` in `DESCRIPTION`, refresh `pkg.lock` and enable the launcher:
 
 ```nix
 nullkomma.r.shiny = {
   enable = true;
-  function = "app"; # default: yourpackage::app()
+  function = "app"; # default
+  host = "0.0.0.0"; # default "127.0.0.1"; port defaults to 3838
 };
 ```
 
-For example, an exported `app()` can return
-`shiny::shinyApp(ui = ui, server = server)`. Declare `shiny` in `DESCRIPTION` and
-refresh `pkg.lock` as for other package dependencies.
+`nix run .#shiny` installs your package from the flake's source, calls the function and serves the app.
+Its runtime is R, Shiny and your package's `Depends`/`Imports` closure: no `Suggests`, `Config/Needs/*`, `extraPackages` or pkgload.
+Ship assets in `inst/` (find them with `system.file()`) and write data outside the installed package.
 
-`nix run .#shiny` installs your package from the flake's source (generating roxygen
-documentation first when enabled), calls its exported function and serves the returned app.
-It works outside the development shell and does not open a browser.
-There is no `app.R` directory interface and no `pkgload` at runtime.
-The runtime contains R, Shiny and the package's transitive `Depends`/`Imports` dependencies,
-not `Suggests`, `Config/Needs/*`, `extraPackages` or nullkomma's development helpers
-(unless they are themselves runtime dependencies).
-Test it by passing the function, not a directory, to
+Test it by passing the function to
 [shinytest2](https://rstudio.github.io/shinytest2/articles/use-package.html#application-objects):
 `shinytest2::AppDriver$new(app)`.
 Under `check r-testthat`, the app process loads your source with pkgload,
-so tests need no install and never pick up a stale installed copy;
-with `--installed`, the app uses the installed package.
-
-Put bundled assets in `inst/` and locate them with `system.file()`; write runtime
-data to a writable location, not the installed package.
-Add new source files to Git before running the flake.
-
-`nullkomma.r.shiny.host` and `.port` change the listening address and port.
-The default host is localhost; `"0.0.0.0"` exposes the server to other machines.
-Shiny is only added when this feature is enabled; hosting and authentication are not included.
+so there's nothing to install and no stale installed copy; with `--installed`, it uses the installed package.
 
 #### Formatting and tools
 
@@ -645,27 +596,14 @@ projects' `flake.lock`.
 nullkomma is tested against small example projects ("fixtures") in
 `tests/fixtures`, which use nullkomma the way a real project would.
 
-- **Unit tests** ([nix-unit], via the `nix` plugin) check
-  the evaluated configuration of the fixtures, e.g. that every plugin can be
-  switched off and that all off leaves just the framework. This repo's unit
-  check uses the Nix plugin's network-enabled fixed-output derivation to fetch
-  dev-only partition inputs, which root input overrides cannot replace.
-- **Docs test:** `options-doc` renders every option the way
-  [flake.parts](https://flake.parts) would, so each needs a description.
-- **Build tests** run the real tools on the fixtures inside `nix flake check`.
-  Valid fixtures must pass; Nix and Markdown also have deliberately bad files
-  listed in `rejects` that must fail. Co-located tool tests cover additional
-  lint failures and configuration behavior, not a universal rejection matrix.
-- **End-to-end test:** `check-fixtures` copies a fixture to a temporary
-  directory and runs `nix flake check` there (with valid and bad files), exactly
-  as a user would, against this checkout of nullkomma. The other tests evaluate fixtures from within
-  nullkomma's own flake, so only this one catches problems with
-  how a real project fetches and uses nullkomma. CI runs it on every push.
-- **Without Nix:** `test-r-non-nix` builds the `r-non-nix` fixture in Docker
-  (Ubuntu 24.04, `linux/amd64`, the R version of `nixpkgs-r`, no Nix), runs the
-  documented R examples and checks a source-package build. It needs Docker and network
-  access; extra arguments go to `docker build`, e.g.
-  `--build-arg R_VERSION=4.4.2`. CI runs it on manual dispatch.
+- **Unit tests** ([nix-unit]) check the fixtures' evaluated configuration, e.g. that every plugin can be switched off.
+  They fetch dev-only inputs through the `nix` plugin's network-enabled fixed-output derivation.
+- **Docs test:** `options-doc` renders every option as [flake.parts](https://flake.parts) would, so each needs a description.
+- **Build tests** run the real tools on the fixtures in `nix flake check`; Nix and Markdown files listed in `rejects` must fail.
+- **End-to-end test:** `check-fixtures` runs `nix flake check` on a copy of a fixture against this checkout, as a user would,
+  the only test of how real projects fetch nullkomma. CI runs it on every push.
+- **Without Nix:** `test-r-non-nix` builds the `r-non-nix` fixture in Docker (Ubuntu 24.04, `linux/amd64`, no Nix),
+  runs the documented R examples and builds the package; extra arguments go to `docker build`. CI runs it on manual dispatch.
 
 ```sh
 nix flake check   # unit, docs and build tests
@@ -684,9 +622,6 @@ the broken one fails with the real tool's error, not just any error.
 [^apps]: `packages` are what Nix builds (`nix build`), `apps` what it runs (`nix run`):
     a program, e.g. a deploy script or a Shiny server, usually backed by a package.
 
-[^nix-unit]: Tests in `perSystem.nullkomma.nix.unit.tests`, once there are any; exported as
-    `tests.systems.<system>`.
-
 [^flake-checker]: The `flake-checker` task checks `flake.lock` for outdated or non-upstream Nixpkgs inputs.
 
 [^bats]: Tests in `test/` (`nullkomma.shell.bats.testDir`), once that directory
@@ -698,7 +633,6 @@ the broken one fails with the real tool's error, not just any error.
 
 [air]: https://posit-dev.github.io/air/
 [bash]: https://www.gnu.org/software/bash/
-[bash ide]: https://marketplace.visualstudio.com/items?itemName=mads-hartmann.bash-ide-vscode
 [bash-language-server]: https://github.com/bash-lsp/bash-language-server
 [bats]: https://bats-core.readthedocs.io
 [cloudflare]: https://developers.cloudflare.com/workers/static-assets/
@@ -712,8 +646,6 @@ the broken one fails with the real tool's error, not just any error.
 [keep-sorted]: https://github.com/google/keep-sorted
 [marksman]: https://github.com/artempyanykh/marksman
 [md]: https://commonmark.org
-[nix environment selector]: https://marketplace.visualstudio.com/items?itemName=arrterian.nix-env-selector
-[nix ide]: https://marketplace.visualstudio.com/items?itemName=jnoortheen.nix-ide
 [nix-direnv]: https://github.com/nix-community/nix-direnv
 [nix-unit]: https://github.com/nix-community/nix-unit
 [nixd]: https://github.com/nix-community/nixd
@@ -724,10 +656,7 @@ the broken one fails with the real tool's error, not just any error.
 [treefmt]: https://treefmt.com
 [typos]: https://github.com/crate-ci/typos
 [up]: https://github.com/DeterminateSystems/up
-[vscode-bats]: https://marketplace.visualstudio.com/items?itemName=jetmartin.bats
-[vscode-quarto]: https://marketplace.visualstudio.com/items?itemName=quarto.quarto
 [vscode-treefmt]: https://marketplace.visualstudio.com/items?itemName=ibecker.treefmt-vscode
-[vscode-yaml]: https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml
 [yaml]: https://yaml.org
 [yaml-language-server]: https://github.com/redhat-developer/yaml-language-server
 [`fh`]: https://github.com/DeterminateSystems/fh

@@ -37,17 +37,7 @@
           type = lib.types.str;
           internal = true;
           readOnly = true;
-          default =
-            let
-              root = toString config.nullkomma.r.root;
-              top = toString self.outPath;
-            in
-            if root == top then
-              ""
-            else if lib.hasPrefix "${top}/" root then
-              "${lib.removePrefix "${top}/" root}/"
-            else
-              throw "nullkomma.r.root must be inside the flake.";
+          default = import ../../../lib/prefix.nix lib self config.nullkomma.r.root;
           description = "`root` relative to the flake, with a trailing slash (empty at the top).";
         };
         locked = lib.mkOption {

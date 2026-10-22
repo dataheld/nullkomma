@@ -63,8 +63,6 @@
                   roots <- c(package, "shiny")
                   deps <- tools::package_dependencies(roots, db = db, which = c("Depends", "Imports"), recursive = TRUE)
                   required <- setdiff(unique(c(roots, unlist(deps))), c(package, "R"))
-                  missing <- setdiff(required, rownames(db))
-                  if (length(missing)) stop("Missing Shiny runtime dependencies: ", paste(missing, collapse = ", "))
                   for (name in required) {
                     if (db[name, "Priority"] %in% "base") next
                     source <- normalizePath(file.path(db[name, "LibPath"], name), mustWork = TRUE)
