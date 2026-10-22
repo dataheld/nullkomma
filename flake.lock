@@ -67,6 +67,9 @@
         "flake-parts": "flake-parts",
         "flake-schemas": "flake-schemas",
         "nixpkgs": "nixpkgs",
+        "nixpkgs-r": [
+          "nixpkgs"
+        ],
         "terraform-providers-bin": "terraform-providers-bin",
         "terranix": "terranix",
         "treefmt-nix": "treefmt-nix",

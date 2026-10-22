@@ -6,6 +6,7 @@ state="$(git rev-parse --git-path nullkomma/files)"
 accept=""
 accepted=false
 status=0
+declared=()
 if [ "$mode" = source ] && [ "${1:-}" = --accept ] && [ "$#" = 2 ]; then
   accept="$2"
 elif [ "$#" != 0 ]; then
@@ -13,29 +14,34 @@ elif [ "$#" != 0 ]; then
   exit 1
 fi
 
-# shellcheck disable=SC2329 # unused when no file of this mode is enabled
-process_file() {
-  local path="$1" source="$2" parent base incoming
-  if [ -n "$accept" ] && [ "$accept" != "$path" ]; then
-    return
-  fi
-  case "$path" in
+safe_path() {
+  local parent="$1"
+  case "$1" in
   "" | /* | . | ./* | */./* | */. | .. | ../* | */../* | */.. | .git | .git/* | *'
 '*)
-    echo "Unsafe file path: $path" >&2
+    echo "Unsafe file path: $1" >&2
     status=1
-    return
+    return 1
     ;;
   esac
-  parent="$path"
   while [ "$parent" != "." ]; do
     if [ -L "$parent" ]; then
       echo "Refusing symlink: $parent" >&2
       status=1
-      return
+      return 1
     fi
     parent="$(dirname "$parent")"
   done
+}
+
+# shellcheck disable=SC2329 # unused when no file of this mode is enabled
+process_file() {
+  local path="$1" source="$2" initial="${3:-}" base incoming
+  if [ -n "$accept" ] && [ "$accept" != "$path" ]; then
+    return
+  fi
+  safe_path "$path" || return
+  declared+=("$path")
   if [ "$mode" = generated ] && git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
     echo "Refusing to overwrite tracked $path with a generated file; remove it from Git or disable the file in Nix." >&2
     status=1
@@ -79,7 +85,8 @@ process_file() {
     rm -f "$incoming"
     accepted=true
     echo "accepted upstream baseline for $path; project content preserved"
-  elif [ ! -e "$path" ] || cmp -s "$path" "$source" || { [ -f "$base" ] && cmp -s "$path" "$base"; }; then
+  elif [ ! -e "$path" ] || cmp -s "$path" "$source" || { [ -f "$base" ] && cmp -s "$path" "$base"; } ||
+    { [ -n "$initial" ] && cmp -s "$path" "$initial"; }; then
     mkdir -p "$(dirname "$path")"
     cp "$source" "$path"
     chmod u+w "$path"
@@ -97,10 +104,66 @@ process_file() {
   fi
 }
 
+is_declared() {
+  local p
+  for p in "${declared[@]}"; do
+    [ "$p" = "$1" ] && return 0
+  done
+  return 1
+}
+
+# Removes files an earlier run wrote that are no longer declared.
+prune() {
+  local base path stripped
+  if [ "$mode" = generated ]; then
+    mkdir -p "$state"
+    touch "$state/generated"
+    while IFS= read -r path; do
+      # Skip paths now written as source files.
+      if [ -n "$path" ] && ! is_declared "$path" && [ ! -f "$state/base/$path" ] && safe_path "$path" &&
+        [ -e "$path" ] && ! git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+        rm -rf "$path"
+        echo "removed $path (no longer generated)"
+      fi
+    done <"$state/generated"
+    printf '%s\n' "${declared[@]}" >"$state/generated"
+    return
+  fi
+  shopt -s globstar dotglob nullglob
+  for base in "$state"/base/**; do
+    path="${base#"$state/base/"}"
+    if [ ! -f "$base" ] || is_declared "$path" || ! safe_path "$path"; then
+      continue
+    fi
+    if [ ! -f "$path" ]; then
+      :
+    elif grep -q 'nullkomma:[^:]*:start' "$path"; then
+      stripped="$(awk '/nullkomma:[^:]+:start/ { s = 1 } !s { print } /nullkomma:[^:]+:end/ { s = 0 }' "$path")"
+      if [ -n "${stripped//[[:space:]]/}" ]; then
+        printf '%s\n' "$stripped" >"$path"
+        echo "removed nullkomma sections from $path"
+      else
+        rm "$path"
+        echo "removed $path (no longer managed)"
+      fi
+    elif cmp -s "$path" "$base"; then
+      rm "$path"
+      echo "removed $path (no longer managed)"
+    else
+      echo "kept edited $path (no longer managed)"
+    fi
+    rm -f "$base" "$state/incoming/$path"
+  done
+}
+
 finish() {
-  if [ -n "$accept" ] && [ "$accepted" != true ]; then
-    echo "Not an enabled source-of-truth file: $accept" >&2
-    exit 1
+  if [ -n "$accept" ]; then
+    if [ "$accepted" != true ]; then
+      echo "Not an enabled source-of-truth file: $accept" >&2
+      exit 1
+    fi
+  else
+    prune
   fi
   exit "$status"
 }

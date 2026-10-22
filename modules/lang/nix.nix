@@ -19,7 +19,7 @@
             type = lib.types.lazyAttrsOf lib.types.raw;
             default = { };
             example = lib.literalExpression "{ testAdd = { expr = 1 + 1; expected = 2; }; }";
-            description = "[nix-unit](https://github.com/nix-community/nix-unit) tests, exported as `tests.systems.<system>`; if any, they become the `nix-unit` test.";
+            description = "[nix-unit](https://github.com/nix-community/nix-unit) tests, exported as `tests.systems.<system>`; if any, they become the `nix-unit` check.";
           };
           inputs = lib.mkOption {
             type = lib.types.attrsOf lib.types.path;
@@ -40,7 +40,7 @@
           tests.systems = unitTests;
           schemas.tests = {
             version = 1;
-            doc = "[nix-unit](https://github.com/nix-community/nix-unit) tests by system, run by `checks.<system>.test-nix-unit`.";
+            doc = "[nix-unit](https://github.com/nix-community/nix-unit) tests by system, run by `checks.<system>.nix-unit`.";
             inventory = output: {
               children.systems.children = builtins.mapAttrs (system: _: {
                 what = "nix-unit test suite";
@@ -65,7 +65,7 @@
             format = if editor.formatter == null then null else editor.formatter.command;
             unit = config.nullkomma.nix.unit;
             attr = "tests.systems.${system}";
-            run = pkgs.runCommand "test-nix-unit" { nativeBuildInputs = [ pkgs.nix-unit ]; } ''
+            run = pkgs.runCommand "check-nix-unit" { nativeBuildInputs = [ pkgs.nix-unit ]; } ''
               mkdir home && export HOME="$PWD/home"
               unset NIX_STORE
               export NIX_STORE_DIR=${builtins.storeDir}
@@ -95,11 +95,11 @@
               });
           in
           {
-            nullkomma.tests = lib.mkIf (unit.tests != { }) {
+            nullkomma.checks = lib.mkIf (unit.tests != { }) {
               nix-unit = {
                 packages = [ pkgs.nix-unit ];
                 command = ''exec nix-unit --extra-experimental-features flakes --flake ".#${attr}" "$@"'';
-                check = if unit.allowNetwork then networked else run;
+                sandboxed = if unit.allowNetwork then networked else run;
               };
             };
             nullkomma.editor.languageServers.nixd = {
@@ -125,10 +125,6 @@
               nixf-diagnose.enable = lib.mkDefault true;
             };
             nullkomma.tasks = {
-              check = {
-                description = "Evaluate and build all checks (nix flake check)";
-                command = ''exec nix flake check "$@"'';
-              };
               flake-checker = {
                 description = "Check flake.lock for outdated or non-upstream Nixpkgs";
                 packages = [ pkgs.flake-checker ];

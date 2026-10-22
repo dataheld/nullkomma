@@ -54,7 +54,7 @@
         };
         lib = {
           version = 1;
-          doc = "Nix library: `mkFlake`, `importTree` and `defaultPlugins`.";
+          doc = "Nix library: `mkFlake` and `defaultPlugins`.";
           inventory = output: {
             children = builtins.mapAttrs (_: v: {
               what = if builtins.isFunction v then "function" else "library";

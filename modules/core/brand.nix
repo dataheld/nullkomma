@@ -1,0 +1,27 @@
+# A brand flake themes the project's sites and contributes privacy sections;
+# nullkomma adds no brand input itself.
+{
+  framework =
+    { config, lib, ... }:
+    let
+      inherit (config.nullkomma) brand;
+      # Imports cannot depend on config, so the brand's privacy module is evaluated on its own.
+      privacy = lib.evalModules {
+        modules = [
+          (import ./privacy.nix).framework
+          (brand.flakeModules.privacy or { })
+        ];
+      };
+    in
+    {
+      options.nullkomma.brand = lib.mkOption {
+        type = lib.types.nullOr lib.types.attrs;
+        default = null;
+        example = lib.literalExpression "inputs.brand";
+        description = "Optional brand flake exposing `lib.brand` (brand.yml), optional `lib.footer` (HTML) and optional `flakeModules.privacy`. Its privacy sections join `nullkomma.privacy`; Quarto and pkgdown apply its theme, and pkgdown also applies its footer.";
+      };
+      config.nullkomma.privacy.sections = lib.mkIf (
+        brand != null
+      ) privacy.config.nullkomma.privacy.sections;
+    };
+}

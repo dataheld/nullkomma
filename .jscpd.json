@@ -1,0 +1,10 @@
+{
+  "formatsExts": {
+    "nix": [
+      "nix"
+    ]
+  },
+  "ignore": [
+    "templates/**"
+  ]
+}

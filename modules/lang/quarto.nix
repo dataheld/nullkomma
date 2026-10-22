@@ -9,25 +9,18 @@
     }:
     let
       cfg = config.nullkomma.quarto;
-      inherit (config.nullkomma) privacy;
-      sections = lib.sort (a: b: a.order < b.order) (
-        lib.attrValues (lib.filterAttrs (_: s: s.enable) privacy.sections)
-      );
-      section =
-        code: s:
-        s.markdown.${code}
-          or (throw "Privacy section is missing language `${code}`: ${toString (lib.attrValues s.markdown)}");
-      policy = code: lib.concatMapStringsSep "\n" (s: builtins.readFile (section code s)) sections;
+      inherit (config.nullkomma) brand privacy;
+      prefix = import ../../lib/prefix.nix lib self cfg.root;
       privacyPage = ''
 
         ---
-        title: ${builtins.toJSON cfg.privacy.title}
+        title: ${builtins.toJSON privacy.title}
         ---
 
       ''
       + (
         if lib.length privacy.languages == 1 then
-          policy (lib.head privacy.languages).code
+          privacy.policy.${(lib.head privacy.languages).code}
         else
           ''
             ::: {.panel-tabset}
@@ -36,14 +29,13 @@
 
             # ${language.label}
 
-            ${policy language.code}
+            ${privacy.policy.${language.code}}
           '') privacy.languages
           + ''
 
             :::
           ''
       );
-      hasPrivacyPage = cfg.privacy.page != null && sections != [ ];
     in
     {
       options.nullkomma.quarto = {
@@ -59,17 +51,10 @@
           example = lib.literalExpression ''{ my-brand = inputs.my-brand + "/_extensions/my-brand"; }'';
           description = "Quarto extensions by name, placed in `_extensions/<name>` (generated and Git-ignored) and in the build.";
         };
-        privacy = {
-          page = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
-            default = "privacy.qmd";
-            description = "Generated page rendering `nullkomma.privacy.sections`, if there are any; null to write your own.";
-          };
-          title = lib.mkOption {
-            type = lib.types.str;
-            default = "Privacy Policy";
-            description = "Title of the generated privacy page.";
-          };
+        privacy.page = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = "privacy.qmd";
+          description = "Generated page, relative to `root`, rendering `nullkomma.privacy.sections` if there are any; null to write your own.";
         };
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption (
@@ -92,6 +77,10 @@
         }
       );
       config = lib.mkIf cfg.enable {
+        nullkomma.generatedPaths = [
+          "${prefix}.quarto/**"
+          "${prefix}_site/**"
+        ];
         nullkomma.gitignore = [
           ".quarto/"
           "_site/"
@@ -100,15 +89,12 @@
           { config, pkgs, ... }:
           let
             quarto = config.nullkomma.quarto.package;
-            page = pkgs.writeText "privacy.qmd" privacyPage;
-            rootInRepo =
-              assert lib.assertMsg (lib.hasPrefix (toString self) (
-                toString cfg.root
-              )) "nullkomma.quarto.root must be inside the flake for the preview task.";
-              lib.removePrefix (toString self) (toString cfg.root);
+            brandExtension = (pkgs.formats.yaml { }).generate "_extension.yml" {
+              contributes.metadata.project.brand = "origin/${baseNameOf brand.lib.brand}";
+            };
           in
           {
-            nullkomma.devHelpers = [ quarto ];
+            nullkomma.devShell.packages = [ quarto ];
             nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
             # Quarto watches the working tree and live-reloads the browser itself.
             nullkomma.tasks.preview = {
@@ -120,21 +106,36 @@
                 quarto
               ];
               command = ''
-                cd "$(git rev-parse --show-toplevel)"${lib.escapeShellArg rootInRepo}
+                cd "$(git rev-parse --show-toplevel)"/${lib.escapeShellArg prefix}
                 exec quarto preview "$@"
               '';
             };
             nullkomma.files =
               lib.mapAttrs' (
                 name: source:
-                lib.nameValuePair "_extensions/${name}" {
+                lib.nameValuePair "${prefix}_extensions/${name}" {
                   mode = "generated";
                   directory = true;
                   inherit source;
                 }
               ) cfg.extensions
-              // lib.optionalAttrs hasPrivacyPage {
-                ${cfg.privacy.page} = {
+              // lib.optionalAttrs (brand != null) {
+                "${prefix}_brand" = {
+                  mode = "generated";
+                  directory = true;
+                  source = pkgs.runCommand "quarto-brand" { nativeBuildInputs = [ quarto ]; } ''
+                    export HOME="$TMPDIR"
+                    mkdir source
+                    cp ${brandExtension} source/_extension.yml
+                    ln -s ${lib.escapeShellArg "${dirOf brand.lib.brand}"} source/origin
+                    quarto use brand ./source --force
+                    test -f _brand/_brand.yml
+                    mv _brand "$out"
+                  '';
+                };
+              }
+              // lib.optionalAttrs (cfg.privacy.page != null && privacy.policy != { }) {
+                "${prefix}${cfg.privacy.page}" = {
                   mode = "generated";
                   commentPrefix = "<!--";
                   commentSuffix = " -->";
@@ -142,30 +143,10 @@
                 };
               };
             packages.site = lib.mkDefault (
-              pkgs.runCommand "site" { nativeBuildInputs = [ quarto ]; } (
-                ''
-                  cp -r ${cfg.root} src && chmod -R u+w src && cd src
-                ''
-                + lib.concatStrings (
-                  lib.mapAttrsToList (name: source: ''
-                    rm -rf _extensions/${lib.escapeShellArg name}
-                    mkdir -p _extensions
-                    cp -r ${source} _extensions/${lib.escapeShellArg name}
-                  '') cfg.extensions
-                )
-                + lib.optionalString hasPrivacyPage ''
-                  page=${lib.escapeShellArg cfg.privacy.page}
-                  if [ -e "$page" ] && ! head -n 1 "$page" | grep -q '^<!-- Generated by nullkomma'; then
-                    echo "$page is generated from nullkomma.privacy.sections; remove it or set nullkomma.quarto.privacy.page = null." >&2
-                    exit 1
-                  fi
-                  cp --remove-destination ${page} "$page"
-                ''
-                + ''
-                  chmod -R u+w .
-                  HOME=$TMPDIR quarto render --output-dir "$out"
-                ''
-              )
+              pkgs.runCommand "site" { nativeBuildInputs = [ quarto ]; } ''
+                cp -r ${config.nullkomma.src} src && chmod -R u+w src && cd src/${lib.escapeShellArg prefix}
+                HOME=$TMPDIR quarto render --output-dir "$out"
+              ''
             );
           };
       };

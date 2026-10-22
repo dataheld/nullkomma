@@ -1,0 +1,21 @@
+Package: nullkommafixture
+Title: Fixture for the Nullkomma R Aspect
+Version: 0.0.1
+Authors@R: person("nullkomma", email = "nullkomma@example.com", role = c("aut", "cre"))
+Description: Exercises the R aspect of nullkomma: dependencies from the
+    DESCRIPTION file via a pak lockfile, formatting with air and R CMD check.
+License: CC0
+URL: https://github.com/dataheld/nullkomma
+BugReports: https://github.com/dataheld/nullkomma/issues
+Encoding: UTF-8
+Depends:
+    R (>= 4.1.0)
+Imports:
+    stats
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Config/testthat/parallel: true
+Config/Needs/development: assertthat
+Config/Needs/website: rematch
+RoxygenNote: 7.3.3

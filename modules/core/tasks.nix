@@ -42,7 +42,7 @@
                     package = lib.mkOption {
                       type = lib.types.package;
                       readOnly = true;
-                      description = "The task's command, for tests and other tasks.";
+                      description = "The task's command, for checks and other tasks.";
                     };
                   };
                   config.package = pkgs.writeShellApplication {
@@ -82,7 +82,7 @@
         in
         lib.mkIf (cfg != { }) {
           taskRunners.default = runner;
-          nullkomma.devshell.packages = lib.mapAttrsToList (_: task: task.package) cfg ++ [ runner ];
+          nullkomma.devShell.packages = lib.mapAttrsToList (_: task: task.package) cfg ++ [ runner ];
         };
     };
 }

@@ -1,0 +1,12 @@
+--- a/R/build-home-index.R
++++ b/R/build-home-index.R
+@@ -174,7 +174,8 @@
+ data_home_sidebar_links <- function(pkg = ".") {
+   pkg <- as_pkgdown(pkg)
+ 
+-  repo <- cran_link(pkg$package)
++  # nullkomma: no CRAN/Bioconductor lookup, so builds work offline.
++  repo <- NULL
+   links <- config_pluck(pkg, "home.links")
+ 
+   bug_reports <- pkg$desc$get_field("BugReports", default = NULL)

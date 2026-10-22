@@ -23,7 +23,7 @@
             );
           in
           {
-            nullkomma.devHelpers = [ pkgs.git ];
+            nullkomma.devShell.packages = [ pkgs.git ];
             nullkomma.files.".gitignore".text = lib.concatLines (ignores ++ map (path: "/${path}") generated);
           };
       };

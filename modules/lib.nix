@@ -11,22 +11,18 @@ in
   # The framework and every plugin, with the default plugins enabled.
   flake.flakeModules.default = {
     imports = map (name: flakeModules.${name}) ([ "framework" ] ++ lib.attrNames config.plugins);
-    nullkomma = lib.genAttrs (config.flake.lib.defaultPlugins ++ [ "devshell" ]) (_: {
+    nullkomma = lib.genAttrs (config.flake.lib.defaultPlugins ++ [ "devShell" ]) (_: {
       enable = lib.mkDefault true;
     });
   };
   flake.lib = {
-    importTree = import ../lib/import-tree.nix lib;
-    # Privacy sections plugins contribute, for sites assembling their policy without nullkomma.
-    privacy.cloudflare = {
-      en = ./deploy/_cloudflare/privacy.en.md;
-      de = ./deploy/_cloudflare/privacy.de.md;
-    };
     defaultPlugins = [
       "direnv"
       "flakehub"
       "git"
       "github"
+      "gitleaks"
+      "jscpd"
       "json"
       "keepSorted"
       "markdown"
@@ -34,7 +30,6 @@ in
       "nix"
       "shell"
       "toml"
-      "treefmt"
       "typos"
       "vscode"
       "yaml"

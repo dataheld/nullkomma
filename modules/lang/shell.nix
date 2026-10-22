@@ -16,7 +16,7 @@
       options.nullkomma.shell.bats.testDir = lib.mkOption {
         type = lib.types.str;
         default = "test";
-        description = "Directory with the [bats](https://bats-core.readthedocs.io) tests, relative to the project root. If it exists, they become the `bats` test.";
+        description = "Directory with the [bats](https://bats-core.readthedocs.io) tests, relative to the project root. If it exists, they become the `bats` check.";
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption {
         options.nullkomma.shell.bats = {
@@ -62,12 +62,16 @@
                 shellcheck.enable = lib.mkDefault true;
                 shfmt.enable = lib.mkDefault true;
               };
-              treefmt.settings.formatter = lib.genAttrs [ "shellcheck" "shfmt" ] (_: {
-                includes = [ "*.bats" ];
-              });
+              treefmt.settings.formatter = {
+                shellcheck = {
+                  includes = [ "*.bats" ];
+                  options = [ "--norc" ];
+                };
+                shfmt.includes = [ "*.bats" ];
+              };
             }
             (lib.mkIf hasTests {
-              nullkomma.tests.bats = {
+              nullkomma.checks.bats = {
                 packages = [ bats ] ++ cfg.packages;
                 command = ''bats "$@" ${lib.escapeShellArg testDir}'';
               };

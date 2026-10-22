@@ -12,9 +12,11 @@ proposals or assumptions about upstream tools.
    plugin may span several files.
 1. Note what enabling the plugin adds. If the source is unclear, evaluate a
    fixture the way `modules/dev/tests.nix` does and compare it enabled vs disabled.
-1. Update only the affected cells, briefly. Mark formatter/linter coverage with
-   ✅; tool names stay in the source. Leave a cell empty only when the plugin
-   adds nothing there. Never list unimplemented plugins.
-1. Keep the distinctions the columns make: a recommended extension is not an
-   installed tool; a source-of-truth file is not a generated one.
+1. Update only the affected cells, briefly. Each column is an output of the
+   project's flake: list what the plugin adds there (check names, package
+   names, tasks, dev-shell tools, treefmt programs). Leave a cell empty only
+   when the plugin adds nothing there. Never list unimplemented plugins.
+1. Files the plugin writes (source-of-truth or generated), editor settings and
+   how to configure them go in the plugin's section under **Plugin details**,
+   not the table.
 1. Run `nix fmt` and review the diff.

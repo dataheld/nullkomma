@@ -7,6 +7,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
+  r-non-nix:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: DeterminateSystems/determinate-nix-action@v3
+      - name: Test R development in Ubuntu without Nix
+        run: nix develop --command test-r-non-nix
   consumer-contract:
     runs-on: ubuntu-latest
     steps:
