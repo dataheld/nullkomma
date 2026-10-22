@@ -138,6 +138,7 @@
         quarto-preview =
           let
             quarto = pkgs.writeShellScriptBin "quarto" ''
+              set -e
               test -f generated.txt
               printf '%s\n' "$PWD" "$@" > "$CALLED"
             '';
