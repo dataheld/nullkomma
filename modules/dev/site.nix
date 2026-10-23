@@ -50,6 +50,9 @@
             css = "\n".join(path.read_text() for path in (site / "site_libs/bootstrap").glob("*.css"))
             assert "#453aa4" in css.lower()
             assert 'data-mode="dark"' in (site / "index.html").read_text()
+            dark = next((site / "site_libs/bootstrap").glob("bootstrap-dark-*.css")).read_text()
+            assert "nav.sidebar.sidebar-navigation:not(.rollup)" in dark and "background-color:var(--bs-body-bg)" in dark
+            assert "background-color:var(--bs-tertiary-bg)" in dark
             PY
             touch $out
           '';

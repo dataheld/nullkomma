@@ -3,3 +3,66 @@
 :root {
   @extend [data-bs-theme="dark"];
 }
+
+// Quarto compiles light Sass values into these surfaces; follow the dark CSS variables instead.
+nav.sidebar.sidebar-navigation:not(.rollup),
+div.sidebar.sidebar-navigation.rollup.quarto-sidebar-toggle-contents,
+.quarto-sidebar-toggle-contents,
+nav.quarto-secondary-nav,
+.nav-footer,
+#quarto-back-to-top,
+#quarto-appendix.default,
+.code-annotation-gutter-bg,
+.tableFloatingHeaderOriginal,
+.tippy-box[data-theme~="quarto"],
+.tippy-box[data-theme~="quarto"] > .tippy-backdrop,
+.aa-DetachedOverlay .aa-Panel,
+#quarto-search-results .aa-Panel,
+.aa-DetachedContainer .aa-Panel,
+.aa-DetachedFormContainer,
+.aa-Autocomplete .aa-Form,
+.aa-DetachedFormContainer .aa-Form,
+.aa-DetachedOverlay .aa-Item .search-item,
+#quarto-search-results .aa-Item .search-item,
+.aa-DetachedOverlay li.aa-Item[aria-selected="false"] .search-item,
+#quarto-search-results li.aa-Item[aria-selected="false"] .search-item {
+  background-color: var(--bs-body-bg);
+  border-color: var(--bs-border-color);
+  color: var(--bs-body-color);
+}
+
+pre,
+code,
+kbd,
+.kbd,
+div.sourceCode,
+p code.sourceCode,
+li code.sourceCode,
+td code.sourceCode,
+p code:not(.sourceCode),
+li code:not(.sourceCode),
+td code:not(.sourceCode) {
+  background-color: var(--bs-tertiary-bg);
+  border-color: var(--bs-tertiary-bg);
+}
+
+pre {
+  color: var(--bs-body-color);
+}
+
+div.sidebar-item-container .active,
+div.sidebar-item-container .show > .nav-link,
+div.sidebar-item-container .sidebar-link > code,
+.sidebar .toc-actions a:hover,
+.sidebar .quarto-other-links a:hover,
+.sidebar .quarto-code-links a:hover,
+.sidebar nav[role="doc-toc"] ul > li > a:hover,
+.sidebar nav[role="doc-toc"] ul > li > ul > li > a:hover {
+  color: var(--bs-link-color) !important;
+}
+
+.sidebar nav[role="doc-toc"] ul > li > a.active,
+.sidebar nav[role="doc-toc"] ul > li > ul > li > a.active {
+  border-left-color: var(--bs-link-color);
+  color: var(--bs-link-color) !important;
+}
