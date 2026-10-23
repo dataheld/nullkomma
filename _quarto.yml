@@ -5,6 +5,7 @@ project:
     - privacy.qmd
 website:
   title: "nullkomma"
+  site-url: https://nullkomma.maxheld.de
   description: "Opinionated 🤓, batteries-included 🔋, extra-DRY 🤌 Nix boilerplate."
   repo-url: https://github.com/dataheld/nullkomma
   navbar:

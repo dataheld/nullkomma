@@ -5,6 +5,7 @@ result
 result-*
 .direnv/
 .claude/
+/.nullkomma/cloudflare/
 /.nvim.lua
 /_brand
 /_extensions/nullkomma-brand

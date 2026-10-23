@@ -8,6 +8,10 @@
       ];
       nullkomma = {
         brand = inputs.brand;
+        cloudflare = {
+          enable = true;
+          domain = "maxheld.de";
+        };
         github = {
           workflows = {
             source = "./.github/workflows";
