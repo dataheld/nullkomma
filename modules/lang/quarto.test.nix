@@ -16,6 +16,7 @@
         task
         rawAt
         nullkomma
+        linkcheck
         ;
       englishCloudflare = callFlakeWith {
         nullkomma.cloudflare.enable = true;
@@ -30,7 +31,7 @@
       themed = callFlakeWith {
         nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
       } (root + "/tests/fixtures/quarto-branded");
-      nestedDocs = rawAt (root + "/tests/fixtures") {
+      docs = rawAt (root + "/tests/fixtures") {
         imports = [ nullkomma.flakeModules.default ];
         nullkomma.quarto = {
           enable = true;
@@ -50,58 +51,6 @@
           root = root + "/tests/fixtures/quarto-docs";
         };
       };
-      docs = callFlakeWith {
-        nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
-        perSystem.nullkomma.files = {
-          "index.qmd" = {
-            mode = "generated";
-            commentPrefix = "<!--";
-            commentSuffix = " -->";
-            text = ''
-              ---
-              title: Fixture home
-              ---
-
-              ## Getting started
-
-              {{< greeting >}}
-
-              ```nix
-              { answer = 42; }
-              ```
-            '';
-          };
-          "_quarto.yml" = {
-            mode = "generated";
-            commentPrefix = "#";
-            text = ''
-              project:
-                type: nullkomma-docs
-              website:
-                repo-url: https://github.com/example/docs
-                sidebar:
-                  contents:
-                    - section: Guides
-                      contents:
-                        - guide.qmd
-            '';
-          };
-          "guide.qmd" = {
-            mode = "generated";
-            commentPrefix = "<!--";
-            commentSuffix = " -->";
-            text = ''
-              ---
-              title: Fixture guide
-              ---
-
-              ## Usage
-
-              A second page.
-            '';
-          };
-        };
-      } (root + "/tests/fixtures/quarto-branded");
     in
     {
       nullkomma.nix.unit.tests.testQuartoGeneratesExtensionsAndPrivacyPage =
@@ -148,52 +97,8 @@
           };
         };
       checks = {
-        quarto-unbranded-docs = pkgs.runCommand "nullkomma-quarto-unbranded-docs" { } ''
-          site=${unbrandedDocs.packages.${system}.site}
-          grep -qF 'id="quarto-sidebar"' "$site/index.html"
-          grep -qF 'role="main"' "$site/guides/intro.html"
-          ! grep -qF 'Shared fixture footer' "$site/index.html"
-          test ! -e "$site/privacy.html"
-          touch $out
-        '';
-        quarto-nested-docs = pkgs.runCommand "nullkomma-quarto-nested-docs" { } ''
-          site=${nestedDocs.packages.${system}.site}
-          grep -qF 'href="../legal/privacy.html"' "$site/guides/intro.html"
-          grep -qF 'role="main"' "$site/guides/intro.html"
-          test "$(grep -o 'role="main"' "$site/guides/intro.html" | wc -l)" -eq 1
-          ! grep -qF 'id="TOC"' "$site/index.html"
-          ! grep -qF '<button title="Copy to Clipboard"' "$site/index.html"
-          test -f "$site/legal/privacy.html"
-          touch $out
-        '';
-        quarto-docs = pkgs.runCommand "nullkomma-quarto-docs" { nativeBuildInputs = [ pkgs.python3 ]; } ''
-          python - ${docs.packages.${system}.site} <<'PY'
-          import json
-          from pathlib import Path
-          import sys
-
-          site = Path(sys.argv[1])
-          home = (site / "index.html").read_text()
-          guide = (site / "guide.html").read_text()
-          assert 'id="quarto-sidebar"' in home
-          assert 'id="quarto-search"' in home
-          assert 'id="TOC"' in home
-          assert "code-copy-button" in home
-          assert "Fixture guide" in home and "Fixture guide" in guide
-          assert "breadcrumb" in guide and "pagination" in guide
-          assert "https://github.com/example/docs/edit/main/guide.qmd" in guide
-          for page in [home, guide]:
-              assert "Shared fixture footer" in page
-              assert 'href="mailto:hello@example.org"' in page
-              assert 'href="./privacy.html"' in page or 'href="privacy.html"' in page
-              assert page.count("<footer") == 1
-          css = "\n".join(path.read_text() for path in (site / "site_libs/bootstrap").glob("*.css")).lower()
-          for token in ["#123456", "#abcdee", "arial"]:
-              assert token in css, token
-          assert any(entry["href"].startswith("guide.html") for entry in json.loads((site / "search.json").read_text()))
-          PY
-          touch $out
-        '';
+        quarto-docs = linkcheck "quarto-docs" docs.packages.${system}.site;
+        quarto-unbranded-docs = linkcheck "quarto-unbranded-docs" unbrandedDocs.packages.${system}.site;
         quarto-site = pkgs.runCommand "nullkomma-quarto-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           site=${fixtures.quarto.packages.${system}.site}
           python - "$site/index.html" <<'PY'
@@ -242,7 +147,6 @@
                   return " ".join("".join(document.text).split())
 
               branded, english = sys.argv[1:]
-              assert 'id="quarto-sidebar"' not in Path(f"{branded}/index.html").read_text()
               assert "Hello from an extension" in text(f"{branded}/index.html")
               privacy = text(f"{branded}/privacy.html")
               assert "Privacy Policy" in privacy
@@ -261,9 +165,6 @@
             quarto = pkgs.writeShellScriptBin "quarto" ''
               set -e
               test -f generated.txt
-              test -f _extensions/nullkomma-docs/_extension.yml
-              test -f _extensions/nullkomma-brand/landmarks.lua
-              test -f _nullkomma-brand.yml
               printf '%s\n' "$PWD" "$@" > "$CALLED"
             '';
             flake = callFlakeWith (

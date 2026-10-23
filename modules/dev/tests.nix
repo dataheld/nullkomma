@@ -99,6 +99,13 @@
             raw = rawAt (root + "/tests/fixtures/md");
             # Executables of a flake's nullkomma tasks and checks.
             task = flake: name: lib.getExe (perSystem flake).nullkomma.tasks.${name}.package;
+            # A built site's local links and fragments resolve.
+            linkcheck =
+              name: site:
+              pkgs.runCommand "nullkomma-${name}" { } ''
+                ${lib.getExe pkgs.lychee} --offline --include-fragments --no-progress '${site}/**/*.html'
+                touch $out
+              '';
             runCheck = flake: name: lib.getExe (perSystem flake).nullkomma.checks.${name}.package;
             # What plugins can contribute to a consumer flake.
             summary = flake: {
