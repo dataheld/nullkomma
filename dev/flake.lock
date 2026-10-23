@@ -10,16 +10,16 @@
         "nullkomma": "nullkomma"
       },
       "locked": {
-        "lastModified": 1792081660,
-        "narHash": "sha256-M05HjIJO2TkswpT9yMRUe64gyNOMRLeZKDJ9t34aFcY=",
-        "rev": "a65dc58d240d0d97b4ff58fba36b0c288fabf00f",
-        "revCount": 2,
+        "lastModified": 1792768557,
+        "narHash": "sha256-RO4zqZolbuOeq1G1pO8JTAHNfjMckh2I856PG/mfdlc=",
+        "rev": "9b30b65c6a4a782d8845a0b1f857cd5434e04940",
+        "revCount": 15,
         "type": "tarball",
-        "url": "https://api.flakehub.com/f/pinned/dataheld/brand/0.1.2%2Brev-a65dc58d240d0d97b4ff58fba36b0c288fabf00f/01a14068-2ec0-73c1-aaa9-6da3a4973e23/source.tar.gz"
+        "url": "https://api.flakehub.com/f/pinned/dataheld/brand/0.1.15%2Brev-9b30b65c6a4a782d8845a0b1f857cd5434e04940/01a1695a-42ef-73d2-8fa4-222bad88f84c/source.tar.gz"
       },
       "original": {
         "type": "tarball",
-        "url": "https://flakehub.com/f/dataheld/brand/0.1.%2A"
+        "url": "https://flakehub.com/f/dataheld/brand/%2A"
       }
     },
     "flake-parts": {
@@ -91,23 +91,28 @@
         "flake-parts": "flake-parts",
         "flake-schemas": "flake-schemas",
         "nixpkgs": "nixpkgs",
+        "nixpkgs-r": [
+          "brand",
+          "nullkomma",
+          "nixpkgs"
+        ],
         "terraform-providers-bin": "terraform-providers-bin",
         "terranix": "terranix",
         "treefmt-nix": "treefmt-nix",
         "up": "up"
       },
       "locked": {
-        "lastModified": 1792079814,
-        "narHash": "sha256-8tFP77K5objX5tsp/SzJ7lI5TwFKP6PsqxzRSFfx9Bg=",
+        "lastModified": 1792765921,
+        "narHash": "sha256-UYYAV+euzKdmIlIzRav3WmhQXjjC8aXlSsdm90DCmLk=",
         "owner": "dataheld",
         "repo": "nullkomma",
-        "rev": "b2e9eb736771cd07a780e0d34f2e4284ebd04a07",
+        "rev": "c0472461009131a23065588c709d4c14da849f72",
         "type": "github"
       },
       "original": {
         "owner": "dataheld",
-        "ref": "maxheld83-shared-brand-design",
         "repo": "nullkomma",
+        "rev": "c0472461009131a23065588c709d4c14da849f72",
         "type": "github"
       }
     },

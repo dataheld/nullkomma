@@ -234,7 +234,7 @@ To theme sites from a brand flake, declare its input and select it:
 
 ```nix
 inputs.brand = {
-  url = "https://flakehub.com/f/dataheld/brand/0.1.*";
+  url = "https://flakehub.com/f/dataheld/brand/*";
   inputs.nullkomma.follows = "nullkomma";
 };
 # Inside mkFlake's module:
