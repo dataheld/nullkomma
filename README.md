@@ -505,11 +505,20 @@ env:
   CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
   CLOUDFLARE_STATE_BUCKET: ${{ vars.CLOUDFLARE_STATE_BUCKET }}
   # Account API token: Workers Scripts Edit
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_WORKERS }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   # R2 API token: Object Read & Write on the state bucket only
   AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
 ```
+
+One-time setup for this repository:
+
+1. Allow this repo access to the existing `CLOUDFLARE_API_TOKEN` and both `CLOUDFLARE_R2_*` organization secrets.
+1. Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_STATE_BUCKET` Actions variables to the existing account and private state bucket.
+1. Ensure the existing API token has **Account / Workers Scripts / Edit**; Custom Domains need no separate DNS token. Keep the R2 token scoped to **Object Read & Write** on the state bucket.
+
+The parent zone must already be active in that account. This repo deploys assets
+and DNS only after successful CI on pushes to `main`, never from PRs or tags.
 
 ### `r`
 
