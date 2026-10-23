@@ -7,8 +7,7 @@
     in
     {
       config.nullkomma.r.pkgdown.config = lib.mkIf (cfg.enable && cfg.pkgdown.enable && brand != null) {
-        template.bslib.brand = lib.mkDefault brand.lib.brand;
-        template.light-switch = lib.mkDefault true;
+        template.package = lib.mkDefault "nullkommabrand";
       };
     };
 }

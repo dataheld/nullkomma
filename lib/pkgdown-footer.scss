@@ -1,10 +1,4 @@
-/* Lay the brand footer out in Quarto's three columns. */
-footer .pkgdown-footer-left {
-  display: contents;
-}
-footer .pkgdown-footer-right:not(:has(*)) {
-  display: none;
-}
+// Lay the brand footer out in Quarto's three columns.
 footer [class^="nullkomma-footer-"] {
   flex: 1 1 0;
 }
@@ -20,11 +14,8 @@ footer [class^="nullkomma-footer-"] a {
 .nullkomma-footer-right a {
   margin-left: 0.75em;
 }
-@media (max-width: 767.98px) {
+@include media-breakpoint-down(sm) {
   footer [class^="nullkomma-footer-"] {
     text-align: center;
   }
-}
-footer [class^="nullkomma-footer-"] p {
-  margin: 0;
 }

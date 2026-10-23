@@ -33,7 +33,7 @@ local function text(value)
 end
 
 local function escape(s)
-  return (s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&#x27;"))
+  return (s:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"):gsub("'", "&#x27;"):gsub("{", "&#123;"))
 end
 
 function M.parse(yaml)
@@ -48,7 +48,8 @@ local fontawesome = {
   ["twitter-x"] = "fa-brands fa-x-twitter",
 }
 
--- Returns Quarto's `page-footer` value (nil without a footer) and the equivalent HTML for pkgdown.
+-- Returns Quarto's `page-footer` value (nil without a footer) and the equivalent pkgdown footer template,
+-- whose local links start at pkgdown's site root.
 function M.render(brand, privacy_href)
   local footer = ((brand.defaults or {}).nullkomma or {}).footer
   if footer == nil then
@@ -65,42 +66,48 @@ function M.render(brand, privacy_href)
     end
     return text(meta.link[text(item.link)])
   end
-  local function anchor(label, href)
-    return '<a href="' .. escape(href) .. '">' .. escape(label) .. "</a>"
+  local function href(url, root)
+    local absolute = url:match("^%a[%w+.-]*:") or url:match("^[/#]")
+    return (absolute and "" or root) .. escape(url)
+  end
+  local function anchor(label, url, root)
+    return '<a href="' .. href(url, root) .. '">' .. escape(label) .. "</a>"
   end
 
-  local left = anchor(text(meta.name), text(meta.link.home))
-  if footer.tagline then
-    left = left .. " · " .. escape(text(footer.tagline))
-  end
+  local tagline = footer.tagline and " · " .. escape(text(footer.tagline)) or ""
   local center, right = {}, {}
   for _, item in ipairs(footer.links or {}) do
-    local href = link(item)
-    if href then
-      center[#center + 1] = { text = text(item.text), href = href }
+    local url = link(item)
+    if url then
+      center[#center + 1] = { text = text(item.text), href = url }
     end
   end
   for _, item in ipairs(footer.social or {}) do
     right[#right + 1] = { icon = text(item.icon), href = link(item), ["aria-label"] = text(item.text) }
   end
-
-  local links = {}
-  for _, item in ipairs(center) do
-    links[#links + 1] = anchor(item.text, item.href)
+  local function columns(root)
+    local links = {}
+    for _, item in ipairs(center) do
+      links[#links + 1] = anchor(item.text, item.href, root)
+    end
+    return anchor(text(meta.name), text(meta.link.home), root) .. tagline, table.concat(links, " · ")
   end
+
   local icons = {}
   for _, item in ipairs(right) do
     local class = fontawesome[item.icon] or error("no Font Awesome equivalent of Bootstrap icon " .. item.icon)
-    icons[#icons + 1] = '<a href="' .. escape(item.href) .. '" aria-label="' .. escape(item["aria-label"]) .. '"><i class="'
-      .. class .. '" aria-hidden="true"></i></a>'
+    icons[#icons + 1] = '<a href="' .. href(item.href, "{{#site}}{{root}}{{/site}}") .. '" aria-label="'
+      .. escape(item["aria-label"]) .. '"><i class="' .. class .. '" aria-hidden="true"></i></a>'
   end
+  local left, links = columns("{{#site}}{{root}}{{/site}}")
   local html = '<div class="nullkomma-footer-left">' .. left .. '</div>\n<div class="nullkomma-footer-center">'
-    .. table.concat(links, " · ") .. '</div>\n<div class="nullkomma-footer-right">' .. table.concat(icons, " ") .. "</div>"
+    .. links .. '</div>\n<div class="nullkomma-footer-right">' .. table.concat(icons, " ") .. "</div>\n"
 
+  left, links = columns("")
   local record = { border = true, left = left }
   -- One line like the left column, not Quarto's stacked nav list.
   if #center > 0 then
-    record.center = table.concat(links, " · ")
+    record.center = links
   end
   -- pandoc.json encodes empty tables as objects, so omit empty lists.
   if #right > 0 then

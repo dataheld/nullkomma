@@ -244,8 +244,9 @@ nullkomma.brand = inputs.brand;
 The brand provides `lib.brand` (a [brand.yml](https://posit-dev.github.io/brand-yml/) file)
 and optionally `lib.privacy.<section>.<language>` Markdown files. These join the policy
 independently of the site's layout or renderer: `controller` comes first, then `email`, `rights` last.
-Quarto installs the theme and assets into generated `_brand/`; pkgdown uses bslib's
-native brand support and light switch. Ordinary Quarto websites opt into the shared
+Quarto installs the theme and assets into generated `_brand/`; for pkgdown, nullkomma
+generates the [template package](https://pkgdown.r-lib.org/articles/customise.html#template-packages)
+`nullkommabrand` with bslib's native brand support, the light switch and the footer. Ordinary Quarto websites opt into the shared
 theme/footer adapter with `metadata-files: [_nullkomma-brand.yml]`;
 the [documentation project type](#quarto) includes it automatically.
 
@@ -569,7 +570,7 @@ also in `nix flake check`; `r-pkgdown` builds it locally.
 - A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
 - Bootstrap 5's JavaScript dependencies are pinned in nullkomma.
   Other remote templates, web fonts and network-dependent articles must be local for the sandbox.
-- `nullkomma.r.pkgdown.config` is merged over `_pkgdown.yml`, overriding the [brand](#brand).
+- `_pkgdown.yml` overrides the [brand](#brand)'s template package; `nullkomma.r.pkgdown.config` is merged over both.
 - `nullkomma.r.pkgdown.assets` is a directory generated into Git-ignored `pkgdown/assets/`,
   which pkgdown copies to the site root; leave it `null` to manage that directory yourself.
 - The [privacy policy](#privacy-policy) is generated into Git-ignored `.github/privacy.md`, which pkgdown renders to `/privacy.html`;
