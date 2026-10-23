@@ -4,6 +4,7 @@
     let
       inherit (harness)
         callFlakeWith
+        fixtures
         project
         root
         treefmt
@@ -18,6 +19,17 @@
       } md;
     in
     {
+      checks.markdown-heading-defaults = pkgs.runCommand "markdown-heading-defaults" { } ''
+        ${project md}
+        ${treefmt fixtures.md}
+        printf '## Privacy section\n\nSection content.\n' > section.md
+        format section.md
+        printf '## Privacy section\n\n%076d end\n' 0 > section.md
+        format section.md
+        printf '## Privacy section\n\n%077d end tail\n' 0 > section.md
+        rejects MD013 section.md
+        touch "$out"
+      '';
       checks.markdown-nix-config = pkgs.runCommand "markdown-nix-config" { } ''
         ${project md}
         ${treefmt withDefaults}

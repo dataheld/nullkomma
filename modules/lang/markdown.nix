@@ -2,6 +2,9 @@
   plugins.markdown =
     { config, lib, ... }:
     {
+      config.nullkomma.lint.markdown = lib.mkIf config.nullkomma.markdown.enable {
+        MD041 = lib.mkDefault false;
+      };
       config.perSystem =
         { pkgs, ... }:
         let
