@@ -4,7 +4,7 @@
     let
       cfg = config.nullkomma.r;
       inherit (cfg) prefix;
-      inherit (config.nullkomma) privacy;
+      inherit (config.nullkomma) privacy brand;
       privacyPage =
         "# ${privacy.title}\n\n"
         + (
@@ -99,6 +99,14 @@
           { config, pkgs, ... }:
           let
             pcfg = config.nullkomma.r;
+            siteBrand = import ../../../lib/brand.nix {
+              inherit pkgs lib brand;
+              privacyHref =
+                if cfg.pkgdown.privacy.page != null && privacy.policy != { } then
+                  lib.removeSuffix ".md" (baseNameOf cfg.pkgdown.privacy.page) + ".html"
+                else
+                  null;
+            };
             # Checks start at the project root; tasks may start anywhere in it.
             cd = lib.optionalString (prefix != "") "cd ${lib.escapeShellArg prefix}\n";
             top = ''
@@ -125,8 +133,18 @@
               # Cached Sass paths make repeated Bootstrap copies overwrite read-only Nix assets.
               options(sass.cache = FALSE)
               override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
+              source("${../../../lib/pkgdown-footer.R}")
+              footer_html <- brand_footer("${siteBrand}/footer.html")
+              if (nzchar(footer_html)) {
+                if (is.null(override$footer$structure$left)) override$footer$structure$left <- "brand"
+                if (is.null(override$footer$components$brand)) override$footer$components$brand <- footer_html
+              }
               ${lib.optionalString sandbox ''override$destination <- Sys.getenv("out")''}
               pkgdown::build_site(override = override, preview = FALSE, new_process = FALSE)
+              if (nzchar(footer_html)) {
+                destination <- pkgdown::as_pkgdown(override = override)$dst_path
+                relativize_brand_footer(destination)
+              }
               ${lib.optionalString sandbox ''
                 # pkgdown records wall-clock time even in otherwise reproducible builds.
                 metadata_path <- file.path(override$destination, "pkgdown.yml")

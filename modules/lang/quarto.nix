@@ -92,6 +92,14 @@
             brandExtension = (pkgs.formats.yaml { }).generate "_extension.yml" {
               contributes.metadata.project.brand = "origin/${baseNameOf brand.lib.brand}";
             };
+            siteBrand = import ../../lib/brand.nix {
+              inherit pkgs lib brand;
+              privacyHref =
+                if cfg.privacy.page != null && privacy.policy != { } then
+                  lib.removeSuffix ".qmd" cfg.privacy.page + ".html"
+                else
+                  null;
+            };
           in
           {
             nullkomma.devShell.packages = [ quarto ];
@@ -120,6 +128,29 @@
                   inherit source;
                 }
               ) cfg.extensions
+              // {
+                "${prefix}_extensions/nullkomma-docs" = {
+                  mode = "generated";
+                  directory = true;
+                  source = pkgs.runCommand "quarto-docs-extension" { } ''
+                    mkdir "$out"
+                    cp ${siteBrand}/_extension.yml "$out/_extension.yml"
+                  '';
+                };
+                "${prefix}_extensions/nullkomma-brand" = {
+                  mode = "generated";
+                  directory = true;
+                  source = pkgs.runCommand "quarto-brand-adapter" { } ''
+                    mkdir "$out"
+                    cp ${siteBrand}/dark.scss ${siteBrand}/landmarks.lua "$out/"
+                  '';
+                };
+                "${prefix}_nullkomma-brand.yml" = {
+                  mode = "generated";
+                  commentPrefix = "#";
+                  source = "${siteBrand}/quarto.yml";
+                };
+              }
               // lib.optionalAttrs (brand != null) {
                 "${prefix}_brand" = {
                   mode = "generated";

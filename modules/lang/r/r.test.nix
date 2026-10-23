@@ -46,6 +46,10 @@
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
         nullkomma.cloudflare = cloudflare;
       } fixture;
+      declarativeBrand = callFlakeWith {
+        nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
+        nullkomma.privacy.sections.local = local;
+      } fixture;
       english = callFlakeWith {
         nullkomma.cloudflare = cloudflare;
         nullkomma.privacy.sections.local = local;
@@ -197,6 +201,17 @@
         };
       };
       checks = {
+        r-declarative-brand = pkgs.runCommand "nullkomma-r-declarative-brand" { } ''
+          site=${declarativeBrand.packages.${system}.site}
+          grep -qF 'Shared fixture footer' "$site/index.html"
+          grep -qF 'href="../privacy.html"' "$site/reference/hello.html"
+          grep -qF 'href="mailto:hello@example.org"' "$site/reference/hello.html"
+          grep -qF '#123456' "$site"/deps/bootstrap-*/*.css
+          grep -qF '#abcdee' "$site"/deps/bootstrap-*/*.css
+          grep -qF 'Arial' "$site"/deps/bootstrap-*/*.css
+          grep -qF 'data-bs-theme' "$site/index.html"
+          touch $out
+        '';
         r-pkgdown-site =
           pkgs.runCommand "nullkomma-r-pkgdown-site" { nativeBuildInputs = [ pkgs.python3 ]; }
             ''
@@ -215,6 +230,7 @@
               class Page(HTMLParser):
                   def __init__(self, path):
                       super().__init__()
+                      self.path = path
                       self.parts = []
                       self.feed(path.read_text())
                       self.text = " ".join("".join(self.parts).split())
@@ -222,6 +238,8 @@
                       attrs = dict(attrs)
                       url = attrs.get("src") if tag == "script" else attrs.get("href") if tag == "link" and attrs.get("rel") != "canonical" else None
                       assert not url or not urlparse(url).netloc, url
+                      if tag == "a" and "data-nullkomma-root-href" in attrs:
+                          assert (self.path.parent / attrs["href"]).exists(), (self.path, attrs["href"])
                   def handle_data(self, data):
                       self.parts.append(data)
 
@@ -248,6 +266,8 @@
           ${task branded "r-pkgdown"}
           ${task branded "r-pkgdown"}
           grep -qF 'Shared brand footer' docs/index.html
+          grep -qF 'href="../privacy.html"' docs/reference/hello.html
+          test "$(grep -o '<footer' docs/reference/hello.html | wc -l)" -eq 1
           grep -qF 'Lokaler Abschnitt auf Deutsch' docs/privacy.html
           cmp ${root + "/tests/fixtures/r-brand/assets/brand.svg"} docs/brand.svg
           git check-ignore -q .github/privacy.md

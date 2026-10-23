@@ -241,11 +241,51 @@ inputs.brand = {
 nullkomma.brand = inputs.brand;
 ```
 
-The brand provides `lib.brand` (a [brand.yml](https://posit-dev.github.io/brand-yml/) file),
-optionally `lib.footer` (HTML) and `flakeModules.privacy`.
-Its privacy sections join every site's privacy policy.
-Quarto uses its native brand installer to generate `_brand/` with the theme and its assets;
-pkgdown applies the theme and footer.
+The brand provides `lib.brand` (a [brand.yml](https://posit-dev.github.io/brand-yml/) file)
+and optionally `flakeModules.privacy`. Its privacy sections join the policy independently
+of the site's layout or renderer.
+Quarto installs the theme and assets into generated `_brand/`; pkgdown uses bslib's
+native brand support and light switch. Ordinary Quarto websites opt into the shared
+theme/footer adapter with `metadata-files: [_nullkomma-brand.yml]`;
+the [documentation project type](#quarto) includes it automatically.
+
+Brand owns the declarations; nullkomma owns their translation and placement.
+Keep visual tokens in `color`, `typography` and `defaults.bootstrap` in brand.yml.
+For shared dark styling, use scalar Bootstrap variables such as `body-bg-dark`,
+`body-color-dark` and `link-color-dark`, and dark-scoped Bootstrap rules.
+Quarto accepts light/dark color objects, but the pinned R brand.yml does not;
+nullkomma's small Quarto adapter activates the same Bootstrap dark tokens instead.
+There are no brand-specific colors or tint formulas in the adapters.
+
+An optional `defaults.nullkomma.footer` record supplies footer facts to both builders:
+
+```yaml
+meta:
+  name: Example
+  link:
+    home: https://example.org
+    imprint: https://example.org/imprint
+    email: mailto:hello@example.org
+defaults:
+  nullkomma:
+    footer:
+      tagline: A short description
+      links:
+        - text: Imprint
+          link: imprint
+        - text: Privacy
+          privacy: true
+      social:
+        - text: Email
+          link: email
+          icon: envelope
+```
+
+This namespaced record is nullkomma's adapter contract, not native brand.yml semantics.
+`link` references raw `meta.link` entries; `privacy: true` links to the generated
+policy only when one exists. Local footer links work from nested pages and project
+subpaths. Personal/legal prose stays in the brand's Markdown, not YAML or Sass.
+Legacy brands may still expose `lib.footer` HTML instead.
 
 ##### Privacy policy
 
@@ -266,6 +306,8 @@ nullkomma.privacy.sections.booking = {
 one tab per `nullkomma.privacy.languages`; pkgdown renders them to `/privacy.html`.
 Link the page from your footer, or set it to `null` to write your own.
 The sections are a starting point, not legal advice.
+Technology-specific disclosures belong to the plugin using that technology, not the
+brand; the framework's `nullkomma.privacy.policy` is also usable without either site builder.
 
 ### `apps`
 
@@ -346,7 +388,7 @@ and removes files it generated before that are no longer declared.
 ### Resolving conflicts
 
 The repository root is a portable [Agent Plugins 1.0 package](https://agent-plugin.org/en)
-with the [resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
+with the [resolve-file-conflicts skill](https://github.com/dataheld/nullkomma/blob/main/.github/skills/resolve-file-conflicts/SKILL.md).
 In Copilot, install it with `/plugin install https://github.com/dataheld/nullkomma`
 and update it with `/plugin update nullkomma`; neither writes to your project.
 
@@ -396,10 +438,35 @@ e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
 Opt-in `quarto` renders the project into `packages.site`; `preview` serves it locally and reloads on edits.
 It ignores `.quarto/` and `_site/`.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`,
-generated into `_extensions/<name>`; a selected [brand](#brand) themes rendering and preview.
+generated into `_extensions/<name>`.
 The [privacy policy](#privacy-policy) is generated into `privacy.qmd`.
 
-Preview refreshes generated files before starting.
+For a documentation site, enable `nullkomma.quarto.enable = true` and select the
+native project type in your `_quarto.yml`:
+
+```yaml
+project:
+  type: nullkomma-docs
+website:
+  title: My project
+  repo-url: https://github.com/example/project
+```
+
+The generated `_extensions/nullkomma-docs` provides Home in the top navbar,
+navbar search, a docked page sidebar, right-hand page contents, breadcrumbs,
+next/previous navigation, repository actions, copyable code and code links.
+Add pages or sections through native `website.sidebar.contents`; other Quarto
+options and per-page overrides still work. Set `repo-url` for repository actions.
+No brand is required, and choosing a [brand](#brand) does not select this layout.
+
+Ordinary Quarto sites keep their existing project type; include generated
+`_nullkomma-brand.yml` in `metadata-files` for branded light/dark themes and the footer.
+The docs type includes those settings automatically. Both keep the standard Quarto
+theme, using brand.yml rather than a separate Bootswatch theme.
+
+All generated paths are relative to `nullkomma.quarto.root`, including nested docs
+directories. Preview refreshes the same generated files used by `packages.site`
+before starting.
 
 ### `cloudflare`
 
@@ -549,7 +616,7 @@ Everything runs on one locked R version; add a CI matrix if you need Windows or 
 
 For collaborators without Nix, enable `nullkomma.r-non-nix.enable = true` (it enables `r`),
 run `write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
-and the [R development without Nix](modules/lang/r-non-nix/_assets/development.md) section added to your README.
+and the [R development without Nix](https://github.com/dataheld/nullkomma/blob/main/modules/lang/r-non-nix/_assets/development.md) section added to your README.
 These are [source-of-truth files](#source-of-truth-files).
 The startup profile only acts in native R sessions, installing from the same PPM snapshot
 (`nullkomma.r.snapshot`, `nullkomma.r.ppmUrl`); it leaves Nix shells, builds and tasks alone.
@@ -589,9 +656,28 @@ keeping R-only inputs out of other projects' lockfiles.
 ## Development
 
 Before building something, check [flake.parts](https://flake.parts) for an
-existing module; see [AGENTS.md](AGENTS.md). Inputs only nullkomma's own
-development needs go in [`dev/flake.nix`](dev/flake.nix), so they stay out of
+existing module; see [AGENTS.md](https://github.com/dataheld/nullkomma/blob/main/AGENTS.md). Inputs only nullkomma's own
+development needs go in [`dev/flake.nix`](https://github.com/dataheld/nullkomma/blob/main/dev/flake.nix), so they stay out of
 projects' `flake.lock`.
+
+### Documentation website
+
+`nix build .#site` builds nullkomma's documentation into `result/`.
+Run `nix develop --command preview --no-browser` for a live preview.
+Edit this README for content; `index.qmd` includes it without a separate copy.
+`_quarto.yml` selects `project.type: nullkomma-docs` and configures only this site's
+metadata and repository link; the reusable type supplies navigation and documentation
+features, while `nullkomma.brand` supplies the theme and footer independently.
+The privacy page is generated from the brand's privacy sections.
+When adding a documentation page, add it to `project.render` and `website.sidebar.contents`;
+sidebar entries can be grouped into sections. Breadcrumbs and next/previous links
+are enabled for when the documentation grows beyond one page.
+
+We use the existing Quarto plugin rather than adding [mkdocs-flake](https://flake.parts/options/mkdocs-flake.html):
+Quarto already supplies the documentation features this site needs and reuses our branding.
+[MkDocs' default theme](https://www.mkdocs.org/user-guide/choosing-your-theme/) is also Bootstrap-based
+(Material is not), but adopting it would add a separate toolchain and branding integration.
+Revisit if we need MkDocs-specific plugins.
 
 ### Testing nullkomma
 

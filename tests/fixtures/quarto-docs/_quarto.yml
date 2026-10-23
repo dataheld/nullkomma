@@ -1,0 +1,13 @@
+project:
+  type: nullkomma-docs
+website:
+  repo-url: https://github.com/example/docs
+  sidebar:
+    contents:
+      - section: Guides
+        contents:
+          - guides/intro.qmd
+format:
+  html:
+    toc: false
+    code-copy: false

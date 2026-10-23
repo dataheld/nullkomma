@@ -5,9 +5,9 @@
     {
       imports = [
         inputs.self.flakeModules.default
-        inputs.brand.flakeModules.default
       ];
       nullkomma = {
+        brand = inputs.brand;
         github = {
           workflows = {
             source = "./.github/workflows";

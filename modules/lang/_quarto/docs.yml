@@ -1,0 +1,28 @@
+project:
+  type: website
+website:
+  repo-actions: [edit, source, issue]
+  bread-crumbs: true
+  page-navigation: true
+  search:
+    location: navbar
+    type: overlay
+  back-to-top-navigation: true
+  navbar:
+    pinned: true
+    left:
+      - href: index.qmd
+        text: Home
+  sidebar:
+    style: docked
+    contents:
+      - href: index.qmd
+        text: Home
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-copy: true
+    code-link: true
+    filters:
+      - ../nullkomma-brand/landmarks.lua

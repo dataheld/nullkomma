@@ -18,7 +18,7 @@
         type = lib.types.nullOr lib.types.attrs;
         default = null;
         example = lib.literalExpression "inputs.brand";
-        description = "Optional brand flake exposing `lib.brand` (brand.yml), optional `lib.footer` (HTML) and optional `flakeModules.privacy`. Its privacy sections join `nullkomma.privacy`; Quarto and pkgdown apply its theme, and pkgdown also applies its footer.";
+        description = "Optional brand flake exposing `lib.brand` (brand.yml) and optional `flakeModules.privacy`. Quarto and pkgdown apply its native theme and declarative `defaults.nullkomma.footer`; optional `lib.footer` HTML remains supported for older brands. Privacy sections join `nullkomma.privacy` independently of the footer.";
       };
       config.nullkomma.privacy.sections = lib.mkIf (
         brand != null

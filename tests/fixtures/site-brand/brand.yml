@@ -1,0 +1,28 @@
+meta:
+  name: Fixture brand
+  link:
+    home: https://example.org
+    imprint: https://example.org/imprint
+    email: mailto:hello@example.org
+color:
+  primary: "#123456"
+defaults:
+  bootstrap:
+    defaults:
+      body-bg-dark: "#212529"
+      body-color-dark: "#dee2e6"
+      link-color-dark: "#abcdee"
+      link-hover-color-dark: "#cdeeff"
+      font-family-sans-serif: Arial, sans-serif
+  nullkomma:
+    footer:
+      tagline: Shared fixture footer
+      links:
+        - text: Imprint
+          link: imprint
+        - text: Privacy
+          privacy: true
+      social:
+        - text: Email
+          link: email
+          icon: envelope
