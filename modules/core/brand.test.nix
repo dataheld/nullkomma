@@ -2,8 +2,8 @@
   partitions.dev.module.perSystem =
     { pkgs, ... }:
     {
-      checks.site-brand-footer =
-        pkgs.runCommand "nullkomma-site-brand-footer" { nativeBuildInputs = [ pkgs.pandoc ]; }
+      checks.brand-footer =
+        pkgs.runCommand "nullkomma-brand-footer" { nativeBuildInputs = [ pkgs.pandoc ]; }
           ''
             cat > test.lua <<'LUA'
             local brand = dofile("${../../lib/brand.lua}")
