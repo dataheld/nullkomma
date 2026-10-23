@@ -424,7 +424,7 @@ e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
 ### `quarto`
 
 Opt-in `quarto` renders the project into `packages.site`; `preview` serves it locally and reloads on edits.
-It ignores `.quarto/` and `_site/`.
+It ignores `.quarto/`, `_site/` and Quarto's generated `.luarc.json`.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`,
 generated into `_extensions/<name>`.
 The [privacy policy](#privacy-policy) is generated into `privacy.qmd`.
