@@ -234,18 +234,44 @@ To theme sites from a brand flake, declare its input and select it:
 
 ```nix
 inputs.brand = {
-  url = "https://flakehub.com/f/dataheld/brand/0.1.*";
+  url = "https://flakehub.com/f/dataheld/brand/*";
   inputs.nullkomma.follows = "nullkomma";
 };
 # Inside mkFlake's module:
 nullkomma.brand = inputs.brand;
 ```
 
-The brand provides `lib.brand` (a [brand.yml](https://posit-dev.github.io/brand-yml/) file),
-optionally `lib.footer` (HTML) and `flakeModules.privacy`.
-Its privacy sections join every site's privacy policy.
-Quarto uses its native brand installer to generate `_brand/` with the theme and its assets;
-pkgdown applies the theme and footer.
+Brand owns the declarations; nullkomma owns their translation and placement.
+Both quarto and R pkgdown websites implement brand inputs.
+
+An optional `defaults.nullkomma.footer` record supplies footer facts to both builders:
+
+```yaml
+meta:
+  name: Example
+  link:
+    home: https://example.org
+    imprint: https://example.org/imprint
+    email: mailto:hello@example.org
+defaults:
+  nullkomma:
+    footer:
+      tagline: A short description
+      links:
+        - text: Imprint
+          link: imprint
+        - text: Privacy
+          privacy: true
+      social:
+        - text: Email
+          link: email
+          icon: envelope
+```
+
+Each `link` names an entry of `meta.link`; `privacy: true` links to your
+[privacy policy](#privacy-policy), if there is one. `icon` is a
+[Bootstrap Icon](https://icons.getbootstrap.com) name. Write plain text only:
+Markdown or HTML fails the build.
 
 ##### Privacy policy
 
@@ -266,6 +292,10 @@ nullkomma.privacy.sections.booking = {
 one tab per `nullkomma.privacy.languages`; pkgdown renders them to `/privacy.html`.
 Link the page from your footer, or set it to `null` to write your own.
 The sections are a starting point, not legal advice.
+
+Technology-specific disclosures belong to the plugin using that technology, not the
+brand; the framework's `nullkomma.privacy.policy` is also usable without either site builder.
+For example, [`cloudflare`](#cloudflare) adds its own sections on Cloudflare hosting and analytics.
 
 ### `apps`
 
@@ -346,7 +376,7 @@ and removes files it generated before that are no longer declared.
 ### Resolving conflicts
 
 The repository root is a portable [Agent Plugins 1.0 package](https://agent-plugin.org/en)
-with the [resolve-file-conflicts skill](.github/skills/resolve-file-conflicts/SKILL.md).
+with the [resolve-file-conflicts skill](https://github.com/dataheld/nullkomma/blob/main/.github/skills/resolve-file-conflicts/SKILL.md).
 In Copilot, install it with `/plugin install https://github.com/dataheld/nullkomma`
 and update it with `/plugin update nullkomma`; neither writes to your project.
 
@@ -394,12 +424,33 @@ e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
 ### `quarto`
 
 Opt-in `quarto` renders the project into `packages.site`; `preview` serves it locally and reloads on edits.
-It ignores `.quarto/` and `_site/`.
+It ignores `.quarto/`, `_site/` and Quarto's generated `.luarc.json`.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`,
-generated into `_extensions/<name>`; a selected [brand](#brand) themes rendering and preview.
+generated into `_extensions/<name>`.
 The [privacy policy](#privacy-policy) is generated into `privacy.qmd`.
 
-Preview refreshes generated files before starting.
+For a documentation site, enable `nullkomma.quarto.enable = true` and select the
+native project type in your `_quarto.yml`:
+
+```yaml
+project:
+  type: nullkomma-docs
+website:
+  title: My project
+  repo-url: https://github.com/example/project
+```
+
+The docs type only sets defaults; configure everything else in `_quarto.yml` as usual,
+e.g. add pages to `website.sidebar.contents`. Set `repo-url` for repository actions.
+
+Ordinary Quarto sites keep their existing project type; include generated
+`_nullkomma-brand.yml` in `metadata-files` for branded light/dark themes and the footer.
+The docs type includes those settings automatically. Both keep the standard Quarto
+theme, using brand.yml rather than a separate Bootswatch theme.
+
+All generated paths are relative to `nullkomma.quarto.root`, including nested docs
+directories. Preview refreshes the same generated files used by `packages.site`
+before starting.
 
 ### `cloudflare`
 
@@ -499,7 +550,7 @@ also in `nix flake check`; `r-pkgdown` builds it locally.
 - A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
 - Bootstrap 5's JavaScript dependencies are pinned in nullkomma.
   Other remote templates, web fonts and network-dependent articles must be local for the sandbox.
-- `nullkomma.r.pkgdown.config` is merged over `_pkgdown.yml`, overriding the [brand](#brand).
+- `_pkgdown.yml` overrides the [brand](#brand)'s template package; `nullkomma.r.pkgdown.config` is merged over both.
 - `nullkomma.r.pkgdown.assets` is a directory generated into Git-ignored `pkgdown/assets/`,
   which pkgdown copies to the site root; leave it `null` to manage that directory yourself.
 - The [privacy policy](#privacy-policy) is generated into Git-ignored `.github/privacy.md`, which pkgdown renders to `/privacy.html`;
@@ -549,7 +600,7 @@ Everything runs on one locked R version; add a CI matrix if you need Windows or 
 
 For collaborators without Nix, enable `nullkomma.r-non-nix.enable = true` (it enables `r`),
 run `write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
-and the [R development without Nix](modules/lang/r-non-nix/_assets/development.md) section added to your README.
+and the [R development without Nix](https://github.com/dataheld/nullkomma/blob/main/modules/lang/r-non-nix/_assets/development.md) section added to your README.
 These are [source-of-truth files](#source-of-truth-files).
 The startup profile only acts in native R sessions, installing from the same PPM snapshot
 (`nullkomma.r.snapshot`, `nullkomma.r.ppmUrl`); it leaves Nix shells, builds and tasks alone.
@@ -589,9 +640,15 @@ keeping R-only inputs out of other projects' lockfiles.
 ## Development
 
 Before building something, check [flake.parts](https://flake.parts) for an
-existing module; see [AGENTS.md](AGENTS.md). Inputs only nullkomma's own
-development needs go in [`dev/flake.nix`](dev/flake.nix), so they stay out of
+existing module; see [AGENTS.md](https://github.com/dataheld/nullkomma/blob/main/AGENTS.md). Inputs only nullkomma's own
+development needs go in [`dev/flake.nix`](https://github.com/dataheld/nullkomma/blob/main/dev/flake.nix), so they stay out of
 projects' `flake.lock`.
+
+### Documentation website
+
+nullkomma's own website is this README, built as a [`quarto`](#quarto) `nullkomma-docs`
+site into [`packages.site`](#site) with the dataheld [brand](#brand) and
+[privacy policy](#privacy-policy). `tasks` lists how to preview and check it.
 
 ### Testing nullkomma
 
@@ -601,6 +658,7 @@ nullkomma is tested against small example projects ("fixtures") in
 - **Unit tests** ([nix-unit]) check the fixtures' evaluated configuration, e.g. that every plugin can be switched off.
   They fetch dev-only inputs through the `nix` plugin's network-enabled fixed-output derivation.
 - **Docs test:** `options-doc` renders every option as [flake.parts](https://flake.parts) would, so each needs a description.
+- **Legal tests:** `site-legal` and `r-pkgdown-legal` build this site and a pkgdown fixture with the real brand, and check that every page links an imprint and the privacy policy, which covers GDPR Art. 13 in English and German and every footer email address.
 - **Build tests** run the real tools on the fixtures in `nix flake check`; Nix and Markdown files listed in `rejects` must fail.
 - **End-to-end test:** `check-fixtures` runs `nix flake check` on a copy of a fixture against this checkout, as a user would,
   the only test of how real projects fetch nullkomma. CI runs it on every push.

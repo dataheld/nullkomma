@@ -14,6 +14,9 @@
         perSystem
         root
         task
+        rawAt
+        nullkomma
+        linkcheck
         ;
       englishCloudflare = callFlakeWith {
         nullkomma.cloudflare.enable = true;
@@ -28,6 +31,26 @@
       themed = callFlakeWith {
         nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
       } (root + "/tests/fixtures/quarto-branded");
+      docs = rawAt (root + "/tests/fixtures") {
+        imports = [ nullkomma.flakeModules.default ];
+        nullkomma.quarto = {
+          enable = true;
+          root = root + "/tests/fixtures/quarto-docs";
+          privacy.page = "legal/privacy.qmd";
+        };
+        nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
+        nullkomma.privacy.sections.local.markdown = {
+          en = root + "/tests/fixtures/quarto-branded/_privacy/local.en.md";
+          de = root + "/tests/fixtures/quarto-branded/_privacy/local.de.md";
+        };
+      };
+      unbrandedDocs = rawAt (root + "/tests/fixtures") {
+        imports = [ nullkomma.flakeModules.default ];
+        nullkomma.quarto = {
+          enable = true;
+          root = root + "/tests/fixtures/quarto-docs";
+        };
+      };
     in
     {
       nullkomma.nix.unit.tests.testQuartoGeneratesExtensionsAndPrivacyPage =
@@ -74,6 +97,8 @@
           };
         };
       checks = {
+        quarto-docs = linkcheck "quarto-docs" docs.packages.${system}.site;
+        quarto-unbranded-docs = linkcheck "quarto-unbranded-docs" unbrandedDocs.packages.${system}.site;
         quarto-site = pkgs.runCommand "nullkomma-quarto-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           site=${fixtures.quarto.packages.${system}.site}
           python - "$site/index.html" <<'PY'

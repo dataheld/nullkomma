@@ -1,15 +1,14 @@
 project:
-  type: maxheld
+  type: nullkomma-docs
   render:
     - index.qmd
     - privacy.qmd
 website:
   title: "nullkomma"
   description: "Opinionated 🤓, batteries-included 🔋, extra-DRY 🤌 Nix boilerplate."
+  repo-url: https://github.com/dataheld/nullkomma
   navbar:
-    left:
-      - href: index.qmd
-        text: Home
-format:
-  html:
-    toc: true
+    right:
+      - icon: github
+        href: https://github.com/dataheld/nullkomma
+        aria-label: Source code on GitHub

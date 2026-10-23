@@ -5,12 +5,12 @@
     { config, lib, ... }:
     let
       inherit (config.nullkomma) brand;
-      # Imports cannot depend on config, so the brand's privacy module is evaluated on its own.
-      privacy = lib.evalModules {
-        modules = [
-          (import ./privacy.nix).framework
-          (brand.flakeModules.privacy or { })
-        ];
+      # The controller opens a policy, email contact follows it and data subject
+      # rights close it.
+      order = {
+        controller = 100;
+        email = 150;
+        rights = 900;
       };
     in
     {
@@ -18,10 +18,13 @@
         type = lib.types.nullOr lib.types.attrs;
         default = null;
         example = lib.literalExpression "inputs.brand";
-        description = "Optional brand flake exposing `lib.brand` (brand.yml), optional `lib.footer` (HTML) and optional `flakeModules.privacy`. Its privacy sections join `nullkomma.privacy`; Quarto and pkgdown apply its theme, and pkgdown also applies its footer.";
+        description = "Optional brand flake exposing `lib.brand` (brand.yml) and optional `lib.privacy.<section>.<language>` Markdown paths. Quarto and pkgdown apply its native theme and declarative `defaults.nullkomma.footer`; privacy sections join `nullkomma.privacy` independently of the footer.";
       };
-      config.nullkomma.privacy.sections = lib.mkIf (
-        brand != null
-      ) privacy.config.nullkomma.privacy.sections;
+      config.nullkomma.privacy.sections = lib.mkIf (brand != null) (
+        lib.mapAttrs (name: markdown: {
+          order = order.${name} or 500;
+          inherit markdown;
+        }) (brand.lib.privacy or { })
+      );
     };
 }

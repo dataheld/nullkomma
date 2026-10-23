@@ -99,6 +99,26 @@
             raw = rawAt (root + "/tests/fixtures/md");
             # Executables of a flake's nullkomma tasks and checks.
             task = flake: name: lib.getExe (perSystem flake).nullkomma.tasks.${name}.package;
+            # A built site's local links and fragments resolve.
+            linkcheck =
+              name: site:
+              # lychee builds an HTTP client even offline, which needs CA certificates on Linux.
+              pkgs.runCommand "nullkomma-${name}"
+                { SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"; }
+                ''
+                  ${lib.getExe pkgs.lychee} --offline --include-fragments --no-progress '${site}/**/*.html'
+                  touch $out
+                '';
+            # The brand nullkomma publishes with, for fixtures checking real content.
+            brand = inputs.brand;
+            # Every page of a built site meets German legal requirements.
+            legalcheck =
+              name: site:
+              pkgs.runCommand "nullkomma-${name}" { nativeBuildInputs = [ pkgs.pandoc ]; } ''
+                cd ${site}
+                pandoc lua ${./_legal.lua} "$PWD" $(find . -name '*.html' -printf '%P\n')
+                touch $out
+              '';
             runCheck = flake: name: lib.getExe (perSystem flake).nullkomma.checks.${name}.package;
             # What plugins can contribute to a consumer flake.
             summary = flake: {

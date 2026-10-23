@@ -1,0 +1,21 @@
+meta:
+  name: Fixture brand
+  link:
+    home: https://example.org
+    imprint: https://example.org/imprint
+    email: mailto:hello@example.org
+color:
+  primary: "#123456"
+defaults:
+  nullkomma:
+    footer:
+      tagline: Shared fixture footer
+      links:
+        - text: Imprint
+          link: imprint
+        - text: Privacy
+          privacy: true
+      social:
+        - text: Email
+          link: email
+          icon: envelope

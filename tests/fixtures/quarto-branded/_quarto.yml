@@ -1,2 +1,4 @@
 project:
   type: website
+metadata-files:
+  - _nullkomma-brand.yml
