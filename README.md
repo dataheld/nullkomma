@@ -241,22 +241,9 @@ inputs.brand = {
 nullkomma.brand = inputs.brand;
 ```
 
-The brand provides `lib.brand` (a [brand.yml](https://posit-dev.github.io/brand-yml/) file)
-and optionally `lib.privacy.<section>.<language>` Markdown files. These join the policy
-independently of the site's layout or renderer: `controller` comes first, then `email`, `rights` last.
-Quarto installs the theme and assets into generated `_brand/`; for pkgdown, nullkomma
-generates the [template package](https://pkgdown.r-lib.org/articles/customise.html#template-packages)
-`nullkommabrand` with bslib's native brand support, the light switch and the footer. Ordinary Quarto websites opt into the shared
-theme/footer adapter with `metadata-files: [_nullkomma-brand.yml]`;
-the [documentation project type](#quarto) includes it automatically.
-
 Brand owns the declarations; nullkomma owns their translation and placement.
-Keep visual tokens in `color`, `typography` and `defaults.bootstrap` in brand.yml.
-For shared dark styling, use scalar Bootstrap variables such as `body-bg-dark`,
-`body-color-dark` and `link-color-dark`, and dark-scoped Bootstrap rules.
-Quarto accepts light/dark color objects, but the pinned R brand.yml does not;
-nullkomma's small Quarto adapter activates the same Bootstrap dark tokens instead.
-There are no brand-specific colors or tint formulas in the adapters.
+Both quarto and R pkgdown websites implement brand inputs.
+
 
 An optional `defaults.nullkomma.footer` record supplies footer facts to both builders:
 
@@ -286,10 +273,8 @@ This namespaced record is nullkomma's adapter contract, not native brand.yml sem
 `link` references raw `meta.link` entries; `privacy: true` links to the generated
 policy only when one exists. Local footer links work from nested pages and project
 subpaths. Footer strings must be plain text; Markdown or HTML in them fails the build.
-`icon` names a [Bootstrap Icon](https://icons.getbootstrap.com); pkgdown, which ships
-Font Awesome instead, supports `envelope`, `github`, `linkedin` and `twitter-x`.
-Both builders lay the footer out in the same three columns.
-Personal/legal prose stays in the brand's Markdown, not YAML or Sass.
+`icon` names a [Bootstrap Icon](https://icons.getbootstrap.com), or in the case of pkgdown
+Font Awesome instead.
 
 ##### Privacy policy
 
@@ -310,8 +295,10 @@ nullkomma.privacy.sections.booking = {
 one tab per `nullkomma.privacy.languages`; pkgdown renders them to `/privacy.html`.
 Link the page from your footer, or set it to `null` to write your own.
 The sections are a starting point, not legal advice.
+
 Technology-specific disclosures belong to the plugin using that technology, not the
 brand; the framework's `nullkomma.privacy.policy` is also usable without either site builder.
+For example, deployment to cloudflare (see below) comes with it's own legal language for cloudflare hosting.
 
 ### `apps`
 
@@ -456,12 +443,8 @@ website:
   repo-url: https://github.com/example/project
 ```
 
-The generated `_extensions/nullkomma-docs` provides Home in the top navbar,
-navbar search, a docked page sidebar, right-hand page contents, breadcrumbs,
-next/previous navigation, repository actions, copyable code and code links.
 Add pages or sections through native `website.sidebar.contents`; other Quarto
 options and per-page overrides still work. Set `repo-url` for repository actions.
-No brand is required, and choosing a [brand](#brand) does not select this layout.
 
 Ordinary Quarto sites keep their existing project type; include generated
 `_nullkomma-brand.yml` in `metadata-files` for branded light/dark themes and the footer.
@@ -666,22 +649,7 @@ projects' `flake.lock`.
 
 ### Documentation website
 
-`nix build .#site` builds nullkomma's documentation into `result/`.
-Run `nix develop --command preview --no-browser` for a live preview.
-Edit this README for content; `index.qmd` includes it without a separate copy.
-`_quarto.yml` selects `project.type: nullkomma-docs` and configures only this site's
-metadata and repository link; the reusable type supplies navigation and documentation
-features, while `nullkomma.brand` supplies the theme and footer independently.
-The privacy page is generated from the brand's privacy sections.
-When adding a documentation page, add it to `project.render` and `website.sidebar.contents`;
-sidebar entries can be grouped into sections. Breadcrumbs and next/previous links
-are enabled for when the documentation grows beyond one page.
-
-We use the existing Quarto plugin rather than adding [mkdocs-flake](https://flake.parts/options/mkdocs-flake.html):
-Quarto already supplies the documentation features this site needs and reuses our branding.
-[MkDocs' default theme](https://www.mkdocs.org/user-guide/choosing-your-theme/) is also Bootstrap-based
-(Material is not), but adopting it would add a separate toolchain and branding integration.
-Revisit if we need MkDocs-specific plugins.
+The documentation website is dogooding nullkomma's quarto documentation website itself.
 
 ### Testing nullkomma
 
