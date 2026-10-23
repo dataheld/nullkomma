@@ -39,9 +39,44 @@
           domains."www.example.org" = "11111111111111111111111111111111";
         };
       } (root + "/tests/fixtures/quarto");
+      subdomain =
+        options:
+        raw {
+          imports = [ bare ];
+          nullkomma.cloudflare = {
+            domain = "example.org";
+            worker = lib.mkForce null;
+          }
+          // options;
+        };
+      inferred = subdomain { };
+      named = subdomain {
+        name = "other-name";
+      };
+      independent = subdomain {
+        worker = lib.mkForce "existing-worker";
+      };
     in
     {
       nullkomma.nix.unit.tests = {
+        testCloudflareWorkerDefaultsToName = {
+          expr =
+            (raw {
+              imports = [ plugins.cloudflare ];
+              nullkomma.cloudflare.name = "lap";
+            }).debug.config.nullkomma.cloudflare.worker;
+          expected = "lap";
+        };
+        testCloudflareRejectsExplicitDuplicate = {
+          expr =
+            (builtins.tryEval
+              (tfConfig (subdomain {
+                name = "lap";
+                domains."lap.example.org" = "11111111111111111111111111111111";
+              })).drvPath
+            ).success;
+          expected = false;
+        };
         testCloudflareComposesWithAnySite = {
           expr = {
             packages = lib.attrNames (raw bare).packages.${system};
@@ -71,6 +106,7 @@
       };
       checks = {
         cloudflare-config = cloudflare.checks.${system}.cloudflare;
+        cloudflare-subdomain-config = inferred.checks.${system}.cloudflare;
         cloudflare-validation-local =
           let
             nix = pkgs.writeShellScriptBin "nix" ''
@@ -113,8 +149,8 @@
               export HTTPS_PROXY=http://127.0.0.1:1
               plan() {
                 jq 'del(.terraform.backend)' "$1" > config.tf.json
-                tofu init -backend=false > /dev/null
-                tofu plan -refresh=false -out=plan > /dev/null
+                tofu init -backend=false > /dev/null || return
+                tofu plan -refresh=false -out=plan > /dev/null || return
                 tofu show -json plan | jq '.planned_values.root_module.resources | map({key: .address, value: .values}) | from_entries'
               }
               site=${cloudflare.packages.${system}.site}
@@ -125,6 +161,9 @@
               diff -r expected-assets "$assets"
               jq -e '.terraform.backend.s3.key == "fixture-site.tfstate"' ${tfConfig cloudflare}
               jq -e '.terraform.backend.s3.key == "bare-site.tfstate"' ${tfConfig (raw bare)}
+              jq -e '.terraform.backend.s3 | has("key") | not' ${tfConfig inferred}
+              jq -e '.terraform.backend.s3.key == "other-name.tfstate"' ${tfConfig named}
+              jq -e '.terraform.backend.s3.key == "existing-worker.tfstate"' ${tfConfig independent}
               plan ${tfConfig cloudflare} | jq -e \
                 --rawfile headers "$site/_headers" \
                 --rawfile redirects "$site/_redirects" '
@@ -147,8 +186,120 @@
               '
               bareAssets=$(jq -r .resource.cloudflare_workers_script.site.assets.directory ${tfConfig (raw bare)})
               diff -r ${(raw bare).packages.${system}.site} "$bareAssets"
+              export TF_VAR_site_name=lap
+              plan ${tfConfig inferred} | jq -e '
+                ."cloudflare_workers_script.site".script_name == "lap"
+                and (."cloudflare_workers_custom_domain.subdomain"
+                  | .hostname == "lap.example.org" and .zone_name == "example.org" and .service == "lap")
+              '
+              plan ${tfConfig named} | jq -e '
+                ."cloudflare_workers_script.site".script_name == "other-name"
+                and ."cloudflare_workers_custom_domain.subdomain".hostname == "other-name.example.org"
+              '
+              plan ${tfConfig independent} | jq -e '
+                ."cloudflare_workers_script.site".script_name == "existing-worker"
+                and (."cloudflare_workers_custom_domain.subdomain"
+                  | .hostname == "lap.example.org" and .service == "existing-worker")
+              '
+              plan ${
+                tfConfig (subdomain {
+                  domain = null;
+                })
+              } | jq -e '
+                ."cloudflare_workers_script.site".script_name == "lap"
+                and (has("cloudflare_workers_custom_domain.subdomain") | not)
+              '
+              if plan ${
+                tfConfig (subdomain {
+                  domains."lap.example.org" = "11111111111111111111111111111111";
+                })
+              } > /dev/null 2>error; then
+                echo "Expected duplicate hostname to fail" >&2
+                exit 1
+              fi
+              grep -q 'remove the duplicate declaration' error
+              export TF_VAR_site_name=INVALID
+              if plan ${tfConfig inferred} > /dev/null 2>error; then
+                echo "Expected invalid name to fail" >&2
+                exit 1
+              fi
+              grep -q 'lowercase DNS label' error
               touch $out
             '';
+        cloudflare-name =
+          let
+            tofu = pkgs.writeShellScriptBin "tofu" ''
+              set -eu
+              test "''${TF_VAR_site_name:-}" = "$EXPECTED_NAME"
+              test "$TF_CLI_ARGS_init" = "-backend-config=bucket=state''${EXPECTED_KEY:+ -backend-config=key=$EXPECTED_KEY.tfstate}"
+              printf '%s\n' "$@" > "$CALLED"
+            '';
+            wrapper =
+              options:
+              lib.getExe
+                (perSystem (raw {
+                  imports = [ bare ];
+                  nullkomma.cloudflare = {
+                    domain = "example.org";
+                  }
+                  // options;
+                  perSystem.terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
+                })).terranix.terranixConfigurations.deploy.result.terraformWrapper;
+            inferredWrapper = wrapper { worker = lib.mkForce null; };
+            namedWrapper = wrapper {
+              name = "other-name";
+              worker = lib.mkForce "other-name";
+            };
+            independentWrapper = wrapper { };
+          in
+          pkgs.runCommand "nullkomma-cloudflare-name" { nativeBuildInputs = [ pkgs.git ]; } ''
+            export CALLED=$PWD/called CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
+            export HOME=$TMPDIR/home
+            mkdir -p "$HOME"
+            export GIT_CONFIG_NOSYSTEM=1
+            unset GIT_DIR GIT_WORK_TREE TF_VAR_site_name GITHUB_REPOSITORY
+            git init -q
+            git remote add origin https://github.com/owner/lap.git
+            export EXPECTED_NAME=lap EXPECTED_KEY=lap
+            ${inferredWrapper} init
+            printf '%s\n' init > expected
+            cmp expected "$CALLED"
+            git remote set-url origin git@github.com:owner/lap.git
+            ${inferredWrapper} plan
+            git remote set-url origin ssh://git@github.com/owner/lap.git
+            ${inferredWrapper} plan
+            export GITHUB_REPOSITORY=owner/from-ci EXPECTED_NAME=from-ci EXPECTED_KEY=from-ci
+            ${inferredWrapper} plan
+            export EXPECTED_NAME=from-ci EXPECTED_KEY=""
+            ${independentWrapper} plan
+            export EXPECTED_NAME=""
+            ${namedWrapper} plan
+            unset GITHUB_REPOSITORY
+            git remote remove origin
+            ${namedWrapper} plan
+            fails() {
+              if ${inferredWrapper} plan > /dev/null 2>error; then
+                echo "Expected name inference to fail" >&2
+                exit 1
+              fi
+              grep -q "$1" error
+            }
+            fails 'Cannot infer Cloudflare name'
+            for name in Uppercase under_score -leading trailing- "." lap.git "$(printf '%064d' 0)"; do
+              export GITHUB_REPOSITORY="owner/$name"
+              fails 'lowercase DNS label'
+            done
+            for repository in lap owner/lap/extra owner/ /lap; do
+              export GITHUB_REPOSITORY="$repository"
+              fails 'must be owner/repository'
+            done
+            export GITHUB_REPOSITORY=owner/a EXPECTED_NAME=a EXPECTED_KEY=a
+            ${inferredWrapper} plan
+            export EXPECTED_NAME="$(printf '%063d' 0)"
+            export GITHUB_REPOSITORY="owner/$EXPECTED_NAME" EXPECTED_KEY="$EXPECTED_NAME"
+            ${inferredWrapper} plan
+            touch $out
+          '';
         cloudflare-deploy =
           let
             tofu = pkgs.writeShellScriptBin "tofu" ''

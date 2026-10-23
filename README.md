@@ -461,10 +461,45 @@ It adds hosting and analytics to the [privacy policy](#privacy-policy) and ignor
 ```nix
 nullkomma.cloudflare = {
   enable = true;
+  domain = "maxheld.de";
+  # name = "other-name"; # Override the repository-derived subdomain and Worker name.
+  # worker = "existing-worker"; # Override only the Worker and Terraform state identity.
+};
+```
+
+For a repository named `lap`, this publishes `https://lap.maxheld.de`, including
+DNS and HTTPS certificates managed by Cloudflare. `domain` is the name of an
+existing active Cloudflare zone in your account, not an account-wide default.
+No separate DNS records or zone ID are needed.
+
+Without `name`, deployment uses the repository name from `GITHUB_REPOSITORY`
+(GitHub Actions), or the local Git `origin` remote (HTTPS or SSH, without `.git`).
+It must be a lowercase DNS label of 1-63 characters; names with uppercase letters,
+underscores or dots need an explicit `name`. Checkout directory names are not used.
+Inference happens at deployment time, not during Nix evaluation or builds.
+
+Explicit hostnames, including the apex and `www`, remain supported:
+
+```nix
+nullkomma.cloudflare = {
+  enable = true;
   worker = "my-site";
+  domains."example.org" = "<zone ID>";
   domains."www.example.org" = "<zone ID>";
 };
 ```
+
+`domains` can also add hostnames alongside `domain`; do not declare the derived
+hostname twice. Omitting `domain` disables the shorthand, not explicit hostnames.
+The plugin does not create apex/www redirects or take over conflicting DNS
+records; an existing CNAME at the target hostname must be resolved manually.
+
+Terraform state remains keyed as `<worker>.tfstate` in the shared R2 bucket.
+Existing explicit Worker names and state keys are unchanged. Pin `name` before
+renaming a repository to keep its inferred hostname and Worker/state identity;
+pin `worker` separately if it differs. Worker names must be unique within the
+account, and state keys within the bucket, including across repositories with
+the same name. Changing these settings does not automatically migrate state.
 
 Locally, run `terraform` to plan changes (or `terraform <command> [args]`) and `deploy` to publish;
 in CI, run `nix run .#deploy`.
