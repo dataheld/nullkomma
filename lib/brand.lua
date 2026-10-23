@@ -111,10 +111,11 @@ function M.render(brand, privacy_href, legacy_footer)
   end
 
   local record = { border = true, left = left }
-  -- pandoc.json encodes empty tables as objects, so omit empty lists.
+  -- One line like the left column, not Quarto's stacked nav list.
   if #center > 0 then
-    record.center = center
+    record.center = paragraphs[2]:match("^<p>(.*)</p>$")
   end
+  -- pandoc.json encodes empty tables as objects, so omit empty lists.
   if #right > 0 then
     record.right = right
   end
