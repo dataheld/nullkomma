@@ -1,0 +1,31 @@
+/* Page actions concern the page, the rest of the footer the publisher:
+   show them first, as their own band. */
+.nav-footer-center {
+  display: contents;
+}
+.nav-footer-center > :not(.toc-actions) {
+  flex: 1 1 0px;
+  text-align: center;
+}
+@media (max-width: 767.98px) {
+  .nav-footer-center > :not(.toc-actions) {
+    flex-basis: 100%;
+    margin-bottom: 1em;
+  }
+}
+.nav-footer .toc-actions {
+  order: -1;
+  flex-basis: 100%;
+  margin-bottom: 1rem;
+  padding: 0.5rem 1em;
+  background-color: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+}
+.nav-footer .toc-actions ul {
+  margin: 0;
+  padding: 0;
+}
+.nav-footer .toc-actions a {
+  color: var(--bs-body-color);
+}

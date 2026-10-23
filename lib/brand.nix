@@ -58,6 +58,7 @@ let
       toc-depth = 3;
       code-copy = true;
       code-link = true;
+      css = [ "docs.css" ];
       filters = [ "../nullkomma-brand/landmarks.lua" ];
     };
   } (lib.optionalAttrs branded (metadata // { format.html = adapter "../nullkomma-brand"; }));

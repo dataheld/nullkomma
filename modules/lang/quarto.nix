@@ -135,6 +135,7 @@
                   source = pkgs.runCommand "quarto-docs-extension" { } ''
                     mkdir "$out"
                     cp ${siteBrand}/_extension.yml "$out/_extension.yml"
+                    cp ${./_quarto/docs.css} "$out/docs.css"
                   '';
                 };
                 "${prefix}_extensions/nullkomma-brand" = {

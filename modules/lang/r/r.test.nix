@@ -39,7 +39,7 @@
       branded = callFlakeWith {
         nullkomma.brand = {
           lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
-          flakeModules.privacy.nullkomma.privacy.sections.brand = local;
+          lib.privacy.controller = local.markdown;
         };
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
         nullkomma.cloudflare = cloudflare;
