@@ -40,6 +40,14 @@ function M.parse(yaml)
   return pandoc.read("---\n" .. yaml .. "\n---\n", "markdown-smart").meta
 end
 
+-- pkgdown ships Font Awesome, Quarto Bootstrap Icons; brand.yml names the latter.
+local fontawesome = {
+  envelope = "fa-regular fa-envelope",
+  github = "fa-brands fa-github",
+  linkedin = "fa-brands fa-linkedin",
+  ["twitter-x"] = "fa-brands fa-x-twitter",
+}
+
 -- Returns Quarto's `page-footer` value (nil without a footer) and the equivalent HTML for pkgdown.
 function M.render(brand, privacy_href)
   local footer = ((brand.defaults or {}).nullkomma or {}).footer
@@ -76,30 +84,29 @@ function M.render(brand, privacy_href)
     right[#right + 1] = { icon = text(item.icon), href = link(item), ["aria-label"] = text(item.text) }
   end
 
-  local paragraphs = { left }
-  for _, items in ipairs({ center, right }) do
-    local anchors = {}
-    for _, item in ipairs(items) do
-      anchors[#anchors + 1] = anchor(item.text or item["aria-label"], item.href)
-    end
-    if #anchors > 0 then
-      paragraphs[#paragraphs + 1] = table.concat(anchors, " · ")
-    end
+  local links = {}
+  for _, item in ipairs(center) do
+    links[#links + 1] = anchor(item.text, item.href)
   end
-  for i, paragraph in ipairs(paragraphs) do
-    paragraphs[i] = "<p>" .. paragraph .. "</p>"
+  local icons = {}
+  for _, item in ipairs(right) do
+    local class = fontawesome[item.icon] or error("no Font Awesome equivalent of Bootstrap icon " .. item.icon)
+    icons[#icons + 1] = '<a href="' .. escape(item.href) .. '" aria-label="' .. escape(item["aria-label"]) .. '"><i class="'
+      .. class .. '" aria-hidden="true"></i></a>'
   end
+  local html = '<div class="nullkomma-footer-left">' .. left .. '</div>\n<div class="nullkomma-footer-center">'
+    .. table.concat(links, " · ") .. '</div>\n<div class="nullkomma-footer-right">' .. table.concat(icons, " ") .. "</div>"
 
   local record = { border = true, left = left }
   -- One line like the left column, not Quarto's stacked nav list.
   if #center > 0 then
-    record.center = paragraphs[2]:match("^<p>(.*)</p>$")
+    record.center = table.concat(links, " · ")
   end
   -- pandoc.json encodes empty tables as objects, so omit empty lists.
   if #right > 0 then
     record.right = right
   end
-  return record, table.concat(paragraphs, "\n")
+  return record, html
 end
 
 -- Arguments: brand.yml, privacy href, Quarto metadata JSON, docs project JSON, output directory.

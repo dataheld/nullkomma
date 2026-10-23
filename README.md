@@ -285,6 +285,9 @@ This namespaced record is nullkomma's adapter contract, not native brand.yml sem
 `link` references raw `meta.link` entries; `privacy: true` links to the generated
 policy only when one exists. Local footer links work from nested pages and project
 subpaths. Footer strings must be plain text; Markdown or HTML in them fails the build.
+`icon` names a [Bootstrap Icon](https://icons.getbootstrap.com); pkgdown, which ships
+Font Awesome instead, supports `envelope`, `github`, `linkedin` and `twitter-x`.
+Both builders lay the footer out in the same three columns.
 Personal/legal prose stays in the brand's Markdown, not YAML or Sass.
 
 ##### Privacy policy
@@ -687,6 +690,7 @@ nullkomma is tested against small example projects ("fixtures") in
 - **Unit tests** ([nix-unit]) check the fixtures' evaluated configuration, e.g. that every plugin can be switched off.
   They fetch dev-only inputs through the `nix` plugin's network-enabled fixed-output derivation.
 - **Docs test:** `options-doc` renders every option as [flake.parts](https://flake.parts) would, so each needs a description.
+- **Legal tests:** `site-legal` and `r-pkgdown-legal` build this site and a pkgdown fixture with the real brand, and check that every page links an imprint and the privacy policy, which covers GDPR Art. 13 in English and German and every footer email address.
 - **Build tests** run the real tools on the fixtures in `nix flake check`; Nix and Markdown files listed in `rejects` must fail.
 - **End-to-end test:** `check-fixtures` runs `nix flake check` on a copy of a fixture against this checkout, as a user would,
   the only test of how real projects fetch nullkomma. CI runs it on every push.

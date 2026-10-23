@@ -138,6 +138,11 @@
               if (nzchar(footer_html)) {
                 if (is.null(override$footer$structure$left)) override$footer$structure$left <- "brand"
                 if (is.null(override$footer$components$brand)) override$footer$components$brand <- footer_html
+                if (is.null(override$footer$structure$right)) override$footer$structure$right <- character()
+                override$template$includes$in_header <- paste0(
+                  override$template$includes$in_header,
+                  "<style>", paste(readLines("${../../../lib/pkgdown-footer.css}"), collapse = "\n"), "</style>"
+                )
               }
               ${lib.optionalString sandbox ''override$destination <- Sys.getenv("out")''}
               pkgdown::build_site(override = override, preview = FALSE, new_process = FALSE)

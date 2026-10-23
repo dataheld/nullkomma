@@ -1,0 +1,30 @@
+/* Lay the brand footer out in Quarto's three columns. */
+footer .pkgdown-footer-left {
+  display: contents;
+}
+footer .pkgdown-footer-right:not(:has(*)) {
+  display: none;
+}
+footer [class^="nullkomma-footer-"] {
+  flex: 1 1 0;
+}
+.nullkomma-footer-center {
+  text-align: center;
+}
+.nullkomma-footer-right {
+  text-align: right;
+}
+footer [class^="nullkomma-footer-"] a {
+  color: inherit;
+}
+.nullkomma-footer-right a {
+  margin-left: 0.75em;
+}
+@media (max-width: 767.98px) {
+  footer [class^="nullkomma-footer-"] {
+    text-align: center;
+  }
+}
+footer [class^="nullkomma-footer-"] p {
+  margin: 0;
+}

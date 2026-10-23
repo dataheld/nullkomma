@@ -11,7 +11,9 @@
       inherit (harness)
         callFlake
         callFlakeWith
+        brand
         fixtures
+        legalcheck
         linkcheck
         nullkomma
         perSystem
@@ -42,6 +44,11 @@
           lib.privacy.controller = local.markdown;
         };
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
+        nullkomma.cloudflare = cloudflare;
+      } fixture;
+      # A package site as nullkomma's own brand publishes it.
+      published = callFlakeWith {
+        nullkomma.brand = brand;
         nullkomma.cloudflare = cloudflare;
       } fixture;
       declarativeBrand = callFlakeWith {
@@ -199,6 +206,7 @@
         };
       };
       checks = {
+        r-pkgdown-legal = legalcheck "r-pkgdown-legal" published.packages.${system}.site;
         r-declarative-brand = linkcheck "r-declarative-brand" declarativeBrand.packages.${system}.site;
         r-pkgdown-site =
           pkgs.runCommand "nullkomma-r-pkgdown-site" { nativeBuildInputs = [ pkgs.python3 ]; }
