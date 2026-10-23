@@ -244,7 +244,6 @@ nullkomma.brand = inputs.brand;
 Brand owns the declarations; nullkomma owns their translation and placement.
 Both quarto and R pkgdown websites implement brand inputs.
 
-
 An optional `defaults.nullkomma.footer` record supplies footer facts to both builders:
 
 ```yaml
@@ -269,12 +268,10 @@ defaults:
           icon: envelope
 ```
 
-This namespaced record is nullkomma's adapter contract, not native brand.yml semantics.
-`link` references raw `meta.link` entries; `privacy: true` links to the generated
-policy only when one exists. Local footer links work from nested pages and project
-subpaths. Footer strings must be plain text; Markdown or HTML in them fails the build.
-`icon` names a [Bootstrap Icon](https://icons.getbootstrap.com), or in the case of pkgdown
-Font Awesome instead.
+Each `link` names an entry of `meta.link`; `privacy: true` links to your
+[privacy policy](#privacy-policy), if there is one. `icon` is a
+[Bootstrap Icon](https://icons.getbootstrap.com) name. Write plain text only:
+Markdown or HTML fails the build.
 
 ##### Privacy policy
 
@@ -298,7 +295,7 @@ The sections are a starting point, not legal advice.
 
 Technology-specific disclosures belong to the plugin using that technology, not the
 brand; the framework's `nullkomma.privacy.policy` is also usable without either site builder.
-For example, deployment to cloudflare (see below) comes with it's own legal language for cloudflare hosting.
+For example, [`cloudflare`](#cloudflare) adds its own sections on Cloudflare hosting and analytics.
 
 ### `apps`
 
@@ -443,8 +440,8 @@ website:
   repo-url: https://github.com/example/project
 ```
 
-Add pages or sections through native `website.sidebar.contents`; other Quarto
-options and per-page overrides still work. Set `repo-url` for repository actions.
+The docs type only sets defaults; configure everything else in `_quarto.yml` as usual,
+e.g. add pages to `website.sidebar.contents`. Set `repo-url` for repository actions.
 
 Ordinary Quarto sites keep their existing project type; include generated
 `_nullkomma-brand.yml` in `metadata-files` for branded light/dark themes and the footer.
@@ -649,7 +646,9 @@ projects' `flake.lock`.
 
 ### Documentation website
 
-The documentation website is dogooding nullkomma's quarto documentation website itself.
+nullkomma's own website is this README, built as a [`quarto`](#quarto) `nullkomma-docs`
+site into [`packages.site`](#site) with the dataheld [brand](#brand) and
+[privacy policy](#privacy-policy). `tasks` lists how to preview and check it.
 
 ### Testing nullkomma
 
