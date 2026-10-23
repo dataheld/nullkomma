@@ -5,9 +5,11 @@
     { config, lib, ... }:
     let
       inherit (config.nullkomma) brand;
-      # The controller opens a policy and data subject rights close it.
+      # The controller opens a policy, email contact follows it and data subject
+      # rights close it.
       order = {
         controller = 100;
+        email = 150;
         rights = 900;
       };
     in

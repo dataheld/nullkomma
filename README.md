@@ -243,7 +243,7 @@ nullkomma.brand = inputs.brand;
 
 The brand provides `lib.brand` (a [brand.yml](https://posit-dev.github.io/brand-yml/) file)
 and optionally `lib.privacy.<section>.<language>` Markdown files. These join the policy
-independently of the site's layout or renderer: `controller` comes first, `rights` last.
+independently of the site's layout or renderer: `controller` comes first, then `email`, `rights` last.
 Quarto installs the theme and assets into generated `_brand/`; pkgdown uses bslib's
 native brand support and light switch. Ordinary Quarto websites opt into the shared
 theme/footer adapter with `metadata-files: [_nullkomma-brand.yml]`;

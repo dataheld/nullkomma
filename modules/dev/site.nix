@@ -24,9 +24,13 @@
               return content
             end
             local site = arg[1]
+            local addresses = {}
             local function links(html, path)
               local footer = html:match("<footer.-</footer>")
               assert(footer, path .. ": no footer")
+              for address in footer:gmatch('href="mailto:([^"?]+)') do
+                addresses[address] = true
+              end
               local found = {}
               for href, label in footer:gmatch('<a[^>]-href="([^"]*)"[^>]*>(.-)</a>') do
                 found[label:gsub("<[^>]*>", ""):gsub("%s+", " "):match("^%s*(.-)%s*$")] = href
@@ -60,6 +64,12 @@
               -- Art. 13(2)(f): automated decision-making.
               "Art. 22 GDPR", "Art. 22 DSGVO",
             }
+            -- Art. 13 also covers contact by email: offered addresses must be disclosed.
+            for address in pairs(addresses) do
+              table.insert(required, address)
+              table.insert(required, "email")
+              table.insert(required, "E-Mail")
+            end
             for _, text in ipairs(required) do
               assert(policy:find(text, 1, true), "privacy policy lacks: " .. text)
             end
