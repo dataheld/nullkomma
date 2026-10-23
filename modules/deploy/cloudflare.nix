@@ -8,6 +8,7 @@
       worker = if cfg.worker == null then cfg.name else cfg.worker;
       inferName = cfg.name == null && (cfg.domain != null || worker == null);
       siteName = if cfg.name == null then "\${var.site_name}" else cfg.name;
+      workerName = if worker == null then siteName else worker;
     in
     {
       imports = [ inputs.terranix.flakeModule ];
@@ -128,9 +129,6 @@
                     export TF_VAR_account_id="''${CLOUDFLARE_ACCOUNT_ID:?}"
                     export AWS_ENDPOINT_URL_S3="https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
                     export TF_CLI_ARGS_init="-backend-config=bucket=''${CLOUDFLARE_STATE_BUCKET:?}"
-                    ${lib.optionalString (worker == null) ''
-                      export TF_CLI_ARGS_init="$TF_CLI_ARGS_init -backend-config=key=$TF_VAR_site_name.tfstate"
-                    ''}
                   '';
                 };
                 modules = lib.singleton {
@@ -140,11 +138,11 @@
                       inherit (provider) version;
                     };
                     backend.s3 = {
+                      key = "${workerName}.tfstate";
                       region = "auto";
                       use_lockfile = true;
                       use_path_style = true;
                     }
-                    // lib.optionalAttrs (worker != null) { key = "${worker}.tfstate"; }
                     // lib.genAttrs [
                       "skip_credentials_validation"
                       "skip_metadata_api_check"
@@ -164,7 +162,7 @@
                   resource = {
                     cloudflare_workers_script.site = {
                       inherit account_id;
-                      script_name = if worker == null then siteName else worker;
+                      script_name = workerName;
                       assets = {
                         directory = "${assets}";
                         config = {

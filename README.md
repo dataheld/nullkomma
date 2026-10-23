@@ -687,8 +687,7 @@ site into [`packages.site`](#site) with the dataheld [brand](#brand) and
 It also dogfoods [`cloudflare`](#cloudflare): `domain = "maxheld.de"` derives
 `nullkomma.maxheld.de` from the repository name, without an explicit Worker name
 or zone ID. With the Cloudflare and R2 credentials described above, `terraform`
-plans the deployment and `deploy` publishes it. `site-deploy` checks the real
-site's deployment plan offline; it does not change DNS or publish assets.
+plans the deployment and `deploy` publishes it.
 
 ### Testing nullkomma
 
