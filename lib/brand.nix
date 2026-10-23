@@ -65,7 +65,6 @@ in
 pkgs.runCommand "site-brand" { nativeBuildInputs = [ pkgs.pandoc ]; } ''
   pandoc lua ${./brand.lua} \
     ${lib.escapeShellArg (if branded then "${brand.lib.brand}" else "")} \
-    ${lib.escapeShellArg (if branded && brand.lib ? footer then "${brand.lib.footer}" else "")} \
     ${lib.escapeShellArg (if privacyHref == null then "" else privacyHref)} \
     ${lib.escapeShellArg (builtins.toJSON metadata)} \
     ${lib.escapeShellArg (builtins.toJSON docs)} \

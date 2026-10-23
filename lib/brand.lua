@@ -15,19 +15,6 @@ local function write(path, content)
   file:close()
 end
 
-local function replace(s, old, new)
-  local parts, start = {}, 1
-  while true do
-    local i, j = s:find(old, start, true)
-    if not i then
-      break
-    end
-    parts[#parts + 1] = s:sub(start, i - 1) .. new
-    start = j + 1
-  end
-  return table.concat(parts) .. s:sub(start)
-end
-
 -- pandoc reads YAML strings as Markdown; reject markup rather than silently dropping it.
 local function text(value)
   local kind = pandoc.utils.type(value)
@@ -54,17 +41,10 @@ function M.parse(yaml)
 end
 
 -- Returns Quarto's `page-footer` value (nil without a footer) and the equivalent HTML for pkgdown.
-function M.render(brand, privacy_href, legacy_footer)
+function M.render(brand, privacy_href)
   local footer = ((brand.defaults or {}).nullkomma or {}).footer
   if footer == nil then
-    if not legacy_footer or legacy_footer == "" then
-      return nil, ""
-    end
-    local html = replace(replace(read(legacy_footer), "<footer", "<div"), "</footer>", "</div>")
-    if privacy_href then
-      html = replace(html, 'href="/privacy.html"', 'href="' .. escape(privacy_href) .. '"')
-    end
-    return html, html
+    return nil, ""
   end
   if pandoc.utils.type(footer) ~= "table" then
     error("defaults.nullkomma.footer must be a mapping")
@@ -122,11 +102,11 @@ function M.render(brand, privacy_href, legacy_footer)
   return record, table.concat(paragraphs, "\n")
 end
 
--- Arguments: brand.yml, legacy footer.html, privacy href, Quarto metadata JSON, docs project JSON, output directory.
+-- Arguments: brand.yml, privacy href, Quarto metadata JSON, docs project JSON, output directory.
 -- The .yml outputs are JSON, which is valid YAML.
-function M.main(brand_path, legacy_footer, privacy_href, metadata, docs, output)
+function M.main(brand_path, privacy_href, metadata, docs, output)
   local brand = brand_path ~= "" and M.parse(read(brand_path)) or {}
-  local footer, html = M.render(brand, privacy_href ~= "" and privacy_href or nil, legacy_footer)
+  local footer, html = M.render(brand, privacy_href ~= "" and privacy_href or nil)
   metadata = pandoc.json.decode(metadata, false)
   docs = pandoc.json.decode(docs, false)
   if footer ~= nil then

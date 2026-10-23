@@ -286,7 +286,6 @@ This namespaced record is nullkomma's adapter contract, not native brand.yml sem
 policy only when one exists. Local footer links work from nested pages and project
 subpaths. Footer strings must be plain text; Markdown or HTML in them fails the build.
 Personal/legal prose stays in the brand's Markdown, not YAML or Sass.
-Legacy brands may still expose `lib.footer` HTML instead.
 
 ##### Privacy policy
 
