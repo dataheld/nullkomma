@@ -36,21 +36,20 @@
         nullkomma.cloudflare = {
           enable = true;
           worker = "fixture-site";
-          domains."www.example.org" = "11111111111111111111111111111111";
+          domain = "example.org";
+          name = "www";
         };
       } (root + "/tests/fixtures/quarto");
     in
     {
       nullkomma.nix.unit.tests = {
-        testCloudflareRejectsExplicitDuplicate = {
+        testCloudflareRejectsLegacyDomains = {
           expr =
             (builtins.tryEval
               (tfConfig (raw {
                 imports = [ bare ];
                 nullkomma.cloudflare = {
-                  domain = "example.org";
-                  name = "lap";
-                  domains."lap.example.org" = "11111111111111111111111111111111";
+                  domains."example.org" = "11111111111111111111111111111111";
                 };
               })).drvPath
             ).success;
@@ -143,14 +142,14 @@
                 --rawfile headers "$site/_headers" \
                 --rawfile redirects "$site/_redirects" '
                 ."cloudflare_workers_script.site" as $worker
-                | ."cloudflare_workers_custom_domain.www_example_org" as $domain
+                | ."cloudflare_workers_custom_domain.subdomain" as $domain
                 | ."cloudflare_workers_script_subdomain.site" as $subdomain
                 | $worker.script_name == "fixture-site"
                   and $worker.assets.config.not_found_handling == "404-page"
                   and $worker.assets.config.headers == $headers
                   and $worker.assets.config.redirects == $redirects
                   and $domain.hostname == "www.example.org"
-                  and $domain.zone_id == "11111111111111111111111111111111"
+                  and $domain.zone_name == "example.org"
                   and $domain.service == "fixture-site"
                   and $subdomain.enabled == false
                   and $subdomain.previews_enabled == false

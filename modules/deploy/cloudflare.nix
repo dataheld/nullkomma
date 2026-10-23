@@ -30,12 +30,6 @@
           defaultText = lib.literalExpression "config.nullkomma.cloudflare.name";
           description = "Worker serving `packages.site`; also keys its Terraform state.";
         };
-        domains = lib.mkOption {
-          type = lib.types.attrsOf (lib.types.strMatching "[0-9a-f]{32}");
-          default = { };
-          example."www.example.org" = "023e105f4ecef8ad9ca31a8372d0c353";
-          description = "Custom hostnames and their zone IDs; Cloudflare manages their DNS records and certificates.";
-        };
       };
       config = lib.mkIf cfg.enable {
         nullkomma.gitignore = [ "/.nullkomma/cloudflare/" ];
@@ -178,32 +172,14 @@
                       enabled = false;
                       previews_enabled = false;
                     };
-                    cloudflare_workers_custom_domain =
-                      lib.mapAttrs' (
-                        hostname: zone_id:
-                        lib.nameValuePair (lib.replaceStrings [ "." ] [ "_" ] hostname) {
-                          inherit account_id hostname zone_id;
-                          service = script_name;
-                        }
-                      ) cfg.domains
-                      // lib.optionalAttrs (cfg.domain != null) {
-                        subdomain = {
-                          inherit account_id;
-                          hostname =
-                            if cfg.name != null && builtins.hasAttr "${cfg.name}.${cfg.domain}" cfg.domains then
-                              throw "The derived Cloudflare hostname is also declared in nullkomma.cloudflare.domains; remove the duplicate declaration."
-                            else
-                              "${siteName}.${cfg.domain}";
-                          zone_name = cfg.domain;
-                          service = script_name;
-                        }
-                        // lib.optionalAttrs (cfg.name == null) {
-                          lifecycle.precondition = lib.singleton {
-                            condition = "\${!contains(${builtins.toJSON (lib.attrNames cfg.domains)}, \"${siteName}.${cfg.domain}\")}";
-                            error_message = "The derived Cloudflare hostname is also declared in nullkomma.cloudflare.domains; remove the duplicate declaration.";
-                          };
-                        };
+                    cloudflare_workers_custom_domain = lib.optionalAttrs (cfg.domain != null) {
+                      subdomain = {
+                        inherit account_id;
+                        hostname = "${siteName}.${cfg.domain}";
+                        zone_name = cfg.domain;
+                        service = script_name;
                       };
+                    };
                   };
                 };
               };

@@ -474,21 +474,20 @@ existing active Cloudflare zone in your account.
 Without `name`, deployment uses the repository name from `GITHUB_REPOSITORY`
 (GitHub Actions), or the local Git `origin` remote (HTTPS or SSH, without `.git`).
 
-Explicit hostnames, including the apex and `www`, remain supported:
+The plugin only deploys to subdomains. It leaves the parent domain (for example,
+`example.com`) and redirects alone. To serve `www.example.com`, set
+`domain = "example.com"` and `name = "www"`.
 
-```nix
-nullkomma.cloudflare = {
-  enable = true;
-  worker = "my-site";
-  domains."example.org" = "<zone ID>";
-  domains."www.example.org" = "<zone ID>";
-};
-```
+Cloudflare creates the subdomain's DNS record and HTTPS certificate as part of
+deployment; no Zone ID or separate DNS setup is needed.
 
-`domains` can also add hostnames alongside `domain`; do not declare the derived
-hostname twice. Omitting `domain` disables the shorthand, not explicit hostnames.
-The plugin does not create apex/www redirects or take over conflicting DNS
-records; an existing CNAME at the target hostname must be resolved manually.
+If Cloudflare reports an existing CNAME DNS record at an address you want to use,
+remove that record only if it no longer serves another site, then deploy again.
+
+The old `domains` option is no longer accepted because it also allowed deploying
+to the parent domain. Existing users must review their Terraform state migration
+before switching to `domain` and `name`; do not simply remove the old setting and
+apply, as the custom-domain resource address has changed.
 
 Terraform state remains keyed as `<worker>.tfstate` in the shared R2 bucket.
 Existing explicit Worker names and state keys are unchanged. Pin `name` before
