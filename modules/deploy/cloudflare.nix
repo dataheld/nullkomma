@@ -121,6 +121,8 @@
                       export TF_VAR_site_name="$name"
                     ''}
                     export TF_VAR_account_id="''${CLOUDFLARE_ACCOUNT_ID:?}"
+                    export AWS_ACCESS_KEY_ID="''${CLOUDFLARE_R2_ACCESS_KEY_ID:?}"
+                    export AWS_SECRET_ACCESS_KEY="''${CLOUDFLARE_R2_SECRET_ACCESS_KEY:?}"
                     export AWS_ENDPOINT_URL_S3="https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
                     export TF_CLI_ARGS_init="-backend-config=bucket=''${CLOUDFLARE_STATE_BUCKET:?}"
                   '';

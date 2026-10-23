@@ -204,6 +204,7 @@
           in
           pkgs.runCommand "nullkomma-cloudflare-name" { nativeBuildInputs = [ pkgs.git ]; } ''
             export CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
+            export CLOUDFLARE_R2_ACCESS_KEY_ID=r2-key CLOUDFLARE_R2_SECRET_ACCESS_KEY=r2-secret
             export HOME=$TMPDIR/home
             mkdir -p "$HOME"
             export GIT_CONFIG_NOSYSTEM=1
@@ -252,6 +253,8 @@
             tofu = pkgs.writeShellScriptBin "tofu" ''
               set -eu
               test "$TF_VAR_account_id" = "$CLOUDFLARE_ACCOUNT_ID"
+              test "$AWS_ACCESS_KEY_ID" = r2-key
+              test "$AWS_SECRET_ACCESS_KEY" = r2-secret
               test "$AWS_ENDPOINT_URL_S3" = "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
               test "$TF_CLI_ARGS_init" = "-backend-config=bucket=$CLOUDFLARE_STATE_BUCKET"
               test "$TF_CLI_ARGS_apply" = "-auto-approve"
@@ -287,8 +290,15 @@
           in
           pkgs.runCommand "nullkomma-cloudflare-deploy" { } ''
             export CALLED=$PWD/called CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
+            export CLOUDFLARE_R2_ACCESS_KEY_ID=r2-key CLOUDFLARE_R2_SECRET_ACCESS_KEY=r2-secret
+            export AWS_ACCESS_KEY_ID=other-key AWS_SECRET_ACCESS_KEY=other-secret
             ${deploy}
             test -f "$CALLED"
+            if (unset CLOUDFLARE_R2_ACCESS_KEY_ID; ${deploy}) > /dev/null 2>error; then
+              echo "Deployment must reject missing Cloudflare R2 credentials" >&2
+              exit 1
+            fi
+            grep -q CLOUDFLARE_R2_ACCESS_KEY_ID error
             rm "$CALLED"
             ${lib.getExe tasks.deploy.package}
             test -f "$CALLED"
