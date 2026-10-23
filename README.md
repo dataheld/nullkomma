@@ -153,10 +153,6 @@ Add other generated content to `nullkomma.generatedPaths` as treefmt globs, e.g.
 (Jarl, which can't ignore them, fails instead); suppression comments such as `# shellcheck disable=SC2086` still work.
 Your settings override plugins' `lib.mkDefault` values, and lists concatenate (`lib.mkForce` replaces one).
 
-Markdown allows fragments without an initial H1 (`MD041` is disabled by default),
-such as privacy sections starting with H2. Other rules, including the 80-character
-line limit (`MD013`), remain enabled unless configured otherwise.
-
 | Linter        | Nix configuration                                   | Settings to use                                                                                   |
 | ------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | yamllint      | `perSystem.treefmt.programs.yamllint.settings`      | Attributes matching yamllint's YAML config                                                        |
