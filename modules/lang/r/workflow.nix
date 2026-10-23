@@ -37,7 +37,7 @@
         pkgdown.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Build a pkgdown website with the r-pkgdown task and packages.site (also checked in nix flake check).";
+          description = "Build a pkgdown website with r-pkgdown and packages.site (also checked in nix flake check); r-pkgdown-preview builds and opens it in a browser.";
         };
         pkgdown.privacy.page = lib.mkOption {
           type = lib.types.nullOr (lib.types.strMatching "[.]github/[^/\n]+[.]md");
@@ -132,7 +132,7 @@
             document = lib.optionalString cfg.document.enable ''
               Rscript --vanilla -e 'roxygen2::roxygenise()'
             '';
-            pkgdown = sandbox: ''
+            pkgdown = sandbox: preview: ''
               R_USER_CACHE_DIR="$(mktemp -d)"
               export R_USER_CACHE_DIR
               trap 'rm -rf "$R_USER_CACHE_DIR"' EXIT
@@ -152,7 +152,9 @@
               override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
               ${lib.optionalString (brand != null) ''.libPaths(c("${template}", .libPaths()))''}
               ${lib.optionalString sandbox ''override$destination <- Sys.getenv("out")''}
-              pkgdown::build_site(override = override, preview = FALSE, new_process = FALSE)
+              pkgdown::build_site(override = override, preview = ${
+                if preview then "TRUE" else "FALSE"
+              }, new_process = FALSE)
               ${lib.optionalString sandbox ''
                 # pkgdown records wall-clock time even in otherwise reproducible builds.
                 metadata_path <- file.path(override$destination, "pkgdown.yml")
@@ -163,6 +165,22 @@
               ''}
               RS
             '';
+            pkgdownTask = preview: {
+              skip = true;
+              description =
+                if preview then
+                  "Build the pkgdown website and open it in a browser"
+                else
+                  "Build the pkgdown website in docs/";
+              packages = [
+                pcfg.package
+                pkgs.pandoc
+                pkgs.git
+              ];
+              command = ''
+                ${lib.getExe config.nullkomma.tasks.generate-files.package}
+                ${top}${document}${pkgdown false preview}'';
+            };
             testthat = {
               packages = [ pcfg.package ];
               # pkgload is fast for development; the sandbox tests what users install.
@@ -198,18 +216,8 @@
                 };
               })
               (lib.mkIf cfg.pkgdown.enable {
-                r-pkgdown = {
-                  skip = true;
-                  description = "Build the pkgdown website in docs/";
-                  packages = [
-                    pcfg.package
-                    pkgs.pandoc
-                    pkgs.git
-                  ];
-                  command = ''
-                    ${lib.getExe config.nullkomma.tasks.generate-files.package}
-                    ${top}${document}${pkgdown false}'';
-                };
+                r-pkgdown = pkgdownTask false;
+                r-pkgdown-preview = pkgdownTask true;
               })
               (lib.mkIf cfg.coverage.enable {
                 r-coverage = {
@@ -277,7 +285,7 @@
                     cd source
                     export HOME="$TMPDIR/home"
                     mkdir -p "$HOME"
-                    ${cd}${document}${pkgdown true}''
+                    ${cd}${document}${pkgdown true false}''
               );
             };
             checks = lib.mkIf cfg.pkgdown.enable { r-pkgdown = config.packages.site; };

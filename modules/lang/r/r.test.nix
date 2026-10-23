@@ -194,6 +194,20 @@
           expr = lib.elem "pkgload" (perSystem fixtures.r).nullkomma.r.packages;
           expected = true;
         };
+        testRPreviewTask = {
+          expr = {
+            enabled = (perSystem fixtures.r).nullkomma.tasks ? r-pkgdown-preview;
+            alias = (perSystem fixtures.r).nullkomma.tasks ? preview;
+            disabled =
+              (perSystem (callFlakeWith { nullkomma.r.pkgdown.enable = false; } fixture)).nullkomma.tasks
+                ? r-pkgdown-preview;
+          };
+          expected = {
+            enabled = true;
+            alias = false;
+            disabled = false;
+          };
+        };
         testRLockBootstrapsWithoutLock = {
           expr = lib.isString withoutLock.apps.${system}.r-lock.program;
           expected = true;
@@ -262,6 +276,35 @@
           git check-ignore -q .github/privacy.md
           git check-ignore -q pkgdown/assets
         '';
+        r-pkgdown-preview =
+          let
+            flake = callFlakeWith {
+              nullkomma.brand = brand;
+              nullkomma.r.pkgdown.config.destination = "website";
+            } fixture;
+            browser = pkgs.writeShellScript "preview-browser" ''
+              set -eu
+              page="''${1#file://}"
+              test -f "$page"
+              test -f "$(dirname "$page")/privacy.html"
+              printf '%s\n' "$page" > "$CALLED"
+            '';
+          in
+          check "r-pkgdown-preview" ''
+            export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1
+            export CALLED="$TMPDIR/preview-called" R_BROWSER=${browser}
+            git init -q
+            rm man/hello.Rd
+            cd R
+            ${task flake "r-pkgdown-preview"}
+            # browseURL launches the browser asynchronously.
+            for _ in $(seq 1 50); do
+              if test -f "$CALLED"; then break; fi
+              sleep 0.1
+            done
+            grep -qxF "$(cd .. && pwd)/website/index.html" "$CALLED"
+            test -f ../man/hello.Rd
+          '';
         r-coverage =
           let
             flake = callFlakeWith { nullkomma.r.coverage.enable = true; } fixture;

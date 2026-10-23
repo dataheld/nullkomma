@@ -114,7 +114,7 @@ Files and editor settings that plugins write into your repository are under [Plu
 | [`flakehub`][flakehub]                  | ✅      | [`fh`]                                   |                                      |                                                         |                  |                            |                                                                        |
 | [`quarto`](#quarto)                     |         | `quarto`                                 |                                      |                                                         | `site`           |                            | `preview`                                                              |
 | [`cloudflare`](#cloudflare)             |         | `wrangler`                               |                                      | `cloudflare` (OpenTofu validation)                      |                  | `deploy`[^deploy]          | `terraform`, `deploy`                                                  |
-| [`r`](#r)                               |         | R with languageserver, `pkgload` and pak | `air`, `jarl`                        | `r-testthat`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `r-document`, `r-pkgdown`, `r-coverage`, `r-lock`                      |
+| [`r`](#r)                               |         | R with languageserver, `pkgload` and pak | `air`, `jarl`                        | `r-testthat`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `r-document`, `r-pkgdown`, `r-pkgdown-preview`, `r-coverage`, `r-lock` |
 | [`r-non-nix`](#r-non-nix) (enables `r`) |         |                                          |                                      |                                                         |                  |                            |                                                                        |
 
 ## Your flake outputs
@@ -569,6 +569,7 @@ and system libraries come with the packages that need them.
 | `check r-testthat`  | Run testthat on the source, loaded with pkgload; `--installed` tests an installed copy, as `nix flake check` does | `nullkomma.r.testthat.enable`                                     |
 | `check r-namespace` | Fail if roxygen2 would change the committed `NAMESPACE`                                                           | with `r-document`                                                 |
 | `r-pkgdown`         | Build the [website](#pkgdown-website) into `docs/`                                                                | `nullkomma.r.pkgdown.enable`                                      |
+| `r-pkgdown-preview` | Build the pkgdown website, then open it in your browser                                                           | `nullkomma.r.pkgdown.enable`                                      |
 | `r-coverage`        | Write a local Cobertura `coverage.xml` with covr                                                                  | off unless covr is locked or `nullkomma.r.coverage.enable = true` |
 
 Checks, tests and site builds regenerate documentation first.
@@ -588,6 +589,8 @@ Locking chromote (e.g. via [shinytest2](https://rstudio.github.io/shinytest2/)) 
 
 `packages.site` builds the [pkgdown](https://pkgdown.r-lib.org) site in the sandbox,
 also in `nix flake check`; `r-pkgdown` builds it locally.
+Run `r-pkgdown-preview` (also listed in `tasks`) to build it first, then open it in your browser.
+It uses pkgdown's file-based preview, without live reload or local search.
 [Cloudflare](#cloudflare) can publish it.
 
 - A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
