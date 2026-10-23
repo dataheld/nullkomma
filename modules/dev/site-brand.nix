@@ -16,35 +16,27 @@
         in
         {
           checks.site-brand-footer =
-            pkgs.runCommand "nullkomma-site-brand-footer"
-              { nativeBuildInputs = [ (pkgs.python3.withPackages (ps: [ ps.pyyaml ])) ]; }
+            pkgs.runCommand "nullkomma-site-brand-footer" { nativeBuildInputs = [ pkgs.pandoc ]; }
               ''
-                python - ${../../lib/brand.py} ${../../tests/fixtures/site-brand/brand.yml} <<'PY'
-                from pathlib import Path
-                import runpy
-                import sys
-
-                import yaml
-
-                render = runpy.run_path(sys.argv[1])["render"]
-                brand = yaml.safe_load(Path(sys.argv[2]).read_text())
-                footer, html = render(brand, None, "")
-                assert footer["center"] == [{"text": "Imprint", "href": "https://example.org/imprint"}]
-                assert "Privacy" not in html
-                assert 'href="mailto:hello@example.org"' in html
-                brand["meta"]["name"] = "<Example>"
-                footer, html = render(brand, "legal/privacy.html", "")
-                assert "&lt;Example&gt;" in html and "<Example>" not in html
-                assert footer["center"][-1] == {"text": "Privacy", "href": "legal/privacy.html"}
-                assert render({}, None, "") == (None, "")
-                brand["defaults"]["nullkomma"]["footer"] = "invalid"
-                try:
-                    render(brand, None, "")
-                except ValueError as error:
-                    assert "must be a mapping" in str(error)
-                else:
-                    raise AssertionError("invalid footer record was accepted")
-                PY
+                cat > test.lua <<'LUA'
+                local brand = dofile("${../../lib/brand.lua}")
+                local fixture = io.open("${../../tests/fixtures/site-brand/brand.yml}"):read("a")
+                local footer, html = brand.render(brand.parse(fixture), nil, "")
+                assert(#footer.center == 1)
+                assert(footer.center[1].text == "Imprint" and footer.center[1].href == "https://example.org/imprint")
+                assert(not html:find("Privacy", 1, true))
+                assert(html:find('href="mailto:hello@example.org"', 1, true))
+                footer, html = brand.render(brand.parse(fixture:gsub("name: [^\n]*", 'name: "A & B"', 1)), "legal/privacy.html", "")
+                assert(html:find("A &amp; B", 1, true), html)
+                assert(footer.center[#footer.center].text == "Privacy")
+                assert(footer.center[#footer.center].href == "legal/privacy.html")
+                assert(select("#", brand.render({}, nil, "")) == 2 and brand.render({}, nil, "") == nil)
+                local ok, err = pcall(brand.render, brand.parse(fixture:gsub("name: [^\n]*", "name: \"*Example*\"", 1)), nil, "")
+                assert(not ok and err:find("plain text", 1, true), err)
+                ok, err = pcall(brand.render, brand.parse("defaults:\n  nullkomma:\n    footer: invalid"), nil, "")
+                assert(not ok and err:find("must be a mapping", 1, true), err)
+                LUA
+                pandoc lua test.lua
                 touch $out
               '';
           checks.site-brand-pkgdown = pkgs.runCommand "nullkomma-site-brand-pkgdown" { } ''
