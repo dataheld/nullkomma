@@ -507,9 +507,13 @@ env:
   # Account API token: Workers Scripts Edit
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   # R2 API token: Object Read & Write on the state bucket only
-  AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+  CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+  CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
 ```
+
+The plugin maps the R2 credentials internally to the `AWS_*` environment names
+required by OpenTofu's S3-compatible backend; no AWS account is involved.
+Use the same Cloudflare environment names for local deployment.
 
 One-time setup for this repository:
 
