@@ -588,9 +588,7 @@ Locking chromote (e.g. via [shinytest2](https://rstudio.github.io/shinytest2/)) 
 #### pkgdown website
 
 `packages.site` builds the [pkgdown](https://pkgdown.r-lib.org) site in the sandbox,
-also in `nix flake check`; `r-pkgdown` builds it locally.
-Run `r-pkgdown-preview` (also listed in `tasks`) to build it first, then open it in your browser.
-It uses pkgdown's file-based preview, without live reload or local search.
+also in `nix flake check`; `r-pkgdown` builds it locally, and `r-pkgdown-preview` also opens it.
 [Cloudflare](#cloudflare) can publish it.
 
 - A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.

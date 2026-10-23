@@ -152,9 +152,7 @@
               override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
               ${lib.optionalString (brand != null) ''.libPaths(c("${template}", .libPaths()))''}
               ${lib.optionalString sandbox ''override$destination <- Sys.getenv("out")''}
-              pkgdown::build_site(override = override, preview = ${
-                if preview then "TRUE" else "FALSE"
-              }, new_process = FALSE)
+              pkgdown::build_site(override = override, preview = ${lib.toUpper (lib.boolToString preview)}, new_process = FALSE)
               ${lib.optionalString sandbox ''
                 # pkgdown records wall-clock time even in otherwise reproducible builds.
                 metadata_path <- file.path(override$destination, "pkgdown.yml")
@@ -165,13 +163,9 @@
               ''}
               RS
             '';
-            pkgdownTask = preview: {
+            pkgdownTask = description: preview: {
               skip = true;
-              description =
-                if preview then
-                  "Build the pkgdown website and open it in a browser"
-                else
-                  "Build the pkgdown website in docs/";
+              inherit description;
               packages = [
                 pcfg.package
                 pkgs.pandoc
@@ -216,8 +210,8 @@
                 };
               })
               (lib.mkIf cfg.pkgdown.enable {
-                r-pkgdown = pkgdownTask false;
-                r-pkgdown-preview = pkgdownTask true;
+                r-pkgdown = pkgdownTask "Build the pkgdown website in docs/" false;
+                r-pkgdown-preview = pkgdownTask "Build the pkgdown website and open it in a browser" true;
               })
               (lib.mkIf cfg.coverage.enable {
                 r-coverage = {
