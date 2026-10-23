@@ -102,10 +102,13 @@
             # A built site's local links and fragments resolve.
             linkcheck =
               name: site:
-              pkgs.runCommand "nullkomma-${name}" { } ''
-                ${lib.getExe pkgs.lychee} --offline --include-fragments --no-progress '${site}/**/*.html'
-                touch $out
-              '';
+              # lychee builds an HTTP client even offline, which needs CA certificates on Linux.
+              pkgs.runCommand "nullkomma-${name}"
+                { SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"; }
+                ''
+                  ${lib.getExe pkgs.lychee} --offline --include-fragments --no-progress '${site}/**/*.html'
+                  touch $out
+                '';
             runCheck = flake: name: lib.getExe (perSystem flake).nullkomma.checks.${name}.package;
             # What plugins can contribute to a consumer flake.
             summary = flake: {
