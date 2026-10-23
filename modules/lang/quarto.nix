@@ -15,6 +15,7 @@
 
         ---
         title: ${builtins.toJSON privacy.title}
+        sidebar: false
         ---
 
       ''

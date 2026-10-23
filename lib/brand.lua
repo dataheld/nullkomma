@@ -70,8 +70,9 @@ function M.render(brand, privacy_href)
     local absolute = url:match("^%a[%w+.-]*:") or url:match("^[/#]")
     return (absolute and "" or root) .. escape(url)
   end
-  local function anchor(label, url, root)
-    return '<a href="' .. href(url, root) .. '">' .. escape(label) .. "</a>"
+  local function anchor(label, url, root, new_tab)
+    local target = new_tab and ' target="_blank" rel="noopener noreferrer"' or ""
+    return '<a href="' .. href(url, root) .. '"' .. target .. '>' .. escape(label) .. "</a>"
   end
 
   local tagline = footer.tagline and " · " .. escape(text(footer.tagline)) or ""
@@ -79,7 +80,7 @@ function M.render(brand, privacy_href)
   for _, item in ipairs(footer.links or {}) do
     local url = link(item)
     if url then
-      center[#center + 1] = { text = text(item.text), href = url }
+      center[#center + 1] = { text = text(item.text), href = url, new_tab = item.link and text(item.link) == "imprint" }
     end
   end
   for _, item in ipairs(footer.social or {}) do
@@ -88,7 +89,7 @@ function M.render(brand, privacy_href)
   local function columns(root)
     local links = {}
     for _, item in ipairs(center) do
-      links[#links + 1] = anchor(item.text, item.href, root)
+      links[#links + 1] = anchor(item.text, item.href, root, item.new_tab)
     end
     return anchor(text(meta.name), text(meta.link.home), root) .. tagline, table.concat(links, " · ")
   end
