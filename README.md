@@ -461,10 +461,40 @@ It adds hosting and analytics to the [privacy policy](#privacy-policy) and ignor
 ```nix
 nullkomma.cloudflare = {
   enable = true;
-  worker = "my-site";
-  domains."www.example.org" = "<zone ID>";
+  domain = "example.com";
+  # name = "other-name"; # Override the repository-derived subdomain and Worker name.
+  # worker = "existing-worker"; # Override only the Worker and Terraform state identity.
 };
 ```
+
+For a repository named `foo`, this publishes `https://foo.example.com`, including
+DNS and HTTPS certificates managed by Cloudflare. `domain` is the name of an
+existing active Cloudflare zone in your account.
+
+Without `name`, deployment uses the repository name from `GITHUB_REPOSITORY`
+(GitHub Actions), or the local Git `origin` remote (HTTPS or SSH, without `.git`).
+
+The plugin only deploys to subdomains. It leaves the parent domain (for example,
+`example.com`) and redirects alone. To serve `www.example.com`, set
+`domain = "example.com"` and `name = "www"`.
+
+Cloudflare creates the subdomain's DNS record and HTTPS certificate as part of
+deployment; no Zone ID or separate DNS setup is needed.
+
+If Cloudflare reports an existing CNAME DNS record at an address you want to use,
+remove that record only if it no longer serves another site, then deploy again.
+
+The old `domains` option is no longer accepted because it also allowed deploying
+to the parent domain. Existing users must review their Terraform state migration
+before switching to `domain` and `name`; do not simply remove the old setting and
+apply, as the custom-domain resource address has changed.
+
+Terraform state remains keyed as `<worker>.tfstate` in the shared R2 bucket.
+Existing explicit Worker names and state keys are unchanged. Pin `name` before
+renaming a repository to keep its inferred hostname and Worker/state identity;
+pin `worker` separately if it differs. Worker names must be unique within the
+account, and state keys within the bucket, including across repositories with
+the same name. Changing these settings does not automatically migrate state.
 
 Locally, run `terraform` to plan changes (or `terraform <command> [args]`) and `deploy` to publish;
 in CI, run `nix run .#deploy`.
@@ -475,11 +505,20 @@ env:
   CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
   CLOUDFLARE_STATE_BUCKET: ${{ vars.CLOUDFLARE_STATE_BUCKET }}
   # Account API token: Workers Scripts Edit
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_WORKERS }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   # R2 API token: Object Read & Write on the state bucket only
   AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
 ```
+
+One-time setup for this repository:
+
+1. Allow this repo access to the existing `CLOUDFLARE_API_TOKEN` and both `CLOUDFLARE_R2_*` organization secrets.
+1. Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_STATE_BUCKET` Actions variables to the existing account and private state bucket.
+1. Ensure the existing API token has **Account / Workers Scripts / Edit**; Custom Domains need no separate DNS token. Keep the R2 token scoped to **Object Read & Write** on the state bucket.
+
+The parent zone must already be active in that account. This repo deploys assets
+and DNS only after successful CI on pushes to `main`, never from PRs or tags.
 
 ### `r`
 

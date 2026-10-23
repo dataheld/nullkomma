@@ -36,12 +36,25 @@
         nullkomma.cloudflare = {
           enable = true;
           worker = "fixture-site";
-          domains."www.example.org" = "11111111111111111111111111111111";
+          domain = "example.org";
+          name = "www";
         };
       } (root + "/tests/fixtures/quarto");
     in
     {
       nullkomma.nix.unit.tests = {
+        testCloudflareRejectsLegacyDomains = {
+          expr =
+            (builtins.tryEval
+              (tfConfig (raw {
+                imports = [ bare ];
+                nullkomma.cloudflare = {
+                  domains."example.org" = "11111111111111111111111111111111";
+                };
+              })).drvPath
+            ).success;
+          expected = false;
+        };
         testCloudflareComposesWithAnySite = {
           expr = {
             packages = lib.attrNames (raw bare).packages.${system};
@@ -113,8 +126,8 @@
               export HTTPS_PROXY=http://127.0.0.1:1
               plan() {
                 jq 'del(.terraform.backend)' "$1" > config.tf.json
-                tofu init -backend=false > /dev/null
-                tofu plan -refresh=false -out=plan > /dev/null
+                tofu init -backend=false > /dev/null || return
+                tofu plan -refresh=false -out=plan > /dev/null || return
                 tofu show -json plan | jq '.planned_values.root_module.resources | map({key: .address, value: .values}) | from_entries'
               }
               site=${cloudflare.packages.${system}.site}
@@ -129,14 +142,14 @@
                 --rawfile headers "$site/_headers" \
                 --rawfile redirects "$site/_redirects" '
                 ."cloudflare_workers_script.site" as $worker
-                | ."cloudflare_workers_custom_domain.www_example_org" as $domain
+                | ."cloudflare_workers_custom_domain.subdomain" as $domain
                 | ."cloudflare_workers_script_subdomain.site" as $subdomain
                 | $worker.script_name == "fixture-site"
                   and $worker.assets.config.not_found_handling == "404-page"
                   and $worker.assets.config.headers == $headers
                   and $worker.assets.config.redirects == $redirects
                   and $domain.hostname == "www.example.org"
-                  and $domain.zone_id == "11111111111111111111111111111111"
+                  and $domain.zone_name == "example.org"
                   and $domain.service == "fixture-site"
                   and $subdomain.enabled == false
                   and $subdomain.previews_enabled == false
@@ -147,8 +160,93 @@
               '
               bareAssets=$(jq -r .resource.cloudflare_workers_script.site.assets.directory ${tfConfig (raw bare)})
               diff -r ${(raw bare).packages.${system}.site} "$bareAssets"
+              mkdir identity && cd identity
+              export TF_VAR_site_name=lap
+              # Exercise our state-key wiring locally, without R2 credentials.
+              jq '.terraform.backend = {local: {path: .terraform.backend.s3.key}}' ${
+                tfConfig (raw {
+                  imports = [ bare ];
+                  nullkomma.cloudflare.worker = lib.mkForce null;
+                })
+              } > config.tf.json
+              tofu init > /dev/null
+              tofu plan -refresh=false > /dev/null
+              if tofu plan -refresh=false -var=site_name=other > /dev/null 2>error; then
+                echo "Changing the Worker identity must require backend reinitialization" >&2
+                exit 1
+              fi
+              grep -q 'Backend initialization required' error
               touch $out
             '';
+        cloudflare-name =
+          let
+            tofu = pkgs.writeShellScriptBin "tofu" ''
+              set -eu
+              test "''${TF_VAR_site_name:-}" = "$EXPECTED_NAME"
+            '';
+            wrapper =
+              options:
+              lib.getExe
+                (perSystem (raw {
+                  imports = [ bare ];
+                  nullkomma.cloudflare = {
+                    domain = "example.org";
+                  }
+                  // options;
+                  perSystem.terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
+                })).terranix.terranixConfigurations.deploy.result.terraformWrapper;
+            inferredWrapper = wrapper { worker = lib.mkForce null; };
+            namedWrapper = wrapper {
+              name = "other-name";
+              worker = lib.mkForce "other-name";
+            };
+            independentWrapper = wrapper { };
+          in
+          pkgs.runCommand "nullkomma-cloudflare-name" { nativeBuildInputs = [ pkgs.git ]; } ''
+            export CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
+            export HOME=$TMPDIR/home
+            mkdir -p "$HOME"
+            export GIT_CONFIG_NOSYSTEM=1
+            unset GIT_DIR GIT_WORK_TREE TF_VAR_site_name GITHUB_REPOSITORY
+            git init -q
+            git remote add origin https://github.com/owner/lap.git
+            export EXPECTED_NAME=lap
+            ${inferredWrapper} init
+            git remote set-url origin git@github.com:owner/lap.git
+            ${inferredWrapper} plan
+            git remote set-url origin ssh://git@github.com/owner/lap.git
+            ${inferredWrapper} plan
+            export GITHUB_REPOSITORY=owner/from-ci EXPECTED_NAME=from-ci
+            ${inferredWrapper} plan
+            ${independentWrapper} plan
+            export EXPECTED_NAME=""
+            ${namedWrapper} plan
+            unset GITHUB_REPOSITORY
+            git remote remove origin
+            ${namedWrapper} plan
+            fails() {
+              if ${inferredWrapper} plan > /dev/null 2>error; then
+                echo "Expected name inference to fail" >&2
+                exit 1
+              fi
+              grep -q "$1" error
+            }
+            fails 'Cannot infer Cloudflare name'
+            for name in Uppercase under_score -leading trailing- "." lap.git "$(printf '%064d' 0)"; do
+              export GITHUB_REPOSITORY="owner/$name"
+              fails 'lowercase DNS label'
+            done
+            for repository in lap owner/lap/extra owner/ /lap; do
+              export GITHUB_REPOSITORY="$repository"
+              fails 'must be owner/repository'
+            done
+            export GITHUB_REPOSITORY=owner/a EXPECTED_NAME=a
+            ${inferredWrapper} plan
+            export EXPECTED_NAME="$(printf '%063d' 0)"
+            export GITHUB_REPOSITORY="owner/$EXPECTED_NAME"
+            ${inferredWrapper} plan
+            touch $out
+          '';
         cloudflare-deploy =
           let
             tofu = pkgs.writeShellScriptBin "tofu" ''
