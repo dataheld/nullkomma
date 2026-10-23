@@ -461,22 +461,18 @@ It adds hosting and analytics to the [privacy policy](#privacy-policy) and ignor
 ```nix
 nullkomma.cloudflare = {
   enable = true;
-  domain = "maxheld.de";
+  domain = "example.com";
   # name = "other-name"; # Override the repository-derived subdomain and Worker name.
   # worker = "existing-worker"; # Override only the Worker and Terraform state identity.
 };
 ```
 
-For a repository named `lap`, this publishes `https://lap.maxheld.de`, including
+For a repository named `foo`, this publishes `https://foo.example.com`, including
 DNS and HTTPS certificates managed by Cloudflare. `domain` is the name of an
-existing active Cloudflare zone in your account, not an account-wide default.
-No separate DNS records or zone ID are needed.
+existing active Cloudflare zone in your account.
 
 Without `name`, deployment uses the repository name from `GITHUB_REPOSITORY`
 (GitHub Actions), or the local Git `origin` remote (HTTPS or SSH, without `.git`).
-It must be a lowercase DNS label of 1-63 characters; names with uppercase letters,
-underscores or dots need an explicit `name`. Checkout directory names are not used.
-Inference happens at deployment time, not during Nix evaluation or builds.
 
 Explicit hostnames, including the apex and `www`, remain supported:
 
@@ -684,10 +680,6 @@ projects' `flake.lock`.
 nullkomma's own website is this README, built as a [`quarto`](#quarto) `nullkomma-docs`
 site into [`packages.site`](#site) with the dataheld [brand](#brand) and
 [privacy policy](#privacy-policy). `tasks` lists how to preview and check it.
-It also dogfoods [`cloudflare`](#cloudflare): `domain = "maxheld.de"` derives
-`nullkomma.maxheld.de` from the repository name, without an explicit Worker name
-or zone ID. With the Cloudflare and R2 credentials described above, `terraform`
-plans the deployment and `deploy` publishes it.
 
 ### Testing nullkomma
 
