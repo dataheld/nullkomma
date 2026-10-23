@@ -66,7 +66,7 @@
             };
             privacy = {
               inherit (privacy) mode commentPrefix commentSuffix;
-              startsWithFrontMatter = lib.hasPrefix "\n---\ntitle: \"Privacy Policy\"\n---\n" privacy.text;
+              startsWithFrontMatter = lib.hasPrefix "\n---\ntitle: \"Privacy Policy\"\nsidebar: false\n---\n" privacy.text;
             };
             ignored = lib.filter (
               line:
@@ -131,7 +131,7 @@
               }
               python - ${fixtures.quarto-branded.packages.${system}.site} ${
                 englishCloudflare.packages.${system}.site
-              } <<'PY'
+              } ${docs.packages.${system}.site} <<'PY'
               from html.parser import HTMLParser
               from pathlib import Path
               import sys
@@ -146,7 +146,9 @@
                   document.feed(Path(path).read_text())
                   return " ".join("".join(document.text).split())
 
-              branded, english = sys.argv[1:]
+              branded, english, docs = sys.argv[1:]
+              assert 'id="quarto-sidebar"' not in Path(f"{docs}/legal/privacy.html").read_text()
+              assert 'id="quarto-sidebar"' in Path(f"{docs}/index.html").read_text()
               assert "Hello from an extension" in text(f"{branded}/index.html")
               privacy = text(f"{branded}/privacy.html")
               assert "Privacy Policy" in privacy

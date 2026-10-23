@@ -9,7 +9,9 @@
             local brand = dofile("${../../lib/brand.lua}")
             local fixture = io.open("${../../tests/fixtures/site-brand/brand.yml}"):read("a")
             local footer, html = brand.render(brand.parse(fixture), nil)
-            assert(footer.center == '<a href="https://example.org/imprint">Imprint</a>', footer.center)
+            local imprint = '<a href="https://example.org/imprint" target="_blank" rel="noopener noreferrer">Imprint</a>'
+            assert(footer.center == imprint, footer.center)
+            assert(html:find(imprint, 1, true), html)
             assert(not html:find("Privacy", 1, true))
             assert(html:find('href="mailto:hello@example.org"', 1, true))
             footer, html = brand.render(brand.parse(fixture:gsub("name: [^\n]*", 'name: "A & B"', 1)), "legal/privacy.html")
