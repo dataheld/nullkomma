@@ -5,22 +5,20 @@
       cfg = config.nullkomma.r;
       inherit (cfg) prefix;
       inherit (config.nullkomma) privacy brand;
-      privacyPage =
-        "# ${privacy.title}\n\n"
-        + (
-          if lib.length privacy.languages == 1 then
-            privacy.policy.${(lib.head privacy.languages).code}
-          else
-            lib.concatMapStrings (language: ''
-              <details open lang="${lib.escapeXML language.code}">
-              <summary>${lib.escapeXML language.label}</summary>
+      privacyPage = (
+        if lib.length privacy.languages == 1 then
+          privacy.policy.${(lib.head privacy.languages).code}
+        else
+          lib.concatMapStrings (language: ''
+            <details open lang="${lib.escapeXML language.code}">
+            <summary>${lib.escapeXML language.label}</summary>
 
-              ${privacy.policy.${language.code}}
+            ${privacy.policy.${language.code}}
 
-              </details>
+            </details>
 
-            '') privacy.languages
-        );
+          '') privacy.languages
+      );
     in
     {
       options.nullkomma.r = {
@@ -40,9 +38,9 @@
           description = "Build a pkgdown website with r-pkgdown and packages.site (also checked in nix flake check); r-pkgdown-preview builds and opens it in a browser.";
         };
         pkgdown.privacy.page = lib.mkOption {
-          type = lib.types.nullOr (lib.types.strMatching "[.]github/[^/\n]+[.]md");
-          default = ".github/privacy.md";
-          description = "Generated page in `.github/` rendering `nullkomma.privacy`, which pkgdown publishes at the site root by its basename; null to supply your own.";
+          type = lib.types.nullOr (lib.types.strMatching "[^/\n]+[.]html");
+          default = "privacy.html";
+          description = "Page at the site root rendering `nullkomma.privacy`, built by pkgdown without writing to the project; null to supply your own.";
         };
         pkgdown.config = lib.mkOption {
           type = lib.types.attrsOf lib.types.anything;
@@ -99,13 +97,16 @@
           { config, pkgs, ... }:
           let
             pcfg = config.nullkomma.r;
+            privacyBody = lib.optionalString (cfg.pkgdown.privacy.page != null && privacy.policy != { }) (
+              pkgs.runCommand "privacy.html" { nativeBuildInputs = [ pkgs.pandoc ]; } ''
+                pandoc -f markdown+gfm_auto_identifiers-citations+emoji+autolink_bare_uris -t html4 \
+                  --indented-code-classes=R --section-divs --wrap=none \
+                  ${pkgs.writeText "privacy.md" privacyPage} -o "$out"
+              ''
+            );
             siteBrand = import ../../../lib/brand.nix {
               inherit pkgs lib brand;
-              privacyHref =
-                if cfg.pkgdown.privacy.page != null && privacy.policy != { } then
-                  lib.removeSuffix ".md" (baseNameOf cfg.pkgdown.privacy.page) + ".html"
-                else
-                  null;
+              privacyHref = if privacyBody != "" then cfg.pkgdown.privacy.page else null;
             };
             templateConfig.template = {
               light-switch = true;
@@ -151,6 +152,13 @@
               override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
               ${lib.optionalString (brand != null) ''.libPaths(c("${template}", .libPaths()))''}
               ${lib.optionalString sandbox ''override$destination <- Sys.getenv("out")''}
+              ${lib.optionalString (privacyBody != "") ''
+                # pkgdown only finds extra pages in the project; render this one before build_site indexes it.
+                pkg <- pkgdown::as_pkgdown(override = override)
+                pkgdown::init_site(pkg)
+                body <- paste(readLines("${privacyBody}", encoding = "UTF-8"), collapse = "\n")
+                pkgdown::render_page(pkg, "title-body", list(pagetitle = ${builtins.toJSON privacy.title}, body = body), "${cfg.pkgdown.privacy.page}")
+              ''}
               pkgdown::build_site(override = override, preview = ${lib.toUpper (lib.boolToString preview)}, new_process = FALSE)
               ${lib.optionalString sandbox ''
                 # pkgdown records wall-clock time even in otherwise reproducible builds.
@@ -246,23 +254,13 @@
                 };
               })
             ];
-            nullkomma.files = lib.mkIf cfg.pkgdown.enable (
-              lib.optionalAttrs (cfg.pkgdown.privacy.page != null && privacy.policy != { }) {
-                "${prefix}${cfg.pkgdown.privacy.page}" = {
-                  mode = "generated";
-                  commentPrefix = "<!--";
-                  commentSuffix = " -->";
-                  text = privacyPage;
-                };
-              }
-              // lib.optionalAttrs (cfg.pkgdown.assets != null) {
-                "${prefix}pkgdown/assets" = {
-                  mode = "generated";
-                  directory = true;
-                  source = cfg.pkgdown.assets;
-                };
-              }
-            );
+            nullkomma.files = lib.mkIf (cfg.pkgdown.enable && cfg.pkgdown.assets != null) {
+              "${prefix}pkgdown/assets" = {
+                mode = "generated";
+                directory = true;
+                source = cfg.pkgdown.assets;
+              };
+            };
             packages = lib.mkIf cfg.pkgdown.enable {
               site = lib.mkDefault (
                 pkgs.runCommand "r-pkgdown-site"
