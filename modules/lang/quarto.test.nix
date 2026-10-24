@@ -214,6 +214,9 @@
             ${task flake "preview"} --no-browser
             printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
             cmp expected "$CALLED"
+            ${task flake "build-site"} --to html
+            printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected
+            cmp expected "$CALLED"
             touch $out
           '';
       };

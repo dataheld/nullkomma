@@ -45,9 +45,7 @@
               printf '\n' >> .Rbuildignore
               cat ${pkgs.writeText "Rbuildignore" cfg.buildIgnore} >> .Rbuildignore
               export _R_CHECK_CRAN_INCOMING_=false _R_CHECK_FORCE_SUGGESTS_=false _R_CHECK_SYSTEM_CLOCK_=false
-              ${lib.optionalString cfg.document.enable ''
-                Rscript --vanilla -e 'roxygen2::roxygenise()'
-              ''}
+              Rscript --vanilla -e 'roxygen2::roxygenise()'
               Rscript --vanilla - "$@" <<'EOF'
               rcmdcheck::rcmdcheck(
                 path = ".",

@@ -97,6 +97,24 @@
     in
     {
       nullkomma.nix.unit.tests = {
+        testRDocumentationIsRequired = {
+          expr =
+            let
+              minimal = perSystem (
+                callFlakeWith {
+                  nullkomma.r = {
+                    check.enable = false;
+                    testthat.enable = false;
+                    pkgdown.enable = false;
+                  };
+                } fixture
+              );
+            in
+            lib.elem "roxygen2" minimal.nullkomma.r.packages
+            && minimal.nullkomma.tasks ? r-document
+            && minimal.nullkomma.checks ? r-namespace;
+          expected = true;
+        };
         testRAttributeNames = {
           expr = map rlib.attrName [
             "data.table"
