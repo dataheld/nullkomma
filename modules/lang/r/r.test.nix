@@ -262,6 +262,14 @@
           git check-ignore -q .github/privacy.md
           git check-ignore -q pkgdown/assets
         '';
+        r-pkgdown-preview = check "r-pkgdown-preview" ''
+          export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
+          git init -q
+          ${task fixtures.r "r-pkgdown-preview"}
+          # browseURL doesn't wait for the browser.
+          for _ in {1..50}; do test -f "$TMPDIR/opened" && break; sleep 0.1; done
+          grep -qF "$PWD/docs/index.html" "$TMPDIR/opened"
+        '';
         r-coverage =
           let
             flake = callFlakeWith { nullkomma.r.coverage.enable = true; } fixture;
