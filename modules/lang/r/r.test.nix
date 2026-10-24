@@ -64,7 +64,7 @@
             label = "English";
           }
         ];
-        nullkomma.r.pkgdown.privacy.page = "legal.md";
+        nullkomma.r.pkgdown.privacy.page = "legal.html";
       } fixture;
       withoutLock = callFlake (
         builtins.path {
