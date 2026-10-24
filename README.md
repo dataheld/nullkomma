@@ -545,9 +545,8 @@ and system libraries come with the packages that need them.
 #### Workflows
 
 `tasks` describes the available workflows and lists the checks.
-Disable them with `nullkomma.r.{document,check,testthat,pkgdown}.enable`;
-Checks, tests and site builds regenerate roxygen2 documentation first
-(disable `document` for hand-written manuals).
+Disable optional checks and site builds with `nullkomma.r.{check,testthat,pkgdown}.enable`.
+Checks, tests and site builds always regenerate roxygen2 documentation first.
 Generated `man/*.Rd` files are Git-ignored, but not `man/` itself; commit `NAMESPACE`.
 `nullkomma.r.check.errorOn` sets the failing severity (default `"note"`).
 The `r` plugin keeps its package-build exclusions in a marked section of `.Rbuildignore`,

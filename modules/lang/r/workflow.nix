@@ -24,11 +24,6 @@
     in
     {
       options.nullkomma.r = {
-        document.enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Generate roxygen2 documentation before package workflows; disable for hand-written manuals. Keep NAMESPACE committed; generated man/*.Rd files are Git-ignored.";
-        };
         testthat.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
@@ -62,18 +57,19 @@
         };
       };
       config = lib.mkIf cfg.enable {
-        nullkomma.r.extraPackages =
-          lib.optional cfg.check.enable "rcmdcheck"
-          ++ lib.optional cfg.document.enable "roxygen2"
-          ++ lib.optional cfg.testthat.enable "testthat"
-          ++ lib.optional cfg.pkgdown.enable "pkgdown"
-          ++ lib.optional (
-            cfg.pkgdown.enable && (brand != null || cfg.pkgdown.config.template.bslib.brand or null != null)
-          ) "brand.yml"
-          ++ lib.optionals cfg.coverage.enable [
-            "covr"
-            "xml2"
-          ];
+        nullkomma.r.extraPackages = [
+          "roxygen2"
+        ]
+        ++ lib.optional cfg.check.enable "rcmdcheck"
+        ++ lib.optional cfg.testthat.enable "testthat"
+        ++ lib.optional cfg.pkgdown.enable "pkgdown"
+        ++ lib.optional (
+          cfg.pkgdown.enable && (brand != null || cfg.pkgdown.config.template.bslib.brand or null != null)
+        ) "brand.yml"
+        ++ lib.optionals cfg.coverage.enable [
+          "covr"
+          "xml2"
+        ];
         # Bootstrap 3 templates load their assets from CDNs.
         nullkomma.r.pkgdown.config.template.bootstrap = lib.mkIf cfg.pkgdown.enable (lib.mkDefault 5);
         nullkomma.lint.markdown = {
@@ -87,14 +83,15 @@
         nullkomma.generatedPaths = [
           # testthat compares snapshots byte for byte.
           "${prefix}tests/testthat/_snaps/**"
+          "${prefix}man/*.Rd"
         ]
-        ++ lib.optional cfg.document.enable "${prefix}man/*.Rd"
         ++ lib.optional cfg.pkgdown.enable "${prefix}docs/**"
         ++ lib.optional cfg.coverage.enable "${prefix}coverage.xml";
-        nullkomma.gitignore =
-          lib.optional cfg.document.enable "/${prefix}man/*.Rd"
-          ++ lib.optional cfg.pkgdown.enable "/${prefix}docs/"
-          ++ lib.optional cfg.coverage.enable "/${prefix}coverage.xml";
+        nullkomma.gitignore = [
+          "/${prefix}man/*.Rd"
+        ]
+        ++ lib.optional cfg.pkgdown.enable "/${prefix}docs/"
+        ++ lib.optional cfg.coverage.enable "/${prefix}coverage.xml";
         perSystem =
           { config, pkgs, ... }:
           let
@@ -128,7 +125,7 @@
             top = ''
               cd "$(git rev-parse --show-toplevel)"
               ${cd}'';
-            document = lib.optionalString cfg.document.enable ''
+            document = ''
               Rscript --vanilla -e 'roxygen2::roxygenise()'
             '';
             pkgdown = sandbox: preview: ''
@@ -197,7 +194,7 @@
           in
           {
             nullkomma.tasks = lib.mkMerge [
-              (lib.mkIf cfg.document.enable {
+              {
                 r-document = {
                   skip = true;
                   description = "Generate R manuals and NAMESPACE with roxygen2";
@@ -207,7 +204,7 @@
                   ];
                   command = top + document;
                 };
-              })
+              }
               (lib.mkIf cfg.pkgdown.enable {
                 r-pkgdown = pkgdownTask "Build the pkgdown website in docs/" false;
                 r-pkgdown-preview = pkgdownTask "Build the pkgdown website and open it in a browser" true;
@@ -227,25 +224,23 @@
                 };
               })
             ];
-            nullkomma.checks = lib.mkMerge [
-              (lib.mkIf cfg.testthat.enable { r-testthat = testthat; })
-              (lib.mkIf cfg.document.enable {
-                r-namespace = {
-                  packages = [ pcfg.package ];
-                  command = ''
-                    ${cd}
-                    original="$(mktemp)"
-                    trap 'rm -f "$original"' EXIT
-                    cp NAMESPACE "$original"
-                    ${document}
-                    if ! diff -u "$original" NAMESPACE; then
-                      echo "NAMESPACE is stale; run r-document and commit NAMESPACE." >&2
-                      exit 1
-                    fi
-                  '';
-                };
-              })
-            ];
+            nullkomma.checks = {
+              r-testthat = lib.mkIf cfg.testthat.enable testthat;
+              r-namespace = {
+                packages = [ pcfg.package ];
+                command = ''
+                  ${cd}
+                  original="$(mktemp)"
+                  trap 'rm -f "$original"' EXIT
+                  cp NAMESPACE "$original"
+                  ${document}
+                  if ! diff -u "$original" NAMESPACE; then
+                    echo "NAMESPACE is stale; run r-document and commit NAMESPACE." >&2
+                    exit 1
+                  fi
+                '';
+              };
+            };
             nullkomma.files = lib.mkIf cfg.pkgdown.enable (
               lib.optionalAttrs (cfg.pkgdown.privacy.page != null && privacy.policy != { }) {
                 "${prefix}${cfg.pkgdown.privacy.page}" = {

@@ -45,9 +45,7 @@
                   cp -R ${cfg.root} source
                   chmod -R u+w source
                   cd source
-                  ${lib.optionalString cfg.document.enable ''
-                    Rscript --vanilla -e 'roxygen2::roxygenise()'
-                  ''}
+                  Rscript --vanilla -e 'roxygen2::roxygenise()'
                   mkdir -p "$out/library"
                   R CMD INSTALL --library="$out/library" .
                 '';
