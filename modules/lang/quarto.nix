@@ -64,6 +64,7 @@
           options.nullkomma.quarto.package = lib.mkOption {
             type = lib.types.package;
             default = pkgs.quartoMinimal.overrideAttrs (old: {
+              patches = (old.patches or [ ]) ++ [ ../../patches/quarto.patch ];
               # Nixpkgs' Quarto 1.9 emits a key its newer Pandoc no longer accepts.
               postPatch = (old.postPatch or "") + ''
                 substituteInPlace bin/quarto.js --replace-fail syntax-highlighting highlight-style
