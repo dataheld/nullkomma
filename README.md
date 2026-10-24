@@ -272,8 +272,6 @@ Each `link` names an entry of `meta.link`; `privacy: true` links to your
 [privacy policy](#privacy-policy), if there is one. `icon` is a
 [Bootstrap Icon](https://icons.getbootstrap.com) name. Write plain text only:
 Markdown or HTML fails the build.
-The brand name and tagline sit on the left; legal links and social icons share
-the right. Each builder's responsive footer stacks them on narrow screens.
 
 ##### Privacy policy
 
