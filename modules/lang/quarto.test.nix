@@ -31,6 +31,9 @@
       themed = callFlakeWith {
         nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
       } (root + "/tests/fixtures/quarto-branded");
+      declarativeBrand = callFlakeWith {
+        nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
+      } (root + "/tests/fixtures/quarto-branded");
       docs = rawAt (root + "/tests/fixtures") {
         imports = [ nullkomma.flakeModules.default ];
         nullkomma.quarto = {
@@ -131,7 +134,7 @@
               }
               python - ${fixtures.quarto-branded.packages.${system}.site} ${
                 englishCloudflare.packages.${system}.site
-              } ${docs.packages.${system}.site} <<'PY'
+              } ${docs.packages.${system}.site} ${declarativeBrand.packages.${system}.site} <<'PY'
               from html.parser import HTMLParser
               from pathlib import Path
               import sys
@@ -146,7 +149,13 @@
                   document.feed(Path(path).read_text())
                   return " ".join("".join(document.text).split())
 
-              branded, english, docs = sys.argv[1:]
+              branded, english, docs, declarative = sys.argv[1:]
+              for site in (docs, declarative):
+                  page = Path(f"{site}/index.html").read_text()
+                  left, right = page.split('<div class="nav-footer-right">')
+                  assert "Shared fixture footer" in left
+                  assert "Imprint" not in left
+                  assert "Imprint" in right and "Privacy" in right and "bi-envelope" in right
               assert 'id="quarto-sidebar"' not in Path(f"{docs}/legal/privacy.html").read_text()
               assert 'id="quarto-sidebar"' in Path(f"{docs}/index.html").read_text()
               assert "Hello from an extension" in text(f"{branded}/index.html")

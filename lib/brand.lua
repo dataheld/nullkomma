@@ -70,46 +70,50 @@ function M.render(brand, privacy_href)
     local absolute = url:match("^%a[%w+.-]*:") or url:match("^[/#]")
     return (absolute and "" or root) .. escape(url)
   end
-  local function anchor(label, url, root, new_tab)
-    local target = new_tab and ' target="_blank" rel="noopener noreferrer"' or ""
-    return '<a href="' .. href(url, root) .. '"' .. target .. '>' .. escape(label) .. "</a>"
+  local function anchor(label, url, root, target)
+    local attributes = target and ' target="_blank" rel="noopener noreferrer"' or ""
+    return '<a class="text-reset" href="' .. href(url, root) .. '"' .. attributes .. '>' .. escape(label) .. "</a>"
   end
 
   local tagline = footer.tagline and " · " .. escape(text(footer.tagline)) or ""
-  local center, right = {}, {}
+  local right = {}
   for _, item in ipairs(footer.links or {}) do
     local url = link(item)
     if url then
-      center[#center + 1] = { text = text(item.text), href = url, new_tab = item.link and text(item.link) == "imprint" }
+      local imprint = item.link and text(item.link) == "imprint"
+      right[#right + 1] = {
+        text = text(item.text),
+        href = url,
+        target = imprint and "_blank" or nil,
+        rel = imprint and "noopener noreferrer" or nil,
+      }
     end
   end
   for _, item in ipairs(footer.social or {}) do
     right[#right + 1] = { icon = text(item.icon), href = link(item), ["aria-label"] = text(item.text) }
   end
-  local function columns(root)
-    local links = {}
-    for _, item in ipairs(center) do
-      links[#links + 1] = anchor(item.text, item.href, root, item.new_tab)
-    end
-    return anchor(text(meta.name), text(meta.link.home), root) .. tagline, table.concat(links, " · ")
+  local function left(root)
+    return anchor(text(meta.name), text(meta.link.home), root) .. tagline
   end
 
-  local icons = {}
+  local links = {}
+  local root = "{{#site}}{{root}}{{/site}}"
   for _, item in ipairs(right) do
-    local class = fontawesome[item.icon] or error("no Font Awesome equivalent of Bootstrap icon " .. item.icon)
-    icons[#icons + 1] = '<a href="' .. href(item.href, "{{#site}}{{root}}{{/site}}") .. '" aria-label="'
-      .. escape(item["aria-label"]) .. '"><i class="' .. class .. '" aria-hidden="true"></i></a>'
+    local content
+    if item.icon then
+      local class = fontawesome[item.icon] or error("no Font Awesome equivalent of Bootstrap icon " .. item.icon)
+      content = '<a class="text-reset" href="' .. href(item.href, root) .. '" aria-label="'
+        .. escape(item["aria-label"]) .. '"><i class="' .. class .. '" aria-hidden="true"></i></a>'
+    else
+      content = anchor(item.text, item.href, root, item.target)
+    end
+    links[#links + 1] = '<li class="list-inline-item">' .. content .. "</li>"
   end
-  local left, links = columns("{{#site}}{{root}}{{/site}}")
-  local html = '<div class="nullkomma-footer-left">' .. left .. '</div>\n<div class="nullkomma-footer-center">'
-    .. links .. '</div>\n<div class="nullkomma-footer-right">' .. table.concat(icons, " ") .. "</div>\n"
+  local html = '<div class="pkgdown-footer-left text-center text-sm-start">' .. left(root)
+    .. '</div>\n<div class="pkgdown-footer-right text-center text-sm-end"><ul class="list-inline mb-0">'
+    .. table.concat(links, "\n") .. "</ul></div>\n"
 
-  left, links = columns("")
-  local record = { border = true, left = left }
-  -- One line like the left column, not Quarto's stacked nav list.
-  if #center > 0 then
-    record.center = links
-  end
+  local record = { border = true, left = left("") }
   -- pandoc.json encodes empty tables as objects, so omit empty lists.
   if #right > 0 then
     record.right = right
