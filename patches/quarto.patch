@@ -1,0 +1,18 @@
+Backport of quarto-dev/quarto-cli#14664: Nixpkgs' Pandoc exposes table bodies
+as `TableBody` userdata, which Quarto 1.9's AST walker can't traverse.
+
+shortcut: remove once NixOS/nixpkgs#569134 reaches our pin, see
+https://github.com/dataheld/nullkomma/issues/212.
+
+--- a/share/filters/modules/jog.lua
++++ b/share/filters/modules/jog.lua
+@@ -118,6 +118,9 @@
+   elseif tp == 'pandoc TableHead' or tp == 'pandoc TableFoot' or
+          tp == 'TableHead' or tp == 'TableFoot' then
+     element.rows    = jogger(element.rows)
++  elseif tp == 'pandoc TableBody' or tp == 'TableBody' then
++    element.head    = jogger(element.head)
++    element.body    = jogger(element.body)
+   elseif tp == 'Blocks' or tp == 'Inlines' then
+     local expected_itemtype = tp == 'Inlines' and 'Inline' or 'Block'
+     local pos = 0

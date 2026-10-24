@@ -171,6 +171,21 @@
               PY
               touch $out
             '';
+        # Quarto logs, rather than fails on, filter errors, so walk a table with
+        # its AST walker on the Pandoc it actually runs. Keep this after
+        # https://github.com/dataheld/nullkomma/issues/212 drops the patch.
+        quarto-pandoc =
+          let
+            quarto = (perSystem fixtures.quarto).nullkomma.quarto.package;
+          in
+          pkgs.runCommand "nullkomma-quarto-pandoc" { nativeBuildInputs = [ quarto ]; } ''
+            cat > walk.lua <<'LUA'
+            package.path = "${quarto}/share/filters/modules/?.lua;" .. package.path
+            require 'jog'(pandoc.read("| a |\n|---|\n| 1 |\n", "markdown"), { Str = function() end })
+            LUA
+            HOME=$TMPDIR quarto pandoc lua walk.lua
+            touch $out
+          '';
         quarto-preview =
           let
             quarto = pkgs.writeShellScriptBin "quarto" ''
