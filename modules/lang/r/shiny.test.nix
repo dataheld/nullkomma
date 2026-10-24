@@ -25,6 +25,12 @@
         };
       } fixture;
       plain = callFlakeWith { } fixture;
+      local = callFlakeWith {
+        nullkomma.r.shiny = {
+          enable = true;
+          port = null;
+        };
+      } fixture;
       heavy = [
         "shiny"
         "shinytest2"
@@ -47,10 +53,12 @@
         testShinyIsOptIn = {
           expr = {
             app = fixtures.r.apps.${system} ? shiny;
+            task = (perSystem fixtures.r).nullkomma.tasks ? shiny;
             dependency = lib.elem "shiny" (perSystem fixtures.r).nullkomma.r.packages;
           };
           expected = {
             app = false;
+            task = false;
             dependency = false;
           };
         };
@@ -74,7 +82,10 @@
         r-shiny =
           pkgs.runCommand "r-shiny"
             {
-              nativeBuildInputs = [ pkgs.curl ];
+              nativeBuildInputs = [
+                pkgs.curl
+                pkgs.git
+              ];
               __darwinAllowLocalNetworking = true;
             }
             ''
@@ -85,27 +96,46 @@
               fi
               fails 'must return a shiny.appobj' ${invalid "not_an_app"}
               fails 'is not an exported object' ${invalid "internal_app"}
-              cd "$TMPDIR"
+              git init -q
+              substituteInPlace R/app.R --replace-fail 'nullkomma Shiny fixture' 'working-tree Shiny fixture'
+              mkdir sub
+              cd sub
               export R_LIBS_SITE="${pkgs.rPackages.pkgload}/library:${pkgs.rPackages.testthat}/library"
-              ${enabled.apps.${system}.shiny.program} > server.log 2>&1 &
-              pid=$!
-              trap 'kill "$pid"; wait "$pid" || true' EXIT
-              for attempt in {1..60}; do
-                url=$(sed -n 's/^Listening on \(http:\/\/127[.]0[.]0[.]1:[0-9]*\).*$/\1/p' server.log)
-                if [[ -n "$url" ]] && curl --noproxy '*' --fail --silent "$url" > response.html; then
-                  grep -qF 'nullkomma Shiny fixture' response.html
-                  touch "$out"
-                  exit 0
+              for mode in installed working-tree; do
+                if [[ "$mode" == installed ]]; then
+                  command=${enabled.apps.${system}.shiny.program}
+                  expected='nullkomma Shiny fixture'
+                else
+                  command=${harness.task local "shiny"}
+                  expected='working-tree Shiny fixture'
                 fi
-                if ! kill -0 "$pid" 2>/dev/null; then
+                "$command" > server.log 2>&1 &
+                pid=$!
+                trap 'kill "$pid"; wait "$pid" || true' EXIT
+                ready=false
+                for attempt in {1..60}; do
+                  url=$(sed -n 's/^Listening on \(http:\/\/127[.]0[.]0[.]1:[0-9]*\).*$/\1/p' server.log)
+                  if [[ -n "$url" ]] && curl --noproxy '*' --fail --silent "$url" > response.html; then
+                    grep -qF "$expected" response.html
+                    ready=true
+                    break
+                  fi
+                  if ! kill -0 "$pid" 2>/dev/null; then
+                    cat server.log >&2
+                    exit 1
+                  fi
+                  sleep 1
+                done
+                if [[ "$ready" != true ]]; then
                   cat server.log >&2
+                  echo 'Shiny did not become ready' >&2
                   exit 1
                 fi
-                sleep 1
+                kill "$pid"
+                wait "$pid" || true
+                trap - EXIT
               done
-              cat server.log >&2
-              echo 'Shiny did not become ready' >&2
-              exit 1
+              touch "$out"
             '';
       }
       # Nixpkgs has no Chromium for macOS.

@@ -72,26 +72,30 @@
                   }
                   RS
                 '';
-            script = pkgs.writeText "shiny.R" ''
-              .libPaths(c("${installed}/library", "${dependencies}/library"), include.site = FALSE)
-              package <- list.dirs("${installed}/library", recursive = FALSE, full.names = FALSE)
-              entrypoint <- getExportedValue(package, ${builtins.toJSON cfg.shiny.function})
-              if (!is.function(entrypoint)) {
-                stop("nullkomma.r.shiny.function must name an exported function")
-              }
-              app <- entrypoint()
-              if (!inherits(app, "shiny.appobj")) {
-                stop("nullkomma.r.shiny.function must return a shiny.appobj")
-              }
-              shiny::runApp(
-                appDir = app,
-                host = ${builtins.toJSON cfg.shiny.host},
-                port = ${if cfg.shiny.port == null then "NULL" else toString cfg.shiny.port},
-                launch.browser = FALSE
-              )
-            '';
+            script =
+              setup:
+              pkgs.writeText "shiny.R" ''
+                ${setup}
+                entrypoint <- getExportedValue(package, ${builtins.toJSON cfg.shiny.function})
+                if (!is.function(entrypoint)) {
+                  stop("nullkomma.r.shiny.function must name an exported function")
+                }
+                app <- entrypoint()
+                if (!inherits(app, "shiny.appobj")) {
+                  stop("nullkomma.r.shiny.function must return a shiny.appobj")
+                }
+                shiny::runApp(
+                  appDir = app,
+                  host = ${builtins.toJSON cfg.shiny.host},
+                  port = ${if cfg.shiny.port == null then "NULL" else toString cfg.shiny.port},
+                  launch.browser = FALSE
+                )
+              '';
             launcher = pkgs.writeShellScriptBin "shiny" ''
-              exec ${pkgsR.R}/bin/Rscript --vanilla ${script}
+              exec ${pkgsR.R}/bin/Rscript --vanilla ${script ''
+                .libPaths(c("${installed}/library", "${dependencies}/library"), include.site = FALSE)
+                package <- list.dirs("${installed}/library", recursive = FALSE, full.names = FALSE)
+              ''}
             '';
           in
           {
@@ -99,6 +103,22 @@
               type = "app";
               program = lib.getExe launcher;
               meta.description = "Run the project's exported Shiny app";
+            };
+            nullkomma.tasks.shiny = {
+              skip = true;
+              raw = true;
+              description = "Serve the working-tree Shiny app with pkgload";
+              packages = [
+                pkgs.git
+                config.nullkomma.r.package
+              ];
+              command = ''
+                cd "$(git rev-parse --show-toplevel)"/${lib.escapeShellArg cfg.prefix}
+                exec Rscript --vanilla ${script ''
+                  pkgload::load_all(".", export_all = FALSE)
+                  package <- pkgload::pkg_name(".")
+                ''} "$@"
+              '';
             };
           };
       };

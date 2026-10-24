@@ -334,6 +334,24 @@
             # keep-sorted end
           };
           checks = {
+            task-menu =
+              let
+                flake = raw {
+                  perSystem.nullkomma.checks.custom.command = "echo custom-check";
+                };
+                runner = (perSystem flake).taskRunners.default;
+              in
+              pkgs.runCommand "nullkomma-task-menu" { } ''
+                ${lib.getExe pkgs.git} init -q
+                ${lib.getExe runner} > menu
+                grep -qF 'check <name> [args]: custom' menu
+                grep -qF "for arguments, run the listed command directly" menu
+                ${lib.getExe runner} check > checked
+                grep -qF custom-check checked
+                ${lib.getExe runner} all > checked-all
+                grep -qF custom-check checked-all
+                touch $out
+              '';
             neovim-config =
               pkgs.runCommandLocal "nullkomma-neovim-config"
                 {

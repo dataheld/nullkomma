@@ -107,15 +107,11 @@
                 else
                   null;
             };
-          in
-          {
-            nullkomma.devShell.packages = [ quarto ];
-            nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
-            # Quarto watches the working tree and live-reloads the browser itself.
-            nullkomma.tasks.preview = {
+            render = ''quarto render "$@"'';
+            task = description: command: {
               skip = true;
               raw = true;
-              description = "Serve the site on localhost, re-rendering and reloading on changes";
+              inherit description;
               packages = [
                 pkgs.git
                 quarto
@@ -123,9 +119,16 @@
               command = ''
                 ${lib.getExe config.nullkomma.tasks.generate-files.package}
                 cd "$(git rev-parse --show-toplevel)"/${lib.escapeShellArg prefix}
-                exec quarto preview "$@"
+                exec ${command}
               '';
             };
+          in
+          {
+            nullkomma.devShell.packages = [ quarto ];
+            nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
+            nullkomma.tasks.build-site = task "Render the working-tree site locally (Quarto output directory)" render;
+            # Quarto watches the working tree and live-reloads the browser itself.
+            nullkomma.tasks.preview = task "Serve the site on localhost, re-rendering and reloading on changes" ''quarto preview "$@"'';
             nullkomma.files =
               lib.mapAttrs' (
                 name: source:
@@ -185,7 +188,7 @@
             packages.site = lib.mkDefault (
               pkgs.runCommand "site" { nativeBuildInputs = [ quarto ]; } ''
                 cp -r ${config.nullkomma.src} src && chmod -R u+w src && cd src/${lib.escapeShellArg prefix}
-                HOME=$TMPDIR quarto render --output-dir "$out"
+                HOME=$TMPDIR ${render} --output-dir "$out"
               ''
             );
           };

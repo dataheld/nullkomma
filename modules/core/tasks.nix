@@ -67,7 +67,7 @@
           cfg = config.nullkomma.tasks;
           runner = (inputs.up.lib { inherit lib pkgs; }).mkTaskRunner {
             name = "tasks";
-            description = "Project tasks (also commands in this shell)";
+            description = "Project tasks (for arguments, run the listed command directly)";
             tasks = lib.mapAttrs (
               _: task:
               removeAttrs task [

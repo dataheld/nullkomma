@@ -77,7 +77,7 @@
         in
         lib.mkIf (commands != { }) {
           nullkomma.tasks.check = {
-            description = "Run all checks in the working tree, or one: check <name> [args]";
+            description = "Run all checks, or check <name> [args]: ${lib.concatStringsSep ", " (lib.attrNames commands)}";
             packages = [ pkgs.git ];
             command = ''
               cd "$(git rev-parse --show-toplevel)"

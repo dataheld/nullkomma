@@ -627,21 +627,21 @@ The startup profile only acts in native R sessions, installing from the same PPM
 
 ## Design
 
-Nullkomma always provides **two self-documenting entrypoints:
+Nullkomma always provides **two self-documenting entrypoints**:
 
 1. The consumer's flake outputs. These are already self-documenting.
 1. `tasks` expose a selection of useful builds and checks.
-  This does not mean that `tasks` aliases every subcommand and flag.
-  As a heuristic, if some command is run to produce a flake output,
-  it is also exposed as a `tasks`. 
-  In addition, `tasks` include important development-only workflows,
-  especially previews.
+   This does not mean that `tasks` aliases every subcommand and flag.
+   As a heuristic, if some command is run to produce a flake output,
+   it is also exposed as a `tasks`.
+   In addition, `tasks` include important development-only workflows,
+   especially previews.
 
 As much as possible, the flake outputs and `tasks` reuse implementation,
 to make interactive development work in the `devShell` as close as possible to the flake outputs.
 Exceptions include:
 
-- Tasks run tools directly on the working tree, rather than recurisvely invoking Nix builds for speed and simplicity.
+- Tasks run tools directly on the working tree, rather than recursively invoking Nix builds for speed and simplicity.
 - Tasks run on the *uncommitted* working tree for faster turnaround.
 - (Sandboxed checks still use the flake's source.)
 
