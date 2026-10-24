@@ -100,6 +100,7 @@
             privacyBody = lib.optionalString (cfg.pkgdown.privacy.page != null && privacy.policy != { }) (
               pkgs.runCommand "privacy.html" { nativeBuildInputs = [ pkgs.pandoc ]; } ''
                 pandoc -f markdown+gfm_auto_identifiers-citations+emoji+autolink_bare_uris -t html4 \
+                  --indented-code-classes=R --section-divs --wrap=none \
                   ${pkgs.writeText "privacy.md" privacyPage} -o "$out"
               ''
             );
