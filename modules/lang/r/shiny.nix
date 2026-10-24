@@ -25,7 +25,11 @@
         };
       };
       config = lib.mkIf (cfg.enable && cfg.shiny.enable) {
-        nullkomma.r.extraPackages = [ "shiny" ];
+        nullkomma.r.extraPackages = [
+          "shiny"
+          # For shiny.autoreload in the r-shiny process tree.
+          "watcher"
+        ];
         perSystem =
           {
             config,
@@ -70,25 +74,36 @@
                   }
                   RS
                 '';
-            script =
-              setup:
-              pkgs.writeText "shiny.R" ''
-                ${setup}
-                entrypoint <- getExportedValue(package, ${builtins.toJSON cfg.shiny.function})
-                if (!is.function(entrypoint)) {
-                  stop("nullkomma.r.shiny.function must name an exported function")
-                }
-                app <- entrypoint()
-                if (!inherits(app, "shiny.appobj")) {
-                  stop("nullkomma.r.shiny.function must return a shiny.appobj")
-                }
-                shiny::runApp(
-                  appDir = app,
-                  host = ${builtins.toJSON cfg.shiny.host},
-                  port = ${if cfg.shiny.port == null then "NULL" else toString cfg.shiny.port},
-                  launch.browser = FALSE
-                )
-              '';
+            app = setup: ''
+              ${setup}
+              entrypoint <- getExportedValue(package, ${builtins.toJSON cfg.shiny.function})
+              if (!is.function(entrypoint)) {
+                stop("nullkomma.r.shiny.function must name an exported function")
+              }
+              app <- entrypoint()
+              if (!inherits(app, "shiny.appobj")) {
+                stop("nullkomma.r.shiny.function must return a shiny.appobj")
+              }
+            '';
+            run = appDir: ''
+              shiny::runApp(
+                appDir = ${appDir},
+                host = ${builtins.toJSON cfg.shiny.host},
+                port = ${if cfg.shiny.port == null then "NULL" else toString cfg.shiny.port},
+                launch.browser = FALSE
+              )
+            '';
+            script = setup: pkgs.writeText "shiny.R" (app setup + run "app");
+            pkgload = dir: ''
+              pkgload::load_all(${dir}, export_all = FALSE)
+              package <- pkgload::pkg_name(${dir})
+            '';
+            # Sourced again by Shiny whenever it changes; returns the app.
+            appR = pkgs.writeText "app.R" (app (pkgload ''Sys.getenv("NULLKOMMA_SHINY_PACKAGE")'') + "app\n");
+            autoreload = pkgs.writeText "autoreload.R" ''
+              options(shiny.autoreload = TRUE)
+              ${run "commandArgs(TRUE)[[1]]"}
+            '';
             launcher = pkgs.writeShellScriptBin "shiny" ''
               exec ${pkgsR.R}/bin/Rscript --vanilla ${script ''
                 .libPaths(c("${installed}/library", "${dependencies}/library"), include.site = FALSE)
@@ -106,17 +121,31 @@
               skip = true;
               raw = true;
               description = "Serve the working-tree Shiny app with pkgload";
+              after = [ "r-document" ];
               packages = [
                 pkgs.git
+                pkgs.watchexec
                 config.nullkomma.r.package
               ];
               command = ''
-                cd "$(git rev-parse --show-toplevel)"/${lib.escapeShellArg cfg.prefix}
-                exec Rscript --vanilla ${script ''
-                  pkgload::load_all(".", export_all = FALSE)
-                  package <- pkgload::pkg_name(".")
-                ''} "$@"
+                root="$(git rev-parse --show-toplevel)"
+                # In a process tree: reload whenever r-document succeeds.
+                if [[ -n "''${NULLKOMMA_PROCESSES-}" ]]; then
+                  dir="$root/$NULLKOMMA_PROCESSES/shiny"
+                  mkdir -p "$dir"
+                  install -m 644 ${appR} "$dir/app.R"
+                  export NULLKOMMA_SHINY_PACKAGE="$root"/${lib.escapeShellArg cfg.prefix}
+                  # Touching app.R makes Shiny reload the package and every browser.
+                  watchexec --quiet --postpone --watch "$root/$NULLKOMMA_PROCESSES/r-document.ok" -- touch "$dir/app.R" &
+                  exec Rscript --vanilla ${autoreload} "$dir"
+                fi
+                cd "$root"/${lib.escapeShellArg cfg.prefix}
+                exec Rscript --vanilla ${script (pkgload ''"."'')} "$@"
               '';
+            };
+            nullkomma.processTrees.r-shiny = {
+              description = "Keep r-pkg current and serve the Shiny app, reloaded in the browser after each r-document";
+              tasks = config.nullkomma.processTrees.r-pkg.tasks ++ [ "shiny" ];
             };
           };
       };

@@ -87,6 +87,7 @@
         ++ lib.optional cfg.coverage.enable "${prefix}coverage.xml";
         nullkomma.gitignore = [
           "/${prefix}man/*.Rd"
+          "/.nullkomma/processes/"
         ]
         ++ lib.optional cfg.pkgdown.enable "/${prefix}docs/"
         ++ lib.optional cfg.coverage.enable "/${prefix}coverage.xml";
@@ -167,9 +168,12 @@
               ''}
               RS
             '';
+            # Project-relative paths for task watches.
+            paths = map (path: prefix + path);
             pkgdownTask = description: preview: {
               skip = true;
               inherit description;
+              after = [ "r-document" ];
               packages = [
                 pcfg.package
                 pkgs.pandoc
@@ -177,28 +181,28 @@
               ];
               command = ''
                 ${lib.getExe config.nullkomma.tasks.generate-files.package}
-                ${top}${document}${pkgdown false preview}'';
+                ${top}${pkgdown false preview}'';
             };
             testthat = {
               packages = [ pcfg.package ];
               # pkgload is fast for development; the sandbox tests what users install.
               sandboxArgs = [ "--installed" ];
-              command = ''
-                ${cd}${document}
-                load=source
-                if [[ "''${1-}" == --installed ]]; then
-                  shift
-                  load=installed
-                  scratch="$(mktemp -d)"
-                  trap 'rm -rf "$scratch"' EXIT
-                  export R_LIBS_USER="$scratch"
-                  R CMD INSTALL --library="$R_LIBS_USER" .
-                  # Like R CMD check: shinytest2 then runs apps from the installed package, not pkgload.
-                  export TESTTHAT_IS_CHECKING=true
-                fi
-                Rscript --vanilla -e 'testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = commandArgs(TRUE)[[1]])' "$load"
-              '';
+              command = cd + document + testthatRun;
             };
+            testthatRun = ''
+              load=source
+              if [[ "''${1-}" == --installed ]]; then
+                shift
+                load=installed
+                scratch="$(mktemp -d)"
+                trap 'rm -rf "$scratch"' EXIT
+                export R_LIBS_USER="$scratch"
+                R CMD INSTALL --library="$R_LIBS_USER" .
+                # Like R CMD check: shinytest2 then runs apps from the installed package, not pkgload.
+                export TESTTHAT_IS_CHECKING=true
+              fi
+              Rscript --vanilla -e 'testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = commandArgs(TRUE)[[1]])' "$load"
+            '';
           in
           {
             nullkomma.tasks = lib.mkMerge [
@@ -211,27 +215,80 @@
                     pkgs.git
                   ];
                   command = top + document;
+                  watch.paths = paths [
+                    "R"
+                    "DESCRIPTION"
+                    "src"
+                  ];
                 };
               }
+              (lib.mkIf cfg.testthat.enable {
+                r-test = {
+                  skip = true;
+                  description = "Run testthat on the working-tree package, loaded with pkgload";
+                  after = [ "r-document" ];
+                  packages = [
+                    pcfg.package
+                    pkgs.git
+                  ];
+                  command = top + testthatRun;
+                  watch.paths = paths [ "tests" ];
+                };
+              })
+              (lib.mkIf cfg.check.enable {
+                r-check = {
+                  skip = true;
+                  description = "Run check r-cmd-check after r-document";
+                  after = [ "r-document" ];
+                  packages = [ pkgs.git ];
+                  command = ''
+                    cd "$(git rev-parse --show-toplevel)"
+                    exec ${lib.getExe config.nullkomma.checks.r-cmd-check.package} "$@"
+                  '';
+                  watch.paths = paths [
+                    "tests"
+                    "vignettes"
+                    "inst"
+                    "NEWS.md"
+                  ];
+                };
+              })
               (lib.mkIf cfg.pkgdown.enable {
-                r-pkgdown = pkgdownTask "Build the pkgdown website in docs/" false;
+                r-pkgdown = pkgdownTask "Build the pkgdown website in docs/" false // {
+                  watch.paths = paths [
+                    "_pkgdown.yml"
+                    "README.md"
+                    "NEWS.md"
+                    "vignettes"
+                    "man/figures"
+                  ];
+                };
                 r-pkgdown-preview = pkgdownTask "Build the pkgdown website and open it in a browser" true;
               })
               (lib.mkIf cfg.coverage.enable {
                 r-coverage = {
                   skip = true;
                   description = "Write a Cobertura test coverage report to coverage.xml";
+                  after = [ "r-document" ];
                   packages = [
                     pcfg.package
                     pkgs.git
                   ];
                   command = ''
-                    ${top}${document}
-                    Rscript --vanilla -e 'covr::to_cobertura(covr::package_coverage(), filename = "coverage.xml")'
+                    ${top}Rscript --vanilla -e 'covr::to_cobertura(covr::package_coverage(), filename = "coverage.xml")'
                   '';
                 };
               })
             ];
+            nullkomma.processTrees.r-pkg = {
+              description = "Keep NAMESPACE, manuals, tests, website and R CMD check current";
+              tasks = [
+                "r-document"
+              ]
+              ++ lib.optional cfg.testthat.enable "r-test"
+              ++ lib.optional cfg.pkgdown.enable "r-pkgdown"
+              ++ lib.optional cfg.check.enable "r-check";
+            };
             nullkomma.checks = {
               r-testthat = lib.mkIf cfg.testthat.enable testthat;
               r-namespace = {

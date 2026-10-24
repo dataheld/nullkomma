@@ -15,6 +15,7 @@
         "^[.]github$"
         "^[.]vscode$"
         "^[.]nvim[.]lua$"
+        "^[.]nullkomma$"
         "^result(-.*)?$"
         "^docs$"
         "^pkgdown$"

@@ -24,6 +24,30 @@
             ;
           md = root + "/tests/fixtures/md";
           section = text: builtins.toFile "section.md" text;
+          # c runs after a and b, b after a; each appends to `log`.
+          dagTasks = lib.mapAttrs (name: task: { description = name; } // task) {
+            a = {
+              command = "echo a >> log";
+              watch.paths = [ "flake.nix" ];
+            };
+            b = {
+              after = [ "a" ];
+              command = "echo b >> log";
+            };
+            c = {
+              after = [
+                "a"
+                "b"
+              ];
+              command = ''echo c "$@" >> log'';
+              watch.paths = [ "missing" ];
+            };
+            broken.command = "exit 3";
+            d = {
+              after = [ "broken" ];
+              command = "echo d >> log";
+            };
+          };
           privacy =
             sections:
             (raw { nullkomma.privacy = { inherit sections; }; }).debug.config.nullkomma.privacy.policy;
@@ -312,6 +336,44 @@
                 missingLanguage = false;
               };
             };
+            testTaskDag =
+              let
+                flake = perSystem (raw {
+                  perSystem.nullkomma = {
+                    tasks = dagTasks;
+                    processTrees.tree = {
+                      description = "Tree";
+                      tasks = [ "c" ];
+                    };
+                  };
+                });
+              in
+              {
+                expr = {
+                  closure = flake.nullkomma.tasks.c.closure;
+                  tasks = lib.filter (lib.hasPrefix "dev-") (lib.attrNames flake.nullkomma.tasks);
+                  processes = lib.attrNames flake.processTrees.tree.processes;
+                  watches = lib.filter (lib.hasPrefix "watch-") (map lib.getName flake.nullkomma.devShell.packages);
+                };
+                expected = {
+                  closure = [
+                    "a"
+                    "b"
+                    "c"
+                  ];
+                  tasks = [ "dev-tree" ];
+                  processes = [
+                    "a"
+                    "b"
+                    "c"
+                  ];
+                  # c's own path is missing, but it watches a's inputs too.
+                  watches = [
+                    "watch-a"
+                    "watch-c"
+                  ];
+                };
+              };
             testTasksAllHonorsSkip = {
               expr = lib.attrNames (
                 lib.filterAttrs (_: t: !(t.skip or false)) (perSystem fixtures.md).nullkomma.tasks
@@ -334,6 +396,18 @@
             # keep-sorted end
           };
           checks = {
+            task-dag =
+              let
+                flake = raw { perSystem.nullkomma.tasks = dagTasks; };
+              in
+              pkgs.runCommand "nullkomma-task-dag" { } ''
+                ${task flake "c"} arg
+                printf 'a\nb\nc arg\n' | diff - log
+                rm log
+                if ${task flake "d"}; then exit 1; fi
+                [[ ! -e log ]]
+                touch $out
+              '';
             task-menu =
               let
                 flake = raw {

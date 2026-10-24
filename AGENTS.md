@@ -46,6 +46,10 @@ Candidates for upstreaming instead of keeping here:
 
 - the up task-runner integration (`nullkomma.tasks`, `taskRunners`) as a flake
   module in [DeterminateSystems/up](https://github.com/DeterminateSystems/up);
+  also task dependencies (`after`), which up lacks, and fixes to `mkProcessTree`
+  (forward arguments, configurable `log_location` instead of the shared
+  `/tmp/pc-debug.log`, a per-project socket rather than nullkomma's
+  `PC_SOCKET_PATH` workaround in `modules/core/processes.nix`);
 - source-of-truth/generated file modes in
   [mightyiam/files](https://github.com/mightyiam/files);
 - editor-neutral language servers (`nullkomma.editor`) as a standalone module.
