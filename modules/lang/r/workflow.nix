@@ -40,9 +40,9 @@
           description = "Build a pkgdown website with r-pkgdown and packages.site (also checked in nix flake check); r-pkgdown-preview builds and opens it in a browser.";
         };
         pkgdown.privacy.page = lib.mkOption {
-          type = lib.types.nullOr (lib.types.strMatching "[.]github/[^/\n]+[.]md");
-          default = ".github/privacy.md";
-          description = "Generated page in `.github/` rendering `nullkomma.privacy`, which pkgdown publishes at the site root by its basename; null to supply your own.";
+          type = lib.types.nullOr (lib.types.strMatching "[^/\n]+[.]md");
+          default = "privacy.md";
+          description = "Page rendering `nullkomma.privacy`, which pkgdown publishes at the site root by its basename without writing it to the project; null to supply your own.";
         };
         pkgdown.config = lib.mkOption {
           type = lib.types.attrsOf lib.types.anything;
@@ -99,13 +99,15 @@
           { config, pkgs, ... }:
           let
             pcfg = config.nullkomma.r;
+            privacyFile =
+              if cfg.pkgdown.privacy.page != null && privacy.policy != { } then
+                "${pkgs.writeTextDir cfg.pkgdown.privacy.page privacyPage}/${cfg.pkgdown.privacy.page}"
+              else
+                null;
             siteBrand = import ../../../lib/brand.nix {
               inherit pkgs lib brand;
               privacyHref =
-                if cfg.pkgdown.privacy.page != null && privacy.policy != { } then
-                  lib.removeSuffix ".md" (baseNameOf cfg.pkgdown.privacy.page) + ".html"
-                else
-                  null;
+                if privacyFile != null then lib.removeSuffix ".md" (baseNameOf privacyFile) + ".html" else null;
             };
             templateConfig.template = {
               light-switch = true;
@@ -151,6 +153,13 @@
               override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
               ${lib.optionalString (brand != null) ''.libPaths(c("${template}", .libPaths()))''}
               ${lib.optionalString sandbox ''override$destination <- Sys.getenv("out")''}
+              ${lib.optionalString (privacyFile != null) ''
+                # pkgdown only finds extra pages in the project, so render the generated one directly.
+                pkg <- pkgdown::as_pkgdown(override = override)
+                pkgdown::init_site(pkg)
+                pkg$repo$url$source <- NULL # no source link to the Nix store
+                pkgdown:::render_md(pkg, "${privacyFile}")
+              ''}
               pkgdown::build_site(override = override, preview = ${lib.toUpper (lib.boolToString preview)}, new_process = FALSE)
               ${lib.optionalString sandbox ''
                 # pkgdown records wall-clock time even in otherwise reproducible builds.
@@ -246,23 +255,13 @@
                 };
               })
             ];
-            nullkomma.files = lib.mkIf cfg.pkgdown.enable (
-              lib.optionalAttrs (cfg.pkgdown.privacy.page != null && privacy.policy != { }) {
-                "${prefix}${cfg.pkgdown.privacy.page}" = {
-                  mode = "generated";
-                  commentPrefix = "<!--";
-                  commentSuffix = " -->";
-                  text = privacyPage;
-                };
-              }
-              // lib.optionalAttrs (cfg.pkgdown.assets != null) {
-                "${prefix}pkgdown/assets" = {
-                  mode = "generated";
-                  directory = true;
-                  source = cfg.pkgdown.assets;
-                };
-              }
-            );
+            nullkomma.files = lib.mkIf (cfg.pkgdown.enable && cfg.pkgdown.assets != null) {
+              "${prefix}pkgdown/assets" = {
+                mode = "generated";
+                directory = true;
+                source = cfg.pkgdown.assets;
+              };
+            };
             packages = lib.mkIf cfg.pkgdown.enable {
               site = lib.mkDefault (
                 pkgs.runCommand "r-pkgdown-site"
