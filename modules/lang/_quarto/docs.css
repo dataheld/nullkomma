@@ -3,16 +3,6 @@
 .nav-footer-center {
   display: contents;
 }
-.nav-footer-center > :not(.toc-actions) {
-  flex: 1 1 0px;
-  text-align: center;
-}
-@media (max-width: 767.98px) {
-  .nav-footer-center > :not(.toc-actions) {
-    flex-basis: 100%;
-    margin-bottom: 1em;
-  }
-}
 .nav-footer .toc-actions {
   order: -1;
   flex-basis: 100%;
