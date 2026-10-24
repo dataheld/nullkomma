@@ -1,6 +1,9 @@
 Backport of quarto-dev/quarto-cli#14664: Nixpkgs' Pandoc exposes table bodies
 as `TableBody` userdata, which Quarto 1.9's AST walker can't traverse.
 
+shortcut: remove once NixOS/nixpkgs#569134 reaches our pin, see
+https://github.com/dataheld/nullkomma/issues/212.
+
 --- a/share/filters/modules/jog.lua
 +++ b/share/filters/modules/jog.lua
 @@ -118,6 +118,9 @@

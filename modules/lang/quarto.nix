@@ -64,8 +64,10 @@
           options.nullkomma.quarto.package = lib.mkOption {
             type = lib.types.package;
             default = pkgs.quartoMinimal.overrideAttrs (old: {
+              # shortcut: `patches` and `postPatch` make Nixpkgs 26.05's Quarto 1.9 work with
+              # its Pandoc 3.7; drop them once NixOS/nixpkgs#569134 reaches our pin, see
+              # https://github.com/dataheld/nullkomma/issues/212.
               patches = (old.patches or [ ]) ++ [ ../../patches/quarto.patch ];
-              # Nixpkgs' Quarto 1.9 emits a key its newer Pandoc no longer accepts.
               postPatch = (old.postPatch or "") + ''
                 substituteInPlace bin/quarto.js --replace-fail syntax-highlighting highlight-style
               '';

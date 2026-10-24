@@ -163,7 +163,8 @@
               touch $out
             '';
         # Quarto logs, rather than fails on, filter errors, so walk a table with
-        # its AST walker on the Pandoc it actually runs.
+        # its AST walker on the Pandoc it actually runs. Keep this after
+        # https://github.com/dataheld/nullkomma/issues/212 drops the patch.
         quarto-pandoc =
           let
             quarto = (perSystem fixtures.quarto).nullkomma.quarto.package;
