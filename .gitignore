@@ -12,3 +12,6 @@ result-*
 /_extensions/nullkomma-docs
 /_nullkomma-brand.yml
 /privacy.qmd
+
+/.quarto/
+**/*.quarto_ipynb
