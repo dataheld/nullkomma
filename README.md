@@ -597,7 +597,7 @@ also in `nix flake check`; `r-pkgdown` builds it locally, and `r-pkgdown-preview
 - `_pkgdown.yml` overrides the [brand](#brand)'s template package; `nullkomma.r.pkgdown.config` is merged over both.
 - `nullkomma.r.pkgdown.assets` is a directory generated into Git-ignored `pkgdown/assets/`,
   which pkgdown copies to the site root; leave it `null` to manage that directory yourself.
-- pkgdown renders the [privacy policy](#privacy-policy) to `/privacy.html` without writing it to the project;
+- The [privacy policy](#privacy-policy) is published at `/privacy.html`;
   set `nullkomma.r.pkgdown.privacy.page = null` to write your own.
 
 #### Shiny app
