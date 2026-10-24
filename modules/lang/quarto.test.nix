@@ -158,6 +158,9 @@
                   assert "Imprint" in right and "Privacy" in right and "bi-envelope" in right
               assert 'id="quarto-sidebar"' not in Path(f"{docs}/legal/privacy.html").read_text()
               assert 'id="quarto-sidebar"' in Path(f"{docs}/index.html").read_text()
+              # Quarto's default floating sidebar keeps pages centred on wide screens.
+              body = Path(f"{docs}/index.html").read_text().split("<body", 1)[1].split(">", 1)[0]
+              assert "floating" in body and "docked" not in body, body
               assert "Hello from an extension" in text(f"{branded}/index.html")
               privacy = text(f"{branded}/privacy.html")
               assert "Privacy Policy" in privacy

@@ -29,6 +29,7 @@ let
     href = "index.qmd";
     text = "Home";
   };
+  # Only switch on Quarto features; never restate or override Quarto's layout and style defaults.
   docs = lib.recursiveUpdate {
     project.type = "website";
     website = {
@@ -37,25 +38,16 @@ let
         "source"
         "issue"
       ];
-      bread-crumbs = true;
       page-navigation = true;
-      search = {
-        location = "navbar";
-        type = "overlay";
-      };
       back-to-top-navigation = true;
       navbar = {
         pinned = true;
         left = [ home ];
       };
-      sidebar = {
-        style = "docked";
-        contents = [ home ];
-      };
+      sidebar.contents = [ home ];
     };
     format.html = {
       toc = true;
-      toc-depth = 3;
       code-copy = true;
       code-link = true;
       css = [ "docs.css" ];
