@@ -1,10 +1,4 @@
 { lib, pkgs }:
-tasks:
-let
-  outputs = lib.unique (
-    lib.concatMap (task: lib.optionals (task.watch != null) task.watch.outputs) (lib.attrValues tasks)
-  );
-in
 pkgs.writeShellApplication {
   name = "watchexec";
   runtimeInputs = [ pkgs.git ];
@@ -25,7 +19,6 @@ pkgs.writeShellApplication {
     done
     exec ${lib.getExe pkgs.watchexec} --project-origin "$PWD" --no-discover-ignore "''${busy[@]}" \
       --ignore '.nullkomma' --ignore '.nullkomma/**' --ignore '.direnv' --ignore '.direnv/**' \
-      ${lib.concatMapStrings (path: "--ignore ${lib.escapeShellArg path} ") outputs} \
       "''${args[@]}"
   '';
 }

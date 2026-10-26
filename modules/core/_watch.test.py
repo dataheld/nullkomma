@@ -43,8 +43,10 @@ with open(os.environ["TMPDIR"] + "/watcher.log", "w") as log:
         wait_for(lambda: Path("output/result").exists(), process)
         baseline = settle(process)
         Path("output/generated").write_text("not an input")
+        Path("prepared").write_text("prerequisite output")
+        Path("local-ignore").write_text("explicit exclusion")
         time.sleep(1)
-        assert count() == baseline, "output caused a feedback loop"
+        assert count() == baseline, "excluded path triggered a run"
 
         for change in [
             lambda: Path("ignored-input").write_text("Git ignores are not build exclusions"),

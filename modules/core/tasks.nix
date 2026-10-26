@@ -222,9 +222,11 @@
             lib.optionalAttrs (task.watch != null && !task.watch.native && paths != [ ]) {
               "watch-${name}" = up.mkWatch {
                 description = "Run ${name} again whenever its inputs change";
-                package = import ./_watch.nix { inherit lib pkgs; } (lib.getAttrs task.closure cfg);
+                package = import ./_watch.nix { inherit lib pkgs; };
                 command = lib.getExe task.package;
-                ignore = lib.concatMap (dep: cfg.${dep}.watch.ignore) watched;
+                ignore =
+                  lib.unique (lib.concatMap (dep: cfg.${dep}.watch.outputs) watched)
+                  ++ lib.concatMap (dep: cfg.${dep}.watch.ignore) watched;
                 inherit paths;
               };
             }
