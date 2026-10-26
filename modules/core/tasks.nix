@@ -85,7 +85,7 @@
                     process = lib.mkOption {
                       type = lib.types.nullOr (lib.types.attrsOf lib.types.anything);
                       default = null;
-                      description = "Additional native up process attributes (health probes, shutdown, environment). Also creates a `dev-<name>` process tree, without requiring a file watch.";
+                      description = "Additional native up process attributes (health probes, shutdown, environment). Also creates a `pc-up-<name>` process tree, without requiring a file watch.";
                     };
                     watch = lib.mkOption {
                       type = lib.types.nullOr (
@@ -196,9 +196,9 @@
         let
           cfg = config.nullkomma.tasks;
           up = inputs.up.lib { inherit lib pkgs; };
-          devs = lib.mapAttrs' (
+          processCommands = lib.mapAttrs' (
             name: tree:
-            lib.nameValuePair "dev-${name}" {
+            lib.nameValuePair "pc-up-${name}" {
               skip = true;
               raw = true;
               description = tree.meta.description or "Run ${name}";
@@ -259,7 +259,7 @@
                 }
               ) cfg
               // watches
-              // devs;
+              // processCommands;
           };
         in
         lib.mkIf (cfg != { }) {
@@ -278,7 +278,7 @@
                 runtimeInputs = task.packages or [ ];
                 text = task.command;
               }
-            ) (watches // devs)
+            ) (watches // processCommands)
             ++ [ runner ];
         };
     };

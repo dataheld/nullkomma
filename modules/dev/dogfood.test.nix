@@ -24,7 +24,7 @@
           ${harness.project config.nullkomma.src}
           git init --quiet
           ${lib.getExe config.taskRunners.default} > menu
-          grep -qF dev-preview menu
+          grep -qF pc-up-preview menu
           if grep -qF watch-preview menu; then exit 1; fi
           mkdir nested
           cd nested
