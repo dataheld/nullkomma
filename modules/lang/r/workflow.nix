@@ -206,20 +206,27 @@
                   watch = {
                     paths = [ "." ];
                     # R code, roclets, examples and vignettes can read any project file.
-                    outputs =
-                      map (path: "/${prefix}${path}") [
-                        "NAMESPACE"
-                        "man/*.Rd"
-                        "src/*.o"
-                        "src/*.so"
-                        "src/*.dll"
-                        "src/symbols.rds"
-                        "coverage.xml"
-                      ]
-                      ++ lib.optionals cfg.pkgdown.enable [
-                        "/${prefix}${destinationGlob}"
-                        "/${prefix}${destinationGlob}/**"
-                      ];
+                    # Ignore directory events, but keep their input files observable.
+                    outputs = [
+                      "/${prefix}man"
+                      "!/${prefix}man/**"
+                      "/${prefix}man/*.Rd"
+                      "/${prefix}tests/testthat/_snaps"
+                      "!/${prefix}tests/testthat/_snaps/**"
+                      "/${prefix}tests/testthat/_snaps/**/*.new.*"
+                    ]
+                    ++ map (path: "/${prefix}${path}") [
+                      "NAMESPACE"
+                      "src/*.o"
+                      "src/*.so"
+                      "src/*.dll"
+                      "src/symbols.rds"
+                      "coverage.xml"
+                    ]
+                    ++ lib.optionals cfg.pkgdown.enable [
+                      "/${prefix}${destinationGlob}"
+                      "/${prefix}${destinationGlob}/**"
+                    ];
                   };
                 };
               }
