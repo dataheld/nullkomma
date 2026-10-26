@@ -501,6 +501,27 @@
             # keep-sorted end
           };
           checks = {
+            process-socket =
+              let
+                flake = raw {
+                  perSystem.nullkomma.tasks.socket = {
+                    process = { };
+                    command = ''
+                      test -S "$PC_SOCKET_PATH"
+                      cp -r . "$TMPDIR/copied"
+                      touch "$TMPDIR/copied-ok"
+                    '';
+                  };
+                };
+              in
+              pkgs.runCommand "nullkomma-process-socket" { nativeBuildInputs = [ pkgs.git ]; } ''
+                ${harness.project md}
+                git init -q
+                export PC_DISABLE_TUI=1
+                ${lib.getExe (perSystem flake).processTrees.socket}
+                test -f "$TMPDIR/copied-ok"
+                touch "$out"
+              '';
             workflow-watch =
               pkgs.runCommand "nullkomma-workflow-watch"
                 {

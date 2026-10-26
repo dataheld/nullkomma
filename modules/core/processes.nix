@@ -106,9 +106,9 @@
                 };
               tree = up.mkProcessTree {
                 name = "process-tree-${name}";
-                # Relative, so watchers restart processes in this tree and not in other worktrees.
+                # Share a per-run socket with watchers, outside the source tree.
                 environment = {
-                  PC_SOCKET_PATH = "${dir}.sock";
+                  PC_SOCKET_PATH = "\${TMPDIR:-/tmp}/nk-$$.sock";
                   NULLKOMMA_PROCESSES = dir;
                 };
                 processes = lib.genAttrs members process;
