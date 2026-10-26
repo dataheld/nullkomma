@@ -80,6 +80,26 @@
           root = fixture;
         };
       };
+      runtime = callFlakeWith {
+        nullkomma.vscode.enable = false;
+        nullkomma.neovim.enable = false;
+        nullkomma.r = {
+          extraPackages = [ "assertthat" ];
+          check.enable = false;
+          testthat.enable = false;
+          pkgdown.enable = false;
+        };
+        # The runtime must come from nixpkgs-r, not the general-purpose package set.
+        perSystem._module.args.pkgs = lib.mkForce (
+          pkgs.extend (
+            _: _: {
+              R = throw "nullkomma.r used the general-purpose R";
+              radian = throw "nullkomma.r used the general-purpose radian";
+            }
+          )
+        );
+      } fixture;
+      rRuntime = (perSystem runtime).nullkomma.r.package;
       check =
         name: script:
         pkgs.runCommand "nullkomma-${name}"
@@ -212,6 +232,60 @@
           expr = lib.elem "pkgload" (perSystem fixtures.r).nullkomma.r.packages;
           expected = true;
         };
+        testRInteractiveTools = {
+          expr =
+            let
+              r = perSystem fixtures.r;
+              withoutAir = perSystem (callFlakeWith { perSystem.treefmt.programs.air.enable = false; } fixture);
+              customAir = perSystem (
+                callFlakeWith { perSystem.treefmt.programs.air.package = pkgs.hello; } fixture
+              );
+              settings = r.nullkomma.editor.vscode.settings;
+            in
+            {
+              httpgd = lib.elem "httpgd" r.nullkomma.r.packages;
+              editorIndependent =
+                lib.elem rRuntime (perSystem runtime).nullkomma.devShell.packages
+                && !(perSystem runtime).nullkomma.files ? ".nvim.lua"
+                && !(perSystem runtime).nullkomma.files ? ".vscode/settings.json";
+              air = lib.elem r.treefmt.programs.air.package r.nullkomma.devShell.packages;
+              noAir = lib.elem withoutAir.treefmt.programs.air.package withoutAir.nullkomma.devShell.packages;
+              customAir = lib.elem pkgs.hello customAir.nullkomma.devShell.packages;
+              console = settings."r.rterm.mac" == "${r.nullkomma.r.package}/bin/radian";
+              background = settings."r.rpath.linux" == "${r.nullkomma.r.package}/bin/R";
+              bracketedPaste = settings."r.bracketedPaste";
+              plotting = settings."r.plot.useHttpgd";
+              libraries = settings."r.libPaths";
+              recommendations = lib.all (id: lib.elem id r.nullkomma.editor.vscode.extensions) [
+                "Posit.air-vscode"
+                "REditorSupport.r"
+              ];
+              override =
+                (perSystem (
+                  callFlakeWith {
+                    perSystem.nullkomma.editor.vscode.settings."r.rterm.mac" = "custom-console";
+                  } fixture
+                )).nullkomma.editor.vscode.settings."r.rterm.mac";
+            };
+          expected = {
+            httpgd = true;
+            editorIndependent = true;
+            air = true;
+            noAir = false;
+            customAir = true;
+            console = true;
+            background = true;
+            bracketedPaste = true;
+            plotting = true;
+            libraries = [ ];
+            recommendations = true;
+            override = "custom-console";
+          };
+        };
+        testRRuntimeUsesRInput = {
+          expr = (lib.head rRuntime.buildInputs).drvPath;
+          expected = nullkomma.inputs.nixpkgs-r.legacyPackages.${system}.R.drvPath;
+        };
         testRLockBootstrapsWithoutLock = {
           expr = lib.isString withoutLock.apps.${system}.r-lock.program;
           expected = true;
@@ -224,6 +298,43 @@
         };
       };
       checks = {
+        r-console =
+          pkgs.runCommand "nullkomma-r-console"
+            {
+              nativeBuildInputs = [
+                rRuntime
+                ((perSystem runtime).treefmt.programs.air.package)
+                (pkgs.python3.withPackages (p: [ p.pexpect ]))
+              ];
+            }
+            ''
+              ${project fixture}
+              air --version
+              radian --version
+              Rscript --vanilla - <<'RS'
+              stopifnot(all(vapply(c("pkgload", "assertthat", "httpgd", "languageserver", "rstudioapi", "processx", "later", "jsonlite"), requireNamespace, TRUE, quietly = TRUE)))
+              dput(list(home = R.home(), libraries = .libPaths()), file = "runtime.R")
+              RS
+              python - <<'PY'
+              import pexpect
+              import sys
+
+              console = pexpect.spawn("radian", ["--vanilla", "--no-save"], encoding="utf-8", timeout=90)
+              console.logfile = sys.stdout
+              try:
+                  console.expect(r"r\$>")
+                  console.sendline('expected <- dget("runtime.R"); stopifnot(identical(R.home(), expected$home), identical(.libPaths(), expected$libraries), Sys.getenv("NULLKOMMA_R_NIX") == "true", Sys.getenv("NOT_CRAN") == "true", Sys.getenv("LC_ALL") == "en_US.UTF-8", all(vapply(c("pkgload", "assertthat", "httpgd", "languageserver", "rstudioapi"), requireNamespace, TRUE, quietly = TRUE))); cat(paste("NULLKOMMA", "RUNTIME", "OK", sep = "_"), "\\n")')
+                  console.expect_exact("NULLKOMMA_RUNTIME_OK")
+                  console.sendline('quit(save = "no")')
+                  console.expect(pexpect.EOF)
+                  console.close()
+                  assert console.exitstatus == 0, console.exitstatus
+              finally:
+                  if console.isalive():
+                      console.close(force=True)
+              PY
+              touch $out
+            '';
         r-pkgdown-legal = legalcheck "r-pkgdown-legal" published.packages.${system}.site;
         r-declarative-brand = linkcheck "r-declarative-brand" declarativeBrand.packages.${system}.site;
         r-pkgdown-site =

@@ -104,7 +104,7 @@
           type = lib.types.listOf lib.types.str;
           default = [ ];
           example = [ "devtools" ];
-          description = "Extra R packages from nixpkgs (e.g. dev tooling not in DESCRIPTION); pak, languageserver and pkgload are always included.";
+          description = "Extra R packages from nixpkgs (e.g. dev tooling not in DESCRIPTION); pak, languageserver, pkgload, httpgd, later and rstudioapi are always included.";
         };
       };
     };

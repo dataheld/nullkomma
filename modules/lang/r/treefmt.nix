@@ -11,9 +11,10 @@
         description = "Lint and auto-fix R code with jarl. Configure its CLI switches through perSystem.treefmt.settings.formatter.jarl.options; native config files are unsupported.";
       };
       config.perSystem = lib.mkIf cfg.enable (
-        { pkgs, ... }:
+        { config, pkgs, ... }:
         {
           treefmt.programs.air.enable = lib.mkDefault true;
+          nullkomma.devShell.packages = lib.optional config.treefmt.programs.air.enable config.treefmt.programs.air.package;
           treefmt.settings.formatter.jarl = lib.mkIf cfg.jarl.enable {
             command = lib.getExe (
               pkgs.writeShellApplication {
