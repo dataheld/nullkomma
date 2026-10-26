@@ -104,6 +104,7 @@ Files and editor settings that plugins write into your repository are under [Plu
 | [`toml`][toml]                                                                                    | ✅      |                                                                           | `toml-sort`                          |                                                         |                  |                            |                                                                                                                                                  |                                                                                                                   |
 | [`shell`][bash]                                                                                   | ✅      | [bash-language-server]                                                    | `shfmt`, `shellcheck`                | [bats] [^bats]                                          |                  |                            |                                                                                                                                                  |                                                                                                                   |
 | [`github`](#github)                                                                               | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                  |                                                                                                                   |
+| [`agents`](#agents)                                                                               | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                  |                                                                                                                   |
 | [`keepSorted`][keep-sorted]                                                                       | ✅      |                                                                           | `keep-sorted`                        |                                                         |                  |                            |                                                                                                                                                  |                                                                                                                   |
 | [`gitleaks`][gitleaks]                                                                            | ✅      |                                                                           | `gitleaks`                           |                                                         |                  |                            | `secret-history`                                                                                                                                 |                                                                                                                   |
 | [`typos`][typos]                                                                                  | ✅      |                                                                           | `typos`                              |                                                         |                  |                            |                                                                                                                                                  |                                                                                                                   |
@@ -450,11 +451,11 @@ nullkomma keeps files in your repository to a minimum; features live in Nix.
 Some tools still need real files (Git needs `.gitignore`, GitHub needs workflows,
 editors need settings). Each is one of two kinds:
 
-|                             | **Source of truth** (committed, yours to edit) | **Generated from Nix** (Git-ignored, don't edit)           |
-| --------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
-| `nix flake init --template` | `flake.nix`, `.envrc`                          | (not possible)                                             |
-| `nk-write-files`            | `.gitignore`, GitHub workflows                 |                                                            |
-| `nk-generate-files`         |                                                | `.vscode/*.json`, `.nvim.lua`, Quarto brand and extensions |
+|                             | **Source of truth** (committed, yours to edit)       | **Generated from Nix** (Git-ignored, don't edit)                               |
+| --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `nix flake init --template` | `flake.nix`, `.envrc`                                | (not possible)                                                                 |
+| `nk-write-files`            | `.gitignore`, GitHub workflows, `AGENTS.md` sections |                                                                                |
+| `nk-generate-files`         |                                                      | `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
 
 Templates can't take parameters, so anything that depends on your configuration
 comes from `nk-write-files` or `nk-generate-files`.
@@ -465,7 +466,7 @@ comes from `nk-write-files` or `nk-generate-files`.
 then they are yours to edit and commit.
 When nullkomma later changes a file, `nk-write-files` updates it only if you haven't edited it.
 Otherwise it keeps your version, saves an incoming copy in Git's metadata directory and fails,
-printing the copy's path and pointing you to the [resolve-file-conflicts skill](#resolving-conflicts).
+printing the copy's path and pointing you to the [nullkomma-resolve-file-conflicts skill](#resolving-conflicts).
 After resolving, `nk-write-files --accept <path>` marks the file as up to date.
 
 A file can instead hold marked `sections` inside your own text (e.g. R's `.Rbuildignore` rules):
@@ -488,10 +489,9 @@ and removes files it generated before that are no longer declared.
 
 ### Resolving conflicts
 
-The repository root is a portable [Agent Plugins 1.0 package](https://agent-plugin.org/en)
-with the [resolve-file-conflicts skill](https://github.com/dataheld/nullkomma/blob/main/.github/skills/resolve-file-conflicts/SKILL.md).
-In Copilot, install it with `/plugin install https://github.com/dataheld/nullkomma`
-and update it with `/plugin update nullkomma`; neither writes to your project.
+Coding agents can resolve conflicts with the
+[nullkomma-resolve-file-conflicts skill](https://github.com/dataheld/nullkomma/blob/main/modules/tools/_agents/nullkomma-resolve-file-conflicts/SKILL.md),
+which the [`agents`](#agents) plugin writes into your project.
 
 ## Plugin details
 
@@ -504,6 +504,23 @@ Linter settings are under [Customizing linting](#customizing-linting).
 Ignores `result` in `.gitignore`.
 Unit tests for your flake's Nix code go in `perSystem.nullkomma.nix.unit.tests`;
 see [`tests`](#tests).
+
+### `agents`
+
+Instructs coding agents, through two kinds of files:
+
+- An `agents` section in `AGENTS.md`, written by `nk-write-files` and committed:
+  run commands in the dev shell, and run `tasks all` before reporting a change as done.
+  The rest of `AGENTS.md` is yours.
+- [Agent Skills](https://agentskills.io) in `.agents/skills/<name>`, generated from Nix,
+  so they always match your `flake.lock`.
+  Plugins and you add them with the top-level `nullkomma.agents.skills.<name>`,
+  a directory with a `SKILL.md`;
+  nullkomma's own are named `nullkomma-*`, for example `nullkomma-upgrade` from the `nix` plugin.
+
+Projects that don't use nullkomma yet can install this repository as an
+[Agent Plugin](https://agent-plugins.org) with the adopt-nullkomma skill,
+for example with `/plugin install https://github.com/dataheld/nullkomma` in Copilot.
 
 ### `github`
 
