@@ -17,7 +17,6 @@
             source = "./.github/workflows";
             ref = null;
           };
-          ci.inputs.visibility = "public";
         };
         gitignore = [ ".claude/" ];
         quarto-brand.enable = true;
