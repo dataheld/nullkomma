@@ -14,10 +14,13 @@ Once nullkomma is set up, the project's `AGENTS.md` and
    and follow it; it is the source of truth for these steps.
    Do not copy files from the nullkomma repository by hand.
 1. Ask the user which optional plugins (for example `r` or `quarto`)
-   the project needs, and set them in `flake.nix` .
-3. Carefully investigate the remainder of the repo. Is there anything that is no longer needed because it is now provided for by nullkomma?
-1. Run `nix develop --command tasks all` and fix what fails.
+   the project needs, and set them in `flake.nix`.
+1. Investigate the rest of the repository:
+   remove what nullkomma now provides.
+1. Run `nix develop --command tasks all`,
+   then `nix flake check`, and fix what fails.
 1. Commit `flake.nix`, `flake.lock`, `.envrc`
    and the source-of-truth files `nk-write-files` wrote.
 
-Remember that the point of nullkomma is to minimize boilerplate in a user's source. So adopting nullkomma should usually result in *fewer* lines of codes.
+The point of nullkomma is to minimize boilerplate in a project's sources.
+So adopting nullkomma should usually result in *fewer* lines of code.
