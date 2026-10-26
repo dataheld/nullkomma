@@ -16,6 +16,7 @@
         legalcheck
         linkcheck
         nullkomma
+        summary
         perSystem
         project
         rawAt
@@ -26,6 +27,9 @@
         ;
       rlib = import (root + "/lib/r.nix") { inherit lib; };
       fixture = root + "/tests/fixtures/r";
+      customDestination = callFlakeWith {
+        nullkomma.r.pkgdown.config.destination = "public";
+      } fixture;
       privacy = root + "/tests/fixtures/quarto-branded/_privacy";
       local = {
         order = 100;
@@ -43,19 +47,23 @@
           lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
           lib.privacy.controller = local.markdown;
         };
-        nullkomma.r-brand.enable = true;
+        nullkomma.r.pkgdown.brand.enable = true;
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
         nullkomma.cloudflare = cloudflare;
+        perSystem.nullkomma.tasks.r-document.command = lib.mkAfter ''
+          mkdir -p pkgdown/assets
+          printf 'shared R workflow\n' > pkgdown/assets/workflow.txt
+        '';
       } fixture;
       # A package site as nullkomma's own brand publishes it.
       published = callFlakeWith {
         nullkomma.brand = brand;
-        nullkomma.r-brand.enable = true;
+        nullkomma.r.pkgdown.brand.enable = true;
         nullkomma.cloudflare = cloudflare;
       } fixture;
       declarativeBrand = callFlakeWith {
         nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
-        nullkomma.r-brand.enable = true;
+        nullkomma.r.pkgdown.brand.enable = true;
         nullkomma.privacy.sections.local = local;
       } fixture;
       english = callFlakeWith {
@@ -120,6 +128,88 @@
     in
     {
       nullkomma.nix.unit.tests = {
+        testRBrandFeature = {
+          expr =
+            let
+              enabled = rawAt fixture {
+                imports = [ nullkomma.flakeModules.r ];
+                nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
+                nullkomma.r = {
+                  enable = true;
+                  pkgdown.brand.enable = true;
+                };
+              };
+              inactive = rawAt fixture {
+                imports = [ nullkomma.flakeModules.r ];
+                nullkomma.r.pkgdown.brand.enable = true;
+              };
+              withoutSite = callFlakeWith {
+                nullkomma.r.pkgdown = {
+                  enable = false;
+                  brand.enable = true;
+                };
+              } fixture;
+            in
+            {
+              enabled = (perSystem enabled).nullkomma.r.pkgdown.libraries != [ ];
+              noCompanionExport = !(nullkomma.flakeModules ? r-brand) && !(nullkomma.modules.flake ? r-brand);
+              parentOff = summary inactive == summary (rawAt fixture { });
+              optIn = (perSystem fixtures.r).nullkomma.r.pkgdown.libraries == [ ];
+              siteOff =
+                (perSystem withoutSite).nullkomma.r.pkgdown.libraries == [ ]
+                && !lib.elem "brand.yml" (perSystem withoutSite).nullkomma.r.packages;
+            };
+          expected = {
+            enabled = true;
+            noCompanionExport = true;
+            parentOff = true;
+            optIn = true;
+            siteOff = true;
+          };
+        };
+        testRWatchDefaults = {
+          expr =
+            let
+              defaults = (perSystem fixtures.r).nullkomma.tasks;
+              custom = (perSystem customDestination).nullkomma.tasks;
+            in
+            {
+              paths = defaults.r-document.watch.paths;
+              downstream = map (name: defaults.${name}.watch.paths) [
+                "r-test"
+                "r-check"
+                "r-pkgdown"
+              ];
+              outputs = lib.all (path: lib.elem path custom.r-document.watch.outputs) [
+                "/NAMESPACE"
+                "/man/*.Rd"
+                "/public"
+                "/public/**"
+              ];
+              ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
+              invalidDestination =
+                (builtins.tryEval (
+                  builtins.deepSeq
+                    (perSystem (
+                      callFlakeWith {
+                        nullkomma.r.pkgdown.config.destination = "../site";
+                      } fixture
+                    )).nullkomma.tasks.r-document.watch.outputs
+                    true
+                )).success;
+            };
+          expected = {
+            paths = [ "." ];
+            downstream = [
+              [ ]
+              [ ]
+              [ ]
+            ];
+            outputs = true;
+            ignore = true;
+            invalidDestination = false;
+          };
+        };
         testRDocumentationIsRequired = {
           expr =
             let
@@ -349,6 +439,7 @@
               test "$(grep -o '<footer' "$site/index.html" | wc -l)" -eq 1
               grep -qF '#123456' "$site"/deps/bootstrap-*/*.css
               cmp ${root + "/tests/fixtures/r-brand/assets/brand.svg"} "$site/brand.svg"
+              grep -qxF 'shared R workflow' "$site/workflow.txt"
               python - "$site" ${english.packages.${system}.site} <<'PY'
               import sys
               from html.parser import HTMLParser
@@ -387,10 +478,15 @@
           export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1
           git init -q
           ${task branded "nk-write-files"}
-          ${task branded "nk-generate-files"}
+          (${(perSystem branded).nullkomma.devShell.shellHook})
+          # Language tasks must not overwrite files generated on shell entry.
+          printf 'local asset\n' > pkgdown/assets/local-only.txt
           # Repeated builds must not trip over read-only assets copied from the store.
           ${task branded "r-pkgdown"}
           ${task branded "r-pkgdown"}
+          cmp pkgdown/assets/local-only.txt docs/local-only.txt
+          cmp pkgdown/assets/workflow.txt docs/workflow.txt
+          grep -qxF 'shared R workflow' docs/workflow.txt
           grep -qF 'Lokaler Abschnitt auf Deutsch' docs/privacy.html
           cmp ${root + "/tests/fixtures/r-brand/assets/brand.svg"} docs/brand.svg
           test ! -e .github/privacy.md -a ! -e privacy.md
@@ -399,10 +495,12 @@
         r-pkgdown-preview = check "r-pkgdown-preview" ''
           export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
           git init -q
-          ${task fixtures.r "r-pkgdown-preview"}
+          printf 'destination: yaml-destination\n' >> _pkgdown.yml
+          ${task customDestination "r-pkgdown-preview"}
           # browseURL doesn't wait for the browser.
           for _ in {1..50}; do test -f "$TMPDIR/opened" && break; sleep 0.1; done
-          grep -qF "$PWD/docs/index.html" "$TMPDIR/opened"
+          grep -qF "$PWD/public/index.html" "$TMPDIR/opened"
+          test ! -e yaml-destination
         '';
         r-coverage =
           let
@@ -436,12 +534,12 @@
           git init -q
           ${task fixtures.r "nk-write-files"}
           grep -qxF '^project-only[.]txt$' .Rbuildignore
-          mkdir -p nix .github/workflows .vscode .direnv .R/library docs
+          mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/processes
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
-            .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml
+            .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/processes/r-document.ok
           R CMD build --no-build-vignettes --no-manual .
           tar -tf nullkommafixture_0.0.1.tar.gz > package-files
-          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
+          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]nullkomma|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
             echo "Development-only files leaked into the package source" >&2
             exit 1
           fi

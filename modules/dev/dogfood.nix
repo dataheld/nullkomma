@@ -19,7 +19,10 @@
           };
         };
         gitignore = [ ".claude/" ];
-        quarto-website-brand.enable = true;
+        quarto = {
+          enable = true;
+          brand.enable = true;
+        };
         lint.markdown = {
           MD013 = false;
           MD028 = false;

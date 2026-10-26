@@ -16,6 +16,7 @@
         task
         rawAt
         nullkomma
+        summary
         linkcheck
         ;
       englishCloudflare = callFlakeWith {
@@ -45,6 +46,40 @@
       };
     in
     {
+      nullkomma.nix.unit.tests.testQuartoBrandFeature = {
+        expr =
+          let
+            enabled = rawAt (root + "/tests/fixtures/quarto") {
+              imports = [ nullkomma.flakeModules.quarto ];
+              nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
+              nullkomma.quarto = {
+                enable = true;
+                brand.enable = true;
+              };
+            };
+            inactive = rawAt (root + "/tests/fixtures/md") {
+              imports = [ nullkomma.flakeModules.quarto ];
+              nullkomma.quarto.brand.enable = true;
+            };
+            defaults = (perSystem fixtures.quarto).nullkomma.files;
+          in
+          {
+            enabled = (perSystem enabled).nullkomma.files ? "_nullkomma-brand.yml";
+            noCompanionExport =
+              !(nullkomma.flakeModules ? quarto-website-brand)
+              && !(nullkomma.modules.flake ? quarto-website-brand);
+            parentOff = summary inactive == summary (rawAt (root + "/tests/fixtures/md") { });
+            optIn = !(defaults ? "_nullkomma-brand.yml") && !(defaults ? "_extensions/nullkomma-brand");
+            nkdocs = defaults ? "_extensions/nkdocs";
+          };
+        expected = {
+          enabled = true;
+          noCompanionExport = true;
+          parentOff = true;
+          optIn = true;
+          nkdocs = true;
+        };
+      };
       nullkomma.nix.unit.tests.testQuartoGeneratesExtensionsAndPrivacyPage =
         let
           inherit ((perSystem fixtures.quarto-branded).nullkomma) files;
@@ -217,9 +252,16 @@
           let
             quarto = pkgs.writeShellScriptBin "quarto" ''
               set -e
-              # Generating files is the dev shell's job, not the preview's.
-              test ! -e generated.txt
-              printf '%s\n' "$PWD" "$@" > "$CALLED"
+              if [[ -n "''${NULLKOMMA_OUTPUT-}" ]]; then
+                test -e generated.txt
+                mkdir -p "$NULLKOMMA_OUTPUT"
+                cp task-override.txt "$NULLKOMMA_OUTPUT/"
+                printf '%s\n' "$@" > "$NULLKOMMA_OUTPUT/args"
+              else
+                # Generating files is the dev shell's job, not the preview's.
+                test ! -e generated.txt
+                printf '%s\n' "$PWD" "$@" > "$CALLED"
+              fi
             '';
             flake = callFlakeWith (
               { self, ... }:
@@ -227,6 +269,9 @@
                 nullkomma.quarto.root = self.outPath + "/docs";
                 perSystem = {
                   nullkomma.quarto.package = quarto;
+                  nullkomma.tasks.build-site.command = lib.mkBefore ''
+                    printf 'shared Quarto workflow\n' > task-override.txt
+                  '';
                   nullkomma.files."docs/generated.txt" = {
                     mode = "generated";
                     commentPrefix = "#";
@@ -245,6 +290,10 @@
             ${task flake "build-site"} --to html
             printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected
             cmp expected "$CALLED"
+            grep -qxF 'shared Quarto workflow' ../task-override.txt
+            cmp ../task-override.txt ${flake.packages.${system}.site}/task-override.txt
+            printf '%s\n' render --output-dir ${flake.packages.${system}.site} > expected
+            cmp expected ${flake.packages.${system}.site}/args
             touch $out
           '';
       };

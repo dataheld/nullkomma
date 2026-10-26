@@ -95,30 +95,39 @@
           ".luarc.json"
         ];
         perSystem =
-          { config, pkgs, ... }:
+          { config, ... }:
           let
             quarto = config.nullkomma.quarto.package;
-            render = ''quarto render "$@"'';
             task = description: command: {
               skip = true;
               raw = true;
               inherit description;
               packages = [
-                pkgs.git
                 quarto
               ];
-              command = ''
-                cd "$(git rev-parse --show-toplevel)"/${lib.escapeShellArg prefix}
-                exec ${command}
-              '';
+              working_dir = prefix;
+              inherit command;
             };
           in
           {
             nullkomma.devShell.packages = [ quarto ];
             nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
-            nullkomma.tasks.build-site = task "Render the working-tree site locally (Quarto output directory)" render;
+            nullkomma.tasks.build-site =
+              task "Render the Quarto site" ''
+                if [[ -n "''${NULLKOMMA_OUTPUT-}" ]]; then
+                  set -- "$@" --output-dir "$NULLKOMMA_OUTPUT"
+                fi
+                exec quarto render "$@"
+              ''
+              // {
+                output = "site";
+              };
             # Quarto watches the working tree and live-reloads the browser itself.
-            nullkomma.tasks.preview = task "Serve the site on localhost, re-rendering and reloading on changes" ''quarto preview "$@"'';
+            nullkomma.tasks.preview =
+              task "Serve the site on localhost, re-rendering and reloading on changes" ''exec quarto preview "$@"''
+              // {
+                watch.native = true;
+              };
             nullkomma.files =
               lib.mapAttrs' (
                 name: source:
@@ -136,12 +145,6 @@
                   text = privacyPage;
                 };
               };
-            packages.site = lib.mkDefault (
-              pkgs.runCommand "site" { nativeBuildInputs = [ quarto ]; } ''
-                cp -r ${config.nullkomma.src} src && chmod -R u+w src && cd src/${lib.escapeShellArg prefix}
-                HOME=$TMPDIR ${render} --output-dir "$out"
-              ''
-            );
           };
       };
     };

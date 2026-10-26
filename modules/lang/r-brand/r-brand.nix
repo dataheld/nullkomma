@@ -1,26 +1,26 @@
 # Applies `nullkomma.brand` to the `r` plugin's pkgdown website through pkgdown's
 # idiom for a shared look: a template package, generated from the brand.
-# Layered on `r`, whose options it reads; `r` itself knows no brand.
-{ config, ... }:
-let
-  rModule = config.flake.flakeModules.r;
-in
+# Optional feature of R, kept separate from its package and workflow implementation.
 {
-  plugins.r-brand =
-    { config, lib, ... }:
+  plugins.r =
+    {
+      config,
+      lib,
+      ...
+    }:
     let
       cfg = config.nullkomma.r;
       inherit (config.nullkomma) privacy;
       brand =
         if config.nullkomma.brand == null then
-          throw "nullkomma.r-brand needs nullkomma.brand"
+          throw "nullkomma.r.pkgdown.brand.enable needs nullkomma.brand"
         else
           config.nullkomma.brand;
     in
     {
-      imports = [ rModule ];
-      config = lib.mkIf config.nullkomma.r-brand.enable {
-        nullkomma.r.enable = true;
+      options.nullkomma.r.pkgdown.brand.enable =
+        lib.mkEnableOption "the shared brand on the pkgdown website";
+      config = lib.mkIf (cfg.enable && cfg.pkgdown.enable && cfg.pkgdown.brand.enable) {
         nullkomma.r.extraPackages = [ "brand.yml" ];
         nullkomma.r.pkgdown.config.template.package = lib.mkDefault "nullkommabrand";
         perSystem =

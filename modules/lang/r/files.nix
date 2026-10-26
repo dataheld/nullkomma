@@ -15,12 +15,14 @@
         "^[.]github$"
         "^[.]vscode$"
         "^[.]nvim[.]lua$"
+        "^[.]nullkomma$"
         "^result(-.*)?$"
         "^docs$"
         "^pkgdown$"
         "^coverage[.]xml$"
         "^pkg[.]lock$"
-      ];
+      ]
+      ++ lib.optional cfg.pkgdown.enable "^${lib.escapeRegex cfg.pkgdown.config.destination}$";
     in
     {
       options.nullkomma.r.buildIgnore = lib.mkOption {

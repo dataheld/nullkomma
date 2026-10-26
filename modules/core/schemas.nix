@@ -21,7 +21,7 @@
         };
       };
       config.flake.schemas = inputs.flake-schemas.schemas // {
-        inherit (inputs.up.exportedSchemas) taskRunners;
+        inherit (inputs.up.exportedSchemas) processTrees taskRunners;
         flakeModules = {
           version = 1;
           doc = "[flake-parts](https://flake.parts) modules for other flakes; `default` is the framework with all plugins and the default ones enabled.";

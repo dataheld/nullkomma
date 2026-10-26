@@ -1,13 +1,8 @@
 # Applies `nullkomma.brand` to a `quarto` website (plain `website` or nkdocs) through
 # `_nullkomma-brand.yml` metadata, which the website lists in `metadata-files`. Its themes would
-# style any HTML output, but navbar and footer are `website` options. Layered on
-# `quarto`, whose options it reads; `quarto` itself knows no brand.
-{ config, ... }:
-let
-  quartoModule = config.flake.flakeModules.quarto;
-in
+# style any HTML output, but navbar and footer are `website` options.
 {
-  plugins.quarto-website-brand =
+  plugins.quarto =
     {
       config,
       lib,
@@ -19,15 +14,14 @@ in
       inherit (config.nullkomma) privacy;
       brand =
         if config.nullkomma.brand == null then
-          throw "nullkomma.quarto-website-brand needs nullkomma.brand"
+          throw "nullkomma.quarto.brand.enable needs nullkomma.brand"
         else
           config.nullkomma.brand;
       prefix = import ../../../lib/prefix.nix lib self cfg.root;
     in
     {
-      imports = [ quartoModule ];
-      config = lib.mkIf config.nullkomma.quarto-website-brand.enable {
-        nullkomma.quarto.enable = true;
+      options.nullkomma.quarto.brand.enable = lib.mkEnableOption "the shared brand on the Quarto website";
+      config = lib.mkIf (cfg.enable && cfg.brand.enable) {
         nullkomma.quarto.extensions.nullkomma-brand = ./_nullkomma-brand;
         perSystem =
           { config, pkgs, ... }:

@@ -11,6 +11,7 @@
     "devShells"
     "formatter"
     "packages"
+    "processTrees"
     "schemas"
     "taskRunners"
     "tests"

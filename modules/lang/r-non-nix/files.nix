@@ -1,10 +1,10 @@
-{ config, ... }:
-let
-  rModule = config.flake.flakeModules.r;
-in
 {
-  plugins.r-non-nix =
-    { config, lib, ... }:
+  plugins.r =
+    {
+      config,
+      lib,
+      ...
+    }:
     let
       cfg = config.nullkomma.r;
       inherit (cfg) prefix;
@@ -17,9 +17,9 @@ in
       );
     in
     {
-      imports = [ rModule ];
-      config = lib.mkIf config.nullkomma.r-non-nix.enable {
-        nullkomma.r.enable = true;
+      options.nullkomma.r.nonNix.enable =
+        lib.mkEnableOption "R development without Nix using the same pinned dependencies";
+      config = lib.mkIf (cfg.enable && cfg.nonNix.enable) {
         nullkomma.gitignore = [ "${prefix}.R/library/" ];
         perSystem =
           { config, ... }:
