@@ -789,6 +789,10 @@ projects' `flake.lock`.
 nullkomma's own website is this README, built as a [`quarto`](#quarto) nkdocs
 site into [`packages.site`](#site) styled by [`quarto-website-brand`](#brand) with [Max Held's](https://www.maxheld.de) brand and
 [privacy policy](#privacy-policy). `tasks` lists how to preview and check it.
+Its workflow customization is in `modules/dev/dogfood.nix`: `watch-build-site`
+rebuilds after README or Quarto source changes, and `dev-build-site` runs it with
+a process dashboard. `dev-preview` serves it with Quarto's own live reload.
+Both process trees are exported from the dev partition.
 
 ### Testing nullkomma
 

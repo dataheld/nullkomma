@@ -41,5 +41,10 @@
         ".vscode/settings.json".mode = "source";
         ".vscode/extensions.json".mode = "source";
       };
+      perSystem.nullkomma.tasks.build-site.watch.paths = [
+        "README.md"
+        "index.qmd"
+        "_quarto.yml"
+      ];
     };
 }
