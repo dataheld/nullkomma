@@ -786,8 +786,9 @@ Nullkomma always provides **two self-documenting entrypoints**:
    In addition, `tasks` include important development-only workflows,
    especially previews.
 
-R and Quarto artifact builds use the task's command and dependency graph,
-not independently maintained copies. Intentional execution-context differences are:
+As much as possible, the flake outputs and `tasks` reuse implementation,
+to make interactive development work in the `devShell` as close as possible to the flake outputs.
+Exceptions include:
 
 - Tasks run tools directly on the working tree, rather than recursively invoking Nix builds for speed and simplicity.
 - Tasks run on the *uncommitted* working tree for faster turnaround.
@@ -826,11 +827,6 @@ available when their owner is imported; their effects require both the owner and
 to be enabled. pkgdown branding also requires pkgdown to be enabled.
 nkdocs is a bundled Quarto extension selected by native `project.type: nkdocs`, not a second Nix switch.
 
-The former `r-non-nix`, `r-brand` and `quarto-website-brand` plugin options and
-module exports have been removed. Import `r` or `quarto` instead, explicitly enable
-the owner, and select `r.nonNix.enable`, `r.pkgdown.brand.enable` or
-`quarto.brand.enable`.
-
 Because plugins only meet through framework options, one could live in its own flake,
 e.g. a `nullkomma-r` exporting `flakeModules.r` against `flakeModules.framework`,
 keeping R-only inputs out of other projects' lockfiles.
@@ -847,9 +843,6 @@ projects' `flake.lock`.
 nullkomma's own website is this README, built as a [`quarto`](#quarto) nkdocs
 site into [`packages.site`](#site) styled by [Quarto's branding feature](#brand) with [Max Held's](https://www.maxheld.de) brand and
 [privacy policy](#privacy-policy). `tasks` lists how to preview and check it.
-Its configuration is in `modules/dev/dogfood.nix`: `dev-preview` serves it with
-Quarto's own dependency tracking and live reload, in a process dashboard exported
-from the dev partition. There is no second watcher around Quarto.
 
 ### Testing nullkomma
 
