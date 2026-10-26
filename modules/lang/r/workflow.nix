@@ -9,6 +9,20 @@
     let
       cfg = config.nullkomma.r;
       inherit (cfg) prefix;
+      destination =
+        assert lib.assertMsg (
+          builtins.isString cfg.pkgdown.config.destination
+          && lib.all (
+            part:
+            !lib.elem part [
+              ""
+              "."
+              ".."
+            ]
+          ) (lib.splitString "/" cfg.pkgdown.config.destination)
+        ) "nullkomma.r.pkgdown.config.destination must be a normalized, package-relative directory.";
+        cfg.pkgdown.config.destination;
+      destinationGlob = lib.escape [ "\\" "[" "]" "*" "?" ] destination;
       inherit (config.nullkomma) privacy;
       privacyPage = (
         if lib.length privacy.languages == 1 then
@@ -82,6 +96,8 @@
         ];
         # Bootstrap 3 templates load their assets from CDNs.
         nullkomma.r.pkgdown.config.template.bootstrap = lib.mkIf cfg.pkgdown.enable (lib.mkDefault 5);
+        # Keep the writer and watcher on the same destination, including custom sites.
+        nullkomma.r.pkgdown.config.destination = lib.mkIf cfg.pkgdown.enable (lib.mkDefault "docs");
         nullkomma.lint.markdown = {
           MD013 = lib.mkDefault false;
           MD033 = lib.mkDefault false;
@@ -95,12 +111,12 @@
           "${prefix}tests/testthat/_snaps/**"
           "${prefix}man/*.Rd"
         ]
-        ++ lib.optional cfg.pkgdown.enable "${prefix}docs/**"
+        ++ lib.optional cfg.pkgdown.enable "${prefix}${destinationGlob}/**"
         ++ lib.optional cfg.coverage.enable "${prefix}coverage.xml";
         nullkomma.gitignore = [
           "/${prefix}man/*.Rd"
         ]
-        ++ lib.optional cfg.pkgdown.enable "/${prefix}docs/"
+        ++ lib.optional cfg.pkgdown.enable "/${prefix}${destinationGlob}/"
         ++ lib.optional cfg.coverage.enable "/${prefix}coverage.xml";
         perSystem =
           { config, pkgs, ... }:
@@ -161,8 +177,6 @@
               }
               RS
             '';
-            # Project-relative paths for task watches.
-            paths = map (path: prefix + path);
             testthatRun = ''
               load=source
               if [[ "''${1-}" == --installed ]]; then
@@ -189,11 +203,24 @@
                   ];
                   working_dir = prefix;
                   command = "Rscript --vanilla -e 'roxygen2::roxygenise()'";
-                  watch.paths = paths [
-                    "R"
-                    "DESCRIPTION"
-                    "src"
-                  ];
+                  watch = {
+                    paths = [ "." ];
+                    # R code, roclets, examples and vignettes can read any project file.
+                    outputs =
+                      map (path: "/${prefix}${path}") [
+                        "NAMESPACE"
+                        "man/*.Rd"
+                        "src/*.o"
+                        "src/*.so"
+                        "src/*.dll"
+                        "src/symbols.rds"
+                        "coverage.xml"
+                      ]
+                      ++ lib.optionals cfg.pkgdown.enable [
+                        "/${prefix}${destinationGlob}"
+                        "/${prefix}${destinationGlob}/**"
+                      ];
+                  };
                 };
               }
               (lib.mkIf cfg.testthat.enable {
@@ -207,7 +234,7 @@
                   working_dir = prefix;
                   command = testthatRun;
                   sandboxArgs = [ "--installed" ];
-                  watch.paths = paths [ "tests" ];
+                  watch.paths = [ ];
                 };
               })
               (lib.mkIf cfg.pkgdown.enable {
@@ -222,13 +249,7 @@
                   ];
                   command = pkgdown;
                   output = "site";
-                  watch.paths = paths [
-                    "_pkgdown.yml"
-                    "README.md"
-                    "NEWS.md"
-                    "vignettes"
-                    "man/figures"
-                  ];
+                  watch.paths = [ ];
                 };
                 r-pkgdown-preview = {
                   skip = true;
@@ -242,6 +263,7 @@
                   skip = true;
                   description = "Write a Cobertura test coverage report to coverage.xml";
                   after = [ "r-document" ];
+                  watch.paths = [ ];
                   packages = [
                     pcfg.package
                   ];

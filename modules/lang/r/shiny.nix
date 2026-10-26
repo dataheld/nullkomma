@@ -121,7 +121,7 @@
               description = "Serve the working-tree Shiny app with pkgload";
               after = [ "r-document" ];
               # Shiny reloads in its own session; don't restart the server.
-              process.watch = null;
+              watch.native = true;
               packages = [
                 pkgs.git
                 pkgs.watchexec

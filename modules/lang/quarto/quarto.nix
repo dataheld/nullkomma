@@ -126,7 +126,7 @@
             nullkomma.tasks.preview =
               task "Serve the site on localhost, re-rendering and reloading on changes" ''exec quarto preview "$@"''
               // {
-                process = { };
+                watch.native = true;
               };
             nullkomma.files =
               lib.mapAttrs' (

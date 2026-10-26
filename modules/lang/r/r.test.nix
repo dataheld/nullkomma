@@ -26,6 +26,9 @@
         ;
       rlib = import (root + "/lib/r.nix") { inherit lib; };
       fixture = root + "/tests/fixtures/r";
+      customDestination = callFlakeWith {
+        nullkomma.r.pkgdown.config.destination = "public";
+      } fixture;
       privacy = root + "/tests/fixtures/quarto-branded/_privacy";
       local = {
         order = 100;
@@ -124,6 +127,49 @@
     in
     {
       nullkomma.nix.unit.tests = {
+        testRWatchDefaults = {
+          expr =
+            let
+              defaults = (perSystem fixtures.r).nullkomma.tasks;
+              custom = (perSystem customDestination).nullkomma.tasks;
+            in
+            {
+              paths = defaults.r-document.watch.paths;
+              downstream = map (name: defaults.${name}.watch.paths) [
+                "r-test"
+                "r-check"
+                "r-pkgdown"
+              ];
+              outputs = lib.all (path: lib.elem path custom.r-document.watch.outputs) [
+                "/NAMESPACE"
+                "/man/*.Rd"
+                "/public"
+                "/public/**"
+              ];
+              ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
+              invalidDestination =
+                (builtins.tryEval (
+                  builtins.deepSeq
+                    (perSystem (
+                      callFlakeWith {
+                        nullkomma.r.pkgdown.config.destination = "../site";
+                      } fixture
+                    )).nullkomma.tasks.r-document.watch.outputs
+                    true
+                )).success;
+            };
+          expected = {
+            paths = [ "." ];
+            downstream = [
+              [ ]
+              [ ]
+              [ ]
+            ];
+            outputs = true;
+            ignore = true;
+            invalidDestination = false;
+          };
+        };
         testRDocumentationIsRequired = {
           expr =
             let
@@ -409,10 +455,12 @@
         r-pkgdown-preview = check "r-pkgdown-preview" ''
           export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
           git init -q
-          ${task fixtures.r "r-pkgdown-preview"}
+          printf 'destination: yaml-destination\n' >> _pkgdown.yml
+          ${task customDestination "r-pkgdown-preview"}
           # browseURL doesn't wait for the browser.
           for _ in {1..50}; do test -f "$TMPDIR/opened" && break; sleep 0.1; done
-          grep -qF "$PWD/docs/index.html" "$TMPDIR/opened"
+          grep -qF "$PWD/public/index.html" "$TMPDIR/opened"
+          test ! -e yaml-destination
         '';
         r-coverage =
           let

@@ -89,17 +89,35 @@
                     };
                     watch = lib.mkOption {
                       type = lib.types.nullOr (
-                        lib.types.submodule {
-                          options.paths = lib.mkOption {
-                            type = lib.types.listOf lib.types.str;
-                            description = "Project-relative inputs of this step; paths missing from the flake source are skipped.";
-                          };
-                          options.ignore = lib.mkOption {
-                            type = lib.types.listOf lib.types.str;
-                            default = [ ];
-                            description = "Globs not to watch, next to Git-ignored files.";
-                          };
-                        }
+                        lib.types.submodule (
+                          { config, ... }: {
+                            options.native = lib.mkOption {
+                              type = lib.types.bool;
+                              default = false;
+                              description = "The command owns its watcher/dependency graph. Run it as a service without an outer watchexec watcher.";
+                            };
+                            options.manifest = lib.mkOption {
+                              type = lib.types.nullOr (lib.types.either lib.types.path lib.types.package);
+                              default = null;
+                              description = "Immutable newline-separated input paths from a tool, passed to watchexec's --watch-file. Paths are relative to the checkout root. A changed manifest requires restarting the watcher.";
+                            };
+                            options.paths = lib.mkOption {
+                              type = lib.types.listOf lib.types.str;
+                              default = if config.native || config.manifest != null then [ ] else [ "." ];
+                              description = "Project-relative inputs; prefer `.` to include new and Git-ignored inputs, excluding only known outputs. Paths missing from the flake source are skipped.";
+                            };
+                            options.ignore = lib.mkOption {
+                              type = lib.types.listOf lib.types.str;
+                              default = [ ];
+                              description = "Known output globs not to watch. Git ignore files are deliberately not used as build-input filters.";
+                            };
+                            options.outputs = lib.mkOption {
+                              type = lib.types.listOf lib.types.str;
+                              default = [ ];
+                              description = "Known output globs excluded from watches of this graph, including prerequisites. Declare every output to prevent feedback loops; never use Git ignores as a proxy.";
+                            };
+                          }
+                        )
                       );
                       default = null;
                       description = "Re-run the task when these inputs (or those of its `after` tasks) change, in `watch-<name>` and process trees.";
@@ -192,13 +210,19 @@
             name: task:
             let
               watched = lib.filter (dep: cfg.${dep}.watch != null) task.closure;
-              paths = lib.filter (path: builtins.pathExists (self.outPath + "/${path}")) (
-                lib.concatMap (dep: cfg.${dep}.watch.paths) watched
-              );
+              manifests = lib.concatMap (
+                dep: lib.optional (cfg.${dep}.watch.manifest != null) cfg.${dep}.watch.manifest
+              ) watched;
+              paths =
+                lib.filter (path: builtins.pathExists (self.outPath + "/${path}")) (
+                  lib.concatMap (dep: cfg.${dep}.watch.paths) watched
+                )
+                ++ lib.optional (manifests != [ ]) "@${pkgs.concatText "workflow-inputs.txt" manifests}";
             in
-            lib.optionalAttrs (task.watch != null && paths != [ ]) {
+            lib.optionalAttrs (task.watch != null && !task.watch.native && paths != [ ]) {
               "watch-${name}" = up.mkWatch {
                 description = "Run ${name} again whenever its inputs change";
+                package = import ./_watch.nix { inherit lib pkgs; } (lib.getAttrs task.closure cfg);
                 command = lib.getExe task.package;
                 ignore = lib.concatMap (dep: cfg.${dep}.watch.ignore) watched;
                 inherit paths;

@@ -78,6 +78,34 @@
               }
             );
           };
+          watched = raw {
+            perSystem.nullkomma.tasks.prepare = {
+              command = ":";
+              watch.manifest = pkgs.writeText "broad-inputs.txt" ".\n";
+            };
+            perSystem.nullkomma.tasks.generate = {
+              after = [ "prepare" ];
+              working_dir = "";
+              watch = {
+                manifest = pkgs.writeText "inputs.txt" "input\n";
+                outputs = [
+                  "/output"
+                  "/output/**"
+                  "/other-output"
+                  "/other-output/**"
+                ];
+              };
+              command = ''
+                echo started >> "$OBSERVED"
+                while [[ -e "$HOLD" ]]; do sleep 0.05; done
+                test "$(cat input)" != broken
+                destination="$(cat destination)"
+                mkdir -p "$destination"
+                cat input > "$destination/result"
+                echo finished >> "$OBSERVED"
+              '';
+            };
+          };
           privacy =
             sections:
             (raw { nullkomma.privacy = { inherit sections; }; }).debug.config.nullkomma.privacy.policy;
@@ -341,6 +369,27 @@
                 );
                 expected = normalize (summary fixtures.md);
               };
+            testNativeWatch =
+              let
+                flake = perSystem (raw {
+                  perSystem.nullkomma.tasks.serve = {
+                    command = "sleep 1";
+                    watch.native = true;
+                  };
+                });
+              in
+              {
+                expr = {
+                  paths = flake.nullkomma.tasks.serve.watch.paths;
+                  watch = flake.processTrees.serve.processes.serve.watch;
+                  aliases = lib.filter (lib.hasPrefix "watch-") (map lib.getName flake.nullkomma.devShell.packages);
+                };
+                expected = {
+                  paths = [ ];
+                  watch = null;
+                  aliases = [ ];
+                };
+              };
             testPrivacyPolicyOrdersEnabledSections = {
               expr = {
                 policy = privacy {
@@ -440,6 +489,33 @@
             # keep-sorted end
           };
           checks = {
+            workflow-watch =
+              pkgs.runCommand "nullkomma-workflow-watch"
+                {
+                  nativeBuildInputs = [
+                    pkgs.git
+                    pkgs.python3
+                  ];
+                }
+                ''
+                  mkdir repo
+                  cd repo
+                  git init --quiet
+                  printf 'ignored-input\n' > .gitignore
+                  printf 'first\n' > input
+                  printf 'output\n' > destination
+                  export OBSERVED="$TMPDIR/observed" HOLD="$TMPDIR/hold"
+                  python ${./_watch.test.py} \
+                    ${
+                      lib.getExe (
+                        lib.findFirst (p: lib.getName p == "watch-generate") null
+                          (perSystem watched).nullkomma.devShell.packages
+                      )
+                    } \
+                    ${lib.getExe (import ./_watch.nix { inherit lib pkgs; } { })} \
+                    || { cat "$TMPDIR/watcher.log"; exit 1; }
+                  touch "$out"
+                '';
             task-dag =
               let
                 flake = raw { perSystem.nullkomma.tasks = dagTasks; };

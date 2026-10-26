@@ -38,12 +38,7 @@
             description = "Run R CMD check";
             after = [ "r-document" ];
             working_dir = cfg.prefix;
-            watch.paths = map (path: cfg.prefix + path) [
-              "tests"
-              "vignettes"
-              "inst"
-              "NEWS.md"
-            ];
+            watch.paths = [ ];
             packages = [ config.nullkomma.r.package ];
             command = ''
               scratch="$(mktemp -d)"

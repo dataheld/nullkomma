@@ -48,13 +48,18 @@
         { config, pkgs, ... }:
         let
           tasks = config.nullkomma.tasks;
-          up = inputs.up.lib { inherit lib pkgs; };
           mkTree =
             name: spec:
             let
               dir = ".nullkomma/processes/${name}";
               stamp = task: "${dir}/${task}.ok";
               members = lib.unique (lib.concatMap (task: tasks.${task}.closure) spec.tasks);
+              up = inputs.up.lib {
+                inherit lib;
+                pkgs = pkgs // {
+                  watchexec = import ./_watch.nix { inherit lib pkgs; } (lib.getAttrs members tasks);
+                };
+              };
               process =
                 name:
                 let
@@ -63,6 +68,7 @@
                   paths =
                     lib.optionals (task.watch != null) (
                       lib.filter (path: builtins.pathExists (self.outPath + "/${path}")) task.watch.paths
+                      ++ lib.optional (task.watch.manifest != null) "@${task.watch.manifest}"
                     )
                     ++ map stamp task.after;
                 in
@@ -83,7 +89,7 @@
                     // (settings.depends_on or { });
                   watch =
                     settings.watch or (
-                      if paths == [ ] then
+                      if (task.watch != null && task.watch.native) || paths == [ ] then
                         null
                       else
                         {
