@@ -108,7 +108,6 @@
                 quarto
               ];
               command = ''
-                ${lib.getExe config.nullkomma.tasks.generate-files.package}
                 cd "$(git rev-parse --show-toplevel)"/${lib.escapeShellArg prefix}
                 exec ${command}
               '';

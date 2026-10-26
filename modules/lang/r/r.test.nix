@@ -387,6 +387,7 @@
           export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1
           git init -q
           ${task branded "write-files"}
+          ${task branded "generate-files"}
           # Repeated builds must not trip over read-only assets copied from the store.
           ${task branded "r-pkgdown"}
           ${task branded "r-pkgdown"}

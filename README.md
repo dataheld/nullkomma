@@ -353,8 +353,10 @@ Once nullkomma no longer declares a file (say, you disabled its plugin),
 
 ### Generated files
 
-`generate-files` overwrites these (`mode = "generated"`) on every run,
+`generate-files` overwrites these (`mode = "generated"`) when they differ from Nix,
 starts them with a "do not edit" comment, and the `git` plugin ignores them.
+Entering the dev shell (with direnv, whenever the flake changes) runs it if the generated files changed;
+tasks such as `preview` don't, so run `generate-files` yourself without a dev shell.
 To change one, change the Nix options.
 Directories (`directory = true`) are copied whole, without the comment.
 `generate-files` refuses to overwrite a file tracked by Git,
@@ -440,8 +442,8 @@ e.g. add pages to `website.sidebar.contents`. Set `repo-url` for repository acti
 on the standard Quarto theme rather than a separate Bootswatch theme.
 
 All generated paths are relative to `nullkomma.quarto.root`, including nested docs
-directories. Build and preview tasks refresh the same generated files used by
-`packages.site`; the build task renders the working tree into Quarto's local output directory.
+directories; they are the same files `packages.site` builds with.
+The build task renders the working tree into Quarto's local output directory.
 
 ### `cloudflare`
 

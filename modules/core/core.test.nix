@@ -434,6 +434,14 @@
                 touch -d @0 generated.txt
                 ${at "old" "generate-files"}
                 test "$(stat -c %Y generated.txt)" = 0
+                # Entering the dev shell regenerates only when the generated files changed.
+                rm generated.txt
+                (${(perSystem fileVersions.old).nullkomma.devShell.shellHook})
+                test -f generated.txt
+                rm generated.txt
+                (${(perSystem fileVersions.old).nullkomma.devShell.shellHook})
+                test ! -e generated.txt
+                ${at "old" "generate-files"}
                 printf 'project edit' > source.txt
                 printf 'local edit' > generated.txt
                 printf 'project edit' > edited.txt

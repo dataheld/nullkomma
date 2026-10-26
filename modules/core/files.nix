@@ -30,7 +30,7 @@
                     "generated"
                   ];
                   default = "source";
-                  description = "`source`: written by `write-files`, then a committed source of truth, updated only while unedited. `generated`: written from Nix by `generate-files`, overwritten every run and Git-ignored.";
+                  description = "`source`: written by `write-files`, then a committed source of truth, updated only while unedited. `generated`: written from Nix by `generate-files` (also on entering the dev shell), overwritten when changed and Git-ignored.";
                 };
                 commentPrefix = lib.mkOption {
                   type = lib.types.nullOr lib.types.str;
@@ -172,6 +172,14 @@
           );
           nullkomma.tasks.write-files = task "source";
           nullkomma.tasks.generate-files = task "generated";
+          # Generated files follow the Nix configuration, not the working tree: refresh them on
+          # entering the dev shell (direnv re-enters when the flake changes), only if they changed.
+          nullkomma.devShell.shellHook = lib.mkIf (generated != { }) ''
+            if stamp="$(git rev-parse --git-path nullkomma/files/generated-by 2>/dev/null)" &&
+              [ "$(cat "$stamp" 2>/dev/null)" != ${config.nullkomma.tasks.generate-files.package} ]; then
+              ${lib.getExe config.nullkomma.tasks.generate-files.package} && echo ${config.nullkomma.tasks.generate-files.package} > "$stamp"
+            fi
+          '';
         };
     };
 }

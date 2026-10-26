@@ -169,9 +169,7 @@
                 pkgs.pandoc
                 pkgs.git
               ];
-              command = ''
-                ${lib.getExe config.nullkomma.tasks.generate-files.package}
-                ${top}${document}${pkgdown false preview}'';
+              command = "${top}${document}${pkgdown false preview}";
             };
             testthat = {
               packages = [ pcfg.package ];

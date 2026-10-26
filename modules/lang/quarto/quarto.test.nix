@@ -181,7 +181,8 @@
           let
             quarto = pkgs.writeShellScriptBin "quarto" ''
               set -e
-              test -f generated.txt
+              # Generating files is the dev shell's job, not the preview's.
+              test ! -e generated.txt
               printf '%s\n' "$PWD" "$@" > "$CALLED"
             '';
             flake = callFlakeWith (
