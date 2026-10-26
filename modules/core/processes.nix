@@ -30,7 +30,7 @@
               options = {
                 description = lib.mkOption {
                   type = lib.types.str;
-                  description = "One-line description of the `dev-<name>` task.";
+                  description = "One-line description of the `pc-up-<name>` task.";
                 };
                 tasks = lib.mkOption {
                   type = lib.types.listOf lib.types.str;
@@ -40,7 +40,7 @@
             }
           );
           default = { };
-          description = "Background dev processes: `dev-<name>` runs these tasks with a process-compose dashboard, in `after` order and in parallel where possible.";
+          description = "Background dev processes: `pc-up-<name>` runs these tasks with a process-compose dashboard, in `after` order and in parallel where possible.";
         };
       };
       config.nullkomma.gitignore = [ "/.nullkomma/processes/" ];
@@ -109,7 +109,7 @@
               };
             in
             pkgs.writeShellApplication {
-              name = "dev-${name}";
+              name = "pc-up-${name}";
               meta.description = spec.description;
               runtimeInputs = [ pkgs.git ];
               # Watchers need every stamp to exist; an existing one keeps its time.
