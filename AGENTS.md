@@ -82,10 +82,10 @@ Check your work locally, from fastest to strictest:
 
 1. While you work, run the narrowest task that covers the change,
    e.g. `check <name>` or a single language task.
-1. Before you report a change as done, run `tasks all` and fix what fails.
-   It formats, regenerates files and runs all checks in the working tree.
-1. Before a pull request is ready, run `nix flake check`.
-   It runs the same checks sandboxed, as CI does,
+1. Before you report a change as done, run `tasks all`, then `nix flake check`,
+   and fix what fails.
+   `tasks all` formats, regenerates files and runs the checks in the working tree.
+   `nix flake check` runs the checks sandboxed, as CI does,
    and sees only files that Git tracks: `git add` new files first.
 
 Skills for nullkomma itself are in `.agents/skills/nullkomma-*`;
