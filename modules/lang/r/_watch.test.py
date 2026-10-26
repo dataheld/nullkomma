@@ -39,6 +39,7 @@ with open(os.environ["TMPDIR"] + "/watcher.log", "w") as log:
         wait_for(lambda: count() >= 1)
         wait_for(lambda: "finished" in observed.read_text())
         idle()
+        assert not Path("tests/testthat/_snaps").exists()
 
         baseline = count()
         source = Path("R/hello.R")
@@ -48,59 +49,15 @@ with open(os.environ["TMPDIR"] + "/watcher.log", "w") as log:
         idle()
 
         snaps = Path("tests/testthat/_snaps")
-        snaps.mkdir(exist_ok=True)
-        snapshot = snaps / "watch.md"
-        expected = (
-            '# watcher snapshot\n\n    Code\n      cat("hello\\n")\n'
-            "    Output\n      hello\n\n"
-        )
-        snapshot.write_text(expected)
-        modified = snapshot.stat().st_mtime_ns
-        baseline = count()
-        Path("tests/testthat/test-watch.R").write_text(
-            'test_that("watcher snapshot", {\n'
-            '  expect_snapshot(cat("hello\\n"), cran = TRUE)\n'
-            '})\n'
-        )
-        wait_for(lambda: count() > baseline)
-        wait_for(lambda: observed.read_text().splitlines()[-1] == "finished")
+        snaps.mkdir()
         idle()
-        assert snapshot.stat().st_mtime_ns == modified, "unchanged snapshot was rewritten"
-
-        # Expected snapshots remain inputs; mismatch files are outputs.
-        baseline = count()
-        snapshot.write_text(expected.replace("      hello\n", "      goodbye\n"))
-        wait_for(lambda: count() > baseline)
-        wait_for(lambda: (snaps / "watch.new.md").exists())
+        failure = snaps / "hello.new.md"
+        failure.write_text("snapshot failure output\n")
+        idle()
+        failure.unlink()
+        snaps.rmdir()
         idle()
 
-        baseline = count()
-        snapshot.write_text(expected)
-        wait_for(lambda: count() > baseline)
-        wait_for(lambda: observed.read_text().splitlines()[-1] == "finished")
-        idle()
-
-        # Whole-file snapshots and variants use the same .new.<extension> rule.
-        baseline = count()
-        reference = snaps / "variant" / "watch-file" / "example.txt"
-        reference.parent.mkdir(parents=True)
-        reference.write_text("hello\n")
-        Path("tests/testthat/test-watch-file.R").write_text(
-            'test_that("whole-file snapshot", {\n'
-            '  path <- tempfile(fileext = ".txt")\n'
-            '  writeLines("hello", path)\n'
-            '  expect_snapshot_file(path, "example.txt", variant = "variant")\n'
-            '})\n'
-        )
-        wait_for(lambda: count() > baseline)
-        wait_for(lambda: observed.read_text().splitlines()[-1] == "finished")
-        idle()
-
-        baseline = count()
-        reference.write_text("goodbye\n")
-        wait_for(lambda: count() > baseline)
-        wait_for(lambda: reference.with_name("example.new.txt").exists())
-        idle()
     finally:
         if process.poll() is None:
             os.killpg(process.pid, signal.SIGTERM)

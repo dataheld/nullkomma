@@ -171,13 +171,6 @@
             overrides =
               sourceOverrides
               // systemLibraries
-              // {
-                testthat =
-                  (systemLibraries.testthat or (sourceOverrides.testthat or base.testthat)).overrideAttrs
-                    (old: {
-                      patches = (old.patches or [ ]) ++ [ ../../../patches/testthat.patch ];
-                    });
-              }
               // lib.optionalAttrs cfg.pkgdown.enable {
                 pkgdown =
                   (systemLibraries.pkgdown or (sourceOverrides.pkgdown or base.pkgdown)).overrideAttrs
