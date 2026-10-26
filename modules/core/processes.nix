@@ -54,10 +54,11 @@
               dir = ".nullkomma/processes/${name}";
               stamp = task: "${dir}/${task}.ok";
               members = lib.unique (lib.concatMap (task: tasks.${task}.closure) spec.tasks);
+              allWatched = lib.filter (task: tasks.${task}.watch != null) (lib.attrNames tasks);
               outputs = lib.unique (
                 lib.concatMap (
                   name: lib.optionals (tasks.${name}.watch != null) tasks.${name}.watch.outputs
-                ) members
+                ) allWatched
               );
               up = inputs.up.lib {
                 inherit lib;
@@ -67,7 +68,7 @@
                     contentPaths = lib.unique (
                       lib.concatMap (
                         name: lib.optionals (tasks.${name}.watch != null) tasks.${name}.watch.contentPaths
-                      ) members
+                      ) allWatched
                     );
                   };
                 };

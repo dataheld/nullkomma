@@ -82,7 +82,6 @@
             perSystem.nullkomma.tasks.prepare = {
               command = ":";
               watch.manifest = pkgs.writeText "broad-inputs.txt" ".\n";
-              watch.contentPaths = [ "content-inputs" ];
               watch.outputs = [ "/prepared" ];
               watch.ignore = [ "/local-ignore" ];
             };
@@ -110,6 +109,14 @@
               process.watch = {
                 paths = [ "input" ];
                 ignore = [ "/process-ignore" ];
+              };
+            };
+            perSystem.nullkomma.tasks.unrelated = {
+              command = ":";
+              watch = {
+                paths = [ "input" ];
+                contentPaths = [ "content-inputs" ];
+                outputs = [ "/external-output" ];
               };
             };
           };
@@ -538,7 +545,11 @@
             testWatchOutputExclusions =
               let
                 processes = (perSystem watched).processTrees.generate.processes;
-                outputs = [ "/prepared" ] ++ (perSystem watched).nullkomma.tasks.generate.watch.outputs;
+                outputs = [
+                  "/prepared"
+                  "/external-output"
+                ]
+                ++ (perSystem watched).nullkomma.tasks.generate.watch.outputs;
               in
               {
                 expr = {
