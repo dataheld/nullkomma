@@ -121,25 +121,19 @@ function M.render(brand, privacy_href)
   return record, html
 end
 
--- Arguments: brand.yml, privacy href, Quarto metadata JSON, docs project JSON, output directory.
--- The .yml outputs are JSON, which is valid YAML.
-function M.main(brand_path, privacy_href, metadata, docs, output)
+-- Arguments: brand.yml, privacy href, Quarto metadata JSON, output directory.
+-- quarto.yml is JSON, which is valid YAML.
+function M.main(brand_path, privacy_href, metadata, output)
   local brand = brand_path ~= "" and M.parse(read(brand_path)) or {}
   local footer, html = M.render(brand, privacy_href ~= "" and privacy_href or nil)
   metadata = pandoc.json.decode(metadata, false)
-  docs = pandoc.json.decode(docs, false)
   if footer ~= nil then
     metadata.website = metadata.website or {}
     metadata.website["page-footer"] = footer
-    docs.website["page-footer"] = footer
   end
   pandoc.system.make_directory(output)
   write(output .. "/footer.html", html)
   write(output .. "/quarto.yml", next(metadata) and pandoc.json.encode(metadata) or "{}")
-  write(
-    output .. "/_extension.yml",
-    pandoc.json.encode({ title = "nullkomma documentation", version = "0.1.0", contributes = { project = docs } })
-  )
 end
 
 if arg and arg[0] and arg[0]:match("brand%.lua$") then

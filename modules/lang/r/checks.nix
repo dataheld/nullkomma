@@ -41,7 +41,7 @@
               cp -r ./${lib.escapeShellArg cfg.prefix} "$scratch/pkg"
               chmod -R u+w "$scratch/pkg"
               cd "$scratch/pkg"
-              # Share write-files' exclusions without discarding working-tree rules.
+              # Share nk-write-files' exclusions without discarding working-tree rules.
               printf '\n' >> .Rbuildignore
               cat ${pkgs.writeText "Rbuildignore" cfg.buildIgnore} >> .Rbuildignore
               export _R_CHECK_CRAN_INCOMING_=false _R_CHECK_FORCE_SUGGESTS_=false _R_CHECK_SYSTEM_CLOCK_=false

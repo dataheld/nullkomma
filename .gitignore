@@ -9,7 +9,7 @@ result-*
 /.nvim.lua
 /_brand
 /_extensions/nullkomma-brand
-/_extensions/nullkomma-docs
+/_extensions/nkdocs
 /_nullkomma-brand.yml
 /privacy.qmd
 
