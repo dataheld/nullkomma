@@ -78,7 +78,6 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
   # All plugins and their settings: see "Plugins" below.
   nullkomma.quarto.enable = true; # opt in
   nullkomma.neovim.enable = false; # opt out
-  nullkomma.github.ci.inputs.visibility = "public"; # publish to FlakeHub
   perSystem =
     { pkgs, ... }:
     {
@@ -378,7 +377,11 @@ see [`tests`](#tests).
 
 Writes `.github/workflows/push.yml`, a stub calling nullkomma's reusable CI workflow,
 which runs `nix flake check` on each supported system.
-`nullkomma.github.ci.inputs.visibility = "public"` also publishes to FlakeHub;
+After successful checks, pushes to the default branch and tags publish to FlakeHub:
+Flake visibility always matches the repository: public repositories publish public, listed flakes;
+private repositories publish private flakes. There is no visibility override.
+Forks do not publish. Private flakes require a [FlakeHub paid plan](https://flakehub.com/signup).
+Remove any existing `nullkomma.github.ci.inputs` settings and `with.visibility` workflow arguments.
 `nullkomma.github.ci.secrets` passes repository secrets.
 
 ### `git`
