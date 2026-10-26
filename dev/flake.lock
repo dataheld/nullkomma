@@ -2,24 +2,27 @@
   "nodes": {
     "brand": {
       "inputs": {
+        "modern2-cv": "modern2-cv",
         "nixpkgs": [
           "brand",
           "nullkomma",
           "nixpkgs"
         ],
-        "nullkomma": "nullkomma"
+        "nullkomma": "nullkomma",
+        "pillar": "pillar"
       },
       "locked": {
-        "lastModified": 1792768557,
-        "narHash": "sha256-RO4zqZolbuOeq1G1pO8JTAHNfjMckh2I856PG/mfdlc=",
-        "rev": "9b30b65c6a4a782d8845a0b1f857cd5434e04940",
-        "revCount": 15,
-        "type": "tarball",
-        "url": "https://api.flakehub.com/f/pinned/dataheld/brand/0.1.15%2Brev-9b30b65c6a4a782d8845a0b1f857cd5434e04940/01a1695a-42ef-73d2-8fa4-222bad88f84c/source.tar.gz"
+        "lastModified": 1793032852,
+        "narHash": "sha256-17Ah7o/NJb1Te81TKDDfgtSumV9QJ8RRhnNV8qE4ZP8=",
+        "owner": "dataheld",
+        "repo": "maxheld",
+        "rev": "83c05ac1282b2add9516117102c2a561d709b27e",
+        "type": "github"
       },
       "original": {
-        "type": "tarball",
-        "url": "https://flakehub.com/f/dataheld/brand/%2A"
+        "owner": "dataheld",
+        "repo": "maxheld",
+        "type": "github"
       }
     },
     "flake-parts": {
@@ -72,6 +75,23 @@
         "type": "github"
       }
     },
+    "modern2-cv": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1730144289,
+        "narHash": "sha256-g26OWmYGlcMH0n0nrGxM/qXbHnQAcc16ZKRy2KaEWBw=",
+        "owner": "schochastics",
+        "repo": "modern2-cv",
+        "rev": "14147a8da77a7afafe9140c7ef32f2cccaddcfcb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "schochastics",
+        "repo": "modern2-cv",
+        "rev": "14147a8da77a7afafe9140c7ef32f2cccaddcfcb",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1791353474,
@@ -102,17 +122,32 @@
         "up": "up"
       },
       "locked": {
-        "lastModified": 1792765921,
-        "narHash": "sha256-UYYAV+euzKdmIlIzRav3WmhQXjjC8aXlSsdm90DCmLk=",
-        "owner": "dataheld",
-        "repo": "nullkomma",
-        "rev": "c0472461009131a23065588c709d4c14da849f72",
+        "lastModified": 1793028762,
+        "narHash": "sha256-7cFCpyag7yzDxnlTRCrxxcxRW5AahOVmn5spwfSilvY=",
+        "rev": "6399a5af88ca7c3ca2f52aa6c15a4acf69f8d01f",
+        "revCount": 495,
+        "type": "tarball",
+        "url": "https://api.flakehub.com/f/pinned/dataheld/nullkomma/0.1.495%2Brev-6399a5af88ca7c3ca2f52aa6c15a4acf69f8d01f/01a178e1-0cbf-7042-8649-4bbe01a3fd68/source.tar.gz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://flakehub.com/f/dataheld/nullkomma/0.1.%2A"
+      }
+    },
+    "pillar": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1687682392,
+        "narHash": "sha256-QFjaC3QfxTGGt3JcPYeuNaZMRvo7bOMIHHyqzCoEpHs=",
+        "owner": "xriley",
+        "repo": "pillar-theme",
+        "rev": "dbe51083f1566b748c7b3cf81f3d1069b634608e",
         "type": "github"
       },
       "original": {
-        "owner": "dataheld",
-        "repo": "nullkomma",
-        "rev": "c0472461009131a23065588c709d4c14da849f72",
+        "owner": "xriley",
+        "repo": "pillar-theme",
+        "rev": "dbe51083f1566b748c7b3cf81f3d1069b634608e",
         "type": "github"
       }
     },
