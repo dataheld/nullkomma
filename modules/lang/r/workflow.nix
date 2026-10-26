@@ -153,6 +153,18 @@
               Rscript --vanilla - "$preview" <<'RS'
               # Cached Sass paths make repeated Bootstrap copies overwrite read-only Nix assets.
               options(sass.cache = FALSE)
+              if (identical(getOption("browser", ""), "")) {
+                browser <- Sys.which("${if pkgs.stdenv.isDarwin then "open" else "xdg-open"}")
+                desktop <- ${
+                  if pkgs.stdenv.isDarwin then
+                    "TRUE"
+                  else
+                    ''nzchar(Sys.getenv("DISPLAY")) || nzchar(Sys.getenv("WAYLAND_DISPLAY"))''
+                }
+                options(browser = if (nzchar(browser) && desktop) unname(browser) else function(url) {
+                  message("No desktop browser available. Open the preview at: ", url)
+                })
+              }
               override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
               .libPaths(c(${
                 lib.concatMapStrings (library: ''"${library}", '') pcfg.pkgdown.libraries
