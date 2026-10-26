@@ -33,19 +33,28 @@
       config.perSystem = lib.mkIf (cfg.enable && cfg.check.enable) (
         { config, pkgs, ... }:
         {
-          nullkomma.checks.r-cmd-check = {
+          nullkomma.tasks.r-check = {
+            skip = true;
+            description = "Run R CMD check";
+            after = [ "r-document" ];
+            working_dir = cfg.prefix;
+            watch.paths = map (path: cfg.prefix + path) [
+              "tests"
+              "vignettes"
+              "inst"
+              "NEWS.md"
+            ];
             packages = [ config.nullkomma.r.package ];
             command = ''
               scratch="$(mktemp -d)"
               trap 'rm -rf "$scratch"' EXIT
-              cp -r ./${lib.escapeShellArg cfg.prefix} "$scratch/pkg"
+              cp -r . "$scratch/pkg"
               chmod -R u+w "$scratch/pkg"
               cd "$scratch/pkg"
               # Share nk-write-files' exclusions without discarding working-tree rules.
               printf '\n' >> .Rbuildignore
               cat ${pkgs.writeText "Rbuildignore" cfg.buildIgnore} >> .Rbuildignore
               export _R_CHECK_CRAN_INCOMING_=false _R_CHECK_FORCE_SUGGESTS_=false _R_CHECK_SYSTEM_CLOCK_=false
-              Rscript --vanilla -e 'roxygen2::roxygenise()'
               Rscript --vanilla - "$@" <<'EOF'
               rcmdcheck::rcmdcheck(
                 path = ".",
@@ -55,6 +64,12 @@
                 check_dir = "../check"
               )
               EOF
+            '';
+          };
+          nullkomma.checks.r-cmd-check = {
+            command = ''
+              export NULLKOMMA_ROOT="$PWD"
+              exec ${lib.getExe config.nullkomma.tasks.r-check.package} "$@"
             '';
           };
         }

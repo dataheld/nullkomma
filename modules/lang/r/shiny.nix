@@ -25,11 +25,7 @@
         };
       };
       config = lib.mkIf (cfg.enable && cfg.shiny.enable) {
-        nullkomma.r.extraPackages = [
-          "shiny"
-          # For shiny.autoreload in the r-shiny process tree.
-          "watcher"
-        ];
+        nullkomma.r.extraPackages = [ "shiny" ];
         perSystem =
           {
             config,
@@ -46,10 +42,12 @@
                 }
                 ''
                   export HOME="$TMPDIR"
-                  cp -R ${cfg.root} source
+                  cp -R ${config.nullkomma.src} source
                   chmod -R u+w source
                   cd source
-                  Rscript --vanilla -e 'roxygen2::roxygenise()'
+                  export NULLKOMMA_ROOT="$PWD"
+                  ${lib.getExe config.nullkomma.tasks.r-document.package}
+                  cd ${lib.escapeShellArg "./${cfg.prefix}"}
                   mkdir -p "$out/library"
                   R CMD INSTALL --library="$out/library" .
                 '';
@@ -122,6 +120,8 @@
               raw = true;
               description = "Serve the working-tree Shiny app with pkgload";
               after = [ "r-document" ];
+              # Shiny reloads in its own session; don't restart the server.
+              process.watch = null;
               packages = [
                 pkgs.git
                 pkgs.watchexec

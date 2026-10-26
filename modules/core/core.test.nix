@@ -27,18 +27,15 @@
           # c runs after a and b, b after a; each appends to `log`.
           dagTasks = lib.mapAttrs (name: task: { description = name; } // task) {
             a = {
+              before = [ "b" ];
               command = "echo a >> log";
               watch.paths = [ "flake.nix" ];
             };
             b = {
-              after = [ "a" ];
               command = "echo b >> log";
             };
             c = {
-              after = [
-                "a"
-                "b"
-              ];
+              after = [ "b" ];
               command = ''echo c "$@" >> log'';
               watch.paths = [ "missing" ];
             };
@@ -47,6 +44,39 @@
               after = [ "broken" ];
               command = "echo d >> log";
             };
+          };
+          workflow = raw {
+            imports = [
+              {
+                perSystem.nullkomma.tasks.artifact.command = lib.mkAfter ''
+                  printf 'shared extension\n' > "$destination/extension"
+                '';
+              }
+            ];
+            perSystem.nullkomma.tasks = lib.mapAttrs (_: task: { working_dir = ""; } // task) (
+              dagTasks
+              // {
+                artifact = {
+                  after = [
+                    "a"
+                    "c"
+                  ];
+                  output = "artifact";
+                  sandboxArgs = [ "sandbox value" ];
+                  command = ''
+                    test -f README.md
+                    destination="''${NULLKOMMA_OUTPUT:-artifact}"
+                    mkdir -p "$destination"
+                    cp log "$destination/log"
+                    printf '%s\n' "$@" > "$destination/args"
+                  '';
+                  process = {
+                    environment.WORKFLOW = "native-up-settings";
+                    shutdown.signal = 15;
+                  };
+                };
+              }
+            );
           };
           privacy =
             sections:
@@ -256,6 +286,7 @@
                   "result"
                   "result-*"
                   ".direnv/"
+                  "/.nullkomma/processes/"
                   "/.nvim.lua"
                   "/.vscode/extensions.json"
                   "/.vscode/settings.json"
@@ -264,6 +295,7 @@
                   "result"
                   "result-*"
                   ".direnv/"
+                  "/.nullkomma/processes/"
                   "/.nvim.lua"
                 ])
               ];
@@ -355,9 +387,11 @@
               {
                 expr = {
                   closure = flake.nullkomma.tasks.c.closure;
-                  tasks = lib.filter (lib.hasPrefix "dev-") (lib.attrNames flake.nullkomma.tasks);
+                  trees = lib.attrNames flake.processTrees;
                   processes = lib.attrNames flake.processTrees.tree.processes;
                   watches = lib.filter (lib.hasPrefix "watch-") (map lib.getName flake.nullkomma.devShell.packages);
+                  downstream = flake.processTrees.tree.processes.b.watch.paths;
+                  native = (perSystem workflow).processTrees.artifact.processes.artifact.environment;
                 };
                 expected = {
                   closure = [
@@ -365,7 +399,11 @@
                     "b"
                     "c"
                   ];
-                  tasks = [ "dev-tree" ];
+                  trees = [
+                    "a"
+                    "c"
+                    "tree"
+                  ];
                   processes = [
                     "a"
                     "b"
@@ -376,6 +414,8 @@
                     "watch-a"
                     "watch-c"
                   ];
+                  downstream = [ ".nullkomma/processes/tree/a.ok" ];
+                  native.WORKFLOW = "native-up-settings";
                 };
               };
             testTasksAllHonorsSkip = {
@@ -410,6 +450,25 @@
                 rm log
                 if ${task flake "d"}; then exit 1; fi
                 [[ ! -e log ]]
+                ${lib.getExe (perSystem flake).taskRunners.default} c
+                printf 'a\nb\nc\n' | diff - log
+                rm log
+                if ${lib.getExe (perSystem flake).taskRunners.default} d; then exit 1; fi
+                [[ ! -e log ]]
+                mkdir project
+                cd project
+                cp ${md + "/README.md"} README.md
+                ${lib.getExe pkgs.git} init --quiet
+                mkdir nested && cd nested
+                ${task workflow "artifact"} 'local value'
+                cd ..
+                printf 'a\nb\nc\n' | diff - artifact/log
+                printf 'local value\n' | diff - artifact/args
+                cmp artifact/log ${(perSystem workflow).packages.artifact}/log
+                cmp artifact/extension ${(perSystem workflow).packages.artifact}/extension
+                grep -qxF 'shared extension' artifact/extension
+                test -x ${lib.getExe (perSystem workflow).processTrees.artifact}
+                printf 'sandbox value\n' | diff - ${(perSystem workflow).packages.artifact}/args
                 touch $out
               '';
             task-menu =

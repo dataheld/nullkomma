@@ -46,6 +46,10 @@
         nullkomma.r-brand.enable = true;
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
         nullkomma.cloudflare = cloudflare;
+        perSystem.nullkomma.tasks.r-document.command = lib.mkAfter ''
+          mkdir -p pkgdown/assets
+          printf 'shared R workflow\n' > pkgdown/assets/workflow.txt
+        '';
       } fixture;
       # A package site as nullkomma's own brand publishes it.
       published = callFlakeWith {
@@ -349,6 +353,7 @@
               test "$(grep -o '<footer' "$site/index.html" | wc -l)" -eq 1
               grep -qF '#123456' "$site"/deps/bootstrap-*/*.css
               cmp ${root + "/tests/fixtures/r-brand/assets/brand.svg"} "$site/brand.svg"
+              grep -qxF 'shared R workflow' "$site/workflow.txt"
               python - "$site" ${english.packages.${system}.site} <<'PY'
               import sys
               from html.parser import HTMLParser
@@ -394,6 +399,8 @@
           ${task branded "r-pkgdown"}
           ${task branded "r-pkgdown"}
           cmp pkgdown/assets/local-only.txt docs/local-only.txt
+          cmp pkgdown/assets/workflow.txt docs/workflow.txt
+          grep -qxF 'shared R workflow' docs/workflow.txt
           grep -qF 'Lokaler Abschnitt auf Deutsch' docs/privacy.html
           cmp ${root + "/tests/fixtures/r-brand/assets/brand.svg"} docs/brand.svg
           test ! -e .github/privacy.md -a ! -e privacy.md

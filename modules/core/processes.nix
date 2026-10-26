@@ -43,6 +43,7 @@
           description = "Background dev processes: `dev-<name>` runs these tasks with a process-compose dashboard, in `after` order and in parallel where possible.";
         };
       };
+      config.nullkomma.gitignore = [ "/.nullkomma/processes/" ];
       config.perSystem =
         { config, pkgs, ... }:
         let
@@ -58,27 +59,38 @@
                 name:
                 let
                   task = tasks.${name};
+                  settings = if task.process == null then { } else task.process;
                   paths =
-                    lib.filter (path: builtins.pathExists (self.outPath + "/${path}")) task.watch.paths
+                    lib.optionals (task.watch != null) (
+                      lib.filter (path: builtins.pathExists (self.outPath + "/${path}")) task.watch.paths
+                    )
                     ++ map stamp task.after;
                 in
-                {
+                assert lib.assertMsg (
+                  !(settings ? command)
+                ) "Set the workflow command on nullkomma.tasks.${name}, not process.command.";
+                settings
+                // {
                   inherit (task) description;
                   command = ''
                     ${lib.getExe task.step}
-                    touch ${lib.escapeShellArg (stamp name)}
+                    touch "$NULLKOMMA_ROOT"/${lib.escapeShellArg (stamp name)}
                   '';
-                  depends_on = lib.genAttrs task.after (_: {
-                    condition = "process_completed";
-                  });
+                  depends_on =
+                    lib.genAttrs task.after (_: {
+                      condition = "process_completed";
+                    })
+                    // (settings.depends_on or { });
                   watch =
-                    if task.watch == null || paths == [ ] then
-                      null
-                    else
-                      {
-                        inherit paths;
-                        inherit (task.watch) ignore;
-                      };
+                    settings.watch or (
+                      if paths == [ ] then
+                        null
+                      else
+                        {
+                          inherit paths;
+                          ignore = if task.watch == null then [ ] else task.watch.ignore;
+                        }
+                    );
                 };
               tree = up.mkProcessTree {
                 name = "process-tree-${name}";
@@ -92,37 +104,31 @@
             in
             pkgs.writeShellApplication {
               name = "dev-${name}";
+              meta.description = spec.description;
               runtimeInputs = [ pkgs.git ];
               # Watchers need every stamp to exist; an existing one keeps its time.
               text = ''
                 cd "$(git rev-parse --show-toplevel)"
+                export NULLKOMMA_ROOT="$PWD"
                 mkdir -p ${lib.escapeShellArg dir}
-                for stamp in ${lib.escapeShellArgs (map stamp members)}; do
-                  [[ -e "$stamp" ]] || : >"$stamp"
-                done
+                ${lib.concatMapStrings (task: ''
+                  [[ -e ${lib.escapeShellArg (stamp task)} ]] || : >${lib.escapeShellArg (stamp task)}
+                '') members}
                 exec ${lib.getExe tree}
               '';
             }
             // {
               # For the processTrees flake schema.
-              processes = lib.genAttrs members (task: {
-                inherit (tasks.${task}) description;
-                command = lib.getExe tasks.${task}.step;
-              });
+              processes = lib.genAttrs members process;
             };
-          trees = lib.mapAttrs mkTree config.nullkomma.processTrees;
+          defaults = lib.mapAttrs (name: task: {
+            inherit (task) description;
+            tasks = [ name ];
+          }) (lib.filterAttrs (_: task: task.watch != null || task.process != null) tasks);
+          trees = lib.mapAttrs mkTree (defaults // config.nullkomma.processTrees);
         in
         {
           processTrees = trees;
-          nullkomma.tasks = lib.mapAttrs' (
-            name: tree:
-            lib.nameValuePair "dev-${name}" {
-              skip = true;
-              raw = true;
-              description = config.nullkomma.processTrees.${name}.description;
-              command = "exec ${lib.getExe tree}";
-            }
-          ) trees;
         };
     };
 }

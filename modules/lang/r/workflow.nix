@@ -99,7 +99,6 @@
         ++ lib.optional cfg.coverage.enable "${prefix}coverage.xml";
         nullkomma.gitignore = [
           "/${prefix}man/*.Rd"
-          "/.nullkomma/processes/"
         ]
         ++ lib.optional cfg.pkgdown.enable "/${prefix}docs/"
         ++ lib.optional cfg.coverage.enable "/${prefix}coverage.xml";
@@ -114,15 +113,14 @@
                   ${pkgs.writeText "privacy.md" privacyPage} -o "$out"
               ''
             );
-            # Checks start at the project root; tasks may start anywhere in it.
             cd = lib.optionalString (prefix != "") "cd ${lib.escapeShellArg prefix}\n";
-            top = ''
-              cd "$(git rev-parse --show-toplevel)"
-              ${cd}'';
-            document = ''
-              Rscript --vanilla -e 'roxygen2::roxygenise()'
-            '';
-            pkgdown = sandbox: preview: ''
+            tasks = config.nullkomma.tasks;
+            pkgdown = ''
+              preview=FALSE
+              if [[ "''${1-}" == --preview ]]; then
+                preview=TRUE
+                shift
+              fi
               R_USER_CACHE_DIR="$(mktemp -d)"
               export R_USER_CACHE_DIR
               trap 'rm -rf "$R_USER_CACHE_DIR"' EXIT
@@ -136,14 +134,15 @@
                 )
               } "$R_USER_CACHE_DIR/R/pkgdown"
               chmod -R u+w "$R_USER_CACHE_DIR"
-              Rscript --vanilla - <<'RS'
+              Rscript --vanilla - "$preview" <<'RS'
               # Cached Sass paths make repeated Bootstrap copies overwrite read-only Nix assets.
               options(sass.cache = FALSE)
               override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
               .libPaths(c(${
                 lib.concatMapStrings (library: ''"${library}", '') pcfg.pkgdown.libraries
               }.libPaths()))
-              ${lib.optionalString sandbox ''override$destination <- Sys.getenv("out")''}
+              destination <- Sys.getenv("NULLKOMMA_OUTPUT")
+              if (nzchar(destination)) override$destination <- destination
               ${lib.optionalString (privacyBody != "") ''
                 # pkgdown only finds extra pages in the project; render this one before build_site indexes it.
                 pkg <- pkgdown::as_pkgdown(override = override)
@@ -151,36 +150,19 @@
                 body <- paste(readLines("${privacyBody}", encoding = "UTF-8"), collapse = "\n")
                 pkgdown::render_page(pkg, "title-body", list(pagetitle = ${builtins.toJSON privacy.title}, body = body), "${cfg.pkgdown.privacy.page}")
               ''}
-              pkgdown::build_site(override = override, preview = ${lib.toUpper (lib.boolToString preview)}, new_process = FALSE)
-              ${lib.optionalString sandbox ''
+              pkgdown::build_site(override = override, preview = identical(commandArgs(TRUE)[[1]], "TRUE"), new_process = FALSE)
+              if (nzchar(destination)) {
                 # pkgdown records wall-clock time even in otherwise reproducible builds.
                 metadata_path <- file.path(override$destination, "pkgdown.yml")
                 metadata <- yaml::read_yaml(metadata_path)
                 epoch <- as.POSIXct(as.numeric(Sys.getenv("SOURCE_DATE_EPOCH", "1")), origin = "1970-01-01", tz = "UTC")
                 metadata$last_built <- format(epoch, "%Y-%m-%dT%H:%MZ", tz = "UTC")
                 yaml::write_yaml(metadata, metadata_path)
-              ''}
+              }
               RS
             '';
             # Project-relative paths for task watches.
             paths = map (path: prefix + path);
-            pkgdownTask = description: preview: {
-              skip = true;
-              inherit description;
-              after = [ "r-document" ];
-              packages = [
-                pcfg.package
-                pkgs.pandoc
-                pkgs.git
-              ];
-              command = "${top}${pkgdown false preview}";
-            };
-            testthat = {
-              packages = [ pcfg.package ];
-              # pkgload is fast for development; the sandbox tests what users install.
-              sandboxArgs = [ "--installed" ];
-              command = cd + document + testthatRun;
-            };
             testthatRun = ''
               load=source
               if [[ "''${1-}" == --installed ]]; then
@@ -204,9 +186,9 @@
                   description = "Generate R manuals and NAMESPACE with roxygen2";
                   packages = [
                     pcfg.package
-                    pkgs.git
                   ];
-                  command = top + document;
+                  working_dir = prefix;
+                  command = "Rscript --vanilla -e 'roxygen2::roxygenise()'";
                   watch.paths = paths [
                     "R"
                     "DESCRIPTION"
@@ -221,32 +203,25 @@
                   after = [ "r-document" ];
                   packages = [
                     pcfg.package
-                    pkgs.git
                   ];
-                  command = top + testthatRun;
+                  working_dir = prefix;
+                  command = testthatRun;
+                  sandboxArgs = [ "--installed" ];
                   watch.paths = paths [ "tests" ];
                 };
               })
-              (lib.mkIf cfg.check.enable {
-                r-check = {
-                  skip = true;
-                  description = "Run check r-cmd-check after r-document";
-                  after = [ "r-document" ];
-                  packages = [ pkgs.git ];
-                  command = ''
-                    cd "$(git rev-parse --show-toplevel)"
-                    exec ${lib.getExe config.nullkomma.checks.r-cmd-check.package} "$@"
-                  '';
-                  watch.paths = paths [
-                    "tests"
-                    "vignettes"
-                    "inst"
-                    "NEWS.md"
-                  ];
-                };
-              })
               (lib.mkIf cfg.pkgdown.enable {
-                r-pkgdown = pkgdownTask "Build the pkgdown website in docs/" false // {
+                r-pkgdown = {
+                  skip = true;
+                  description = "Build the pkgdown website";
+                  after = [ "r-document" ];
+                  working_dir = prefix;
+                  packages = [
+                    pcfg.package
+                    pkgs.pandoc
+                  ];
+                  command = pkgdown;
+                  output = "site";
                   watch.paths = paths [
                     "_pkgdown.yml"
                     "README.md"
@@ -255,7 +230,12 @@
                     "man/figures"
                   ];
                 };
-                r-pkgdown-preview = pkgdownTask "Build the pkgdown website and open it in a browser" true;
+                r-pkgdown-preview = {
+                  skip = true;
+                  description = "Build the pkgdown website and open it in a browser";
+                  after = tasks.r-pkgdown.after;
+                  command = ''exec ${lib.getExe tasks.r-pkgdown.step} --preview "$@"'';
+                };
               })
               (lib.mkIf cfg.coverage.enable {
                 r-coverage = {
@@ -264,10 +244,10 @@
                   after = [ "r-document" ];
                   packages = [
                     pcfg.package
-                    pkgs.git
                   ];
+                  working_dir = prefix;
                   command = ''
-                    ${top}Rscript --vanilla -e 'covr::to_cobertura(covr::package_coverage(), filename = "coverage.xml")'
+                    Rscript --vanilla -e 'covr::to_cobertura(covr::package_coverage(), filename = "coverage.xml")'
                   '';
                 };
               })
@@ -282,15 +262,22 @@
               ++ lib.optional cfg.check.enable "r-check";
             };
             nullkomma.checks = {
-              r-testthat = lib.mkIf cfg.testthat.enable testthat;
+              r-testthat = lib.mkIf cfg.testthat.enable {
+                command = ''
+                  export NULLKOMMA_ROOT="$PWD"
+                  exec ${lib.getExe tasks.r-test.package} "$@"
+                '';
+                sandboxArgs = tasks.r-test.sandboxArgs;
+              };
               r-namespace = {
                 packages = [ pcfg.package ];
                 command = ''
+                  export NULLKOMMA_ROOT="$PWD"
                   ${cd}
                   original="$(mktemp)"
                   trap 'rm -f "$original"' EXIT
                   cp NAMESPACE "$original"
-                  ${document}
+                  ${lib.getExe tasks.r-document.package}
                   if ! diff -u "$original" NAMESPACE; then
                     echo "NAMESPACE is stale; run r-document and commit NAMESPACE." >&2
                     exit 1
@@ -304,24 +291,6 @@
                 directory = true;
                 source = cfg.pkgdown.assets;
               };
-            };
-            packages = lib.mkIf cfg.pkgdown.enable {
-              site = lib.mkDefault (
-                pkgs.runCommand "r-pkgdown-site"
-                  {
-                    nativeBuildInputs = [
-                      pcfg.package
-                      pkgs.pandoc
-                    ];
-                  }
-                  ''
-                    cp -R ${config.nullkomma.src} source
-                    chmod -R u+w source
-                    cd source
-                    export HOME="$TMPDIR/home"
-                    mkdir -p "$HOME"
-                    ${cd}${document}${pkgdown true false}''
-              );
             };
             checks = lib.mkIf cfg.pkgdown.enable { r-pkgdown = config.packages.site; };
           };

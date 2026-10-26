@@ -1,7 +1,7 @@
-# Dev-time tasks: each is a command on the dev shell PATH (taking arguments), and
+# Workflows: each is a command on the dev shell PATH (taking arguments), and
 # the `tasks` runner (DeterminateSystems/up) lists them and runs them without arguments.
 # `after` makes them a DAG: every entry point (command, `tasks`, `watch-<name>`,
-# process trees) runs the same steps in the same order.
+# process trees and sandboxed outputs) runs the same steps in the same order.
 { inputs, ... }:
 {
   framework =
@@ -38,6 +38,7 @@
                   options = {
                     description = lib.mkOption {
                       type = lib.types.str;
+                      default = name;
                       description = "One-line description, shown by `tasks`.";
                     };
                     command = lib.mkOption {
@@ -54,6 +55,37 @@
                       default = [ ];
                       example = [ "r-document" ];
                       description = "Tasks whose steps run first, transitively and once each, wherever this task runs.";
+                    };
+                    before = lib.mkOption {
+                      type = lib.types.listOf lib.types.str;
+                      default = [ ];
+                      description = "Tasks that run after this one, using up's native ordering convention.";
+                    };
+                    working_dir = lib.mkOption {
+                      type = lib.types.nullOr lib.types.str;
+                      default = null;
+                      description = "Project-relative working directory, in both the checkout and sandbox; null preserves the caller's directory.";
+                    };
+                    output = lib.mkOption {
+                      type = lib.types.nullOr lib.types.str;
+                      default = null;
+                      example = "site";
+                      description = "Export this workflow as `packages.<output>`. The same command and prerequisites run on `nullkomma.src`, with `NULLKOMMA_OUTPUT` set to the output path.";
+                    };
+                    sandboxArgs = lib.mkOption {
+                      type = lib.types.listOf lib.types.str;
+                      default = [ ];
+                      description = "Arguments for the sandboxed run, e.g. `--installed` to test the installed package.";
+                    };
+                    sandboxed = lib.mkOption {
+                      type = lib.types.package;
+                      readOnly = true;
+                      description = "This workflow and its prerequisites run in an isolated copy of `nullkomma.src`.";
+                    };
+                    process = lib.mkOption {
+                      type = lib.types.nullOr (lib.types.attrsOf lib.types.anything);
+                      default = null;
+                      description = "Additional native up process attributes (health probes, shutdown, environment). Also creates a `dev-<name>` process tree, without requiring a file watch.";
                     };
                     watch = lib.mkOption {
                       type = lib.types.nullOr (
@@ -88,10 +120,19 @@
                       description = "This task and its transitive `after` tasks, in the order they run.";
                     };
                   };
+                  config.after =
+                    assert lib.assertMsg (lib.all (
+                      dep: builtins.hasAttr dep tasks
+                    ) config.before) "Unknown task in nullkomma.tasks.${name}.before";
+                    lib.filter (dep: lib.elem name tasks.${dep}.before) (lib.attrNames tasks);
                   config.step = pkgs.writeShellApplication {
                     inherit name;
-                    runtimeInputs = config.packages;
-                    text = config.command;
+                    runtimeInputs = config.packages ++ lib.optional (config.working_dir != null) pkgs.git;
+                    text =
+                      lib.optionalString (config.working_dir != null) ''
+                        cd "''${NULLKOMMA_ROOT:-$(git rev-parse --show-toplevel)}"/${lib.escapeShellArg config.working_dir}
+                      ''
+                      + config.command;
                   };
                   # Depth-first, keeping first occurrences: a topological order.
                   config.closure = lib.unique (lib.concatMap (dep: tasks.${dep}.closure) config.after ++ [ name ]);
@@ -109,12 +150,24 @@
                             exec ${lib.getExe config.step} "$@"
                           '';
                       };
+                  config.sandboxed = pkgs.runCommand "workflow-${name}" { } ''
+                    cp -R ${perSystem.config.nullkomma.src} source
+                    chmod -R u+w source
+                    patchShebangs --build source >/dev/null
+                    export NULLKOMMA_ROOT="$PWD/source"
+                    export HOME="$PWD/home" XDG_CACHE_HOME="$PWD/cache" XDG_CONFIG_HOME="$PWD/config"
+                    mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
+                    ${lib.optionalString (config.output != null) ''export NULLKOMMA_OUTPUT="$out"''}
+                    cd source
+                    ${lib.getExe config.package} ${lib.escapeShellArgs config.sandboxArgs}
+                    ${lib.optionalString (config.output == null) "touch \"$out\""}
+                  '';
                 }
               )
             );
             default = { };
             description = ''
-              Dev-time project tasks, as dev shell commands. Other attributes (`skip`, `raw`, `confirm`, …)
+              Project workflows shared by dev shell commands, sandboxed outputs and process trees. Other attributes (`skip`, `raw`, `confirm`, …)
               are passed to the up task; see https://github.com/DeterminateSystems/up#task-attributes.
             '';
           };
@@ -125,6 +178,15 @@
         let
           cfg = config.nullkomma.tasks;
           up = inputs.up.lib { inherit lib pkgs; };
+          devs = lib.mapAttrs' (
+            name: tree:
+            lib.nameValuePair "dev-${name}" {
+              skip = true;
+              raw = true;
+              description = tree.meta.description or "Run ${name}";
+              command = "exec ${lib.getExe tree}";
+            }
+          ) config.processTrees;
           # Defined here rather than in nullkomma.tasks, whose names they depend on.
           watches = lib.concatMapAttrs (
             name: task:
@@ -152,30 +214,47 @@
                 removeAttrs task [
                   "after"
                   "closure"
+                  "working_dir"
+                  "output"
+                  "sandboxArgs"
+                  "sandboxed"
+                  "process"
                   "package"
                   "packages"
                   "step"
                   "watch"
                 ]
                 // {
-                  command = task.package;
+                  command = task.step;
+                  # Up runs direct prerequisites; provide the transitive set once.
+                  after = lib.init task.closure;
+                  description =
+                    task.description
+                    + lib.optionalString (task.after != [ ]) " (after: ${lib.concatStringsSep ", " task.after})"
+                    + lib.optionalString (task.output != null) " (build: .#${task.output})";
                 }
               ) cfg
-              // watches;
+              // watches
+              // devs;
           };
         in
         lib.mkIf (cfg != { }) {
           taskRunners.default = runner;
+          packages = lib.mkMerge (
+            lib.mapAttrsToList (_: task: {
+              ${task.output} = lib.mkDefault task.sandboxed;
+            }) (lib.filterAttrs (_: task: task.output != null) cfg)
+          );
           nullkomma.devShell.packages =
             lib.mapAttrsToList (_: task: task.package) cfg
             ++ lib.mapAttrsToList (
               name: task:
               pkgs.writeShellApplication {
                 inherit name;
-                runtimeInputs = task.packages;
+                runtimeInputs = task.packages or [ ];
                 text = task.command;
               }
-            ) watches
+            ) (watches // devs)
             ++ [ runner ];
         };
     };

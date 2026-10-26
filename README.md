@@ -92,31 +92,31 @@ Each plugin is one of nullkomma's `flakeModules.<name>`; each column is an outpu
 All plugins are optional; those marked under Default are enabled unless you opt out.
 Files and editor settings that plugins write into your repository are under [Plugin details](#plugin-details).
 
-| Plugin                                              | Default | `devShells`                                                               | `formatter`[^treefmt]                | `checks`                                                | `packages`       | `apps`[^apps]              | `taskRunners`                                                                                                                                      | `processTrees`[^processTrees] |
-| --------------------------------------------------- | ------- | ------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------- | ---------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| framework                                           | always  | every task, `tasks` runner                                                | [treefmt]                            | `treefmt`                                               |                  |                            | `check` (when checks exist), `format`, `nk-write-files`, `nk-generate-files`, [`watch-<task>`, `dev-<tree>`](#keeping-generated-files-current)     |                               |
-| [`nix`](#nix)                                       | ✅      | [nixd]                                                                    | `nixfmt`, `deadnix`, `nixf-diagnose` | [`nix-unit`](#tests)                                    |                  |                            | `update`, [`flake-checker`] [^flake-checker]                                                                                                       |                               |
-| [`markdown`][md]                                    | ✅      | [marksman]                                                                | `mdformat`, `rumdl`                  |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`json`][json]                                      | ✅      | [JSON language server][jsonls]                                            | `jsonfmt`                            |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`yaml`][yaml]                                      | ✅      | [yaml-language-server]                                                    | `yamlfmt`, `yamllint`, `actionlint`  |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`toml`][toml]                                      | ✅      |                                                                           | `toml-sort`                          |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`shell`][bash]                                     | ✅      | [bash-language-server]                                                    | `shfmt`, `shellcheck`                | [bats] [^bats]                                          |                  |                            |                                                                                                                                                    |                               |
-| [`github`](#github)                                 | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`keepSorted`][keep-sorted]                         | ✅      |                                                                           | `keep-sorted`                        |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`gitleaks`][gitleaks]                              | ✅      |                                                                           | `gitleaks`                           |                                                         |                  |                            | `secret-history`                                                                                                                                   |                               |
-| [`typos`][typos]                                    | ✅      |                                                                           | `typos`                              |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`jscpd`][jscpd]                                    | ✅      |                                                                           |                                      | `jscpd`                                                 |                  |                            |                                                                                                                                                    |                               |
-| [`git`](#git)                                       | ✅      | `git`                                                                     |                                      |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`direnv`](#direnv)                                 | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`vscode`](#vscode-and-neovim)                      | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`neovim`](#vscode-and-neovim)                      | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`flakehub`][flakehub]                              | ✅      | [`fh`]                                                                    |                                      |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`quarto`](#quarto)                                 |         | `quarto`                                                                  |                                      |                                                         | `site`           |                            | `build-site`, `preview`                                                                                                                            |                               |
-| [`quarto-website-brand`](#brand) (enables `quarto`) |         |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`cloudflare`](#cloudflare)                         |         | `wrangler`                                                                |                                      | `cloudflare` (OpenTofu validation)                      |                  | `deploy`[^deploy]          | `terraform`, `deploy`                                                                                                                              |                               |
-| [`r`](#r)                                           |         | R, radian, Air; languageserver, `pkgload`, pak, httpgd, later, rstudioapi | `air`, `jarl`                        | `r-testthat`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `r-document`, `r-test`, `r-check`, `r-pkgdown`, `r-pkgdown-preview`, `r-coverage`, `r-lock`, `shiny` (opt-in), `dev-r-pkg`, `dev-r-shiny` (opt-in) | `r-pkg`, `r-shiny` (opt-in)   |
-| [`r-non-nix`](#r-non-nix) (enables `r`)             |         |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                    |                               |
-| [`r-brand`](#brand) (enables `r`)                   |         |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                    |                               |
+| Plugin                                              | Default | `devShells`                                                               | `formatter`[^treefmt]                | `checks`                                                | `packages`       | `apps`[^apps]              | `taskRunners`                                                                                                                                  | `processTrees`[^processTrees]                                                        |
+| --------------------------------------------------- | ------- | ------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------- | ---------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| framework                                           | always  | every task, `tasks` runner                                                | [treefmt]                            | `treefmt`                                               | task `output`s   |                            | `check` (when checks exist), `format`, `nk-write-files`, `nk-generate-files`, [`watch-<task>`, `dev-<tree>`](#keeping-generated-files-current) | watched/process tasks and groups                                                     |
+| [`nix`](#nix)                                       | ✅      | [nixd]                                                                    | `nixfmt`, `deadnix`, `nixf-diagnose` | [`nix-unit`](#tests)                                    |                  |                            | `update`, [`flake-checker`] [^flake-checker]                                                                                                   |                                                                                      |
+| [`markdown`][md]                                    | ✅      | [marksman]                                                                | `mdformat`, `rumdl`                  |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`json`][json]                                      | ✅      | [JSON language server][jsonls]                                            | `jsonfmt`                            |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`yaml`][yaml]                                      | ✅      | [yaml-language-server]                                                    | `yamlfmt`, `yamllint`, `actionlint`  |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`toml`][toml]                                      | ✅      |                                                                           | `toml-sort`                          |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`shell`][bash]                                     | ✅      | [bash-language-server]                                                    | `shfmt`, `shellcheck`                | [bats] [^bats]                                          |                  |                            |                                                                                                                                                |                                                                                      |
+| [`github`](#github)                                 | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`keepSorted`][keep-sorted]                         | ✅      |                                                                           | `keep-sorted`                        |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`gitleaks`][gitleaks]                              | ✅      |                                                                           | `gitleaks`                           |                                                         |                  |                            | `secret-history`                                                                                                                               |                                                                                      |
+| [`typos`][typos]                                    | ✅      |                                                                           | `typos`                              |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`jscpd`][jscpd]                                    | ✅      |                                                                           |                                      | `jscpd`                                                 |                  |                            |                                                                                                                                                |                                                                                      |
+| [`git`](#git)                                       | ✅      | `git`                                                                     |                                      |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`direnv`](#direnv)                                 | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`vscode`](#vscode-and-neovim)                      | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`neovim`](#vscode-and-neovim)                      | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`flakehub`][flakehub]                              | ✅      | [`fh`]                                                                    |                                      |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`quarto`](#quarto)                                 |         | `quarto`                                                                  |                                      |                                                         | `site`           |                            | `build-site`, `preview`, `dev-preview`                                                                                                         | `preview`                                                                            |
+| [`quarto-website-brand`](#brand) (enables `quarto`) |         |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`cloudflare`](#cloudflare)                         |         | `wrangler`                                                                |                                      | `cloudflare` (OpenTofu validation)                      |                  | `deploy`[^deploy]          | `terraform`, `deploy`                                                                                                                          |                                                                                      |
+| [`r`](#r)                                           |         | R, radian, Air; languageserver, `pkgload`, pak, httpgd, later, rstudioapi | `air`, `jarl`                        | `r-testthat`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `r-document`, `r-test`, `r-check`, `r-pkgdown`, `r-pkgdown-preview`, `r-coverage`, `r-lock`, `shiny` (opt-in); `dev-<tree>`                    | `r-document`, `r-test`, `r-check`, `r-pkgdown`, `r-pkg`; `shiny`, `r-shiny` (opt-in) |
+| [`r-non-nix`](#r-non-nix) (enables `r`)             |         |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
+| [`r-brand`](#brand) (enables `r`)                   |         |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                |                                                                                      |
 
 ## Your flake outputs
 
@@ -322,10 +322,17 @@ Set `skip = true` on custom tasks that should not run as part of `tasks all`.
 The pinned [up] runner does not forward optional arguments; invoke the listed
 task as a shell command for those, e.g. `preview --port 4200` or `check r-cmd-check`.
 
-#### Task order
+#### Workflows: one command and graph
+
+`nullkomma.tasks` is the workflow definition, not a second build recipe.
+Language plugins declare their defaults next to their implementation:
+R documentation, tests and pkgdown in `modules/lang/r/workflow.nix`,
+R CMD check in `modules/lang/r/checks.nix`, Shiny in `modules/lang/r/shiny.nix`,
+and Quarto in `modules/lang/quarto/quarto.nix`.
+Enabling the plugin supplies those tasks and processes; `tasks` lists them.
 
 A task's `after` lists tasks whose steps run first, transitively and once each,
-wherever it runs: as a command, through `tasks`, in `watch-<task>` and in process trees.
+wherever it runs: as a command, through `tasks`, in builds, in `watch-<task>` and in process trees.
 For example, `r-pkgdown`, `r-test`, `r-check`, `r-coverage` and `shiny` run after `r-document` (roxygen2),
 so each always sees a current `NAMESPACE` and `man/`, through the same command you'd run by hand.
 Outside process trees, steps run one after another and stop at the first failure.
@@ -334,10 +341,28 @@ Outside process trees, steps run one after another and stop at the first failure
 perSystem.nullkomma.tasks.report = {
   description = "Render the report";
   after = [ "r-document" ];
-  command = "quarto render report.qmd";
-  watch.paths = [ "report.qmd" ]; # adds `watch-report`
+  working_dir = ""; # checkout root, or the same root in the sandbox
+  packages = [ pkgs.quarto ];
+  command = ''
+    quarto render report.qmd --output-dir "''${NULLKOMMA_OUTPUT:-report}"
+  '';
+  output = "report"; # adds packages.report; omit for development-only tasks
+  watch.paths = [ "report.qmd" ]; # adds watch-report and dev-report
 };
 ```
+
+This adds `report`, `tasks report`, `watch-report`, `dev-report` and `nix build .#report`
+from one definition. Builds run the same executable and DAG on a writable `nullkomma.src`,
+with `NULLKOMMA_ROOT` pointing to that copy and `NULLKOMMA_OUTPUT` to the Nix output.
+`working_dir` is relative to that root; if omitted, tasks keep the caller's directory.
+`sandboxArgs` explicitly selects any necessary build-only behavior: R tests use
+`--installed` in the sandbox, versus pkgload locally. There is no separate build command.
+
+Extend defaults using ordinary flake-parts merging: add a task, append `after` prerequisites,
+or use `lib.mkBefore`/`lib.mkAfter` for extra command lines and `lib.mkForce` to replace a command.
+Builds, checks and processes then use the changed task too.
+`before` is also supported. Up schedules the runner; nullkomma expands transitive prerequisites
+because the pinned runner otherwise runs only direct prerequisites for a named task.
 
 #### Keeping generated files current
 
@@ -351,7 +376,13 @@ Tasks and process trees don't regenerate those files.
 `watch-<task>` runs the task with its `after` steps whenever any of their inputs change
 ([watchexec], which skips Git-ignored files), until you stop it.
 
-Process trees, `perSystem.nullkomma.processTrees.<tree>`, keep several tasks current
+Every watched task automatically supplies a process tree containing its dependency graph.
+For services with their own reloading, set `process = { };` without adding an outer watch:
+Quarto's `dev-preview` uses Quarto's own watcher.
+`process` also accepts native [up] process settings such as `readiness_probe` and `shutdown`;
+the workflow owns `command` and merges its dependency edges into `depends_on`.
+
+Additional groups, `perSystem.nullkomma.processTrees.<tree>`, keep several tasks current
 in the background, as [process-compose] processes; `dev-<tree>` (also `nix run .#processTrees.<system>.<tree>`)
 starts them with a dashboard showing which currently fail:
 
@@ -364,8 +395,8 @@ perSystem.nullkomma.processTrees.docs = {
 
 - Tasks run in `after` order, independent ones in parallel.
 - Each runs again when its `watch.paths` change, or when a task it runs after succeeds again.
-- A failing task doesn't stop the tree: its dependents keep their last good state,
-  and run again once it's fixed.
+- A failing task doesn't stop the tree. Only successful reruns notify dependents,
+  so running dependents keep their last good state until it's fixed.
 - Steps that write files (e.g. roxygen2) run once per tree, for every process that needs them;
   state of a single R session (e.g. pkgload in `shiny`) stays in that process.
 - Successes are recorded as Git-ignored stamps in `.nullkomma/processes/<tree>/`,
@@ -373,7 +404,6 @@ perSystem.nullkomma.processTrees.docs = {
 
 Trees don't start with the dev shell ([#217](https://github.com/dataheld/nullkomma/issues/217));
 run `dev-<tree>` in a spare terminal.
-Quarto has no tree: `preview` already re-renders on changes.
 
 ## Files in your repository
 
@@ -706,13 +736,13 @@ Nullkomma always provides **two self-documenting entrypoints**:
    In addition, `tasks` include important development-only workflows,
    especially previews.
 
-As much as possible, the flake outputs and `tasks` reuse implementation,
-to make interactive development work in the `devShell` as close as possible to the flake outputs.
-Exceptions include:
+R and Quarto artifact builds use the task's command and dependency graph,
+not independently maintained copies. Intentional execution-context differences are:
 
 - Tasks run tools directly on the working tree, rather than recursively invoking Nix builds for speed and simplicity.
 - Tasks run on the *uncommitted* working tree for faster turnaround.
-- (Sandboxed checks still use the flake's source.)
+- Sandboxed builds and checks use `nullkomma.src`, a writable copy of the flake's source with Nix-generated files.
+- R tests use pkgload locally and install the package in the sandbox; Shiny's published app also uses an installed package without development dependencies.
 
 The non-Nix R compatibility layer necessarily documents its own bootstrap.
 
