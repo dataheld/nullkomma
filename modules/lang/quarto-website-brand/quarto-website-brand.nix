@@ -54,11 +54,13 @@
                     theme.light = [
                       "default"
                       "brand"
+                      "_extensions/nullkomma-brand/mermaid.scss"
                     ];
                     theme.dark = [
                       "default"
                       "brand"
                       "_extensions/nullkomma-brand/dark.scss"
+                      "_extensions/nullkomma-brand/mermaid.scss"
                     ];
                     respect-user-color-scheme = true;
                   };

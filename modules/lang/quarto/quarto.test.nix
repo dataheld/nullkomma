@@ -98,6 +98,7 @@
               inherit (files."_extensions/greeting") mode directory;
               source = builtins.pathExists (files."_extensions/greeting".source + "/greeting.lua");
             };
+            mermaid = builtins.pathExists (files."_extensions/nullkomma-brand".source + "/mermaid.scss");
             privacy = {
               inherit (privacy) mode commentPrefix commentSuffix;
               startsWithFrontMatter = lib.hasPrefix "\n---\ntitle: \"Privacy Policy\"\nsidebar: false\n---\n" privacy.text;
@@ -110,6 +111,7 @@
               ]
             ) (lib.splitString "\n" files.".gitignore".text);
             plainQuarto = (perSystem fixtures.quarto).nullkomma.files ? "privacy.qmd";
+            plainQuartoBrand = (perSystem fixtures.quarto).nullkomma.files ? "_extensions/nullkomma-brand";
           };
           expected = {
             extension = {
@@ -117,6 +119,7 @@
               directory = true;
               source = true;
             };
+            mermaid = true;
             privacy = {
               mode = "generated";
               commentPrefix = "<!--";
@@ -128,6 +131,7 @@
               "/privacy.qmd"
             ];
             plainQuarto = false;
+            plainQuartoBrand = false;
           };
         };
       checks = {
@@ -164,7 +168,7 @@
               }
               python - ${fixtures.quarto-branded.packages.${system}.site} ${
                 englishCloudflare.packages.${system}.site
-              } ${nkdocs.packages.${system}.site} <<'PY'
+              } ${nkdocs.packages.${system}.site} ${themed.packages.${system}.site} <<'PY'
               from html.parser import HTMLParser
               from pathlib import Path
               import sys
@@ -173,13 +177,45 @@
                   def handle_data(self, data):
                       self.text.append(data)
 
+              class Stylesheets(HTMLParser):
+                  def __init__(self, html):
+                      super().__init__()
+                      self.themes = {}
+                      self.feed(html)
+
+                  def handle_starttag(self, tag, attrs):
+                      attrs = dict(attrs)
+                      if tag == "link" and attrs.get("id") == "quarto-bootstrap":
+                          self.themes[attrs["class"]] = attrs["href"]
+
               def text(path):
                   document = Document()
                   document.text = []
                   document.feed(Path(path).read_text())
                   return " ".join("".join(document.text).split())
 
-              branded, english, nkdocs = sys.argv[1:]
+              branded, english, nkdocs, themed = sys.argv[1:]
+              mappings = {
+                  "--mermaid-edge-color": "--bs-secondary-color",
+                  "--mermaid-label-fg-color": "--bs-body-color",
+                  "--mermaid-node-bg-color": "--bs-primary-bg-subtle",
+                  "--mermaid-fg-color--lightest": "--bs-tertiary-bg",
+                  "--mermaid-fg-color--lighter": "--bs-border-color",
+              }
+              for site, primary in [(branded, "#6f42c1"), (themed, "#123456")]:
+                  html = Path(f"{site}/index.html").read_text()
+                  assert "Related steps" in html and "mermaid" in html
+                  assert 'name="mermaid-theme"' not in html
+                  assert 'name="mermaid-theme" content="forest"' in Path(f"{site}/forest.html").read_text()
+                  themes = Stylesheets(html).themes
+                  assert len(themes) == 2, themes
+                  for mode in ["quarto-color-scheme", "quarto-color-scheme quarto-color-alternate"]:
+                      css = Path(site, themes[mode]).read_text()
+                      assert f"--bs-primary: {primary}" in css, primary
+                      for mermaid, bootstrap in mappings.items():
+                          assert f"{mermaid}: var({bootstrap})" in css, (mode, mermaid)
+                      assert 'html:not(:has(meta[name=mermaid-theme])) svg.mermaid-js .labelBkg' in css
+                      assert 'html:not(:has(meta[name=mermaid-theme])) svg.mermaid-js .edgeLabel p' in css
               left, right = Path(f"{branded}/index.html").read_text().split('<div class="nav-footer-right">')
               assert "Shared fixture footer" in left
               assert "Imprint" not in left
