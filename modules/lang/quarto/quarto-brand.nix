@@ -1,7 +1,12 @@
-# Applies `nullkomma.brand` to any Quarto project through `_nullkomma-brand.yml`
-# metadata, which projects list in `metadata-files`.
+# Applies `nullkomma.brand` to any `quarto` project through `_nullkomma-brand.yml`
+# metadata, which projects list in `metadata-files`. Layered on `quarto`, whose
+# options it reads; `quarto` itself knows no brand.
+{ config, ... }:
+let
+  quartoModule = config.flake.flakeModules.quarto;
+in
 {
-  plugins.quarto =
+  plugins.quarto-brand =
     {
       config,
       lib,
@@ -10,12 +15,19 @@
     }:
     let
       cfg = config.nullkomma.quarto;
-      inherit (config.nullkomma) brand privacy;
+      inherit (config.nullkomma) privacy;
+      brand =
+        if config.nullkomma.brand == null then
+          throw "nullkomma.quarto-brand needs nullkomma.brand"
+        else
+          config.nullkomma.brand;
       prefix = import ../../../lib/prefix.nix lib self cfg.root;
     in
     {
-      config = lib.mkIf cfg.enable {
-        nullkomma.quarto.extensions.nullkomma-brand = lib.mkIf (brand != null) ./_nullkomma-brand;
+      imports = [ quartoModule ];
+      config = lib.mkIf config.nullkomma.quarto-brand.enable {
+        nullkomma.quarto.enable = true;
+        nullkomma.quarto.extensions.nullkomma-brand = ./_nullkomma-brand;
         perSystem =
           { config, pkgs, ... }:
           let
@@ -25,7 +37,7 @@
             };
             siteBrand = import ../../../lib/brand.nix {
               inherit pkgs lib brand;
-              metadata = lib.optionalAttrs (brand != null) {
+              metadata = {
                 website.navbar.background = "primary";
                 format.html = {
                   theme.light = [
@@ -54,8 +66,6 @@
                 commentPrefix = "#";
                 source = "${siteBrand}/quarto.yml";
               };
-            }
-            // lib.optionalAttrs (brand != null) {
               "${prefix}_brand" = {
                 mode = "generated";
                 directory = true;

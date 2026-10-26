@@ -7,10 +7,9 @@
   outputs =
     inputs:
     inputs.nullkomma.lib.mkFlake { inherit inputs; } {
-      nullkomma.quarto = {
-        enable = true;
-        extensions.greeting = ./_greeting;
-      };
+      nullkomma.brand.lib.brand = ../site-brand/brand.yml;
+      nullkomma.quarto-brand.enable = true;
+      nullkomma.quarto.extensions.greeting = ./_greeting;
       nullkomma.lint.markdown.MD041 = false;
       nullkomma.privacy.sections.local.markdown = {
         en = ./_privacy/local.en.md;

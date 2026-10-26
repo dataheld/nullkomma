@@ -93,29 +93,30 @@ Each plugin is one of nullkomma's `flakeModules.<name>`; each column is an outpu
 All plugins are optional; those marked under Default are enabled unless you opt out.
 Files and editor settings that plugins write into your repository are under [Plugin details](#plugin-details).
 
-| Plugin                                  | Default | `devShells`                              | `formatter`[^treefmt]                | `checks`                                                | `packages`       | `apps`[^apps]              | `taskRunners`                                                                            |
-| --------------------------------------- | ------- | ---------------------------------------- | ------------------------------------ | ------------------------------------------------------- | ---------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
-| framework                               | always  | every task, `tasks` runner               | [treefmt]                            | `treefmt`                                               |                  |                            | `check` (when checks exist), `format`, `write-files`, `generate-files`                   |
-| [`nix`](#nix)                           | ✅      | [nixd]                                   | `nixfmt`, `deadnix`, `nixf-diagnose` | [`nix-unit`](#tests)                                    |                  |                            | `update`, [`flake-checker`] [^flake-checker]                                             |
-| [`markdown`][md]                        | ✅      | [marksman]                               | `mdformat`, `rumdl`                  |                                                         |                  |                            |                                                                                          |
-| [`json`][json]                          | ✅      | [JSON language server][jsonls]           | `jsonfmt`                            |                                                         |                  |                            |                                                                                          |
-| [`yaml`][yaml]                          | ✅      | [yaml-language-server]                   | `yamlfmt`, `yamllint`, `actionlint`  |                                                         |                  |                            |                                                                                          |
-| [`toml`][toml]                          | ✅      |                                          | `toml-sort`                          |                                                         |                  |                            |                                                                                          |
-| [`shell`][bash]                         | ✅      | [bash-language-server]                   | `shfmt`, `shellcheck`                | [bats] [^bats]                                          |                  |                            |                                                                                          |
-| [`github`](#github)                     | ✅      |                                          |                                      |                                                         |                  |                            |                                                                                          |
-| [`keepSorted`][keep-sorted]             | ✅      |                                          | `keep-sorted`                        |                                                         |                  |                            |                                                                                          |
-| [`gitleaks`][gitleaks]                  | ✅      |                                          | `gitleaks`                           |                                                         |                  |                            | `secret-history`                                                                         |
-| [`typos`][typos]                        | ✅      |                                          | `typos`                              |                                                         |                  |                            |                                                                                          |
-| [`jscpd`][jscpd]                        | ✅      |                                          |                                      | `jscpd`                                                 |                  |                            |                                                                                          |
-| [`git`](#git)                           | ✅      | `git`                                    |                                      |                                                         |                  |                            |                                                                                          |
-| [`direnv`](#direnv)                     | ✅      |                                          |                                      |                                                         |                  |                            |                                                                                          |
-| [`vscode`](#vscode-and-neovim)          | ✅      |                                          |                                      |                                                         |                  |                            |                                                                                          |
-| [`neovim`](#vscode-and-neovim)          | ✅      |                                          |                                      |                                                         |                  |                            |                                                                                          |
-| [`flakehub`][flakehub]                  | ✅      | [`fh`]                                   |                                      |                                                         |                  |                            |                                                                                          |
-| [`quarto`](#quarto)                     |         | `quarto`                                 |                                      |                                                         | `site`           |                            | `build-site`, `preview`                                                                  |
-| [`cloudflare`](#cloudflare)             |         | `wrangler`                               |                                      | `cloudflare` (OpenTofu validation)                      |                  | `deploy`[^deploy]          | `terraform`, `deploy`                                                                    |
-| [`r`](#r)                               |         | R with languageserver, `pkgload` and pak | `air`, `jarl`                        | `r-testthat`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `r-document`, `r-pkgdown`, `r-pkgdown-preview`, `r-coverage`, `r-lock`, `shiny` (opt-in) |
-| [`r-non-nix`](#r-non-nix) (enables `r`) |         |                                          |                                      |                                                         |                  |                            |                                                                                          |
+| Plugin                                      | Default | `devShells`                              | `formatter`[^treefmt]                | `checks`                                                | `packages`       | `apps`[^apps]              | `taskRunners`                                                                            |
+| ------------------------------------------- | ------- | ---------------------------------------- | ------------------------------------ | ------------------------------------------------------- | ---------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
+| framework                                   | always  | every task, `tasks` runner               | [treefmt]                            | `treefmt`                                               |                  |                            | `check` (when checks exist), `format`, `write-files`, `generate-files`                   |
+| [`nix`](#nix)                               | ✅      | [nixd]                                   | `nixfmt`, `deadnix`, `nixf-diagnose` | [`nix-unit`](#tests)                                    |                  |                            | `update`, [`flake-checker`] [^flake-checker]                                             |
+| [`markdown`][md]                            | ✅      | [marksman]                               | `mdformat`, `rumdl`                  |                                                         |                  |                            |                                                                                          |
+| [`json`][json]                              | ✅      | [JSON language server][jsonls]           | `jsonfmt`                            |                                                         |                  |                            |                                                                                          |
+| [`yaml`][yaml]                              | ✅      | [yaml-language-server]                   | `yamlfmt`, `yamllint`, `actionlint`  |                                                         |                  |                            |                                                                                          |
+| [`toml`][toml]                              | ✅      |                                          | `toml-sort`                          |                                                         |                  |                            |                                                                                          |
+| [`shell`][bash]                             | ✅      | [bash-language-server]                   | `shfmt`, `shellcheck`                | [bats] [^bats]                                          |                  |                            |                                                                                          |
+| [`github`](#github)                         | ✅      |                                          |                                      |                                                         |                  |                            |                                                                                          |
+| [`keepSorted`][keep-sorted]                 | ✅      |                                          | `keep-sorted`                        |                                                         |                  |                            |                                                                                          |
+| [`gitleaks`][gitleaks]                      | ✅      |                                          | `gitleaks`                           |                                                         |                  |                            | `secret-history`                                                                         |
+| [`typos`][typos]                            | ✅      |                                          | `typos`                              |                                                         |                  |                            |                                                                                          |
+| [`jscpd`][jscpd]                            | ✅      |                                          |                                      | `jscpd`                                                 |                  |                            |                                                                                          |
+| [`git`](#git)                               | ✅      | `git`                                    |                                      |                                                         |                  |                            |                                                                                          |
+| [`direnv`](#direnv)                         | ✅      |                                          |                                      |                                                         |                  |                            |                                                                                          |
+| [`vscode`](#vscode-and-neovim)              | ✅      |                                          |                                      |                                                         |                  |                            |                                                                                          |
+| [`neovim`](#vscode-and-neovim)              | ✅      |                                          |                                      |                                                         |                  |                            |                                                                                          |
+| [`flakehub`][flakehub]                      | ✅      | [`fh`]                                   |                                      |                                                         |                  |                            |                                                                                          |
+| [`quarto`](#quarto)                         |         | `quarto`                                 |                                      |                                                         | `site`           |                            | `build-site`, `preview`                                                                  |
+| [`quarto-brand`](#brand) (enables `quarto`) |         |                                          |                                      |                                                         |                  |                            |                                                                                          |
+| [`cloudflare`](#cloudflare)                 |         | `wrangler`                               |                                      | `cloudflare` (OpenTofu validation)                      |                  | `deploy`[^deploy]          | `terraform`, `deploy`                                                                    |
+| [`r`](#r)                                   |         | R with languageserver, `pkgload` and pak | `air`, `jarl`                        | `r-testthat`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `r-document`, `r-pkgdown`, `r-pkgdown-preview`, `r-coverage`, `r-lock`, `shiny` (opt-in) |
+| [`r-non-nix`](#r-non-nix) (enables `r`)     |         |                                          |                                      |                                                         |                  |                            |                                                                                          |
 
 ## Your flake outputs
 
@@ -230,7 +231,9 @@ nullkomma.brand = inputs.brand;
 ```
 
 Brand owns the declarations; nullkomma owns their translation and placement.
-Both quarto and R pkgdown websites implement brand inputs.
+R pkgdown applies it directly; Quarto sites enable the companion `quarto-brand` plugin
+(`nullkomma.quarto-brand.enable = true`, which enables `quarto`) and list its generated
+`_nullkomma-brand.yml` in `metadata-files`.
 
 An optional `defaults.nullkomma.footer` record supplies footer facts to both builders:
 
@@ -417,8 +420,6 @@ native project type in your `_quarto.yml`:
 ```yaml
 project:
   type: nullkomma-docs
-metadata-files:
-  - _nullkomma-brand.yml # optional, see below
 website:
   title: My project
   repo-url: https://github.com/example/project
@@ -428,8 +429,8 @@ The docs type only switches on stock Quarto features and knows nothing of brands
 configure everything else in `_quarto.yml` as usual,
 e.g. add pages to `website.sidebar.contents`. Set `repo-url` for repository actions.
 
-Any Quarto project, docs or not, applies a [brand](#brand) by listing generated
-`_nullkomma-brand.yml` in `metadata-files`: branded light/dark themes and the footer,
+[`quarto-brand`](#brand) styles any Quarto project, docs or not, through generated
+`_nullkomma-brand.yml`: branded light/dark themes and the footer,
 on the standard Quarto theme rather than a separate Bootswatch theme.
 
 All generated paths are relative to `nullkomma.quarto.root`, including nested docs
@@ -672,7 +673,8 @@ rules through `nullkomma.lint.markdown`, which `markdown` hands to rumdl; neithe
 knows about the other.
 
 A companion plugin may import and enable its base plugin and reuse its options:
-`r-non-nix` depends on `r`, but `r` does not depend on the compatibility layer.
+`r-non-nix` depends on `r` and `quarto-brand` on `quarto`, but neither base plugin
+depends on its companion.
 
 Because plugins only meet through framework options, one could live in its own flake,
 e.g. a `nullkomma-r` exporting `flakeModules.r` against `flakeModules.framework`,
@@ -688,7 +690,7 @@ projects' `flake.lock`.
 ### Documentation website
 
 nullkomma's own website is this README, built as a [`quarto`](#quarto) `nullkomma-docs`
-site into [`packages.site`](#site) with [Max Held's](https://www.maxheld.de) [brand](#brand) and
+site into [`packages.site`](#site) styled by [`quarto-brand`](#brand) with [Max Held's](https://www.maxheld.de) brand and
 [privacy policy](#privacy-policy). `tasks` lists how to preview and check it.
 
 ### Testing nullkomma

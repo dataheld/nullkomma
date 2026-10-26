@@ -20,7 +20,7 @@
           ci.inputs.visibility = "public";
         };
         gitignore = [ ".claude/" ];
-        quarto.enable = true;
+        quarto-brand.enable = true;
         lint.markdown = {
           MD013 = false;
           MD028 = false;
