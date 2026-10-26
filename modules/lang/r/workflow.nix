@@ -205,14 +205,7 @@
                   command = "Rscript --vanilla -e 'roxygen2::roxygenise(roclets = \"namespace\")'";
                   watch = {
                     paths = [ "." ];
-                    outputs = map (path: "/${prefix}${path}") [
-                      "NAMESPACE"
-                      "src/*.o"
-                      "src/*.so"
-                      "src/*.dll"
-                      "src/symbols.rds"
-                      "coverage.xml"
-                    ];
+                    outputs = [ "/${prefix}NAMESPACE" ];
                   };
                 };
                 r-document = {

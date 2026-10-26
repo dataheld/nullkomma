@@ -236,6 +236,7 @@
             {
               namespace = tasks.r-namespace.after;
               namespaceOnly = lib.hasInfix ''roxygen2::roxygenise(roclets = "namespace")'' tasks.r-namespace.command;
+              namespaceOutputs = tasks.r-namespace.watch.outputs;
               document = tasks.r-document.after;
               documentRoclets = lib.hasInfix ''setdiff(roxygen2::load_options()[["roclets"]], "namespace")'' tasks.r-document.command;
               test = tasks.r-test.after;
@@ -246,6 +247,7 @@
           expected = {
             namespace = [ ];
             namespaceOnly = true;
+            namespaceOutputs = [ "/NAMESPACE" ];
             document = [ "r-namespace" ];
             documentRoclets = true;
             test = [ "r-namespace" ];
