@@ -32,8 +32,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    with:
-      visibility: "public"
   deploy:
     needs: nullkomma
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !github.event.repository.fork }}

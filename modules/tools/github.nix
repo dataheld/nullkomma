@@ -9,7 +9,6 @@
         name:
         "${cfg.workflows.source}/${name}.yml"
         + lib.optionalString (cfg.workflows.ref != null) "@${cfg.workflows.ref}";
-      scalar = v: if lib.isBool v then lib.boolToString v else builtins.toJSON v;
       ci = ''
         name: CI
         on:
@@ -29,10 +28,6 @@
       + lib.optionalString (cfg.ci.secrets != [ ]) (
         "    secrets:\n"
         + lib.concatMapStrings (s: "      ${s}: \${{ secrets.${s} }}\n") (lib.unique cfg.ci.secrets)
-      )
-      + lib.optionalString (cfg.ci.inputs != { }) (
-        "    with:\n"
-        + lib.concatStrings (lib.mapAttrsToList (k: v: "      ${k}: ${scalar v}\n") cfg.ci.inputs)
       );
     in
     {
@@ -50,20 +45,6 @@
           };
         };
         ci = {
-          inputs = lib.mkOption {
-            type = lib.types.attrsOf (
-              lib.types.oneOf [
-                lib.types.bool
-                lib.types.int
-                lib.types.str
-              ]
-            );
-            default = { };
-            example = {
-              visibility = "public";
-            };
-            description = "Inputs of the reusable `ci.yml` (`visibility` publishes to FlakeHub).";
-          };
           secrets = lib.mkOption {
             type = lib.types.listOf lib.types.str;
             default = [ ];

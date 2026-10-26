@@ -34,7 +34,7 @@
           options.nullkomma.r.packages = lib.mkOption {
             type = lib.types.listOf lib.types.str;
             readOnly = true;
-            description = "Names of the R packages in `nullkomma.r.package`: those of the lockfile and `nullkomma.r.extraPackages`, pak and languageserver.";
+            description = "Names of the R packages in `nullkomma.r.package`: those of the lockfile and `nullkomma.r.extraPackages`, pak, pkgload, languageserver, httpgd, later and rstudioapi.";
           };
           options.nullkomma.r.buildInputs = lib.mkOption {
             type = lib.types.attrsOf (lib.types.listOf lib.types.package);
@@ -45,7 +45,7 @@
           options.nullkomma.r.package = lib.mkOption {
             type = lib.types.package;
             readOnly = true;
-            description = "R with every package of `nullkomma.r.packages`, and the locale, testthat and browser environment of nullkomma's R workflows.";
+            description = "R, Rscript and radian with every package of `nullkomma.r.packages`, and the locale, testthat and browser environment of nullkomma's R workflows.";
           };
         }
       );
@@ -67,6 +67,42 @@
           '';
           pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
           base = pkgsR.rPackages;
+          # Backport nixpkgs' current console fixes without changing the project's R.
+          python = pkgsR.python3Packages.overrideScope (
+            _: prev: {
+              rchitect =
+                if lib.versionAtLeast prev.rchitect.version "0.5.2" then
+                  prev.rchitect
+                else
+                  (prev.rchitect.override { R = pkgsR.R; }).overridePythonAttrs {
+                    version = "0.5.2";
+                    src = pkgsR.fetchFromGitHub {
+                      owner = "randy3k";
+                      repo = "rchitect";
+                      tag = "v0.5.2";
+                      hash = "sha256-/p77OoEJWc7aME7itWkwZAHJW7sNEB1iAUwvbCis//U=";
+                    };
+                  };
+            }
+          );
+          radian =
+            (pkgsR.radian.override {
+              R = pkgsR.R;
+              python3Packages = python;
+            }).overridePythonAttrs
+              (
+                old:
+                lib.optionalAttrs (lib.versionOlder old.version "0.7.1") {
+                  version = "0.7.1";
+                  src = pkgsR.fetchFromGitHub {
+                    owner = "randy3k";
+                    repo = "radian";
+                    tag = "v0.7.1";
+                    hash = "sha256-M7NyL0arkM9VNnOf65Dt3ITWCmiwmXWwLGXc0/Td+iw=";
+                  };
+                  checkInputs = (old.checkInputs or [ ]) ++ [ pkgsR.rPackages.renv ];
+                }
+              );
 
           lock =
             if !builtins.pathExists (cfg.root + "/DESCRIPTION") then
@@ -151,19 +187,27 @@
               ++ lib.attrNames lock.sources
               ++ cfg.extraPackages
               ++ [
+                "httpgd"
                 "languageserver"
+                "later"
                 "pak"
                 "pkgload"
+                "rstudioapi"
               ]
             );
             package = pkgs.symlinkJoin {
               name = "R-nullkomma";
               inherit (pkgsR.R) version;
-              paths = [ (pkgsR.rWrapper.override { packages = map lookup pcfg.packages; }) ];
+              paths = [
+                pkgsR.R
+                radian
+              ];
+              # R's setup hook resolves the same transitive libraries as rWrapper.
+              buildInputs = [ pkgsR.R ] ++ pkgsR.rWrapper.recommendedPackages ++ map lookup pcfg.packages;
               nativeBuildInputs = [ pkgs.makeWrapper ];
               postBuild = ''
-                for bin in R Rscript; do
-                  wrapProgram "$out/bin/$bin" ${
+                for bin in R Rscript radian; do
+                  wrapProgram "$out/bin/$bin" --prefix R_LIBS_SITE : "$R_LIBS_SITE" ${
                     lib.escapeShellArgs (
                       lib.optionals pkgs.stdenv.isLinux [
                         "--set"
