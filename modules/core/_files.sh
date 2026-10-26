@@ -53,6 +53,8 @@ process_file() {
       status=1
       return
     fi
+    # Rewriting unchanged files bumps mtimes, so e.g. `quarto preview` re-renders and opens them.
+    diff -r "$source" "$path" >/dev/null 2>&1 && return
     rm -rf "$path"
     mkdir -p "$(dirname "$path")"
     cp -R "$source" "$path"
@@ -66,6 +68,7 @@ process_file() {
     return
   fi
   if [ "$mode" = generated ]; then
+    cmp -s "$source" "$path" && return
     mkdir -p "$(dirname "$path")"
     cp --remove-destination "$source" "$path"
     chmod u+w "$path"
