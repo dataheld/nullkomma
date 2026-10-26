@@ -542,61 +542,6 @@ and system libraries come with the packages that need them.
 > Add missing system libraries with `perSystem.nullkomma.r.buildInputs.<package>`.
 > GitLab and local references are unsupported; use `git::` for GitLab.
 
-#### Interactive R and editors
-
-Run [radian](https://github.com/randy3k/radian) for an interactive console with
-multiline editing, completion and syntax highlighting.
-It shares R's project packages, locale and browser settings, including a custom `nixpkgs-r`.
-`R` and `Rscript` remain available unchanged for ordinary R and package workflows.
-The configured [Air] executable is also on `PATH` while its treefmt program is enabled;
-`format` and editor formatting still use treefmt, including Jarl.
-
-Open VS Code or Neovim from the activated project environment.
-The generated VS Code settings select project radian for **R: Create R terminal**,
-project R for background processes, bracketed paste and [httpgd](https://github.com/nx10/httpgd) plots.
-The existing recommendations include **R** (`REditorSupport.r`) and **Air** (`Posit.air-vscode`).
-The settings also work with vscode-R 2.x, whose path and plotting setting names
-are retained as compatibility aliases in 3.x.
-Use the extension's managed terminal to connect its session features:
-3.x manages its bundled `sess` helper in an extension-owned writable library;
-2.x supplies a startup profile for managed terminals.
-nullkomma does not copy the obsolete global `~/.vscode-R/init.R` hook.
-
-Installing the editors and VS Code extensions belongs
-in your user environment, e.g. lap; recommendations do not install extensions.
-For Nix-managed editors, use Home Manager rather than an editor's plugin installer:
-`programs.vscode.profiles.default.extensions` installs extensions declaratively.
-Keep reusable settings in Home Manager; only the project-specific paths, language
-server and formatter configuration belong in nullkomma's generated workspace files.
-Do not put a project's R library or store paths in global Home Manager settings:
-different projects can select different `nixpkgs-r` inputs.
-
-For example, in lap or another Home Manager configuration:
-
-```nix
-{ pkgs, ... }:
-{
-  programs.vscode.profiles.default.extensions = [
-    pkgs.vscode-extensions.reditorsupport.r
-  ];
-}
-```
-
-Install **Air** (`Posit.air-vscode`) through the user environment's pinned extension
-source too; lap already supports a pinned Marketplace source for extensions missing
-from Nixpkgs.
-Neovim's existing R language server and treefmt integration work through `.nvim.lua`,
-which requires `exrc`.
-R.nvim integration is deferred in [#222](https://github.com/dataheld/nullkomma/issues/222);
-it is not included and does not justify a Nixpkgs upgrade on its own.
-The dev shell's R, radian and Air do not depend on either editor plugin being enabled,
-or on editors being installed or managed by Nix.
-
-Optional helpers such as devtools, reprex and usethis remain project-selected
-through `Config/Needs/development` or `nullkomma.r.extraPackages`.
-
-Arf is not included; Ark/Oak integration outside Positron is deferred in [#218](https://github.com/dataheld/nullkomma/issues/218).
-
 #### Workflows
 
 `tasks` describes the available workflows and lists the checks.
