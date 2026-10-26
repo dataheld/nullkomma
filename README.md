@@ -47,13 +47,13 @@ In your project, run:
 ```sh
 nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
 git add flake.nix .envrc
-nix develop --command write-files
-nix develop --command generate-files
+nix develop --command nk-write-files
+nix develop --command nk-generate-files
 direnv allow
 ```
 
 The template adds `flake.nix` and an `.envrc` with `use flake`, keeping existing files;
-`write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
+`nk-write-files` and `nk-generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
 From now on, entering the directory loads the [development shell](#devshells);
 the first time takes a while.
 
@@ -62,7 +62,7 @@ To use your own, declare `nixpkgs.url` and set `nullkomma.inputs.nixpkgs.follows
 
 ### Upgrading
 
-Run `update`: it updates `flake.lock`, then runs `write-files` and `generate-files`.
+Run `update`: it updates `flake.lock`, then runs `nk-write-files` and `nk-generate-files`.
 After any other `nix flake update` (e.g. by a bot), run those two yourself.
 After editing `flake.nix`, run `direnv reload`.
 
@@ -94,7 +94,7 @@ Files and editor settings that plugins write into your repository are under [Plu
 
 | Plugin                                      | Default | `devShells`                                                               | `formatter`[^treefmt]                | `checks`                                                | `packages`       | `apps`[^apps]              | `taskRunners`                                                                            |
 | ------------------------------------------- | ------- | ------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------- | ---------------- | -------------------------- | ---------------------------------------------------------------------------------------- |
-| framework                                   | always  | every task, `tasks` runner                                                | [treefmt]                            | `treefmt`                                               |                  |                            | `check` (when checks exist), `format`, `write-files`, `generate-files`                   |
+| framework                                   | always  | every task, `tasks` runner                                                | [treefmt]                            | `treefmt`                                               |                  |                            | `check` (when checks exist), `format`, `nk-write-files`, `nk-generate-files`             |
 | [`nix`](#nix)                               | ✅      | [nixd]                                                                    | `nixfmt`, `deadnix`, `nixf-diagnose` | [`nix-unit`](#tests)                                    |                  |                            | `update`, [`flake-checker`] [^flake-checker]                                             |
 | [`markdown`][md]                            | ✅      | [marksman]                                                                | `mdformat`, `rumdl`                  |                                                         |                  |                            |                                                                                          |
 | [`json`][json]                              | ✅      | [JSON language server][jsonls]                                            | `jsonfmt`                            |                                                         |                  |                            |                                                                                          |
@@ -129,7 +129,7 @@ Headings omit the system, which `perSystem` and commands like `nix build .#site`
 
 The development shell holds:
 
-- every task as a command, taking arguments (e.g. `write-files --accept <path>`);
+- every task as a command, taking arguments (e.g. `nk-write-files --accept <path>`);
 - the `tasks` runner;
 - language servers and the formatter for [editors](#vscode-and-neovim);
 - the plugins' and your `perSystem.nullkomma.devShell.packages`.
@@ -331,35 +331,37 @@ editors need settings). Each is one of two kinds:
 |                             | **Source of truth** (committed, yours to edit) | **Generated from Nix** (Git-ignored, don't edit)           |
 | --------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
 | `nix flake init --template` | `flake.nix`, `.envrc`                          | (not possible)                                             |
-| `write-files`               | `.gitignore`, GitHub workflows                 |                                                            |
-| `generate-files`            |                                                | `.vscode/*.json`, `.nvim.lua`, Quarto brand and extensions |
+| `nk-write-files`            | `.gitignore`, GitHub workflows                 |                                                            |
+| `nk-generate-files`         |                                                | `.vscode/*.json`, `.nvim.lua`, Quarto brand and extensions |
 
 Templates can't take parameters, so anything that depends on your configuration
-comes from `write-files` or `generate-files`.
+comes from `nk-write-files` or `nk-generate-files`.
 
 ### Source-of-truth files
 
-`write-files` writes these once (`nullkomma.files."<path>".mode = "source"`, the default);
+`nk-write-files` writes these once (`nullkomma.files."<path>".mode = "source"`, the default);
 then they are yours to edit and commit.
-When nullkomma later changes a file, `write-files` updates it only if you haven't edited it.
+When nullkomma later changes a file, `nk-write-files` updates it only if you haven't edited it.
 Otherwise it keeps your version, saves an incoming copy in Git's metadata directory and fails,
 printing the copy's path and pointing you to the [resolve-file-conflicts skill](#resolving-conflicts).
-After resolving, `write-files --accept <path>` marks the file as up to date.
+After resolving, `nk-write-files --accept <path>` marks the file as up to date.
 
 A file can instead hold marked `sections` inside your own text (e.g. R's `.Rbuildignore` rules):
-`write-files` replaces only those, wherever you moved them.
+`nk-write-files` replaces only those, wherever you moved them.
 Once nullkomma no longer declares a file (say, you disabled its plugin),
-`write-files` strips its sections, deletes it if unedited, or keeps your edited version and says so.
+`nk-write-files` strips its sections, deletes it if unedited, or keeps your edited version and says so.
 
 ### Generated files
 
-`generate-files` overwrites these (`mode = "generated"`) when they differ from Nix,
+`nk-generate-files` overwrites these (`mode = "generated"`) when they differ from Nix,
 starts them with a "do not edit" comment, and the `git` plugin ignores them.
-Entering the dev shell (with direnv, whenever the flake changes) runs it if the generated files changed;
-tasks such as `preview` don't, so run `generate-files` yourself without a dev shell.
+They follow your Nix configuration, not your working tree:
+entering the dev shell runs `nk-generate-files` if they changed, while tasks such as `preview` never do.
+direnv re-enters when `flake.nix` or `flake.lock` change (say, after `update`);
+if local Nix modules declare files too, add e.g. `watch_dir nix` to your `.envrc`.
 To change one, change the Nix options.
 Directories (`directory = true`) are copied whole, without the comment.
-`generate-files` refuses to overwrite a file tracked by Git,
+`nk-generate-files` refuses to overwrite a file tracked by Git,
 and removes files it generated before that are no longer declared.
 
 ### Resolving conflicts
@@ -521,7 +523,7 @@ and DNS only after successful CI on pushes to `main`, never from PRs or tags.
 
 1. Add `nullkomma.r.enable = true;` to `flake.nix`; for a package in a subdirectory, also `nullkomma.r.root = ./pkg;`.
 1. Run `nix run .#r-lock`: the development shell needs the [`pkg.lock`](#dependencies) it writes.
-1. Run `write-files` and commit the changes; run `generate-files` for editor configuration.
+1. Run `nk-write-files` and commit the changes; run `nk-generate-files` for editor configuration.
 
 #### Dependencies
 
@@ -630,7 +632,7 @@ Everything runs on one locked R version; add a CI matrix if you need Windows or 
 ### `r-non-nix`
 
 For collaborators without Nix, enable `nullkomma.r-non-nix.enable = true` (it enables `r`),
-run `write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
+run `nk-write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
 and the [R development without Nix](https://github.com/dataheld/nullkomma/blob/main/modules/lang/r-non-nix/_assets/development.md) section added to your README.
 These are [source-of-truth files](#source-of-truth-files).
 The startup profile only acts in native R sessions, installing from the same PPM snapshot
@@ -673,7 +675,7 @@ Every output is fed by framework options (in `perSystem`) that plugins fill in, 
 
 Formatting and linting are treefmt's job: plugins add `treefmt.programs`, not their own runner.
 Two more framework options act on your working tree rather than on outputs:
-`nullkomma.files.<path>` (and the top-level `nullkomma.gitignore`), written by `write-files` and `generate-files`;
+`nullkomma.files.<path>` (and the top-level `nullkomma.gitignore`), written by `nk-write-files` and `nk-generate-files`;
 and `nullkomma.editor`, whose language servers join the dev shell and which `vscode` and `neovim` render into files.
 
 Independent plugins do not read each other's options. Values shared between plugins are

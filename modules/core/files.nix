@@ -30,7 +30,7 @@
                     "generated"
                   ];
                   default = "source";
-                  description = "`source`: written by `write-files`, then a committed source of truth, updated only while unedited. `generated`: written from Nix by `generate-files` (also on entering the dev shell), overwritten when changed and Git-ignored.";
+                  description = "`source`: written by `nk-write-files`, then a committed source of truth, updated only while unedited. `generated`: written from Nix by `nk-generate-files` (also on entering the dev shell), overwritten when changed and Git-ignored.";
                 };
                 commentPrefix = lib.mkOption {
                   type = lib.types.nullOr lib.types.str;
@@ -59,7 +59,7 @@
                 initialSource = lib.mkOption {
                   type = lib.types.nullOr lib.types.path;
                   default = null;
-                  description = "Project content `source` is derived from; `write-files` replaces the file while it still matches.";
+                  description = "Project content `source` is derived from; `nk-write-files` replaces the file while it still matches.";
                 };
                 sections = lib.mkOption {
                   type = lib.types.attrsOf lib.types.lines;
@@ -95,7 +95,7 @@
           options.nullkomma.src = lib.mkOption {
             type = lib.types.package;
             readOnly = true;
-            description = "The flake's source with every generated file in place, as after `generate-files`: where sandboxed checks and site builds start.";
+            description = "The flake's source with every generated file in place, as after `nk-generate-files`: where sandboxed checks and site builds start.";
           };
         }
       );
@@ -170,14 +170,14 @@
               '') generated
             )
           );
-          nullkomma.tasks.write-files = task "source";
-          nullkomma.tasks.generate-files = task "generated";
+          nullkomma.tasks.nk-write-files = task "source";
+          nullkomma.tasks.nk-generate-files = task "generated";
           # Generated files follow the Nix configuration, not the working tree: refresh them on
           # entering the dev shell (direnv re-enters when the flake changes), only if they changed.
           nullkomma.devShell.shellHook = lib.mkIf (generated != { }) ''
             if stamp="$(git rev-parse --git-path nullkomma/files/generated-by 2>/dev/null)" &&
-              [ "$(cat "$stamp" 2>/dev/null)" != ${config.nullkomma.tasks.generate-files.package} ]; then
-              ${lib.getExe config.nullkomma.tasks.generate-files.package} && echo ${config.nullkomma.tasks.generate-files.package} > "$stamp"
+              [ "$(cat "$stamp" 2>/dev/null)" != ${config.nullkomma.tasks.nk-generate-files.package} ]; then
+              ${lib.getExe config.nullkomma.tasks.nk-generate-files.package} && echo ${config.nullkomma.tasks.nk-generate-files.package} > "$stamp"
             fi
           '';
         };

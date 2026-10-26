@@ -386,8 +386,8 @@
         r-pkgdown-local = check "r-pkgdown-local" ''
           export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1
           git init -q
-          ${task branded "write-files"}
-          ${task branded "generate-files"}
+          ${task branded "nk-write-files"}
+          ${task branded "nk-generate-files"}
           # Repeated builds must not trip over read-only assets copied from the store.
           ${task branded "r-pkgdown"}
           ${task branded "r-pkgdown"}
@@ -434,7 +434,7 @@
         '';
         r-files = check "r-files" ''
           git init -q
-          ${task fixtures.r "write-files"}
+          ${task fixtures.r "nk-write-files"}
           grep -qxF '^project-only[.]txt$' .Rbuildignore
           mkdir -p nix .github/workflows .vscode .direnv .R/library docs
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
@@ -466,7 +466,7 @@
           mv project nested/r
           cd nested
           git init -q
-          ${task nested "write-files"}
+          ${task nested "nk-write-files"}
           grep -qxF '^project-only[.]txt$' r/.Rbuildignore
           ${runCheck nested "r-testthat"}
           ${runCheck nested "r-cmd-check"}

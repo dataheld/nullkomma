@@ -10,7 +10,7 @@ declared=()
 if [ "$mode" = source ] && [ "${1:-}" = --accept ] && [ "$#" = 2 ]; then
   accept="$2"
 elif [ "$#" != 0 ]; then
-  echo "Usage: write-files [--accept <path>] (after resolving a conflict); generate-files takes no arguments" >&2
+  echo "Usage: nk-write-files [--accept <path>] (after resolving a conflict); nk-generate-files takes no arguments" >&2
   exit 1
 fi
 

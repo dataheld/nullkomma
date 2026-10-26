@@ -10,5 +10,5 @@ Plugins never read each other's options or import each other (README's
 **Design**); shared values are framework options any plugin may set or read.
 
 Templates only select plugins and options; files that depend on configuration
-come from `write-files` or `generate-files`. Never overwrite an edited
+come from `nk-write-files` or `nk-generate-files`. Never overwrite an edited
 source-of-truth file; use the resolve-file-conflicts skill.
