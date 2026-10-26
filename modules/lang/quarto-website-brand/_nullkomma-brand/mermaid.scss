@@ -1,0 +1,16 @@
+/*-- scss:defaults --*/
+// Resolve colors in the active Bootstrap mode, not at Sass compile time.
+$mermaid-edge-color: var(--bs-secondary-color);
+$mermaid-label-fg-color: var(--bs-body-color);
+$mermaid-node-bg-color: var(--bs-primary-bg-subtle);
+$mermaid-fg-color--lightest: var(--bs-tertiary-bg);
+$mermaid-fg-color--lighter: var(--bs-border-color);
+
+/*-- scss:rules --*/
+// Quarto's embedded CSS misses Mermaid 11's edge-label backgrounds.
+html:not(:has(meta[name="mermaid-theme"])) svg.mermaid-js {
+  .labelBkg,
+  .edgeLabel p {
+    background-color: var(--mermaid-label-bg-color) !important;
+  }
+}

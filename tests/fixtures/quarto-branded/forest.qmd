@@ -1,0 +1,12 @@
+---
+title: Explicit Mermaid theme
+format:
+  html:
+    mermaid:
+      theme: forest
+---
+
+```{mermaid}
+flowchart LR
+  A[First step] -->|Next| B[Second step]
+```

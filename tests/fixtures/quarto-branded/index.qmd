@@ -3,3 +3,11 @@ title: Branded home
 ---
 
 {{< greeting >}}
+
+```{mermaid}
+flowchart LR
+  subgraph group[Related steps]
+    A[First step] -->|Next| B[Second step]
+  end
+  B --> C[Result]
+```
