@@ -442,6 +442,9 @@ e.g. add pages to `website.sidebar.contents`. Set `repo-url` for repository acti
 [`quarto-website-brand`](#brand) styles Quarto websites, nkdocs or plain `website`, through generated
 `_nullkomma-brand.yml`: branded light/dark themes, navbar, footer and privacy link,
 on the standard Quarto theme rather than a separate Bootswatch theme.
+Mermaid diagrams automatically use the brand's Bootstrap colors in both modes,
+with distinct subgraph backgrounds and readable labels. Explicit Mermaid themes
+(e.g. `format.html.mermaid.theme: forest`) keep their own colors.
 
 All generated paths are relative to `nullkomma.quarto.root`, including nested docs
 directories; they are the same files `packages.site` builds with.

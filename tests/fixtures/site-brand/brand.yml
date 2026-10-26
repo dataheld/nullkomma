@@ -5,7 +5,7 @@ meta:
     imprint: https://example.org/imprint
     email: mailto:hello@example.org
 color:
-  primary: "#123456"
+  primary: "#6f42c1"
 defaults:
   nullkomma:
     footer:
