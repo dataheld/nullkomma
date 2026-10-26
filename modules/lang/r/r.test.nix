@@ -430,6 +430,15 @@
             '';
         r-pkgdown-legal = legalcheck "r-pkgdown-legal" published.packages.${system}.site;
         r-declarative-brand = linkcheck "r-declarative-brand" declarativeBrand.packages.${system}.site;
+        r-pkgdown-config = check "r-pkgdown-config" ''
+          Rscript --vanilla - <<'RS'
+          .libPaths(c(${
+            lib.concatMapStrings (library: ''"${library}", '') (perSystem branded).nullkomma.r.pkgdown.libraries
+          }.libPaths()))
+          override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON branded.debug.config.nullkomma.r.pkgdown.config)}, simplifyVector = FALSE)
+          testthat::expect_no_condition(pkgdown::as_pkgdown(override = override))
+          RS
+        '';
         r-pkgdown-site =
           pkgs.runCommand "nullkomma-r-pkgdown-site" { nativeBuildInputs = [ pkgs.python3 ]; }
             ''
