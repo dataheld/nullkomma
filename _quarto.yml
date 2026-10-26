@@ -3,6 +3,8 @@ project:
   render:
     - index.qmd
     - privacy.qmd
+metadata-files:
+  - _nullkomma-brand.yml
 website:
   title: "nullkomma"
   site-url: https://nullkomma.maxheld.de

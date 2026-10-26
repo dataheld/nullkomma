@@ -1,5 +1,7 @@
 project:
   type: nullkomma-docs
+metadata-files:
+  - _nullkomma-brand.yml
 website:
   repo-url: https://github.com/example/docs
   sidebar:

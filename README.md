@@ -218,11 +218,11 @@ if both are enabled, set `perSystem.packages.site` yourself.
 
 ##### Brand
 
-To theme sites from a brand flake, declare its input and select it:
+To theme sites from a brand flake exposing `lib.brand` (a brand.yml), declare its input and select it:
 
 ```nix
 inputs.brand = {
-  url = "https://flakehub.com/f/dataheld/brand/*";
+  url = "github:example/brand";
   inputs.nullkomma.follows = "nullkomma";
 };
 # Inside mkFlake's module:
@@ -417,18 +417,20 @@ native project type in your `_quarto.yml`:
 ```yaml
 project:
   type: nullkomma-docs
+metadata-files:
+  - _nullkomma-brand.yml # optional, see below
 website:
   title: My project
   repo-url: https://github.com/example/project
 ```
 
-The docs type only sets defaults; configure everything else in `_quarto.yml` as usual,
+The docs type only switches on stock Quarto features and knows nothing of brands;
+configure everything else in `_quarto.yml` as usual,
 e.g. add pages to `website.sidebar.contents`. Set `repo-url` for repository actions.
 
-Ordinary Quarto sites keep their existing project type; include generated
-`_nullkomma-brand.yml` in `metadata-files` for branded light/dark themes and the footer.
-The docs type includes those settings automatically. Both keep the standard Quarto
-theme, using brand.yml rather than a separate Bootswatch theme.
+Any Quarto project, docs or not, applies a [brand](#brand) by listing generated
+`_nullkomma-brand.yml` in `metadata-files`: branded light/dark themes and the footer,
+on the standard Quarto theme rather than a separate Bootswatch theme.
 
 All generated paths are relative to `nullkomma.quarto.root`, including nested docs
 directories. Build and preview tasks refresh the same generated files used by
@@ -686,7 +688,7 @@ projects' `flake.lock`.
 ### Documentation website
 
 nullkomma's own website is this README, built as a [`quarto`](#quarto) `nullkomma-docs`
-site into [`packages.site`](#site) with the dataheld [brand](#brand) and
+site into [`packages.site`](#site) with [Max Held's](https://www.maxheld.de) [brand](#brand) and
 [privacy policy](#privacy-policy). `tasks` lists how to preview and check it.
 
 ### Testing nullkomma

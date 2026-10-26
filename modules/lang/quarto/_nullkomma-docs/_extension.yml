@@ -1,0 +1,26 @@
+# Switch on stock Quarto docs features; leave layout and style to Quarto's defaults.
+title: nullkomma documentation
+version: 0.1.0
+contributes:
+  project:
+    project:
+      type: website
+    website:
+      repo-actions: [edit, source, issue]
+      page-navigation: true
+      back-to-top-navigation: true
+      navbar:
+        pinned: true
+        left:
+          - href: index.qmd
+            text: Home
+      sidebar:
+        contents:
+          - href: index.qmd
+            text: Home
+    format:
+      html:
+        toc: true
+        code-copy: true
+        code-link: true
+        css: [docs.css]

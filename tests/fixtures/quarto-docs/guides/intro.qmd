@@ -1,6 +1,5 @@
 ---
 title: Introduction
-page-layout: custom
 ---
 
-Nested content keeps its privacy link and main landmark.
+Nested content keeps its privacy link.

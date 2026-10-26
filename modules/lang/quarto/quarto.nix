@@ -9,8 +9,8 @@
     }:
     let
       cfg = config.nullkomma.quarto;
-      inherit (config.nullkomma) brand privacy;
-      prefix = import ../../lib/prefix.nix lib self cfg.root;
+      inherit (config.nullkomma) privacy;
+      prefix = import ../../../lib/prefix.nix lib self cfg.root;
       privacyPage = ''
 
         ---
@@ -67,7 +67,7 @@
               # shortcut: `patches` and `postPatch` make Nixpkgs 26.05's Quarto 1.9 work with
               # its Pandoc 3.7; drop them once NixOS/nixpkgs#569134 reaches our pin, see
               # https://github.com/dataheld/nullkomma/issues/212.
-              patches = (old.patches or [ ]) ++ [ ../../patches/quarto.patch ];
+              patches = (old.patches or [ ]) ++ [ ../../../patches/quarto.patch ];
               postPatch = (old.postPatch or "") + ''
                 substituteInPlace bin/quarto.js --replace-fail syntax-highlighting highlight-style
               '';
@@ -81,6 +81,8 @@
         }
       );
       config = lib.mkIf cfg.enable {
+        # The `nullkomma-docs` project type: stock Quarto docs features, nothing brand-specific.
+        nullkomma.quarto.extensions.nullkomma-docs = ./_nullkomma-docs;
         nullkomma.generatedPaths = [
           "${prefix}.quarto/**"
           "${prefix}_site/**"
@@ -96,17 +98,6 @@
           { config, pkgs, ... }:
           let
             quarto = config.nullkomma.quarto.package;
-            brandExtension = (pkgs.formats.yaml { }).generate "_extension.yml" {
-              contributes.metadata.project.brand = "origin/${baseNameOf brand.lib.brand}";
-            };
-            siteBrand = import ../../lib/brand.nix {
-              inherit pkgs lib brand;
-              privacyHref =
-                if cfg.privacy.page != null && privacy.policy != { } then
-                  lib.removeSuffix ".qmd" cfg.privacy.page + ".html"
-                else
-                  null;
-            };
             render = ''quarto render "$@"'';
             task = description: command: {
               skip = true;
@@ -138,45 +129,6 @@
                   inherit source;
                 }
               ) cfg.extensions
-              // {
-                "${prefix}_extensions/nullkomma-docs" = {
-                  mode = "generated";
-                  directory = true;
-                  source = pkgs.runCommand "quarto-docs-extension" { } ''
-                    mkdir "$out"
-                    cp ${siteBrand}/_extension.yml "$out/_extension.yml"
-                    cp ${./_quarto/docs.css} "$out/docs.css"
-                  '';
-                };
-                "${prefix}_extensions/nullkomma-brand" = {
-                  mode = "generated";
-                  directory = true;
-                  source = pkgs.runCommand "quarto-brand-adapter" { } ''
-                    mkdir "$out"
-                    cp ${siteBrand}/dark.scss ${siteBrand}/landmarks.lua "$out/"
-                  '';
-                };
-                "${prefix}_nullkomma-brand.yml" = {
-                  mode = "generated";
-                  commentPrefix = "#";
-                  source = "${siteBrand}/quarto.yml";
-                };
-              }
-              // lib.optionalAttrs (brand != null) {
-                "${prefix}_brand" = {
-                  mode = "generated";
-                  directory = true;
-                  source = pkgs.runCommand "quarto-brand" { nativeBuildInputs = [ quarto ]; } ''
-                    export HOME="$TMPDIR"
-                    mkdir source
-                    cp ${brandExtension} source/_extension.yml
-                    ln -s ${lib.escapeShellArg "${dirOf brand.lib.brand}"} source/origin
-                    quarto use brand ./source --force
-                    test -f _brand/_brand.yml
-                    mv _brand "$out"
-                  '';
-                };
-              }
               // lib.optionalAttrs (cfg.privacy.page != null && privacy.policy != { }) {
                 "${prefix}${cfg.privacy.page}" = {
                   mode = "generated";
