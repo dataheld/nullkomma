@@ -6,6 +6,8 @@
       rules = [
         "[.]nix$"
         "^flake[.]lock$"
+        "^[.]agents$"
+        "^AGENTS[.]md$"
         "^[.]envrc$"
         "^[.]Renviron$"
         "^[.]Rprofile$"

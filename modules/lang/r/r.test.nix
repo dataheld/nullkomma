@@ -593,12 +593,13 @@
           git init -q
           ${task fixtures.r "nk-write-files"}
           grep -qxF '^project-only[.]txt$' .Rbuildignore
-          mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/processes
+          mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/processes .agents/skills/demo
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
-            .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/processes/r-document.ok
+            .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/processes/r-document.ok \
+            .agents/skills/demo/SKILL.md AGENTS.md
           R CMD build --no-build-vignettes --no-manual .
           tar -tf nullkommafixture_0.0.1.tar.gz > package-files
-          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]nullkomma|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
+          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]nullkomma|[.]agents|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
             echo "Development-only files leaked into the package source" >&2
             exit 1
           fi
