@@ -54,11 +54,13 @@
           expr = {
             app = fixtures.r.apps.${system} ? shiny;
             task = (perSystem fixtures.r).nullkomma.tasks ? shiny;
+            taskAfter = (perSystem local).nullkomma.tasks.shiny.after;
             dependency = lib.elem "shiny" (perSystem fixtures.r).nullkomma.r.packages;
           };
           expected = {
             app = false;
             task = false;
+            taskAfter = [ "r-namespace" ];
             dependency = false;
           };
         };
@@ -106,6 +108,8 @@
                   command=${enabled.apps.${system}.shiny.program}
                   expected='nullkomma Shiny fixture'
                 else
+                  mkdir -p man
+                  printf 'keep\n' > man/sentinel
                   command=${harness.task local "shiny"}
                   expected='working-tree Shiny fixture'
                 fi
@@ -118,6 +122,10 @@
                   url=$(sed -n 's/^Listening on \(http:\/\/127[.]0[.]0[.]1:[0-9]*\).*$/\1/p' server.log)
                   if [[ -n "$url" ]] && curl --noproxy '*' --fail --silent "$url" > response.html; then
                     grep -qF "$expected" response.html
+                    if [[ "$mode" == working-tree ]]; then
+                      test -z "$(find man -type f -name '*.Rd' -print -quit)"
+                      grep -qx keep man/sentinel
+                    fi
                     ready=true
                     break
                   fi

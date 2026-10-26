@@ -195,14 +195,35 @@
           {
             nullkomma.tasks = lib.mkMerge [
               {
-                r-document = {
+                r-namespace = {
                   skip = true;
-                  description = "Generate R manuals and NAMESPACE with roxygen2";
+                  description = "Generate NAMESPACE with roxygen2";
                   packages = [
                     pcfg.package
                   ];
                   working_dir = prefix;
-                  command = "Rscript --vanilla -e 'roxygen2::roxygenise()'";
+                  command = "Rscript --vanilla -e 'roxygen2::roxygenise(roclets = \"namespace\")'";
+                  watch = {
+                    paths = [ "." ];
+                    outputs = map (path: "/${prefix}${path}") [
+                      "NAMESPACE"
+                      "src/*.o"
+                      "src/*.so"
+                      "src/*.dll"
+                      "src/symbols.rds"
+                      "coverage.xml"
+                    ];
+                  };
+                };
+                r-document = {
+                  skip = true;
+                  description = "Generate R manuals and NAMESPACE with roxygen2";
+                  after = [ "r-namespace" ];
+                  packages = [
+                    pcfg.package
+                  ];
+                  working_dir = prefix;
+                  command = "Rscript --vanilla -e 'roxygen2::roxygenise(roclets = setdiff(roxygen2::load_options()[[\"roclets\"]], \"namespace\"))'";
                   watch = {
                     paths = [ "." ];
                     # R code, roclets, examples and vignettes can read any project file.
@@ -227,7 +248,7 @@
                 r-test = {
                   skip = true;
                   description = "Run testthat on the working-tree package, loaded with pkgload";
-                  after = [ "r-document" ];
+                  after = [ "r-namespace" ];
                   packages = [
                     pcfg.package
                   ];
@@ -262,7 +283,7 @@
                 r-coverage = {
                   skip = true;
                   description = "Write a Cobertura test coverage report to coverage.xml";
-                  after = [ "r-document" ];
+                  after = [ "r-namespace" ];
                   watch.paths = [ ];
                   packages = [
                     pcfg.package
@@ -299,9 +320,9 @@
                   original="$(mktemp)"
                   trap 'rm -f "$original"' EXIT
                   cp NAMESPACE "$original"
-                  ${lib.getExe tasks.r-document.package}
+                  ${lib.getExe tasks.r-namespace.package}
                   if ! diff -u "$original" NAMESPACE; then
-                    echo "NAMESPACE is stale; run r-document and commit NAMESPACE." >&2
+                    echo "NAMESPACE is stale; run r-namespace and commit NAMESPACE." >&2
                     exit 1
                   fi
                 '';
