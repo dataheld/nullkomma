@@ -16,6 +16,7 @@
         task
         rawAt
         nullkomma
+        summary
         linkcheck
         ;
       englishCloudflare = callFlakeWith {
@@ -45,6 +46,47 @@
       };
     in
     {
+      nullkomma.nix.unit.tests.testQuartoBrandFeature = {
+        expr =
+          let
+            modern = rawAt (root + "/tests/fixtures/quarto") {
+              imports = [ nullkomma.flakeModules.quarto ];
+              nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
+              nullkomma.quarto = {
+                enable = true;
+                brand.enable = true;
+              };
+            };
+            legacy = rawAt (root + "/tests/fixtures/quarto") {
+              imports = [
+                nullkomma.flakeModules.quarto-website-brand
+                nullkomma.modules.flake.quarto-website-brand
+                nullkomma.flakeModules.quarto
+              ];
+              nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
+              nullkomma.quarto-website-brand.enable = true;
+            };
+            inactive = rawAt (root + "/tests/fixtures/md") {
+              imports = [ nullkomma.flakeModules.quarto ];
+              nullkomma.quarto.brand.enable = true;
+            };
+            defaults = (perSystem fixtures.quarto).nullkomma.files;
+          in
+          {
+            legacyEnablesParent = legacy.debug.config.nullkomma.quarto.enable;
+            parity = summary modern == summary legacy;
+            parentOff = summary inactive == summary (rawAt (root + "/tests/fixtures/md") { });
+            optIn = !(defaults ? "_nullkomma-brand.yml") && !(defaults ? "_extensions/nullkomma-brand");
+            nkdocs = defaults ? "_extensions/nkdocs";
+          };
+        expected = {
+          legacyEnablesParent = true;
+          parity = true;
+          parentOff = true;
+          optIn = true;
+          nkdocs = true;
+        };
+      };
       nullkomma.nix.unit.tests.testQuartoGeneratesExtensionsAndPrivacyPage =
         let
           inherit ((perSystem fixtures.quarto-branded).nullkomma) files;

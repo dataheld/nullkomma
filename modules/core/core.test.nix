@@ -239,26 +239,10 @@
               expr = lib.filter (
                 name:
                 summary (
-                  callFlakeWith
-                    {
-                      imports = [ { nullkomma.cloudflare.worker = "fixture-site"; } ];
-                      nullkomma.brand = lib.mkIf (lib.hasSuffix "-brand" name) {
-                        lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
-                      };
-                      nullkomma.${name}.enable = !fixtures.md.debug.config.nullkomma.${name}.enable;
-                    }
-                    (
-                      if
-                        lib.elem name [
-                          "r"
-                          "r-brand"
-                          "r-non-nix"
-                        ]
-                      then
-                        root + "/tests/fixtures/r"
-                      else
-                        md
-                    )
+                  callFlakeWith {
+                    imports = [ { nullkomma.cloudflare.worker = "fixture-site"; } ];
+                    nullkomma.${name}.enable = !fixtures.md.debug.config.nullkomma.${name}.enable;
+                  } (if name == "r" then root + "/tests/fixtures/r" else md)
                 ) == summary fixtures.md
               ) (lib.attrNames plugins);
               expected = [ ];

@@ -23,7 +23,7 @@
           ;
         fixture = root + "/tests/fixtures/r";
         withProfile = callFlakeWith {
-          nullkomma.r-non-nix.enable = true;
+          nullkomma.r.nonNix.enable = true;
           nullkomma.neovim.enable = true;
         } fixture;
         # The fixture as a project would commit it after adopting r-non-nix.
@@ -49,28 +49,35 @@
       in
       {
         nullkomma.nix.unit.tests = {
-          testRNonNixPlugin = {
+          testRNonNixFeature = {
             expr =
               let
                 standalone = rawAt fixture {
-                  imports = [ plugins.r-non-nix ];
+                  imports = [ nullkomma.flakeModules.r-non-nix ];
                   nullkomma.r-non-nix.enable = true;
+                };
+                modern = rawAt fixture {
+                  imports = [ plugins.r ];
+                  nullkomma.r = {
+                    enable = true;
+                    nonNix.enable = true;
+                  };
                 };
                 overlapping = rawAt fixture {
                   imports = [
                     plugins.r
-                    plugins.r-non-nix
+                    nullkomma.flakeModules.r-non-nix
                     nullkomma.modules.flake.r-non-nix
                   ];
                   nullkomma.r-non-nix.enable = true;
                 };
                 withoutR = raw {
-                  imports = [ plugins.r-non-nix ];
-                  nullkomma.r-non-nix.enable = true;
+                  imports = [ nullkomma.flakeModules.r-non-nix ];
+                  nullkomma.r.nonNix.enable = true;
                   nullkomma.r.enable = false;
                 };
                 runtimeOnly = callFlakeWith {
-                  nullkomma.r-non-nix.enable = true;
+                  nullkomma.r.nonNix.enable = true;
                   nullkomma.r.fields = [
                     "Depends"
                     "Imports"
@@ -80,8 +87,10 @@
               in
               {
                 enablesR = standalone.debug.config.nullkomma.r.enable;
+                modernParity = summary modern == summary standalone;
+                optIn = !((perSystem (callFlakeWith { } fixture)).nullkomma.files ? ".Rprofile");
                 duplicateImports = summary standalone == summary overlapping;
-                requiresR = (builtins.tryEval withoutR.debug.config.nullkomma.r.enable).success;
+                disabledParent = summary withoutR == summary (raw { });
                 # Native R must not install Config/Needs packages that Nix leaves out.
                 runtimeFields =
                   lib.hasInfix "NULLKOMMA_R_ALL_CONFIG_NEEDS=false"
@@ -89,8 +98,10 @@
               };
             expected = {
               enablesR = true;
+              modernParity = true;
+              optIn = true;
               duplicateImports = true;
-              requiresR = false;
+              disabledParent = true;
               runtimeFields = true;
             };
           };

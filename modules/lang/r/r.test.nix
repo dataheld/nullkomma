@@ -16,6 +16,7 @@
         legalcheck
         linkcheck
         nullkomma
+        summary
         perSystem
         project
         rawAt
@@ -46,7 +47,7 @@
           lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
           lib.privacy.controller = local.markdown;
         };
-        nullkomma.r-brand.enable = true;
+        nullkomma.r.pkgdown.brand.enable = true;
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
         nullkomma.cloudflare = cloudflare;
         perSystem.nullkomma.tasks.r-document.command = lib.mkAfter ''
@@ -57,12 +58,12 @@
       # A package site as nullkomma's own brand publishes it.
       published = callFlakeWith {
         nullkomma.brand = brand;
-        nullkomma.r-brand.enable = true;
+        nullkomma.r.pkgdown.brand.enable = true;
         nullkomma.cloudflare = cloudflare;
       } fixture;
       declarativeBrand = callFlakeWith {
         nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
-        nullkomma.r-brand.enable = true;
+        nullkomma.r.pkgdown.brand.enable = true;
         nullkomma.privacy.sections.local = local;
       } fixture;
       english = callFlakeWith {
@@ -127,6 +128,58 @@
     in
     {
       nullkomma.nix.unit.tests = {
+        testRBrandFeature = {
+          expr =
+            let
+              modern = rawAt fixture {
+                imports = [ nullkomma.flakeModules.r ];
+                nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
+                nullkomma.r = {
+                  enable = true;
+                  pkgdown.brand.enable = true;
+                };
+              };
+              legacy = rawAt fixture {
+                imports = [
+                  nullkomma.flakeModules.r-brand
+                  nullkomma.modules.flake.r-brand
+                  nullkomma.flakeModules.r
+                ];
+                nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
+                nullkomma.r-brand.enable = true;
+              };
+              inactive = rawAt fixture {
+                imports = [ nullkomma.flakeModules.r ];
+                nullkomma.r.pkgdown.brand.enable = true;
+              };
+              withoutSite = callFlakeWith {
+                nullkomma.r.pkgdown = {
+                  enable = false;
+                  brand.enable = true;
+                };
+              } fixture;
+            in
+            {
+              legacyEnablesParent = legacy.debug.config.nullkomma.r.enable;
+              parity =
+                summary modern == summary legacy
+                &&
+                  (perSystem modern).nullkomma.r.pkgdown.libraries == (perSystem legacy)
+                  .nullkomma.r.pkgdown.libraries;
+              parentOff = summary inactive == summary (rawAt fixture { });
+              optIn = (perSystem fixtures.r).nullkomma.r.pkgdown.libraries == [ ];
+              siteOff =
+                (perSystem withoutSite).nullkomma.r.pkgdown.libraries == [ ]
+                && !lib.elem "brand.yml" (perSystem withoutSite).nullkomma.r.packages;
+            };
+          expected = {
+            legacyEnablesParent = true;
+            parity = true;
+            parentOff = true;
+            optIn = true;
+            siteOff = true;
+          };
+        };
         testRWatchDefaults = {
           expr =
             let
