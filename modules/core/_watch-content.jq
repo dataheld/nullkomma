@@ -1,7 +1,7 @@
 def changed:
   . as $path
   | (file_meta) as $meta
-  | if $meta.dir then false
+  | if ($meta // {}).dir then false
     else
       (if $meta == null then null else file_hash end) as $hash
       | (kv_fetch($path) // {hash: $initial[$path]}) as $previous
@@ -13,7 +13,8 @@ def changed:
 | if $paths == [] then true
   else
     [$paths[] | . as $path
-      | if any($roots[]; . as $root | $path | startswith($root))
+      | if any($roots[]; . as $root
+          | $path == $root or ($path | startswith($root + "/")))
         then changed else true end]
     | any
   end

@@ -22,7 +22,7 @@ pkgs.writeShellApplication {
       initial=()
       content_paths=(${lib.escapeShellArgs contentPaths})
       for path in "''${content_paths[@]}"; do
-        roots+=("$PWD/$path/")
+        roots+=("$PWD/$path")
         if [[ -d "$path" ]]; then
           while IFS= read -r -d "" file; do
             hash="$(b3sum --no-names "$file")"

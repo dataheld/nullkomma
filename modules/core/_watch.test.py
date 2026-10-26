@@ -48,6 +48,32 @@ with open(os.environ["TMPDIR"] + "/watcher.log", "w") as log:
         time.sleep(1)
         assert count() == baseline, "excluded path triggered a run"
 
+        saved = Path("content-inputs/saved")
+        saved.touch()
+        saved.write_bytes(saved.read_bytes())
+        directory = Path("content-inputs/empty")
+        directory.mkdir()
+        directory.rmdir()
+        time.sleep(1)
+        assert count() == baseline, "unchanged content triggered a run"
+
+        for path in [saved, Path("content-inputs/new")]:
+            for change in [
+                lambda: path.write_text("changed content"),
+                path.unlink,
+            ]:
+                baseline = settle(process)
+                change()
+                wait_for(lambda: count() > baseline, process)
+
+        baseline = settle(process)
+        Path("content-inputs").rmdir()
+        time.sleep(1)
+        assert count() == baseline, "empty directory deletion triggered a run"
+        Path("content-inputs").mkdir()
+        time.sleep(1)
+        assert count() == baseline, "empty directory creation triggered a run"
+
         for change in [
             lambda: Path("ignored-input").write_text("Git ignores are not build exclusions"),
             lambda: Path("new-input").write_text("new files are inputs"),
@@ -109,7 +135,7 @@ process = subprocess.Popen(
 )
 try:
     time.sleep(1)
-    stamp.write_text("success")
+    stamp.touch()
     wait_for(notification.exists, process)
 finally:
     if process.poll() is None:

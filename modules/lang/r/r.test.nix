@@ -183,11 +183,7 @@
               ];
               outputs = lib.all (path: lib.elem path custom.r-document.watch.outputs) [
                 "/NAMESPACE"
-                "/man"
-                "!/man/**"
                 "/man/*.Rd"
-                "/tests/testthat/_snaps"
-                "!/tests/testthat/_snaps/**"
                 "/tests/testthat/_snaps/**/*.new.*"
                 "/public"
                 "/public/**"
@@ -195,8 +191,6 @@
               nestedOutputs =
                 lib.all (path: lib.elem path (perSystem nested).nullkomma.tasks.r-document.watch.outputs)
                   [
-                    "/r/tests/testthat/_snaps"
-                    "!/r/tests/testthat/_snaps/**"
                     "/r/tests/testthat/_snaps/**/*.new.*"
                   ];
               nestedContentPaths = (perSystem nested).nullkomma.tasks.r-document.watch.contentPaths;
@@ -217,7 +211,10 @@
             };
           expected = {
             paths = [ "." ];
-            contentPaths = [ "tests/testthat/_snaps" ];
+            contentPaths = [
+              "man"
+              "tests/testthat/_snaps"
+            ];
             downstream = [
               [ ]
               [ ]
@@ -225,7 +222,10 @@
             ];
             outputs = true;
             nestedOutputs = true;
-            nestedContentPaths = [ "r/tests/testthat/_snaps" ];
+            nestedContentPaths = [
+              "r/man"
+              "r/tests/testthat/_snaps"
+            ];
             processOutputs = true;
             ignore = true;
             invalidDestination = false;

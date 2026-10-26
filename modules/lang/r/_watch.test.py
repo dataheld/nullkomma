@@ -53,6 +53,12 @@ with open(os.environ["TMPDIR"] + "/watcher.log", "w") as log:
         wait_for(lambda: observed.read_text().splitlines()[-1] == "finished")
         idle()
 
+        baseline = count()
+        Path("man/input.txt").write_text("non-generated manual input\n")
+        wait_for(lambda: count() > baseline)
+        wait_for(lambda: observed.read_text().splitlines()[-1] == "finished")
+        idle()
+
         snaps = Path("tests/testthat/_snaps")
         failure = snaps / "hello.new.md"
         failure.write_text("snapshot failure output\n")
@@ -92,6 +98,8 @@ with open(os.environ["TMPDIR"] + "/watcher.log", "w") as log:
         snapshot.unlink()
         wait_for(lambda: count() > baseline)
         wait_for(snapshot.exists)
+        # Recreating the missing input queues a successful run after the warning.
+        wait_for(lambda: observed.read_text().splitlines()[-1] == "finished")
         idle()
 
         baseline = count()
