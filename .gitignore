@@ -5,6 +5,9 @@ result
 result-*
 .direnv/
 .claude/
+/.agents/skills/nullkomma-resolve-file-conflicts
+/.agents/skills/nullkomma-upgrade
+/.agents/skills/update-integration-matrix
 /.nullkomma/cloudflare/
 /.nvim.lua
 /_brand

@@ -35,6 +35,7 @@
         };
       };
       config = lib.mkIf cfg.nix.enable {
+        nullkomma.agents.skills.nullkomma-upgrade = ./_nix/nullkomma-upgrade;
         # Unconditional: deciding by the tests would make every output depend on every system.
         flake = {
           tests.systems = unitTests;

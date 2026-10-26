@@ -3,7 +3,7 @@ applyTo: modules/**/*.nix,templates/**,README.md,.github/workflows/ci.yml
 ---
 
 When changing what a plugin adds, use
-[update-integration-matrix](../skills/update-integration-matrix/SKILL.md) to keep
+[update-integration-matrix](../../modules/dev/_skills/update-integration-matrix/SKILL.md) to keep
 README's **Plugins** table in sync. Leave the table alone if behavior is unchanged.
 
 Plugins never read each other's options or import each other (README's
@@ -11,4 +11,4 @@ Plugins never read each other's options or import each other (README's
 
 Templates only select plugins and options; files that depend on configuration
 come from `nk-write-files` or `nk-generate-files`. Never overwrite an edited
-source-of-truth file; use the resolve-file-conflicts skill.
+source-of-truth file; use the nullkomma-resolve-file-conflicts skill.

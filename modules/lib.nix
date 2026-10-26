@@ -17,6 +17,7 @@ in
   };
   flake.lib = {
     defaultPlugins = [
+      "agents"
       "direnv"
       "flakehub"
       "git"
