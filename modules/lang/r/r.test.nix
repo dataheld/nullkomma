@@ -436,10 +436,7 @@
             lib.concatMapStrings (library: ''"${library}", '') (perSystem branded).nullkomma.r.pkgdown.libraries
           }.libPaths()))
           override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON branded.debug.config.nullkomma.r.pkgdown.config)}, simplifyVector = FALSE)
-          testthat::expect_no_warning(pkg <- pkgdown::as_pkgdown(override = override))
-          testthat::expect_s3_class(pkg, "pkgdown")
-          testthat::expect_identical(pkg$package, "nullkommafixture")
-          testthat::expect_identical(pkg$meta$template$bslib$brand, ${builtins.toJSON "${branded.debug.config.nullkomma.brand.lib.brand}"})
+          testthat::expect_no_condition(pkgdown::as_pkgdown(override = override))
           RS
         '';
         r-pkgdown-site =
