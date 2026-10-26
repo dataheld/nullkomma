@@ -61,3 +61,10 @@ Keep behavior patches as `patches/<tool>.patch`, applied through `overrideAttrs`
 Linter configuration lives in Nix. Reuse treefmt-nix options, generate any required
 config files in the Nix store and pass them explicitly; disable native discovery.
 Don't patch tools to merge shared and project configuration.
+
+## Stay vanilla
+
+Generated sites use stock Quarto and Bootstrap: set options only to switch on
+features, and leave layout, spacing and styling to Quarto's defaults and brand.yml.
+Don't restate defaults, and add custom CSS only for what neither offers. Check
+rendered pages on narrow and wide screens before changing presentation.

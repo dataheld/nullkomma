@@ -10,7 +10,7 @@ declared=()
 if [ "$mode" = source ] && [ "${1:-}" = --accept ] && [ "$#" = 2 ]; then
   accept="$2"
 elif [ "$#" != 0 ]; then
-  echo "Usage: write-files [--accept <path>] (after resolving a conflict); generate-files takes no arguments" >&2
+  echo "Usage: nk-write-files [--accept <path>] (after resolving a conflict); nk-generate-files takes no arguments" >&2
   exit 1
 fi
 
@@ -53,6 +53,8 @@ process_file() {
       status=1
       return
     fi
+    # Rewriting unchanged files bumps mtimes, so e.g. `quarto preview` re-renders and opens them.
+    diff -r "$source" "$path" >/dev/null 2>&1 && return
     rm -rf "$path"
     mkdir -p "$(dirname "$path")"
     cp -R "$source" "$path"
@@ -66,6 +68,7 @@ process_file() {
     return
   fi
   if [ "$mode" = generated ]; then
+    cmp -s "$source" "$path" && return
     mkdir -p "$(dirname "$path")"
     cp --remove-destination "$source" "$path"
     chmod u+w "$path"

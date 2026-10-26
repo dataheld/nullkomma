@@ -1,0 +1,5 @@
+---
+title: Introduction
+---
+
+Nested content keeps its privacy link.

@@ -43,16 +43,19 @@
           lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
           lib.privacy.controller = local.markdown;
         };
+        nullkomma.r-brand.enable = true;
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
         nullkomma.cloudflare = cloudflare;
       } fixture;
       # A package site as nullkomma's own brand publishes it.
       published = callFlakeWith {
         nullkomma.brand = brand;
+        nullkomma.r-brand.enable = true;
         nullkomma.cloudflare = cloudflare;
       } fixture;
       declarativeBrand = callFlakeWith {
         nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
+        nullkomma.r-brand.enable = true;
         nullkomma.privacy.sections.local = local;
       } fixture;
       english = callFlakeWith {
@@ -383,10 +386,14 @@
         r-pkgdown-local = check "r-pkgdown-local" ''
           export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1
           git init -q
-          ${task branded "write-files"}
+          ${task branded "nk-write-files"}
+          (${(perSystem branded).nullkomma.devShell.shellHook})
+          # Language tasks must not overwrite files generated on shell entry.
+          printf 'local asset\n' > pkgdown/assets/local-only.txt
           # Repeated builds must not trip over read-only assets copied from the store.
           ${task branded "r-pkgdown"}
           ${task branded "r-pkgdown"}
+          cmp pkgdown/assets/local-only.txt docs/local-only.txt
           grep -qF 'Lokaler Abschnitt auf Deutsch' docs/privacy.html
           cmp ${root + "/tests/fixtures/r-brand/assets/brand.svg"} docs/brand.svg
           test ! -e .github/privacy.md -a ! -e privacy.md
@@ -430,7 +437,7 @@
         '';
         r-files = check "r-files" ''
           git init -q
-          ${task fixtures.r "write-files"}
+          ${task fixtures.r "nk-write-files"}
           grep -qxF '^project-only[.]txt$' .Rbuildignore
           mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/processes
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
@@ -462,7 +469,7 @@
           mv project nested/r
           cd nested
           git init -q
-          ${task nested "write-files"}
+          ${task nested "nk-write-files"}
           grep -qxF '^project-only[.]txt$' r/.Rbuildignore
           ${runCheck nested "r-testthat"}
           ${runCheck nested "r-cmd-check"}

@@ -34,15 +34,15 @@
               git init -q
               cp README.md "$TMPDIR/README.md"
               echo "Unseen working-tree edit" >> README.md
-              fails 'Upstream conflict: README.md' ${task withProfile "write-files"}
+              fails 'Upstream conflict: README.md' ${task withProfile "nk-write-files"}
               grep -qF 'Unseen working-tree edit' README.md
               cp "$TMPDIR/README.md" README.md
-              ${task withProfile "write-files"}
+              ${task withProfile "nk-write-files"}
               grep -qF 'Keep these project-specific development notes.' README.md
               cp README.md "$TMPDIR/expected"
-              ${task withProfile "write-files"}
+              ${task withProfile "nk-write-files"}
               cmp "$TMPDIR/expected" README.md
-              ${task withProfile "generate-files"}
+              ${task withProfile "nk-generate-files"}
               mkdir $out
               cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .R .Rprofile .Renviron .Rbuildignore .nvim.lua README.md flake.nix $out/
             '';
