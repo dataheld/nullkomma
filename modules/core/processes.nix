@@ -102,8 +102,7 @@
                 // {
                   inherit (task) description;
                   command = ''
-                    ${lib.getExe task.step}
-                    touch "$NULLKOMMA_ROOT"/${lib.escapeShellArg (stamp name)}
+                    ${lib.getExe task.step} && touch "$NULLKOMMA_ROOT"/${lib.escapeShellArg (stamp name)}
                   '';
                   depends_on =
                     lib.genAttrs task.after (_: {

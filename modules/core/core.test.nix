@@ -570,6 +570,37 @@
             # keep-sorted end
           };
           checks = {
+            process-task-failure =
+              let
+                flake = perSystem (raw {
+                  perSystem.nullkomma.tasks.fail = {
+                    process = { };
+                    command = "exit 42";
+                  };
+                });
+                command = flake.processTrees.fail.processes.fail.command;
+              in
+              pkgs.runCommand "nullkomma-process-task-failure"
+                {
+                  nativeBuildInputs = [
+                    pkgs.bash
+                    pkgs.coreutils
+                  ];
+                }
+                ''
+                  ${harness.project md}
+                  export NULLKOMMA_ROOT="$PWD"
+                  mkdir -p .nullkomma/processes/fail
+                  stamp=.nullkomma/processes/fail/fail.ok
+                  touch -d @1 "$stamp"
+                  before="$(stat -c %Y "$stamp")"
+                  if bash -c ${lib.escapeShellArg command}; then
+                    echo "Failed process task returned success" >&2
+                    exit 1
+                  fi
+                  [[ "$(stat -c %Y "$stamp")" == "$before" ]]
+                  touch "$out"
+                '';
             process-socket =
               let
                 flake = raw {
