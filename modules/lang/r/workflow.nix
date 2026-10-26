@@ -205,6 +205,7 @@
                   command = "Rscript --vanilla -e 'roxygen2::roxygenise()'";
                   watch = {
                     paths = [ "." ];
+                    contentPaths = [ "${prefix}tests/testthat/_snaps" ];
                     # R code, roclets, examples and vignettes can read any project file.
                     # Ignore directory events, but keep their input files observable.
                     outputs = [

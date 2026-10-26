@@ -7,6 +7,7 @@
         inputs.self.flakeModules.default
       ];
       nullkomma = {
+        generatedPaths = [ "tests/fixtures/r/tests/testthat/_snaps/**" ];
         brand = inputs.brand;
         cloudflare = {
           enable = true;

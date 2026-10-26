@@ -690,11 +690,6 @@ Generated `man/*.Rd` files are Git-ignored, but not `man/` itself; commit `NAMES
 The fallback broadly watches the checkout through `r-document`; downstream R steps
 follow its successful reruns rather than racing roxygen2. Known outputs are excluded:
 `NAMESPACE`, `man/*.Rd`, compiler products, coverage and the pkgdown destination.
-Directory events for `man/` and `tests/testthat/_snaps/` are also excluded,
-as are testthat's `*.new.*` snapshot failure files.
-Accepted snapshots and other files in these directories remain inputs.
-Packages with accepted text snapshots can still loop when testthat rewrites
-unchanged snapshots ([#242](https://github.com/dataheld/nullkomma/issues/242)).
 This follows the plugin's convention that `man/*.Rd` are generated; for handwritten
 manuals, explicitly add their paths to `r-document.watch.paths` (explicit file watches
 override output ignores). Files such as `man/figures/` remain inputs.

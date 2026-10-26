@@ -116,6 +116,11 @@
                               default = [ ];
                               description = "Known output globs excluded from watches of this graph, including prerequisites. Declare every output to prevent feedback loops; never use Git ignores as a proxy.";
                             };
+                            options.contentPaths = lib.mkOption {
+                              type = lib.types.listOf lib.types.str;
+                              default = [ ];
+                              description = "Project-relative directories whose files trigger runs only when their contents change, not when rewritten identically.";
+                            };
                           }
                         )
                       );
@@ -222,7 +227,10 @@
             lib.optionalAttrs (task.watch != null && !task.watch.native && paths != [ ]) {
               "watch-${name}" = up.mkWatch {
                 description = "Run ${name} again whenever its inputs change";
-                package = import ./_watch.nix { inherit lib pkgs; };
+                package = import ./_watch.nix {
+                  inherit lib pkgs;
+                  contentPaths = lib.unique (lib.concatMap (dep: cfg.${dep}.watch.contentPaths) watched);
+                };
                 command = lib.getExe task.package;
                 ignore =
                   lib.unique (lib.concatMap (dep: cfg.${dep}.watch.outputs) watched)

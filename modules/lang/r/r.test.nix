@@ -175,6 +175,7 @@
             in
             {
               paths = defaults.r-document.watch.paths;
+              contentPaths = defaults.r-document.watch.contentPaths;
               downstream = map (name: defaults.${name}.watch.paths) [
                 "r-test"
                 "r-check"
@@ -198,6 +199,7 @@
                     "!/r/tests/testthat/_snaps/**"
                     "/r/tests/testthat/_snaps/**/*.new.*"
                   ];
+              nestedContentPaths = (perSystem nested).nullkomma.tasks.r-document.watch.contentPaths;
               processOutputs = lib.all (
                 process: lib.all (path: lib.elem path process.watch.ignore) defaults.r-document.watch.outputs
               ) (lib.attrValues (perSystem fixtures.r).processTrees.r-test.processes);
@@ -215,6 +217,7 @@
             };
           expected = {
             paths = [ "." ];
+            contentPaths = [ "tests/testthat/_snaps" ];
             downstream = [
               [ ]
               [ ]
@@ -222,6 +225,7 @@
             ];
             outputs = true;
             nestedOutputs = true;
+            nestedContentPaths = [ "r/tests/testthat/_snaps" ];
             processOutputs = true;
             ignore = true;
             invalidDestination = false;

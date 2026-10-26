@@ -62,7 +62,14 @@
               up = inputs.up.lib {
                 inherit lib;
                 pkgs = pkgs // {
-                  watchexec = import ./_watch.nix { inherit lib pkgs; };
+                  watchexec = import ./_watch.nix {
+                    inherit lib pkgs;
+                    contentPaths = lib.unique (
+                      lib.concatMap (
+                        name: lib.optionals (tasks.${name}.watch != null) tasks.${name}.watch.contentPaths
+                      ) members
+                    );
+                  };
                 };
               };
               process =
