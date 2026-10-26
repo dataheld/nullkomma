@@ -330,6 +330,7 @@ tasks all      # run all tasks not marked skip
 ```
 
 Tasks can change files: R checks regenerate documentation and `NAMESPACE`.
+`tasks all` includes formatting and linting through treefmt.
 Set `skip = true` on custom tasks that should not run as part of `tasks all`.
 The pinned [up] runner does not forward optional arguments; invoke the listed
 task as a shell command for those, e.g. `preview --port 4200` or `check r-cmd-check`.
