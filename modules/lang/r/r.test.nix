@@ -231,6 +231,19 @@
             invalidDestination = false;
           };
         };
+        testRPackageDevelopmentSkill = {
+          expr =
+            let
+              enabled = perSystem (
+                callFlakeWith {
+                  imports = [ nullkomma.flakeModules.default ];
+                  nullkomma.r.enable = true;
+                } fixture
+              );
+            in
+            enabled.nullkomma.files ? ".agents/skills/nullkomma-r-package-development";
+          expected = true;
+        };
         testRDocumentationIsRequired = {
           expr =
             let
