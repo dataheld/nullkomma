@@ -71,12 +71,16 @@
             smallBrowser = (perSystem fixtures.r).nullkomma.r.browser != null;
             shinyMissing = lib.subtractLists (perSystem plain).nullkomma.r.packages heavy;
             shinyBrowser = (perSystem plain).nullkomma.r.browser != null;
+            localNetworking =
+              (perSystem plain).nullkomma.checks.r-testthat.sandboxed.drvAttrs.__darwinAllowLocalNetworking
+                or false;
           };
           expected = {
             small = [ ];
             smallBrowser = false;
             shinyMissing = [ ];
-            shinyBrowser = pkgs.stdenv.isLinux;
+            shinyBrowser = true;
+            localNetworking = pkgs.stdenv.isDarwin;
           };
         };
       };
@@ -146,11 +150,12 @@
               done
               touch "$out"
             '';
-      }
-      # Nixpkgs has no Chromium for macOS.
-      // lib.optionalAttrs pkgs.stdenv.isLinux {
         r-shinytest2 =
-          pkgs.runCommand "r-shinytest2" { nativeBuildInputs = [ (perSystem plain).nullkomma.r.package ]; }
+          pkgs.runCommand "r-shinytest2"
+            {
+              nativeBuildInputs = [ (perSystem plain).nullkomma.r.package ];
+              __darwinAllowLocalNetworking = true;
+            }
             ''
               ${harness.project fixture}
               # A stale installed copy must not shadow the source under pkgload.

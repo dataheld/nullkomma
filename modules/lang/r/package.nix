@@ -16,20 +16,39 @@
     in
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption (
-        { pkgs, ... }:
+        {
+          pkgs,
+          system,
+          ...
+        }:
         {
           options.nullkomma.r.browser = lib.mkOption {
             type = lib.types.nullOr lib.types.package;
             default =
-              if
-                pkgs.stdenv.isLinux
-                && lib.elem "chromote" (map (p: p.package) (cfg.locked.packages or [ ]) ++ cfg.extraPackages)
-              then
+              let
+                usesChromote = lib.elem "chromote" (
+                  map (p: p.package) (cfg.locked.packages or [ ]) ++ cfg.extraPackages
+                );
+              in
+              if !usesChromote then
+                null
+              else if pkgs.stdenv.isLinux then
                 pkgs.chromium
+              else if system == "aarch64-darwin" then
+                pkgs.writeShellScriptBin "chrome-for-testing" ''
+                  exec "${
+                    pkgs.fetchzip {
+                      name = "chrome-for-testing-156.0.8078.48";
+                      url = "https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.48/mac-arm64/chrome-mac-arm64.zip";
+                      hash = "sha256-rfSNnIWaC55c/XCH6xb9FspmdKMmqT84kywTjhRkeqs=";
+                      stripRoot = true;
+                    }
+                  }/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing" "$@"
+                ''
               else
                 null;
-            defaultText = lib.literalMD "Chromium on Linux when chromote (e.g. via shinytest2) is in pkg.lock or extraPackages; otherwise null";
-            description = "Chrome-compatible browser for shinytest2/chromote. On macOS, null uses chromote's locally installed Chrome discovery; sandboxed browser tests require Linux or a supplied Nix browser.";
+            defaultText = lib.literalMD "Nixpkgs Chromium on Linux, or pinned Chrome for Testing on aarch64-darwin, when chromote is in pkg.lock or extraPackages; otherwise null";
+            description = "Chrome-compatible browser for shinytest2/chromote. Nullkomma pins Chromium on Linux and Chrome for Testing on aarch64-darwin so sandboxed browser checks run without a host browser.";
           };
           options.nullkomma.r.packages = lib.mkOption {
             type = lib.types.listOf lib.types.str;
@@ -58,13 +77,25 @@
         }:
         let
           pcfg = config.nullkomma.r;
-          browser = pkgs.writeShellScript "r-chromium" ''
-            # Chromium's namespace sandbox cannot nest inside the Nix build sandbox.
-            if [[ -n "''${NIX_BUILD_TOP:-}" ]]; then
-              exec ${lib.getExe pcfg.browser} --no-sandbox --disable-dev-shm-usage "$@"
-            fi
-            exec ${lib.getExe pcfg.browser} "$@"
-          '';
+          browser =
+            if pkgs.stdenv.isDarwin then
+              pkgs.writeShellScript "r-chromium" ''
+                if [[ -n "''${NIX_BUILD_TOP:-}" ]]; then
+                  profile=$(mktemp -d "''${TMPDIR:-/tmp}/nullkomma-chrome.XXXXXX")
+                  trap 'rm -rf "$profile"' EXIT
+                  ${lib.getExe pcfg.browser} "$@" --no-sandbox --user-data-dir="$profile"
+                else
+                  exec ${lib.getExe pcfg.browser} "$@"
+                fi
+              ''
+            else
+              pkgs.writeShellScript "r-chromium" ''
+                # Chromium's namespace sandbox cannot nest inside the Nix build sandbox.
+                if [[ -n "''${NIX_BUILD_TOP:-}" ]]; then
+                  exec ${lib.getExe pcfg.browser} --no-sandbox --disable-dev-shm-usage "$@"
+                fi
+                exec ${lib.getExe pcfg.browser} "$@"
+              '';
           pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
           base = pkgsR.rPackages;
           # Backport nixpkgs' current console fixes without changing the project's R.

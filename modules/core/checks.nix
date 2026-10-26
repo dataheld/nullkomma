@@ -35,6 +35,11 @@
                       example = [ "--installed" ];
                       description = "Arguments for the sandboxed run, e.g. to select a slower, stricter variant than the local default.";
                     };
+                    allowLocalNetworking = lib.mkOption {
+                      type = lib.types.bool;
+                      default = false;
+                      description = "Allow the sandboxed check to use loopback networking on macOS.";
+                    };
                     package = lib.mkOption {
                       type = lib.types.package;
                       readOnly = true;
@@ -52,15 +57,19 @@
                     text = config.command;
                   };
                   config.sandboxed = lib.mkDefault (
-                    pkgs.runCommand "check-${name}" { } ''
-                      cp -r ${src} src
-                      chmod -R u+w src
-                      patchShebangs --build src >/dev/null
-                      export HOME="$PWD/home" XDG_CACHE_HOME="$PWD/cache" XDG_CONFIG_HOME="$PWD/config"
-                      mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
-                      (cd src && ${lib.getExe config.package} ${lib.escapeShellArgs config.sandboxArgs})
-                      touch $out
-                    ''
+                    pkgs.runCommand "check-${name}"
+                      (lib.optionalAttrs (pkgs.stdenv.isDarwin && config.allowLocalNetworking) {
+                        __darwinAllowLocalNetworking = true;
+                      })
+                      ''
+                        cp -r ${src} src
+                        chmod -R u+w src
+                        patchShebangs --build src >/dev/null
+                        export HOME="$PWD/home" XDG_CACHE_HOME="$PWD/cache" XDG_CONFIG_HOME="$PWD/config"
+                        mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
+                        (cd src && ${lib.getExe config.package} ${lib.escapeShellArgs config.sandboxArgs})
+                        touch $out
+                      ''
                   );
                 }
               )
