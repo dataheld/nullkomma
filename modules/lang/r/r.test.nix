@@ -131,22 +131,13 @@
         testRBrandFeature = {
           expr =
             let
-              modern = rawAt fixture {
+              enabled = rawAt fixture {
                 imports = [ nullkomma.flakeModules.r ];
                 nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
                 nullkomma.r = {
                   enable = true;
                   pkgdown.brand.enable = true;
                 };
-              };
-              legacy = rawAt fixture {
-                imports = [
-                  nullkomma.flakeModules.r-brand
-                  nullkomma.modules.flake.r-brand
-                  nullkomma.flakeModules.r
-                ];
-                nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
-                nullkomma.r-brand.enable = true;
               };
               inactive = rawAt fixture {
                 imports = [ nullkomma.flakeModules.r ];
@@ -160,12 +151,8 @@
               } fixture;
             in
             {
-              legacyEnablesParent = legacy.debug.config.nullkomma.r.enable;
-              parity =
-                summary modern == summary legacy
-                &&
-                  (perSystem modern).nullkomma.r.pkgdown.libraries == (perSystem legacy)
-                  .nullkomma.r.pkgdown.libraries;
+              enabled = (perSystem enabled).nullkomma.r.pkgdown.libraries != [ ];
+              noCompanionExport = !(nullkomma.flakeModules ? r-brand) && !(nullkomma.modules.flake ? r-brand);
               parentOff = summary inactive == summary (rawAt fixture { });
               optIn = (perSystem fixtures.r).nullkomma.r.pkgdown.libraries == [ ];
               siteOff =
@@ -173,8 +160,8 @@
                 && !lib.elem "brand.yml" (perSystem withoutSite).nullkomma.r.packages;
             };
           expected = {
-            legacyEnablesParent = true;
-            parity = true;
+            enabled = true;
+            noCompanionExport = true;
             parentOff = true;
             optIn = true;
             siteOff = true;

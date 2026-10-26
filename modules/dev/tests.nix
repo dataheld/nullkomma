@@ -10,10 +10,6 @@
       plugins = removeAttrs nullkomma.flakeModules [
         "default"
         "framework"
-        # Compatibility imports are not independently selectable plugins.
-        "quarto-website-brand"
-        "r-brand"
-        "r-non-nix"
       ];
       # Evaluates a consumer flake against this checkout, extended by `module`.
       callFlakeWith =

@@ -49,22 +49,13 @@
       nullkomma.nix.unit.tests.testQuartoBrandFeature = {
         expr =
           let
-            modern = rawAt (root + "/tests/fixtures/quarto") {
+            enabled = rawAt (root + "/tests/fixtures/quarto") {
               imports = [ nullkomma.flakeModules.quarto ];
               nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
               nullkomma.quarto = {
                 enable = true;
                 brand.enable = true;
               };
-            };
-            legacy = rawAt (root + "/tests/fixtures/quarto") {
-              imports = [
-                nullkomma.flakeModules.quarto-website-brand
-                nullkomma.modules.flake.quarto-website-brand
-                nullkomma.flakeModules.quarto
-              ];
-              nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
-              nullkomma.quarto-website-brand.enable = true;
             };
             inactive = rawAt (root + "/tests/fixtures/md") {
               imports = [ nullkomma.flakeModules.quarto ];
@@ -73,15 +64,17 @@
             defaults = (perSystem fixtures.quarto).nullkomma.files;
           in
           {
-            legacyEnablesParent = legacy.debug.config.nullkomma.quarto.enable;
-            parity = summary modern == summary legacy;
+            enabled = (perSystem enabled).nullkomma.files ? "_nullkomma-brand.yml";
+            noCompanionExport =
+              !(nullkomma.flakeModules ? quarto-website-brand)
+              && !(nullkomma.modules.flake ? quarto-website-brand);
             parentOff = summary inactive == summary (rawAt (root + "/tests/fixtures/md") { });
             optIn = !(defaults ? "_nullkomma-brand.yml") && !(defaults ? "_extensions/nullkomma-brand");
             nkdocs = defaults ? "_extensions/nkdocs";
           };
         expected = {
-          legacyEnablesParent = true;
-          parity = true;
+          enabled = true;
+          noCompanionExport = true;
           parentOff = true;
           optIn = true;
           nkdocs = true;

@@ -26,7 +26,7 @@
           nullkomma.r.nonNix.enable = true;
           nullkomma.neovim.enable = true;
         } fixture;
-        # The fixture as a project would commit it after adopting r-non-nix.
+        # The fixture as a project would commit it after enabling non-Nix collaboration.
         nonNixProject =
           pkgs.runCommand "nullkomma-r-non-nix-project" { nativeBuildInputs = [ pkgs.git ]; }
             ''
@@ -53,10 +53,6 @@
             expr =
               let
                 standalone = rawAt fixture {
-                  imports = [ nullkomma.flakeModules.r-non-nix ];
-                  nullkomma.r-non-nix.enable = true;
-                };
-                modern = rawAt fixture {
                   imports = [ plugins.r ];
                   nullkomma.r = {
                     enable = true;
@@ -66,13 +62,15 @@
                 overlapping = rawAt fixture {
                   imports = [
                     plugins.r
-                    nullkomma.flakeModules.r-non-nix
-                    nullkomma.modules.flake.r-non-nix
+                    nullkomma.modules.flake.r
                   ];
-                  nullkomma.r-non-nix.enable = true;
+                  nullkomma.r = {
+                    enable = true;
+                    nonNix.enable = true;
+                  };
                 };
                 withoutR = raw {
-                  imports = [ nullkomma.flakeModules.r-non-nix ];
+                  imports = [ plugins.r ];
                   nullkomma.r.nonNix.enable = true;
                   nullkomma.r.enable = false;
                 };
@@ -86,8 +84,8 @@
                 } fixture;
               in
               {
-                enablesR = standalone.debug.config.nullkomma.r.enable;
-                modernParity = summary modern == summary standalone;
+                enabled = (perSystem standalone).nullkomma.files ? ".Rprofile";
+                noCompanionExport = !(nullkomma.flakeModules ? r-non-nix) && !(nullkomma.modules.flake ? r-non-nix);
                 optIn = !((perSystem (callFlakeWith { } fixture)).nullkomma.files ? ".Rprofile");
                 duplicateImports = summary standalone == summary overlapping;
                 disabledParent = summary withoutR == summary (raw { });
@@ -97,8 +95,8 @@
                     (perSystem runtimeOnly).nullkomma.files.".Renviron".text;
               };
             expected = {
-              enablesR = true;
-              modernParity = true;
+              enabled = true;
+              noCompanionExport = true;
               optIn = true;
               duplicateImports = true;
               disabledParent = true;

@@ -826,12 +826,10 @@ available when their owner is imported; their effects require both the owner and
 to be enabled. pkgdown branding also requires pkgdown to be enabled.
 nkdocs is a bundled Quarto extension selected by native `project.type: nkdocs`, not a second Nix switch.
 
-For migration, the old `nullkomma.r-non-nix.enable`, `nullkomma.r-brand.enable` and
-`nullkomma.quarto-website-brand.enable` switches remain deprecated aliases. They retain
-their old parent-enabling behavior; new nested switches do not enable the parent.
-The corresponding `flakeModules` and `modules.flake` imports remain compatibility
-entry points, but are not separate plugins. Use `r` or `quarto` and the nested options
-in new configurations.
+The former `r-non-nix`, `r-brand` and `quarto-website-brand` plugin options and
+module exports have been removed. Import `r` or `quarto` instead, explicitly enable
+the owner, and select `r.nonNix.enable`, `r.pkgdown.brand.enable` or
+`quarto.brand.enable`.
 
 Because plugins only meet through framework options, one could live in its own flake,
 e.g. a `nullkomma-r` exporting `flakeModules.r` against `flakeModules.framework`,
