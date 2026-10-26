@@ -43,16 +43,19 @@
           lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
           lib.privacy.controller = local.markdown;
         };
+        nullkomma.r-brand.enable = true;
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
         nullkomma.cloudflare = cloudflare;
       } fixture;
       # A package site as nullkomma's own brand publishes it.
       published = callFlakeWith {
         nullkomma.brand = brand;
+        nullkomma.r-brand.enable = true;
         nullkomma.cloudflare = cloudflare;
       } fixture;
       declarativeBrand = callFlakeWith {
         nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
+        nullkomma.r-brand.enable = true;
         nullkomma.privacy.sections.local = local;
       } fixture;
       english = callFlakeWith {

@@ -160,7 +160,7 @@
                   callFlakeWith
                     {
                       imports = [ { nullkomma.cloudflare.worker = "fixture-site"; } ];
-                      nullkomma.brand = lib.mkIf (name == "quarto-brand") {
+                      nullkomma.brand = lib.mkIf (lib.hasSuffix "-brand" name) {
                         lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
                       };
                       nullkomma.${name}.enable = !fixtures.md.debug.config.nullkomma.${name}.enable;
@@ -169,6 +169,7 @@
                       if
                         lib.elem name [
                           "r"
+                          "r-brand"
                           "r-non-nix"
                         ]
                       then

@@ -117,6 +117,7 @@ Files and editor settings that plugins write into your repository are under [Plu
 | [`cloudflare`](#cloudflare)                 |         | `wrangler`                               |                                      | `cloudflare` (OpenTofu validation)                      |                  | `deploy`[^deploy]          | `terraform`, `deploy`                                                                    |
 | [`r`](#r)                                   |         | R with languageserver, `pkgload` and pak | `air`, `jarl`                        | `r-testthat`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `r-document`, `r-pkgdown`, `r-pkgdown-preview`, `r-coverage`, `r-lock`, `shiny` (opt-in) |
 | [`r-non-nix`](#r-non-nix) (enables `r`)     |         |                                          |                                      |                                                         |                  |                            |                                                                                          |
+| [`r-brand`](#brand) (enables `r`)           |         |                                          |                                      |                                                         |                  |                            |                                                                                          |
 
 ## Your flake outputs
 
@@ -231,9 +232,11 @@ nullkomma.brand = inputs.brand;
 ```
 
 Brand owns the declarations; nullkomma owns their translation and placement.
-R pkgdown applies it directly; Quarto sites enable the companion `quarto-brand` plugin
-(`nullkomma.quarto-brand.enable = true`, which enables `quarto`) and list its generated
-`_nullkomma-brand.yml` in `metadata-files`.
+Without a brand, `quarto` and `r` keep Quarto's and pkgdown's defaults. One companion
+plugin per site builder applies it, and enables its base plugin:
+
+- `quarto-brand` generates `_nullkomma-brand.yml`; list it in `_quarto.yml`'s `metadata-files`.
+- `r-brand` generates a pkgdown template package and selects it with `template.package`.
 
 An optional `defaults.nullkomma.footer` record supplies footer facts to both builders:
 
@@ -571,7 +574,8 @@ also in `nix flake check`; `r-pkgdown` builds it locally, and `r-pkgdown-preview
 - A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
 - Bootstrap 5's JavaScript dependencies are pinned in nullkomma.
   Other remote templates, web fonts and network-dependent articles must be local for the sandbox.
-- `_pkgdown.yml` overrides the [brand](#brand)'s template package; `nullkomma.r.pkgdown.config` is merged over both.
+- `_pkgdown.yml` overrides template packages, e.g. [`r-brand`](#brand)'s, which `nullkomma.r.pkgdown.libraries` provides;
+  `nullkomma.r.pkgdown.config` is merged over both.
 - `nullkomma.r.pkgdown.assets` is a directory generated into Git-ignored `pkgdown/assets/`,
   which pkgdown copies to the site root; leave it `null` to manage that directory yourself.
 - The [privacy policy](#privacy-policy) is published at `/privacy.html`;
@@ -673,8 +677,8 @@ rules through `nullkomma.lint.markdown`, which `markdown` hands to rumdl; neithe
 knows about the other.
 
 A companion plugin may import and enable its base plugin and reuse its options:
-`r-non-nix` depends on `r` and `quarto-brand` on `quarto`, but neither base plugin
-depends on its companion.
+`r-non-nix` and `r-brand` depend on `r`, and `quarto-brand` on `quarto`, but no base
+plugin depends on its companions.
 
 Because plugins only meet through framework options, one could live in its own flake,
 e.g. a `nullkomma-r` exporting `flakeModules.r` against `flakeModules.framework`,
