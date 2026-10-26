@@ -175,6 +175,7 @@
             in
             {
               paths = defaults.r-document.watch.paths;
+              contentPaths = defaults.r-document.watch.contentPaths;
               downstream = map (name: defaults.${name}.watch.paths) [
                 "r-test"
                 "r-check"
@@ -183,9 +184,19 @@
               outputs = lib.all (path: lib.elem path custom.r-document.watch.outputs) [
                 "/NAMESPACE"
                 "/man/*.Rd"
+                "/tests/testthat/_snaps/**/*.new.*"
                 "/public"
                 "/public/**"
               ];
+              nestedOutputs =
+                lib.all (path: lib.elem path (perSystem nested).nullkomma.tasks.r-document.watch.outputs)
+                  [
+                    "/r/tests/testthat/_snaps/**/*.new.*"
+                  ];
+              nestedContentPaths = (perSystem nested).nullkomma.tasks.r-document.watch.contentPaths;
+              processOutputs = lib.all (
+                process: lib.all (path: lib.elem path process.watch.ignore) defaults.r-document.watch.outputs
+              ) (lib.attrValues (perSystem fixtures.r).processTrees.r-test.processes);
               ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
               invalidDestination =
                 (builtins.tryEval (
@@ -200,12 +211,22 @@
             };
           expected = {
             paths = [ "." ];
+            contentPaths = [
+              "man"
+              "tests/testthat/_snaps"
+            ];
             downstream = [
               [ ]
               [ ]
               [ ]
             ];
             outputs = true;
+            nestedOutputs = true;
+            nestedContentPaths = [
+              "r/man"
+              "r/tests/testthat/_snaps"
+            ];
+            processOutputs = true;
             ignore = true;
             invalidDestination = false;
           };
@@ -419,6 +440,27 @@
         };
       };
       checks = {
+        r-watch =
+          let
+            flake = callFlakeWith {
+              perSystem.nullkomma.tasks.r-test.command = lib.mkMerge [
+                (lib.mkBefore ''echo started >> "$OBSERVED"'')
+                (lib.mkAfter ''echo finished >> "$OBSERVED"'')
+              ];
+            } fixture;
+          in
+          check "r-watch" ''
+            git init -q
+            export OBSERVED="$TMPDIR/observed"
+            ${lib.getExe pkgs.python3} ${./_watch.test.py} \
+              ${
+                lib.getExe (
+                  lib.findFirst (p: lib.getName p == "watch-r-test") null
+                    (perSystem flake).nullkomma.devShell.packages
+                )
+              } \
+              || { cat "$TMPDIR/watcher.log"; exit 1; }
+          '';
         r-console =
           pkgs.runCommand "nullkomma-r-console"
             {

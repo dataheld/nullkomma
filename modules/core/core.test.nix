@@ -82,6 +82,7 @@
             perSystem.nullkomma.tasks.prepare = {
               command = ":";
               watch.manifest = pkgs.writeText "broad-inputs.txt" ".\n";
+              watch.contentPaths = [ "content-inputs" ];
               watch.outputs = [ "/prepared" ];
               watch.ignore = [ "/local-ignore" ];
             };
@@ -594,6 +595,8 @@
                   printf 'ignored-input\n' > .gitignore
                   printf 'first\n' > input
                   printf 'output\n' > destination
+                  mkdir content-inputs
+                  printf 'saved\n' > content-inputs/saved
                   export OBSERVED="$TMPDIR/observed" HOLD="$TMPDIR/hold"
                   python ${./_watch.test.py} \
                     ${

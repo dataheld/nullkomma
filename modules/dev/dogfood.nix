@@ -8,6 +8,7 @@
       ];
       nullkomma = {
         agents.skills.update-integration-matrix = ./_skills/update-integration-matrix;
+        generatedPaths = [ "tests/fixtures/r/tests/testthat/_snaps/**" ];
         brand = inputs.brand;
         cloudflare = {
           enable = true;

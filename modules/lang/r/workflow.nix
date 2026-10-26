@@ -219,11 +219,16 @@
                   command = "Rscript --vanilla -e 'roxygen2::roxygenise(roclets = setdiff(roxygen2::load_options()[[\"roclets\"]], \"namespace\"))'";
                   watch = {
                     paths = [ "." ];
+                    contentPaths = map (path: "${prefix}${path}") [
+                      "man"
+                      "tests/testthat/_snaps"
+                    ];
                     # R code, roclets, examples and vignettes can read any project file.
                     outputs =
                       map (path: "/${prefix}${path}") [
                         "NAMESPACE"
                         "man/*.Rd"
+                        "tests/testthat/_snaps/**/*.new.*"
                         "src/*.o"
                         "src/*.so"
                         "src/*.dll"
