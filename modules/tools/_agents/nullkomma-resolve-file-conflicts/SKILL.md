@@ -1,11 +1,10 @@
 ---
-name: resolve-file-conflicts
+name: nullkomma-resolve-file-conflicts
 description: Review and resolve nullkomma file-update conflicts after upgrades, preserving the project's edits to source-of-truth files.
 ---
 
 # Resolving file conflicts
 
-Use this in the affected consumer repository, not the nullkomma checkout.
 Run `nk-write-files` to get the current conflicts and candidate paths.
 Do not overwrite edited source-of-truth files or silently accept all baselines.
 
@@ -27,7 +26,7 @@ Do not overwrite edited source-of-truth files or silently accept all baselines.
    run `nk-write-files --accept <path>` for that file. This
    acknowledges the current upstream initializer without overwriting the project
    file. Do not accept changes you have not reviewed.
-1. Rerun `nk-write-files`, inspect the Git diff, and run the relevant checks.
+1. Rerun `nk-write-files`, inspect the Git diff, and run `tasks all`.
    Commit the changes as usual. Baselines are local Git metadata,
    not committed files; a new clone may need review again.
 

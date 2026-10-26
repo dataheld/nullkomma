@@ -69,3 +69,18 @@ Generated sites use stock Quarto and Bootstrap: set options only to switch on
 features, and leave layout, spacing and styling to Quarto's defaults and brand.yml.
 Don't restate defaults, and add custom CSS only for what neither offers. Check
 rendered pages on narrow and wide screens before changing presentation.
+
+<!-- nullkomma:agents:start -->
+## nullkomma
+
+This project's development environment comes from [nullkomma](https://github.com/dataheld/nullkomma).
+Run commands inside its dev shell:
+`direnv exec . <command>`, or `nix develop --command <command>` without direnv.
+`tasks` lists the project's workflows.
+
+Before you report a change as done, run `tasks all` and fix what fails.
+It runs formatting, linting and the checks locally, faster than CI.
+
+Skills for nullkomma itself are in `.agents/skills/nullkomma-*`;
+if they are missing, run `nk-generate-files`.
+<!-- nullkomma:agents:end -->

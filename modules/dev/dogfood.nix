@@ -7,6 +7,7 @@
         inputs.self.flakeModules.default
       ];
       nullkomma = {
+        agents.skills.update-integration-matrix = ./_skills/update-integration-matrix;
         brand = inputs.brand;
         cloudflare = {
           enable = true;

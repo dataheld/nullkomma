@@ -1,6 +1,6 @@
 {
   partitions.dev.module =
-    { inputs, ... }:
+    { config, inputs, ... }:
     {
       perSystem =
         {
@@ -148,6 +148,59 @@
         {
           nullkomma.nix.unit.tests = {
             # keep-sorted start block=yes
+            testAgentSkillsAreNamedLikeTheirDirectories =
+              let
+                skills =
+                  config.nullkomma.agents.skills
+                  // fixtures.r.debug.config.nullkomma.agents.skills
+                  // lib.mapAttrs (name: _: root + "/skills/${name}") (builtins.readDir (root + "/skills"));
+                named = name: dir: lib.hasInfix "\nname: ${name}\n" (builtins.readFile (dir + "/SKILL.md"));
+              in
+              {
+                expr = lib.attrNames (lib.filterAttrs (name: dir: !named name dir) skills);
+                expected = [ ];
+              };
+            testAgentsPluginWritesSkillsAndSection =
+              let
+                files =
+                  enable:
+                  (perSystem (raw {
+                    imports = [ plugins.agents ];
+                    nullkomma.agents = {
+                      inherit enable;
+                      skills.demo = md;
+                    };
+                  })).nullkomma.files;
+              in
+              {
+                expr = {
+                  enabled = lib.mapAttrs (_: f: {
+                    inherit (f) mode directory;
+                    sections = lib.attrNames f.sections;
+                  }) (files true);
+                  disabled = files false;
+                };
+                expected = {
+                  enabled = {
+                    "AGENTS.md" = {
+                      mode = "source";
+                      directory = false;
+                      sections = [ "agents" ];
+                    };
+                    ".agents/skills/demo" = {
+                      mode = "generated";
+                      directory = true;
+                      sections = [ ];
+                    };
+                    ".agents/skills/nullkomma-resolve-file-conflicts" = {
+                      mode = "generated";
+                      directory = true;
+                      sections = [ ];
+                    };
+                  };
+                  disabled = { };
+                };
+              };
             testAllPluginsDisabledIsBareFramework = {
               expr = map summary [
                 (raw { })
@@ -305,6 +358,8 @@
                   "result-*"
                   ".direnv/"
                   "/.nullkomma/processes/"
+                  "/.agents/skills/nullkomma-resolve-file-conflicts"
+                  "/.agents/skills/nullkomma-upgrade"
                   "/.nvim.lua"
                   "/.vscode/extensions.json"
                   "/.vscode/settings.json"
@@ -314,6 +369,8 @@
                   "result-*"
                   ".direnv/"
                   "/.nullkomma/processes/"
+                  "/.agents/skills/nullkomma-resolve-file-conflicts"
+                  "/.agents/skills/nullkomma-upgrade"
                   "/.nvim.lua"
                 ])
               ];
@@ -776,17 +833,6 @@
                 cmp calls expected
                 touch $out
               '';
-            agent-plugin-consumer =
-              pkgs.runCommandLocal "nullkomma-agent-plugin-consumer" { nativeBuildInputs = [ pkgs.coreutils ]; }
-                ''
-                  plugin="$TMPDIR/home/.copilot/installed-plugins/_direct/nullkomma"
-                  mkdir -p "$plugin/.github"
-                  cp ${root + "/plugin.json"} "$plugin/plugin.json"
-                  cp -R ${root + "/.github/skills"} "$plugin/.github/skills"
-                  cp -P ${root + "/skills"} "$plugin/skills"
-                  grep -qF 'name: resolve-file-conflicts' "$plugin/skills/resolve-file-conflicts/SKILL.md"
-                  touch $out
-                '';
             # Renders nullkomma's options the way https://flake.parts does for listed modules:
             # without `pkgs`, `systems` or `self`, so computed defaults need a `defaultText`.
             options-doc =
