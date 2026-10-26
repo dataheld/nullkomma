@@ -54,10 +54,15 @@
               dir = ".nullkomma/processes/${name}";
               stamp = task: "${dir}/${task}.ok";
               members = lib.unique (lib.concatMap (task: tasks.${task}.closure) spec.tasks);
+              outputs = lib.unique (
+                lib.concatMap (
+                  name: lib.optionals (tasks.${name}.watch != null) tasks.${name}.watch.outputs
+                ) members
+              );
               up = inputs.up.lib {
                 inherit lib;
                 pkgs = pkgs // {
-                  watchexec = import ./_watch.nix { inherit lib pkgs; } (lib.getAttrs members tasks);
+                  watchexec = import ./_watch.nix { inherit lib pkgs; };
                 };
               };
               process =
@@ -71,6 +76,16 @@
                       ++ lib.optional (task.watch.manifest != null) "@${task.watch.manifest}"
                     )
                     ++ map stamp task.after;
+                  watch =
+                    settings.watch or (
+                      if (task.watch != null && task.watch.native) || paths == [ ] then
+                        null
+                      else
+                        {
+                          inherit paths;
+                          ignore = if task.watch == null then [ ] else task.watch.ignore;
+                        }
+                    );
                 in
                 assert lib.assertMsg (
                   !(settings ? command)
@@ -87,16 +102,7 @@
                       condition = "process_completed";
                     })
                     // (settings.depends_on or { });
-                  watch =
-                    settings.watch or (
-                      if (task.watch != null && task.watch.native) || paths == [ ] then
-                        null
-                      else
-                        {
-                          inherit paths;
-                          ignore = if task.watch == null then [ ] else task.watch.ignore;
-                        }
-                    );
+                  watch = if watch == null then null else watch // { ignore = outputs ++ (watch.ignore or [ ]); };
                 };
               tree = up.mkProcessTree {
                 name = "process-tree-${name}";

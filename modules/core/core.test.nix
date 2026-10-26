@@ -82,6 +82,8 @@
             perSystem.nullkomma.tasks.prepare = {
               command = ":";
               watch.manifest = pkgs.writeText "broad-inputs.txt" ".\n";
+              watch.outputs = [ "/prepared" ];
+              watch.ignore = [ "/local-ignore" ];
             };
             perSystem.nullkomma.tasks.generate = {
               after = [ "prepare" ];
@@ -104,6 +106,10 @@
                 cat input > "$destination/result"
                 echo finished >> "$OBSERVED"
               '';
+              process.watch = {
+                paths = [ "input" ];
+                ignore = [ "/process-ignore" ];
+              };
             };
           };
           privacy =
@@ -470,6 +476,27 @@
                 envrc = (perSystem (callFlake t.path)).nullkomma.files.".envrc".text;
               }) nullkomma.templates;
             };
+            testWatchOutputExclusions =
+              let
+                processes = (perSystem watched).processTrees.generate.processes;
+                outputs = [ "/prepared" ] ++ (perSystem watched).nullkomma.tasks.generate.watch.outputs;
+              in
+              {
+                expr = {
+                  graph = lib.all (process: lib.all (path: lib.elem path process.watch.ignore) outputs) (
+                    lib.attrValues processes
+                  );
+                  local = lib.elem "/local-ignore" processes.prepare.watch.ignore;
+                  override = lib.elem "/process-ignore" processes.generate.watch.ignore;
+                  paths = processes.generate.watch.paths;
+                };
+                expected = {
+                  graph = true;
+                  local = true;
+                  override = true;
+                  paths = [ "input" ];
+                };
+              };
             # keep-sorted end
           };
           checks = {
@@ -496,7 +523,7 @@
                           (perSystem watched).nullkomma.devShell.packages
                       )
                     } \
-                    ${lib.getExe (import ./_watch.nix { inherit lib pkgs; } { })} \
+                    ${lib.getExe (import ./_watch.nix { inherit lib pkgs; })} \
                     || { cat "$TMPDIR/watcher.log"; exit 1; }
                   touch "$out"
                 '';
