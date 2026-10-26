@@ -106,7 +106,7 @@
                   '';
                   depends_on =
                     lib.genAttrs task.after (_: {
-                      condition = "process_completed";
+                      condition = "process_completed_successfully";
                     })
                     // (settings.depends_on or { });
                   watch = if watch == null then null else watch // { ignore = outputs ++ (watch.ignore or [ ]); };

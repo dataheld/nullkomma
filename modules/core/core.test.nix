@@ -495,6 +495,7 @@
                   processes = lib.attrNames flake.processTrees.tree.processes;
                   watches = lib.filter (lib.hasPrefix "watch-") (map lib.getName flake.nullkomma.devShell.packages);
                   downstream = flake.processTrees.tree.processes.b.watch.paths;
+                  dependency = flake.processTrees.tree.processes.b.depends_on.a.condition;
                   native = (perSystem workflow).processTrees.artifact.processes.artifact.environment;
                 };
                 expected = {
@@ -519,6 +520,7 @@
                     "watch-c"
                   ];
                   downstream = [ ".nullkomma/processes/tree/a.ok" ];
+                  dependency = "process_completed_successfully";
                   native.WORKFLOW = "native-up-settings";
                 };
               };
