@@ -39,11 +39,15 @@
             after = [ "r-document" ];
             working_dir = cfg.prefix;
             watch.paths = [ ];
-            packages = [ config.nullkomma.r.package ];
+            packages = [
+              config.nullkomma.r.package
+              pkgs.rsync
+            ];
             command = ''
               scratch="$(mktemp -d)"
               trap 'rm -rf "$scratch"' EXIT
-              cp -r . "$scratch/pkg"
+              # Unlike archive mode, -rl leaves sockets and FIFOs behind.
+              rsync -rl --quiet . "$scratch/pkg"
               chmod -R u+w "$scratch/pkg"
               cd "$scratch/pkg"
               # Share nk-write-files' exclusions without discarding working-tree rules.

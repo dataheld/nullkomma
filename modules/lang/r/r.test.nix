@@ -539,6 +539,25 @@
           echo 'stop("local-r-source-marker")' >> R/hello.R
           fails local-r-source-marker ${runCheck fixtures.r "r-cmd-check"}
         '';
+        r-check-runtime-files = check "r-check-runtime-files" ''
+          git init -q
+          mkdir -p .nullkomma/processes
+          mkfifo .git/runtime.fifo
+          ${lib.getExe pkgs.python3} - <<'PY'
+          import socket
+          import subprocess
+
+          with socket.socket(socket.AF_UNIX) as process_socket:
+              process_socket.bind(".nullkomma/processes/r-check.sock")
+              with socket.socket(socket.AF_UNIX) as other_socket:
+                  other_socket.bind(".git/runtime.sock")
+                  subprocess.run(["${task fixtures.r "r-check"}"], check=True)
+          subprocess.run(["${runCheck fixtures.r "r-cmd-check"}"], check=True)
+          PY
+          printf 'R/local.R\n' > .gitignore
+          echo 'stop("ignored-local-source-marker")' > R/local.R
+          fails ignored-local-source-marker ${task fixtures.r "r-check"}
+        '';
         r-files = check "r-files" ''
           git init -q
           ${task fixtures.r "nk-write-files"}
