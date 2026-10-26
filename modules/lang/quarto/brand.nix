@@ -25,6 +25,21 @@
             };
             siteBrand = import ../../../lib/brand.nix {
               inherit pkgs lib brand;
+              metadata = lib.optionalAttrs (brand != null) {
+                website.navbar.background = "primary";
+                format.html = {
+                  theme.light = [
+                    "default"
+                    "brand"
+                  ];
+                  theme.dark = [
+                    "default"
+                    "brand"
+                    "_extensions/nullkomma-brand/dark.scss"
+                  ];
+                  respect-user-color-scheme = true;
+                };
+              };
               privacyHref =
                 if cfg.privacy.page != null && privacy.policy != { } then
                   lib.removeSuffix ".qmd" cfg.privacy.page + ".html"

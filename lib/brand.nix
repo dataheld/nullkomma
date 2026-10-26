@@ -1,29 +1,11 @@
-# Translates a brand flake's brand.yml into Quarto metadata and a pkgdown footer.
+# Renders a brand flake's footer for Quarto (merged into `metadata`) and pkgdown.
 {
   pkgs,
   lib,
   brand,
   privacyHref ? null,
+  metadata ? { },
 }:
-let
-  metadata = lib.optionalAttrs (brand != null) {
-    website.navbar.background = "primary";
-    format.html = {
-      theme = {
-        light = [
-          "default"
-          "brand"
-        ];
-        dark = [
-          "default"
-          "brand"
-          "_extensions/nullkomma-brand/dark.scss"
-        ];
-      };
-      respect-user-color-scheme = true;
-    };
-  };
-in
 pkgs.runCommand "site-brand" { nativeBuildInputs = [ pkgs.pandoc ]; } ''
   pandoc lua ${./brand.lua} \
     ${lib.escapeShellArg (if brand != null then "${brand.lib.brand}" else "")} \
