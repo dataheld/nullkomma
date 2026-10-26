@@ -437,7 +437,7 @@ perSystem.nullkomma.processTrees.docs = {
 - Steps that write files (e.g. roxygen2) run once per tree, for every process that needs them;
   state of a single R session (e.g. pkgload in `shiny`) stays in that process.
 - Successes are recorded as Git-ignored stamps in `.nullkomma/processes/<tree>/`,
-  next to the tree's process-compose socket, so each worktree runs its own trees.
+  while each run uses its own process-compose socket in the temporary directory.
 
 Trees don't start with the dev shell ([#217](https://github.com/dataheld/nullkomma/issues/217));
 run `pc-up-<tree>` in a spare terminal.
