@@ -32,6 +32,13 @@ rec {
       .${name} or name
     );
 
+  withoutProjectProfile =
+    src:
+    lib.cleanSourceWith {
+      inherit src;
+      filter = path: _: toString path != "${toString src}/.Rprofile";
+    };
+
   # Splits the packages of a pak lockfile (`pak::lockfile_create()`, format 1)
   # into `nixpkgs`, names of packages taken from `available` (nixpkgs'
   # `rPackages`, whatever version pak recorded), and `sources`, fetcher

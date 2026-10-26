@@ -130,10 +130,8 @@
               src =
                 if s ? fetchurl then
                   pkgsR.fetchurl s.fetchurl
-                else if s.subdir == "" then
-                  tree
                 else
-                  "${tree}/${s.subdir}";
+                  rlib.withoutProjectProfile (if s.subdir == "" then tree else "${tree}/${s.subdir}");
               deps = map lookup s.dependencies;
             in
             lib.nameValuePair attr (

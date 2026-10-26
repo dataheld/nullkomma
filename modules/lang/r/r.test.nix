@@ -27,6 +27,20 @@
         ;
       rlib = import (root + "/lib/r.nix") { inherit lib; };
       fixture = root + "/tests/fixtures/r";
+      withNativeProfile = callFlakeWith {
+        nullkomma.r.nonNix.enable = true;
+      } fixture;
+      nativeProfilePackageSource = rlib.withoutProjectProfile nativeProfileProject;
+      nativeProfileProject =
+        pkgs.runCommand "nullkomma-r-native-profile-project" { nativeBuildInputs = [ pkgs.git ]; }
+          ''
+            ${project fixture}
+            git init -q
+            ${task withNativeProfile "nk-write-files"}
+            ${task withNativeProfile "nk-generate-files"}
+            mkdir $out
+            cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .R .Rprofile .Renviron .Rbuildignore $out/
+          '';
       customDestination = callFlakeWith {
         nullkomma.r.pkgdown.config.destination = "public";
       } fixture;
@@ -461,6 +475,35 @@
               } \
               || { cat "$TMPDIR/watcher.log"; exit 1; }
           '';
+        r-package-native-profile =
+          pkgs.runCommand "nullkomma-r-package-native-profile"
+            {
+              buildInputs = [
+                pkgs.R
+                pkgs.rPackages.assertthat
+              ];
+            }
+            ''
+              test -f ${nativeProfileProject}/.Rprofile
+              cp -R ${nativeProfilePackageSource}/. .
+              chmod -R u+w .
+              test ! -f .Rprofile
+              grep -qF '^[.]Rprofile$' .Rbuildignore
+              substituteInPlace DESCRIPTION --replace-fail '    stats' '    stats, assertthat'
+              printf 'import(assertthat)\n' >> NAMESPACE
+              mkdir "$TMPDIR/library"
+              export R_LIBS_SITE="${pkgs.rPackages.assertthat}/library"
+              Rscript --vanilla -e 'stopifnot(requireNamespace("assertthat", quietly = TRUE))'
+              Rscript -e '
+                stopifnot(requireNamespace("assertthat", quietly = TRUE))
+                stopifnot(is.null(getOption("nullkomma.r.library")))
+                stopifnot(!dir.exists(".R/library"))
+              '
+              R CMD INSTALL --library="$TMPDIR/library" .
+              test ! -d .R/library
+              R_LIBS_USER="$TMPDIR/library" Rscript --vanilla -e 'library(nullkommafixture)'
+              touch $out
+            '';
         r-console =
           pkgs.runCommand "nullkomma-r-console"
             {
