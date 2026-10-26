@@ -704,10 +704,6 @@ and ignores R build outputs in `.gitignore`.
 Locking chromote (e.g. via [shinytest2](https://rstudio.github.io/shinytest2/)) adds Chromium on Linux
 (`perSystem.nullkomma.r.browser`); on macOS, which Nixpkgs' Chromium doesn't support, chromote finds your Chrome.
 
-The plugin's R, Rscript and radian default `R_BROWSER` to macOS `open` or Linux `xdg-open`,
-including with `--vanilla`. Set `R_BROWSER` to override it, or to `false` to disable browser
-launching in headless sessions.
-
 #### pkgdown website
 
 `packages.site` builds the [pkgdown](https://pkgdown.r-lib.org) site in the sandbox,
