@@ -109,7 +109,8 @@
                   command=${harness.task local "shiny"}
                   expected='working-tree Shiny fixture'
                 fi
-                "$command" > server.log 2>&1 &
+                : > server.log
+                "$command" >> server.log 2>&1 &
                 pid=$!
                 trap 'kill "$pid"; wait "$pid" || true' EXIT
                 ready=false
