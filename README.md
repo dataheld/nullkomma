@@ -862,7 +862,25 @@ nullkomma is tested against small example projects ("fixtures") in
 New plugins should add a valid and a deliberately broken fixture, and check that
 the broken one fails with the real tool's error, not just any error.
 
-`pkgdown-dependencies` refreshes the pinned pkgdown Bootstrap 5 dependencies.
+`refresh-vendored` refreshes nullkomma's vendored third-party assets and dependency
+manifests. Currently it runs `refresh-vendored-pkgdown`, which regenerates
+`modules/lang/r/_vendored-pkgdown.json` from the pinned pkgdown package's own
+metadata. Nix fetches the assets using that manifest, so sandboxed site builds
+need no CDN access; the asset files are not committed to this repository.
+`checks.vendored-pkgdown` detects a stale manifest after a pkgdown upgrade.
+
+Add another refresh task through the existing task DAG, not a separate registry:
+
+```nix
+perSystem.nullkomma.tasks.refresh-vendored-example = {
+  description = "Refresh vendored Example assets";
+  before = [ "refresh-vendored" ];
+  working_dir = ".";
+  command = "...";
+};
+```
+
+These are nullkomma's own maintenance tasks, not tasks added to consumer projects.
 
 [^treefmt]: `nix fmt` and the `format` task fix what they can; `checks.<system>.treefmt`
     fails `nix flake check` (and CI) on any remaining formatting or lint issue.

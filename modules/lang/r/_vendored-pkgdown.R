@@ -1,4 +1,4 @@
-# Prints the CDN assets pkgdown downloads at build time, from its own pins.
+# Prints the manifest for vendoring pkgdown's CDN assets, from its own pins.
 deps <- new.env(parent = asNamespace("pkgdown"))
 deps$cached_dependency <- function(name, version, files) {
   lapply(files, function(file) {

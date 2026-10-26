@@ -142,11 +142,11 @@
               trap 'rm -rf "$R_USER_CACHE_DIR"' EXIT
               mkdir "$R_USER_CACHE_DIR/R"
               cp -R ${
-                pkgs.linkFarm "pkgdown-dependencies" (
+                pkgs.linkFarm "vendored-pkgdown" (
                   map (pin: {
                     inherit (pin) name;
                     path = pkgs.fetchurl { inherit (pin) url hash; };
-                  }) (lib.importJSON ./_pkgdown-dependencies.json)
+                  }) (lib.importJSON ./_vendored-pkgdown.json)
                 )
               } "$R_USER_CACHE_DIR/R/pkgdown"
               chmod -R u+w "$R_USER_CACHE_DIR"
