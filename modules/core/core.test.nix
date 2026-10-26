@@ -458,6 +458,7 @@
               expected = [
                 "check"
                 "flake-checker"
+                "format"
               ];
             };
             testTemplatesAreFixtures = {
@@ -545,8 +546,11 @@
                 grep -qF "for arguments, run the listed command directly" menu
                 ${lib.getExe runner} check > checked
                 grep -qF custom-check checked
-                ${lib.getExe runner} all > checked-all
+                touch flake.nix
+                export HOME="$TMPDIR"
+                ${lib.getExe runner} all > checked-all || { cat checked-all; exit 1; }
                 grep -qF custom-check checked-all
+                grep -qF 'formatted' checked-all
                 touch $out
               '';
             neovim-config =

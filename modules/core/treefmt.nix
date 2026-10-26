@@ -57,9 +57,7 @@
             vscode.extensions = [ "ibecker.treefmt-vscode" ];
             vscode.settings."editor.defaultFormatter" = lib.mkDefault "ibecker.treefmt-vscode";
           };
-          # Writes files, so not part of running all tasks.
           nullkomma.tasks.format = {
-            skip = true;
             description = "Format and lint all files (treefmt)";
             packages = [ config.treefmt.build.wrapper ];
             command = ''exec treefmt "$@"'';
