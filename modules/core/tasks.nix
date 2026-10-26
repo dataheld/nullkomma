@@ -215,6 +215,7 @@
             name: task:
             let
               watched = lib.filter (dep: cfg.${dep}.watch != null) task.closure;
+              allWatched = lib.filter (dep: cfg.${dep}.watch != null) (lib.attrNames cfg);
               manifests = lib.concatMap (
                 dep: lib.optional (cfg.${dep}.watch.manifest != null) cfg.${dep}.watch.manifest
               ) watched;
@@ -229,11 +230,11 @@
                 description = "Run ${name} again whenever its inputs change";
                 package = import ./_watch.nix {
                   inherit lib pkgs;
-                  contentPaths = lib.unique (lib.concatMap (dep: cfg.${dep}.watch.contentPaths) watched);
+                  contentPaths = lib.unique (lib.concatMap (dep: cfg.${dep}.watch.contentPaths) allWatched);
                 };
                 command = lib.getExe task.package;
                 ignore =
-                  lib.unique (lib.concatMap (dep: cfg.${dep}.watch.outputs) watched)
+                  lib.unique (lib.concatMap (dep: cfg.${dep}.watch.outputs) allWatched)
                   ++ lib.concatMap (dep: cfg.${dep}.watch.ignore) watched;
                 inherit paths;
               };

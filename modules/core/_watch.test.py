@@ -44,6 +44,7 @@ with open(os.environ["TMPDIR"] + "/watcher.log", "w") as log:
         baseline = settle(process)
         Path("output/generated").write_text("not an input")
         Path("prepared").write_text("prerequisite output")
+        Path("external-output").write_text("another task output")
         Path("local-ignore").write_text("explicit exclusion")
         time.sleep(1)
         assert count() == baseline, "excluded path triggered a run"
