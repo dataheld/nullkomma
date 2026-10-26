@@ -31,11 +31,11 @@
       themed = callFlakeWith {
         nullkomma.brand = lib.mkForce { lib.brand = root + "/tests/fixtures/r-brand/_brand.yml"; };
       } (root + "/tests/fixtures/quarto-branded");
-      docs = rawAt (root + "/tests/fixtures") {
+      nkdocs = rawAt (root + "/tests/fixtures") {
         imports = [ nullkomma.flakeModules.default ];
         nullkomma.quarto = {
           enable = true;
-          root = root + "/tests/fixtures/quarto-docs";
+          root = root + "/tests/fixtures/quarto-nkdocs";
           privacy.page = "legal/privacy.qmd";
         };
         nullkomma.privacy.sections.local.markdown = {
@@ -89,7 +89,7 @@
           };
         };
       checks = {
-        quarto-docs = linkcheck "quarto-docs" docs.packages.${system}.site;
+        quarto-nkdocs = linkcheck "quarto-nkdocs" nkdocs.packages.${system}.site;
         quarto-site = pkgs.runCommand "nullkomma-quarto-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           site=${fixtures.quarto.packages.${system}.site}
           python - "$site/index.html" <<'PY'
@@ -122,7 +122,7 @@
               }
               python - ${fixtures.quarto-branded.packages.${system}.site} ${
                 englishCloudflare.packages.${system}.site
-              } ${docs.packages.${system}.site} <<'PY'
+              } ${nkdocs.packages.${system}.site} <<'PY'
               from html.parser import HTMLParser
               from pathlib import Path
               import sys
@@ -137,17 +137,17 @@
                   document.feed(Path(path).read_text())
                   return " ".join("".join(document.text).split())
 
-              branded, english, docs = sys.argv[1:]
+              branded, english, nkdocs = sys.argv[1:]
               left, right = Path(f"{branded}/index.html").read_text().split('<div class="nav-footer-right">')
               assert "Shared fixture footer" in left
               assert "Imprint" not in left
               assert "Imprint" in right and "Privacy" in right and "bi-envelope" in right
-              # The docs type alone is brand-free.
-              assert "Imprint" not in Path(f"{docs}/index.html").read_text()
-              assert 'id="quarto-sidebar"' not in Path(f"{docs}/legal/privacy.html").read_text()
-              assert 'id="quarto-sidebar"' in Path(f"{docs}/index.html").read_text()
+              # nkdocs alone is brand-free.
+              assert "Imprint" not in Path(f"{nkdocs}/index.html").read_text()
+              assert 'id="quarto-sidebar"' not in Path(f"{nkdocs}/legal/privacy.html").read_text()
+              assert 'id="quarto-sidebar"' in Path(f"{nkdocs}/index.html").read_text()
               # Quarto's default floating sidebar keeps pages centred on wide screens.
-              body = Path(f"{docs}/index.html").read_text().split("<body", 1)[1].split(">", 1)[0]
+              body = Path(f"{nkdocs}/index.html").read_text().split("<body", 1)[1].split(">", 1)[0]
               assert "floating" in body and "docked" not in body, body
               assert "Hello from an extension" in text(f"{branded}/index.html")
               privacy = text(f"{branded}/privacy.html")

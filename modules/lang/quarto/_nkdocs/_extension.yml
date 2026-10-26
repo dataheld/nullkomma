@@ -1,5 +1,5 @@
 # Switch on stock Quarto docs features; leave layout and style to Quarto's defaults.
-title: nullkomma documentation
+title: nkdocs
 version: 0.1.0
 contributes:
   project:

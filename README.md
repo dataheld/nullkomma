@@ -417,18 +417,18 @@ Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.exten
 generated into `_extensions/<name>`.
 The [privacy policy](#privacy-policy) is generated into `privacy.qmd`.
 
-For a documentation site, enable `nullkomma.quarto.enable = true` and select the
-native project type in your `_quarto.yml`:
+For a documentation site, enable `nullkomma.quarto.enable = true` and select
+nkdocs, a Quarto extension nullkomma generates, as the project type in your `_quarto.yml`:
 
 ```yaml
 project:
-  type: nullkomma-docs
+  type: nkdocs
 website:
   title: My project
   repo-url: https://github.com/example/project
 ```
 
-The docs type only switches on stock Quarto features and knows nothing of brands;
+nkdocs only switches on stock Quarto features and knows nothing of brands;
 configure everything else in `_quarto.yml` as usual,
 e.g. add pages to `website.sidebar.contents`. Set `repo-url` for repository actions.
 
@@ -693,7 +693,7 @@ projects' `flake.lock`.
 
 ### Documentation website
 
-nullkomma's own website is this README, built as a [`quarto`](#quarto) `nullkomma-docs`
+nullkomma's own website is this README, built as a [`quarto`](#quarto) nkdocs
 site into [`packages.site`](#site) styled by [`quarto-brand`](#brand) with [Max Held's](https://www.maxheld.de) brand and
 [privacy policy](#privacy-policy). `tasks` lists how to preview and check it.
 

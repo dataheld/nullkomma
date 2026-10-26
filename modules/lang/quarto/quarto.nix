@@ -81,8 +81,8 @@
         }
       );
       config = lib.mkIf cfg.enable {
-        # The `nullkomma-docs` project type: stock Quarto docs features, nothing brand-specific.
-        nullkomma.quarto.extensions.nullkomma-docs = ./_nullkomma-docs;
+        # nkdocs, a Quarto extension contributing a project type: stock Quarto docs features, nothing brand-specific.
+        nullkomma.quarto.extensions.nkdocs = ./_nkdocs;
         nullkomma.generatedPaths = [
           "${prefix}.quarto/**"
           "${prefix}_site/**"
