@@ -1,4 +1,4 @@
-# A brand flake contributes privacy sections, and `quarto-brand` and `r-brand`
+# A brand flake contributes privacy sections, and `quarto-website-brand` and `r-brand`
 # theme sites with it; nullkomma adds no brand input itself.
 {
   framework =
@@ -18,7 +18,7 @@
         type = lib.types.nullOr lib.types.attrs;
         default = null;
         example = lib.literalExpression "inputs.brand";
-        description = "Optional brand flake exposing `lib.brand` (brand.yml) and optional `lib.privacy.<section>.<language>` Markdown paths. The `quarto-brand` and `r-brand` plugins apply its native theme and declarative `defaults.nullkomma.footer` to Quarto and pkgdown sites; privacy sections join `nullkomma.privacy` independently of the footer.";
+        description = "Optional brand flake exposing `lib.brand` (brand.yml) and optional `lib.privacy.<section>.<language>` Markdown paths. The `quarto-website-brand` and `r-brand` plugins apply its native theme and declarative `defaults.nullkomma.footer` to Quarto and pkgdown sites; privacy sections join `nullkomma.privacy` independently of the footer.";
       };
       config.nullkomma.privacy.sections = lib.mkIf (brand != null) (
         lib.mapAttrs (name: markdown: {

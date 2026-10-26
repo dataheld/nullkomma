@@ -1,12 +1,13 @@
-# Applies `nullkomma.brand` to any `quarto` project through `_nullkomma-brand.yml`
-# metadata, which projects list in `metadata-files`. Layered on `quarto`, whose
-# options it reads; `quarto` itself knows no brand.
+# Applies `nullkomma.brand` to a `quarto` website (plain `website` or nkdocs) through
+# `_nullkomma-brand.yml` metadata, which the website lists in `metadata-files`. Its themes would
+# style any HTML output, but navbar and footer are `website` options. Layered on
+# `quarto`, whose options it reads; `quarto` itself knows no brand.
 { config, ... }:
 let
   quartoModule = config.flake.flakeModules.quarto;
 in
 {
-  plugins.quarto-brand =
+  plugins.quarto-website-brand =
     {
       config,
       lib,
@@ -18,14 +19,14 @@ in
       inherit (config.nullkomma) privacy;
       brand =
         if config.nullkomma.brand == null then
-          throw "nullkomma.quarto-brand needs nullkomma.brand"
+          throw "nullkomma.quarto-website-brand needs nullkomma.brand"
         else
           config.nullkomma.brand;
       prefix = import ../../../lib/prefix.nix lib self cfg.root;
     in
     {
       imports = [ quartoModule ];
-      config = lib.mkIf config.nullkomma.quarto-brand.enable {
+      config = lib.mkIf config.nullkomma.quarto-website-brand.enable {
         nullkomma.quarto.enable = true;
         nullkomma.quarto.extensions.nullkomma-brand = ./_nullkomma-brand;
         perSystem =
@@ -69,7 +70,7 @@ in
               "${prefix}_brand" = {
                 mode = "generated";
                 directory = true;
-                source = pkgs.runCommand "quarto-brand" { nativeBuildInputs = [ quarto ]; } ''
+                source = pkgs.runCommand "quarto-website-brand" { nativeBuildInputs = [ quarto ]; } ''
                   export HOME="$TMPDIR"
                   mkdir source
                   cp ${brandExtension} source/_extension.yml

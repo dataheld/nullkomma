@@ -8,7 +8,7 @@
     inputs:
     inputs.nullkomma.lib.mkFlake { inherit inputs; } {
       nullkomma.brand.lib.brand = ../site-brand/brand.yml;
-      nullkomma.quarto-brand.enable = true;
+      nullkomma.quarto-website-brand.enable = true;
       nullkomma.quarto.extensions.greeting = ./_greeting;
       nullkomma.lint.markdown.MD041 = false;
       nullkomma.privacy.sections.local.markdown = {
