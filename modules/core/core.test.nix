@@ -495,6 +495,7 @@
                   processes = lib.attrNames flake.processTrees.tree.processes;
                   watches = lib.filter (lib.hasPrefix "watch-") (map lib.getName flake.nullkomma.devShell.packages);
                   downstream = flake.processTrees.tree.processes.b.watch.paths;
+                  dependency = flake.processTrees.tree.processes.b.depends_on.a.condition;
                   native = (perSystem workflow).processTrees.artifact.processes.artifact.environment;
                 };
                 expected = {
@@ -519,6 +520,7 @@
                     "watch-c"
                   ];
                   downstream = [ ".nullkomma/processes/tree/a.ok" ];
+                  dependency = "process_completed_successfully";
                   native.WORKFLOW = "native-up-settings";
                 };
               };
@@ -570,6 +572,37 @@
             # keep-sorted end
           };
           checks = {
+            process-task-failure =
+              let
+                flake = perSystem (raw {
+                  perSystem.nullkomma.tasks.fail = {
+                    process = { };
+                    command = "exit 42";
+                  };
+                });
+                command = flake.processTrees.fail.processes.fail.command;
+              in
+              pkgs.runCommand "nullkomma-process-task-failure"
+                {
+                  nativeBuildInputs = [
+                    pkgs.bash
+                    pkgs.coreutils
+                  ];
+                }
+                ''
+                  ${harness.project md}
+                  export NULLKOMMA_ROOT="$PWD"
+                  mkdir -p .nullkomma/processes/fail
+                  stamp=.nullkomma/processes/fail/fail.ok
+                  touch -d @1 "$stamp"
+                  before="$(stat -c %Y "$stamp")"
+                  if bash -c ${lib.escapeShellArg command}; then
+                    echo "Failed process task returned success" >&2
+                    exit 1
+                  fi
+                  [[ "$(stat -c %Y "$stamp")" == "$before" ]]
+                  touch "$out"
+                '';
             process-socket =
               let
                 flake = raw {
