@@ -14,15 +14,14 @@
       "locked": {
         "lastModified": 1793032852,
         "narHash": "sha256-17Ah7o/NJb1Te81TKDDfgtSumV9QJ8RRhnNV8qE4ZP8=",
-        "owner": "dataheld",
-        "repo": "maxheld",
         "rev": "83c05ac1282b2add9516117102c2a561d709b27e",
-        "type": "github"
+        "revCount": 220,
+        "type": "tarball",
+        "url": "https://api.flakehub.com/f/pinned/dataheld/maxheld/0.1.220%2Brev-83c05ac1282b2add9516117102c2a561d709b27e/01a1791d-37f5-7b53-b196-0de5224abeae/source.tar.gz"
       },
       "original": {
-        "owner": "dataheld",
-        "repo": "maxheld",
-        "type": "github"
+        "type": "tarball",
+        "url": "https://flakehub.com/f/dataheld/maxheld/%2A"
       }
     },
     "flake-parts": {
