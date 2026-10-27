@@ -9,6 +9,7 @@
     }:
     let
       inherit (harness)
+        callFlake
         callFlakeWith
         fixtures
         perSystem
@@ -16,6 +17,7 @@
         runCheck
         ;
       fixture = root + "/tests/fixtures/r-shiny";
+      hello = callFlake (root + "/tests/fixtures/r-shiny-hello");
       enabled = callFlakeWith {
         nullkomma.r.extraPackages = [ "desc" ];
         nullkomma.r.shiny = {
@@ -49,7 +51,38 @@
         } fixture).apps.${system}.shiny.program;
     in
     {
+      nullkomma.tasks.try-shiny = {
+        skip = true;
+        raw = true;
+        description = "Serve the Shiny hello example with pc-up-r-shiny, from a scratch copy you can edit";
+        packages = [ pkgs.git ];
+        command = ''
+          root="$(git rev-parse --show-toplevel)"
+          scratch="$(mktemp -d)"
+          trap 'rm -rf "$scratch"' EXIT
+          cp -R "$root/tests/fixtures/r-shiny-hello/." "$scratch"
+          chmod -R u+w "$scratch"
+          cd "$scratch"
+          git init -q
+          git add -A
+          echo "Edit $scratch/R/app.R; the app reloads in the browser."
+          nix run "path:$scratch#processTrees.${system}.r-shiny" \
+            --override-input nullkomma "path:$root" --no-write-lock-file
+        '';
+      };
       nullkomma.nix.unit.tests = {
+        testShinyHelloFixture = {
+          expr = {
+            app = hello.apps.${system} ? shiny;
+            tree = lib.isString hello.processTrees.${system}.r-shiny.drvPath;
+            probe = (perSystem hello).nullkomma.tasks.shiny.process ? readiness_probe;
+          };
+          expected = {
+            app = true;
+            tree = true;
+            probe = true;
+          };
+        };
         testShinyIsOptIn = {
           expr = {
             app = fixtures.r.apps.${system} ? shiny;
@@ -103,7 +136,34 @@
               mkdir sub
               cd sub
               export R_LIBS_SITE="${pkgs.rPackages.pkgload}/library:${pkgs.rPackages.testthat}/library"
-              for mode in installed working-tree; do
+              export R_BROWSER="$TMPDIR/browser"
+              cat > "$R_BROWSER" <<'SH'
+              #!/bin/sh
+              echo "$1" > "$TMPDIR/browsed"
+              SH
+              chmod +x "$R_BROWSER"
+              # Own process groups, so killing a server also stops its watcher.
+              set -m
+              root="$(git rev-parse --show-toplevel)"
+              # Waits until the server answers $1 with a page containing $2.
+              serves() {
+                for attempt in {1..60}; do
+                  if [[ -n "$1" ]] && curl --noproxy '*' --fail --silent "$1" > response.html \
+                    && grep -qF "$2" response.html; then
+                    return
+                  fi
+                  if ! kill -0 "$pid" 2>/dev/null; then
+                    cat server.log >&2
+                    exit 1
+                  fi
+                  sleep 1
+                done
+                cat server.log >&2
+                echo "Shiny did not serve: $2" >&2
+                exit 1
+              }
+              for mode in installed working-tree process-tree; do
+                rm -f "$TMPDIR/browsed"
                 if [[ "$mode" == installed ]]; then
                   command=${enabled.apps.${system}.shiny.program}
                   expected='nullkomma Shiny fixture'
@@ -113,36 +173,44 @@
                   command=${harness.task local "shiny"}
                   expected='working-tree Shiny fixture'
                 fi
+                if [[ "$mode" == process-tree ]]; then
+                  export NULLKOMMA_ROOT="$root" NULLKOMMA_PROCESSES=.nullkomma/processes/shiny
+                  mkdir -p "$root/$NULLKOMMA_PROCESSES"
+                  touch "$root/$NULLKOMMA_PROCESSES/r-namespace.ok"
+                fi
                 : > server.log
                 "$command" >> server.log 2>&1 &
                 pid=$!
-                trap 'kill "$pid"; wait "$pid" || true' EXIT
-                ready=false
+                trap 'kill -- -"$pid"; wait "$pid" || true' EXIT
                 for attempt in {1..60}; do
                   url=$(sed -n 's/^Listening on \(http:\/\/127[.]0[.]0[.]1:[0-9]*\).*$/\1/p' server.log)
-                  if [[ -n "$url" ]] && curl --noproxy '*' --fail --silent "$url" > response.html; then
-                    grep -qF "$expected" response.html
-                    if [[ "$mode" == working-tree ]]; then
-                      test -z "$(find man -type f -name '*.Rd' -print -quit)"
-                      grep -qx keep man/sentinel
-                    fi
-                    ready=true
-                    break
-                  fi
-                  if ! kill -0 "$pid" 2>/dev/null; then
-                    cat server.log >&2
-                    exit 1
-                  fi
+                  [[ -n "$url" ]] && break
                   sleep 1
                 done
-                if [[ "$ready" != true ]]; then
-                  cat server.log >&2
-                  echo 'Shiny did not become ready' >&2
-                  exit 1
+                serves "$url" "$expected"
+                if [[ "$mode" == installed ]]; then
+                  test ! -e "$TMPDIR/browsed"
+                else
+                  test -z "$(find man -type f -name '*.Rd' -print -quit)"
+                  grep -qx keep man/sentinel
+                  for attempt in {1..10}; do
+                    [[ -e "$TMPDIR/browsed" ]] && break
+                    sleep 1
+                  done
+                  grep -qxF "$url" "$TMPDIR/browsed"
                 fi
-                kill "$pid"
+                if [[ "$mode" == process-tree ]]; then
+                  bash -c ${lib.escapeShellArg (perSystem local).nullkomma.tasks.shiny.process.readiness_probe.exec.command}
+                  substituteInPlace "$root/R/app.R" --replace-fail 'working-tree Shiny fixture' 'reloaded Shiny fixture'
+                  touch "$root/$NULLKOMMA_PROCESSES/r-namespace.ok"
+                  serves "$url" 'reloaded Shiny fixture'
+                fi
+                kill -- -"$pid"
                 wait "$pid" || true
                 trap - EXIT
+                if [[ "$mode" == process-tree ]]; then
+                  ! bash -c ${lib.escapeShellArg (perSystem local).nullkomma.tasks.shiny.process.readiness_probe.exec.command}
+                fi
               done
               touch "$out"
             '';
