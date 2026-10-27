@@ -156,6 +156,8 @@
                   name = "r-${name}-${s.version}";
                   inherit src;
                   inherit (s) version;
+                  R_PROFILE_USER = "/dev/null";
+                  R_ENVIRON_USER = "/dev/null";
                   propagatedBuildInputs = deps ++ withoutRPackages (old.propagatedBuildInputs or [ ]);
                   nativeBuildInputs = deps ++ withoutRPackages (old.nativeBuildInputs or [ ]);
                 })
@@ -164,6 +166,8 @@
                   pname = name;
                   inherit src;
                   inherit (s) version;
+                  R_PROFILE_USER = "/dev/null";
+                  R_ENVIRON_USER = "/dev/null";
                   propagatedBuildInputs = deps;
                   nativeBuildInputs = deps;
                 }
