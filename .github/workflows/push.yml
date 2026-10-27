@@ -19,11 +19,15 @@ jobs:
         run: nix develop --command test-r-non-nix
   consumer-contract:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/flakehub-cache-action@v3
       - name: Check good and bad consumers through the Nix CLI
         run: nix develop --command check-fixtures
   nullkomma:
@@ -38,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     concurrency:
       group: cloudflare-production
       cancel-in-progress: false
@@ -46,6 +51,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/flakehub-cache-action@v3
       - name: Deploy site and subdomain
         run: nix run .#deploy
         env:

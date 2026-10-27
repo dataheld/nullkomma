@@ -25,10 +25,23 @@
                 pkgs.stdenv.isLinux
                 && lib.elem "chromote" (map (p: p.package) (cfg.locked.packages or [ ]) ++ cfg.extraPackages)
               then
-                pkgs.chromium
+                pkgs.writeShellApplication {
+                  name = "r-chromium-with-fonts";
+                  text = ''
+                    export FONTCONFIG_FILE=${
+                      pkgs.makeFontsConf {
+                        fontDirectories = [
+                          pkgs.liberation_ttf
+                          pkgs.dejavu_fonts
+                        ];
+                      }
+                    }
+                    exec ${lib.getExe pkgs.chromium} "$@"
+                  '';
+                }
               else
                 null;
-            defaultText = lib.literalMD "Chromium on Linux when chromote (e.g. via shinytest2) is in pkg.lock or extraPackages; otherwise null";
+            defaultText = lib.literalMD "Chromium with Liberation and DejaVu fonts on Linux when chromote (e.g. via shinytest2) is in pkg.lock or extraPackages; otherwise null";
             description = "Chrome-compatible browser for shinytest2/chromote. On macOS, null uses chromote's locally installed Chrome discovery; sandboxed browser tests require Linux or a supplied Nix browser.";
           };
           options.nullkomma.r.packages = lib.mkOption {
