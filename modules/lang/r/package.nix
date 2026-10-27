@@ -143,8 +143,10 @@
               src =
                 if s ? fetchurl then
                   pkgsR.fetchurl s.fetchurl
+                else if s.subdir == "" then
+                  tree
                 else
-                  rlib.withoutProjectProfile (if s.subdir == "" then tree else "${tree}/${s.subdir}");
+                  "${tree}/${s.subdir}";
               deps = map lookup s.dependencies;
             in
             lib.nameValuePair attr (
@@ -154,6 +156,8 @@
                   name = "r-${name}-${s.version}";
                   inherit src;
                   inherit (s) version;
+                  R_PROFILE_USER = "/dev/null";
+                  R_ENVIRON_USER = "/dev/null";
                   propagatedBuildInputs = deps ++ withoutRPackages (old.propagatedBuildInputs or [ ]);
                   nativeBuildInputs = deps ++ withoutRPackages (old.nativeBuildInputs or [ ]);
                 })
@@ -162,6 +166,8 @@
                   pname = name;
                   inherit src;
                   inherit (s) version;
+                  R_PROFILE_USER = "/dev/null";
+                  R_ENVIRON_USER = "/dev/null";
                   propagatedBuildInputs = deps;
                   nativeBuildInputs = deps;
                 }
