@@ -24,6 +24,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: DeterminateSystems/determinate-nix-action@v3
+        with:
+          github-token: ${{ secrets.MAXHELD_READ_TOKEN || github.token }}
       - name: Check good and bad consumers through the Nix CLI
         run: nix develop --command check-fixtures
   nullkomma:
