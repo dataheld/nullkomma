@@ -316,7 +316,7 @@ With the `r` plugin, writes the [`pkg.lock`](#dependencies) the development shel
 #### `shiny`
 
 With `nullkomma.r.shiny.enable = true`, serves the project's [Shiny app](#shiny-app)
-at `http://127.0.0.1:3838` using the pinned R environment.
+at `http://127.0.0.1:3838` using the pinned R environment, and opens it in the browser.
 
 ### `taskRunners`
 
@@ -760,7 +760,11 @@ nullkomma.r.shiny = {
 ```
 
 `nix run .#shiny` installs your package from the flake's source, calls the function and serves the app.
-The `shiny` task instead loads the working-tree package with pkgload, without installing it.
+The `shiny` task instead loads the working-tree package with pkgload, without installing it,
+and opens the app with R's `browseURL()`: set `R_BROWSER` to choose the browser command.
+Its log shows the URL (`Listening on …`).
+In a process tree, the app reloads with Shiny's autoreload,
+and process-compose reports it as ready while the server answers HTTP requests.
 Its runtime is R, Shiny and your package's `Depends`/`Imports` closure: no `Suggests`, `Config/Needs/*`, `extraPackages` or pkgload.
 Ship assets in `inst/` (find them with `system.file()`) and write data outside the installed package.
 
@@ -878,6 +882,7 @@ nullkomma is tested against small example projects ("fixtures") in
 - **Build tests** run the real tools on the fixtures in `nix flake check`; Nix and Markdown files listed in `rejects` must fail.
 - **End-to-end test:** `check-fixtures` runs `nix flake check` on a copy of a fixture against this checkout, as a user would,
   the only test of how real projects fetch nullkomma. CI runs it on every push.
+- **By hand:** `try-shiny` serves Shiny's hello example from a scratch copy with `pc-up-r-shiny`.
 - **Without Nix:** `test-r-non-nix` builds the `r-non-nix` fixture in Docker (Ubuntu 24.04, `linux/amd64`, no Nix),
   runs the documented R examples and builds the package; extra arguments go to `docker build`. CI runs it on manual dispatch.
 
