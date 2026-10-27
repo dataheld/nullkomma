@@ -10,7 +10,6 @@
     inputs:
     inputs.nullkomma.lib.mkFlake { inherit inputs; } {
       nullkomma.r.enable = true;
-      nullkomma.r.allowOffNixpkgs = true;
       nullkomma.r.hashes.digest = "sha256-gsTRSZlLikqa+TD1qOR0IIKZNavtQfP5Aw6UtqSPAyE=";
     };
 }

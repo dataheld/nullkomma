@@ -691,9 +691,13 @@ So a package with three dependencies gets those three, one with Shiny gets Shiny
 and system libraries come with the packages that need them.
 
 > [!NOTE]
-> Packages from `Remotes`, or missing from `nixpkgs-r`, need `nullkomma.r.allowOffNixpkgs = true`.
-> Git sources use the locked commit;
-> URL sources also need `nullkomma.r.hashes.<package>` from `nix store prefetch-file <url>`.
+> Packages from `Remotes`, or missing from `nixpkgs-r`, build by default from their
+> lockfile-pinned sources against nixpkgs' versions of their dependencies.
+> This broadens the build surface beyond packages provided by `nixpkgs-r`.
+> Set `nullkomma.r.allowOffNixpkgs = false` to require packages from `nixpkgs-r` only.
+> Git sources use the locked commit; URL sources and CRAN packages missing from
+> `nixpkgs-r` need `nullkomma.r.hashes.<package>` from
+> `nix store prefetch-file <url>`.
 > Add missing system libraries with `perSystem.nullkomma.r.buildInputs.<package>`.
 > GitLab and local references are unsupported; use `git::` for GitLab.
 

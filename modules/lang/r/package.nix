@@ -33,7 +33,20 @@
               if !usesChromote then
                 null
               else if pkgs.stdenv.isLinux then
-                pkgs.chromium
+                pkgs.writeShellApplication {
+                  name = "r-chromium-with-fonts";
+                  text = ''
+                    export FONTCONFIG_FILE=${
+                      pkgs.makeFontsConf {
+                        fontDirectories = [
+                          pkgs.liberation_ttf
+                          pkgs.dejavu_fonts
+                        ];
+                      }
+                    }
+                    exec ${lib.getExe pkgs.chromium} "$@"
+                  '';
+                }
               else if system == "aarch64-darwin" then
                 pkgs.writeShellScriptBin "chrome-for-testing" ''
                   exec "${
@@ -47,7 +60,7 @@
                 ''
               else
                 null;
-            defaultText = lib.literalMD "Nixpkgs Chromium on Linux, or pinned Chrome for Testing on aarch64-darwin, when chromote is in pkg.lock or extraPackages; otherwise null";
+            defaultText = lib.literalMD "Chromium with Liberation and DejaVu fonts on Linux, or pinned Chrome for Testing on aarch64-darwin, when chromote is in pkg.lock or extraPackages; otherwise null";
             description = "Chrome-compatible browser for shinytest2/chromote. Nullkomma pins Chromium on Linux and Chrome for Testing on aarch64-darwin so sandboxed browser checks run without a host browser.";
           };
           options.nullkomma.r.packages = lib.mkOption {
@@ -174,6 +187,8 @@
                   name = "r-${name}-${s.version}";
                   inherit src;
                   inherit (s) version;
+                  R_PROFILE_USER = "/dev/null";
+                  R_ENVIRON_USER = "/dev/null";
                   propagatedBuildInputs = deps ++ withoutRPackages (old.propagatedBuildInputs or [ ]);
                   nativeBuildInputs = deps ++ withoutRPackages (old.nativeBuildInputs or [ ]);
                 })
@@ -182,6 +197,8 @@
                   pname = name;
                   inherit src;
                   inherit (s) version;
+                  R_PROFILE_USER = "/dev/null";
+                  R_ENVIRON_USER = "/dev/null";
                   propagatedBuildInputs = deps;
                   nativeBuildInputs = deps;
                 }

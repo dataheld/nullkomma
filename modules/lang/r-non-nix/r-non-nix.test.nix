@@ -10,6 +10,7 @@
       let
         inherit (harness)
           callFlakeWith
+          fixtures
           nullkomma
           perSystem
           plugins
@@ -106,6 +107,28 @@
         };
         checks = {
           r-non-nix-files = nonNixProject;
+          r-non-nix-package =
+            (lib.findFirst (p: p.pname or "" == "withr") null
+              (perSystem fixtures.r-remotes).nullkomma.r.package.buildInputs
+            ).overrideAttrs
+              {
+                src = nonNixProject;
+                propagatedBuildInputs = [ pkgs.rPackages.assertthat ];
+                postPatch = ''
+                  substituteInPlace DESCRIPTION --replace-fail '    stats' '    stats, assertthat'
+                  printf 'import(assertthat)\n' >> NAMESPACE
+                  cat > configure <<'SH'
+                  #!/bin/sh
+                  Rscript -e 'stopifnot(requireNamespace("assertthat", quietly = TRUE), is.null(getOption("nullkomma.r.library")), !nzchar(Sys.getenv("NULLKOMMA_PPM_URL")))'
+                  SH
+                  chmod +x configure
+                '';
+                postInstall = ''
+                  test -f .Rprofile
+                  test ! -d .R/library
+                  Rscript -e 'library(nullkommafixture)'
+                '';
+              };
           # Nix's own R ignores the native startup files, also in parallel workers.
           r-non-nix-nix-workflows = pkgs.runCommand "nullkomma-r-non-nix-nix-workflows" { } ''
             ${project nonNixProject}
