@@ -1,0 +1,21 @@
+{
+  "lockfile_version": 1,
+  "packages": [
+    {
+      "ref": "deps::.",
+      "package": "nullkommashinyhello-deps",
+      "type": "deps",
+      "dep_types": [
+        "Depends",
+        "Imports",
+        "LinkingTo",
+        "Suggests"
+      ]
+    },
+    {
+      "ref": "shiny",
+      "package": "shiny",
+      "type": "standard"
+    }
+  ]
+}
