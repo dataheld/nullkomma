@@ -1,0 +1,13 @@
+Package: nullkommashinyhello
+Title: Shiny's Hello Example as a Package
+Version: 0.0.1
+Authors@R: person("nullkomma", email = "nullkomma@example.com", role = c("aut", "cre"))
+Description: Shiny's classic Old Faithful histogram app, to try nullkomma's
+    Shiny development server by hand.
+License: CC0
+Encoding: UTF-8
+Imports:
+    datasets,
+    graphics,
+    shiny
+RoxygenNote: 7.3.3
