@@ -86,6 +86,35 @@ inputs.nullkomma.lib.mkFlake { inherit inputs; } {
 }
 ```
 
+### Development-only inputs
+
+Flakes that consume yours lock your inputs, and may fetch them.
+Declare inputs that only your development needs, such as a private [brand](#brand),
+in a second flake, `dev/flake.nix`, and lock it with `nix flake lock ./dev`:
+
+```nix
+{
+  inputs.brand.url = "github:example/brand";
+  outputs = _: { };
+}
+```
+
+Use them in a `dev` [partition](https://flake.parts/options/flake-parts-partitions.html):
+
+```nix
+partitions.dev = {
+  extraInputsFlake = ./dev;
+  module =
+    { inputs, ... }:
+    {
+      nullkomma.brand = inputs.brand;
+    };
+};
+```
+
+nullkomma then takes `apps`, `checks`, `devShells`, `formatter`, `packages`, `processTrees`, `schemas`, `taskRunners` and `tests` from the partition.
+Other outputs, such as `lib` or modules, are evaluated without the development inputs.
+
 ### Plugins
 
 Each plugin is an independently selectable integration exported as `flakeModules.<name>`;
@@ -230,9 +259,7 @@ inputs.brand = {
 nullkomma.brand = inputs.brand;
 ```
 
-In a flake that other flakes consume, keep the brand out of their `flake.lock`:
-declare it in a [partition](https://flake.parts/options/flake-parts-partitions.html)'s `extraInputsFlake` and set `nullkomma.brand` there,
-as nullkomma does in [`dev/flake.nix`](dev/flake.nix) and [`modules/dev/dogfood.nix`](modules/dev/dogfood.nix).
+In a flake that other flakes consume, make the brand a [development-only input](#development-only-inputs).
 
 Brand owns the declarations; nullkomma owns their translation and placement.
 R and Quarto keep their native themes unless their branding feature is enabled.

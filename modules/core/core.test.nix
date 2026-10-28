@@ -302,6 +302,29 @@
                   setting = "project-nixd";
                 };
               };
+            testDevPartitionServesDevelopmentOutputs =
+              let
+                demo.perSystem.packages.demo = pkgs.hello;
+                packages = module: lib.attrNames (raw module).packages.${pkgs.stdenv.hostPlatform.system};
+                dev.partitions.dev = { };
+              in
+              {
+                expr = {
+                  packages = map packages [
+                    demo
+                    { partitions.dev.module = demo; }
+                  ];
+                  outputsEvaluate = map (outputs: lib.all lib.isAttrs (lib.attrValues outputs)) [
+                    (raw dev)
+                    (callFlakeWith dev md).outputs
+                    (callFlakeWith (dev // { nullkomma.nix.enable = false; }) md).outputs
+                  ];
+                };
+                expected = {
+                  packages = lib.replicate 2 [ "demo" ];
+                  outputsEvaluate = lib.replicate 3 true;
+                };
+              };
             testEveryPluginCanBeDisabled = {
               expr = lib.filter (
                 name:
