@@ -81,7 +81,7 @@ Run commands inside its dev shell:
 Check your work locally, from fastest to strictest:
 
 1. While you work, run the narrowest task that covers the change,
-   e.g. `check <name>` or a single language task.
+   e.g. `nk-check <name>` or a single language task.
 1. Before you report a change as done, run `tasks all`, then `nix flake check`,
    and fix what fails.
    `tasks all` formats, regenerates files and runs the checks in the working tree.

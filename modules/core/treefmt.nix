@@ -4,7 +4,7 @@
     { config, lib, ... }:
     {
       # treefmt is how plugins format and lint: they set `treefmt.programs`, and the
-      # framework runs them via `nix fmt`, the check, editors and the `format` task.
+      # framework runs them via `nix fmt`, the check, editors and the `treefmt` task.
       imports = [ inputs.treefmt-nix.flakeModule ];
       options.nullkomma.generatedPaths = lib.mkOption {
         type = lib.types.listOf lib.types.str;
@@ -57,8 +57,8 @@
             vscode.extensions = [ "ibecker.treefmt-vscode" ];
             vscode.settings."editor.defaultFormatter" = lib.mkDefault "ibecker.treefmt-vscode";
           };
-          nullkomma.tasks.format = {
-            description = "Format and lint all files (treefmt)";
+          nullkomma.tasks.treefmt = {
+            description = "Format and lint all files";
             packages = [ config.treefmt.build.wrapper ];
             command = ''exec treefmt "$@"'';
           };

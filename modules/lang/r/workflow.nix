@@ -44,12 +44,12 @@
         testthat.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Run testthat: on the pkgload-loaded source in the check task, on the installed package in nix flake check (or with `check r-testthat --installed`).";
+          description = "Run testthat: on the pkgload-loaded source in the `nk-check` task, on the installed package in nix flake check (or with `nk-check r-testthat --installed`).";
         };
         pkgdown.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Build a pkgdown website with r-pkgdown and packages.site (also checked in nix flake check); r-pkgdown-preview builds and opens it in a browser.";
+          description = "Build a pkgdown website with nk-r-pkgdown and packages.site (also checked in nix flake check); nk-r-pkgdown-preview builds and opens it in a browser.";
         };
         pkgdown.privacy.page = lib.mkOption {
           type = lib.types.nullOr (lib.types.strMatching "[^/\n]+[.]html");
@@ -70,7 +70,7 @@
           type = lib.types.bool;
           default = lib.any (p: p.package == "covr") (cfg.locked.packages or [ ]);
           defaultText = lib.literalMD "whether covr is in pkg.lock";
-          description = "Provide r-coverage, writing a local Cobertura coverage.xml report; no uploads or coverage threshold.";
+          description = "Provide nk-r-coverage, writing a local Cobertura coverage.xml report; no uploads or coverage threshold.";
         };
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption {
@@ -195,7 +195,7 @@
           {
             nullkomma.tasks = lib.mkMerge [
               {
-                r-namespace = {
+                nk-r-namespace = {
                   skip = true;
                   description = "Generate NAMESPACE with roxygen2";
                   packages = [
@@ -208,10 +208,10 @@
                     outputs = [ "/${prefix}NAMESPACE" ];
                   };
                 };
-                r-document = {
+                nk-r-document = {
                   skip = true;
                   description = "Generate R manuals and NAMESPACE with roxygen2";
-                  after = [ "r-namespace" ];
+                  after = [ "nk-r-namespace" ];
                   packages = [
                     pcfg.package
                   ];
@@ -243,10 +243,10 @@
                 };
               }
               (lib.mkIf cfg.testthat.enable {
-                r-test = {
+                nk-r-test = {
                   skip = true;
                   description = "Run testthat on the working-tree package, loaded with pkgload";
-                  after = [ "r-namespace" ];
+                  after = [ "nk-r-namespace" ];
                   packages = [
                     pcfg.package
                   ];
@@ -257,10 +257,10 @@
                 };
               })
               (lib.mkIf cfg.pkgdown.enable {
-                r-pkgdown = {
+                nk-r-pkgdown = {
                   skip = true;
                   description = "Build the pkgdown website";
-                  after = [ "r-document" ];
+                  after = [ "nk-r-document" ];
                   working_dir = prefix;
                   packages = [
                     pcfg.package
@@ -270,18 +270,18 @@
                   output = "site";
                   watch.paths = [ ];
                 };
-                r-pkgdown-preview = {
+                nk-r-pkgdown-preview = {
                   skip = true;
                   description = "Build the pkgdown website and open it in a browser";
-                  after = tasks.r-pkgdown.after;
-                  command = ''exec ${lib.getExe tasks.r-pkgdown.step} --preview "$@"'';
+                  after = tasks.nk-r-pkgdown.after;
+                  command = ''exec ${lib.getExe tasks.nk-r-pkgdown.step} --preview "$@"'';
                 };
               })
               (lib.mkIf cfg.coverage.enable {
-                r-coverage = {
+                nk-r-coverage = {
                   skip = true;
                   description = "Write a Cobertura test coverage report to coverage.xml";
-                  after = [ "r-namespace" ];
+                  after = [ "nk-r-namespace" ];
                   watch.paths = [ ];
                   packages = [
                     pcfg.package
@@ -293,22 +293,22 @@
                 };
               })
             ];
-            nullkomma.processTrees.r-pkg = {
+            nullkomma.processTrees.nk-r-pkg = {
               description = "Keep NAMESPACE, manuals, tests, website and R CMD check current";
               tasks = [
-                "r-document"
+                "nk-r-document"
               ]
-              ++ lib.optional cfg.testthat.enable "r-test"
-              ++ lib.optional cfg.pkgdown.enable "r-pkgdown"
-              ++ lib.optional cfg.check.enable "r-check";
+              ++ lib.optional cfg.testthat.enable "nk-r-test"
+              ++ lib.optional cfg.pkgdown.enable "nk-r-pkgdown"
+              ++ lib.optional cfg.check.enable "nk-r-check";
             };
             nullkomma.checks = {
               r-testthat = lib.mkIf cfg.testthat.enable {
                 command = ''
                   export NULLKOMMA_ROOT="$PWD"
-                  exec ${lib.getExe tasks.r-test.package} "$@"
+                  exec ${lib.getExe tasks.nk-r-test.package} "$@"
                 '';
-                sandboxArgs = tasks.r-test.sandboxArgs;
+                sandboxArgs = tasks.nk-r-test.sandboxArgs;
               };
               r-namespace = {
                 packages = [ pcfg.package ];
@@ -318,9 +318,9 @@
                   original="$(mktemp)"
                   trap 'rm -f "$original"' EXIT
                   cp NAMESPACE "$original"
-                  ${lib.getExe tasks.r-namespace.package}
+                  ${lib.getExe tasks.nk-r-namespace.package}
                   if ! diff -u "$original" NAMESPACE; then
-                    echo "NAMESPACE is stale; run r-namespace and commit NAMESPACE." >&2
+                    echo "NAMESPACE is stale; run nk-r-namespace and commit NAMESPACE." >&2
                     exit 1
                   fi
                 '';

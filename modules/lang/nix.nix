@@ -131,7 +131,7 @@
                 packages = [ pkgs.flake-checker ];
                 command = ''exec flake-checker "$@"'';
               };
-              update = {
+              nk-update = {
                 skip = true;
                 raw = true;
                 description = "Update flake.lock, then refresh written and generated files using the updated flake";

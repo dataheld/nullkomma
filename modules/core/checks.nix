@@ -1,4 +1,4 @@
-# Checks: plugins declare them, the framework runs each one locally (`check` task)
+# Checks: plugins declare them, the framework runs each one locally (`nk-check` task)
 # and sandboxed in `nix flake check`, the way treefmt handles formatters.
 {
   framework =
@@ -22,7 +22,7 @@
                   options = {
                     command = lib.mkOption {
                       type = lib.types.lines;
-                      description = "Bash script run from the project root; arguments of `check <name>` are in `$@`.";
+                      description = "Bash script run from the project root; arguments of `nk-check <name>` are in `$@`.";
                     };
                     packages = lib.mkOption {
                       type = lib.types.listOf lib.types.package;
@@ -66,7 +66,7 @@
               )
             );
             default = { };
-            description = "Checks, e.g. test suites; each runs in the `check` task and sandboxed as `checks.<system>.<name>`.";
+            description = "Checks, e.g. test suites; each runs in the `nk-check` task and sandboxed as `checks.<system>.<name>`.";
           };
         }
       );
@@ -76,8 +76,8 @@
           commands = lib.mapAttrs (_: t: t.package) config.nullkomma.checks;
         in
         lib.mkIf (commands != { }) {
-          nullkomma.tasks.check = {
-            description = "Run all checks, or check <name> [args]: ${lib.concatStringsSep ", " (lib.attrNames commands)}";
+          nullkomma.tasks.nk-check = {
+            description = "Run all checks, or nk-check <name> [args]: ${lib.concatStringsSep ", " (lib.attrNames commands)}";
             packages = [ pkgs.git ];
             command = ''
               cd "$(git rev-parse --show-toplevel)"

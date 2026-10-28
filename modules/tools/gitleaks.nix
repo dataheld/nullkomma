@@ -12,7 +12,7 @@
           flags = "--config ${configFile} --gitleaks-ignore-path ${pkgs.writeText "gitleaksignore" ""}";
         in
         {
-          nullkomma.tasks.secret-history = {
+          nullkomma.tasks.nk-secret-history = {
             description = "Scan Git history for secrets";
             packages = [ pkgs.gitleaks ];
             skip = true;

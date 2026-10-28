@@ -50,7 +50,7 @@
         nullkomma.r.pkgdown.brand.enable = true;
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
         nullkomma.cloudflare = cloudflare;
-        perSystem.nullkomma.tasks.r-document.command = lib.mkAfter ''
+        perSystem.nullkomma.tasks.nk-r-document.command = lib.mkAfter ''
           mkdir -p pkgdown/assets
           printf 'shared R workflow\n' > pkgdown/assets/workflow.txt
         '';
@@ -174,14 +174,14 @@
               custom = (perSystem customDestination).nullkomma.tasks;
             in
             {
-              paths = defaults.r-document.watch.paths;
-              contentPaths = defaults.r-document.watch.contentPaths;
+              paths = defaults.nk-r-document.watch.paths;
+              contentPaths = defaults.nk-r-document.watch.contentPaths;
               downstream = map (name: defaults.${name}.watch.paths) [
-                "r-test"
-                "r-check"
-                "r-pkgdown"
+                "nk-r-test"
+                "nk-r-check"
+                "nk-r-pkgdown"
               ];
-              outputs = lib.all (path: lib.elem path custom.r-document.watch.outputs) [
+              outputs = lib.all (path: lib.elem path custom.nk-r-document.watch.outputs) [
                 "/NAMESPACE"
                 "/man/*.Rd"
                 "/tests/testthat/_snaps/**/*.new.*"
@@ -189,14 +189,14 @@
                 "/public/**"
               ];
               nestedOutputs =
-                lib.all (path: lib.elem path (perSystem nested).nullkomma.tasks.r-document.watch.outputs)
+                lib.all (path: lib.elem path (perSystem nested).nullkomma.tasks.nk-r-document.watch.outputs)
                   [
                     "/r/tests/testthat/_snaps/**/*.new.*"
                   ];
-              nestedContentPaths = (perSystem nested).nullkomma.tasks.r-document.watch.contentPaths;
+              nestedContentPaths = (perSystem nested).nullkomma.tasks.nk-r-document.watch.contentPaths;
               processOutputs = lib.all (
-                process: lib.all (path: lib.elem path process.watch.ignore) defaults.r-document.watch.outputs
-              ) (lib.attrValues (perSystem fixtures.r).processTrees.r-test.processes);
+                process: lib.all (path: lib.elem path process.watch.ignore) defaults.nk-r-document.watch.outputs
+              ) (lib.attrValues (perSystem fixtures.r).processTrees.nk-r-test.processes);
               ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
               invalidDestination =
                 (builtins.tryEval (
@@ -205,7 +205,7 @@
                       callFlakeWith {
                         nullkomma.r.pkgdown.config.destination = "../site";
                       } fixture
-                    )).nullkomma.tasks.r-document.watch.outputs
+                    )).nullkomma.tasks.nk-r-document.watch.outputs
                     true
                 )).success;
             };
@@ -245,7 +245,7 @@
               );
             in
             lib.elem "roxygen2" minimal.nullkomma.r.packages
-            && minimal.nullkomma.tasks ? r-document
+            && minimal.nullkomma.tasks ? nk-r-document
             && minimal.nullkomma.checks ? r-namespace;
           expected = true;
         };
@@ -255,26 +255,26 @@
               tasks = (perSystem (callFlakeWith { nullkomma.r.coverage.enable = true; } fixture)).nullkomma.tasks;
             in
             {
-              namespace = tasks.r-namespace.after;
-              namespaceOnly = lib.hasInfix ''roxygen2::roxygenise(roclets = "namespace")'' tasks.r-namespace.command;
-              namespaceOutputs = tasks.r-namespace.watch.outputs;
-              document = tasks.r-document.after;
-              documentRoclets = lib.hasInfix ''setdiff(roxygen2::load_options()[["roclets"]], "namespace")'' tasks.r-document.command;
-              test = tasks.r-test.after;
-              coverage = tasks.r-coverage.after;
-              check = tasks.r-check.after;
-              pkgdown = tasks.r-pkgdown.after;
+              namespace = tasks.nk-r-namespace.after;
+              namespaceOnly = lib.hasInfix ''roxygen2::roxygenise(roclets = "namespace")'' tasks.nk-r-namespace.command;
+              namespaceOutputs = tasks.nk-r-namespace.watch.outputs;
+              document = tasks.nk-r-document.after;
+              documentRoclets = lib.hasInfix ''setdiff(roxygen2::load_options()[["roclets"]], "namespace")'' tasks.nk-r-document.command;
+              test = tasks.nk-r-test.after;
+              coverage = tasks.nk-r-coverage.after;
+              check = tasks.nk-r-check.after;
+              pkgdown = tasks.nk-r-pkgdown.after;
             };
           expected = {
             namespace = [ ];
             namespaceOnly = true;
             namespaceOutputs = [ "/NAMESPACE" ];
-            document = [ "r-namespace" ];
+            document = [ "nk-r-namespace" ];
             documentRoclets = true;
-            test = [ "r-namespace" ];
-            coverage = [ "r-namespace" ];
-            check = [ "r-document" ];
-            pkgdown = [ "r-document" ];
+            test = [ "nk-r-namespace" ];
+            coverage = [ "nk-r-namespace" ];
+            check = [ "nk-r-document" ];
+            pkgdown = [ "nk-r-document" ];
           };
         };
         testRAttributeNames = {
@@ -460,7 +460,7 @@
         r-watch =
           let
             flake = callFlakeWith {
-              perSystem.nullkomma.tasks.r-test.command = lib.mkMerge [
+              perSystem.nullkomma.tasks.nk-r-test.command = lib.mkMerge [
                 (lib.mkBefore ''echo started >> "$OBSERVED"'')
                 (lib.mkAfter ''echo finished >> "$OBSERVED"'')
               ];
@@ -472,7 +472,7 @@
             ${lib.getExe pkgs.python3} ${./_watch.test.py} \
               ${
                 lib.getExe (
-                  lib.findFirst (p: lib.getName p == "watch-r-test") null
+                  lib.findFirst (p: lib.getName p == "nk-watch-r-test") null
                     (perSystem flake).nullkomma.devShell.packages
                 )
               } \
@@ -578,8 +578,8 @@
           # Language tasks must not overwrite files generated on shell entry.
           printf 'local asset\n' > pkgdown/assets/local-only.txt
           # Repeated builds must not trip over read-only assets copied from the store.
-          ${task branded "r-pkgdown"}
-          ${task branded "r-pkgdown"}
+          ${task branded "nk-r-pkgdown"}
+          ${task branded "nk-r-pkgdown"}
           cmp pkgdown/assets/local-only.txt docs/local-only.txt
           cmp pkgdown/assets/workflow.txt docs/workflow.txt
           grep -qxF 'shared R workflow' docs/workflow.txt
@@ -592,7 +592,7 @@
           export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
           git init -q
           printf 'destination: yaml-destination\n' >> _pkgdown.yml
-          ${task customDestination "r-pkgdown-preview"}
+          ${task customDestination "nk-r-pkgdown-preview"}
           # browseURL doesn't wait for the browser.
           for _ in {1..50}; do test -f "$TMPDIR/opened" && break; sleep 0.1; done
           grep -qF "$PWD/public/index.html" "$TMPDIR/opened"
@@ -604,7 +604,7 @@
           in
           check "r-coverage" ''
             git init -q
-            ${task flake "r-coverage"}
+            ${task flake "nk-r-coverage"}
             grep -q '<coverage ' coverage.xml
             grep -q 'hello.R' coverage.xml
           '';
@@ -612,7 +612,7 @@
           git init -q
           cp man/hello.Rd "$TMPDIR/hello.Rd"
           printf '# Generated by roxygen2: do not edit by hand\n' > NAMESPACE
-          ${task fixtures.r "r-namespace"}
+          ${task fixtures.r "nk-r-namespace"}
           grep -q '^export(hello)$' NAMESPACE
           grep -q '^importFrom(stats,setNames)$' NAMESPACE
           cmp "$TMPDIR/hello.Rd" man/hello.Rd
@@ -620,13 +620,13 @@
         r-test-namespace-only = check "r-test-namespace-only" ''
           git init -q
           mv man "$TMPDIR/man"
-          ${task fixtures.r "r-test"}
+          ${task fixtures.r "nk-r-test"}
           test ! -e man/hello.Rd
         '';
         r-document = check "r-document" ''
           git init -q
           rm -r man
-          ${task fixtures.r "r-document"}
+          ${task fixtures.r "nk-r-document"}
           grep -q '^export(hello)$' NAMESPACE
           test -s man/hello.Rd
         '';
@@ -654,7 +654,7 @@
           grep -qxF '^project-only[.]txt$' .Rbuildignore
           mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/processes .agents/skills/demo
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
-            .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/processes/r-document.ok \
+            .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/processes/nk-r-document.ok \
             .agents/skills/demo/SKILL.md AGENTS.md
           R CMD build --no-build-vignettes --no-manual .
           tar -tf nullkommafixture_0.0.1.tar.gz > package-files
