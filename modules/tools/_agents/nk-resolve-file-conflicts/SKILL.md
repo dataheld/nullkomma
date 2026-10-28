@@ -1,5 +1,5 @@
 ---
-name: nullkomma-resolve-file-conflicts
+name: nk-resolve-file-conflicts
 description: Review and resolve nullkomma file-update conflicts after upgrades, preserving the project's edits to source-of-truth files.
 ---
 

@@ -11,4 +11,4 @@ Plugins never read each other's options or import each other (README's
 
 Templates only select plugins and options; files that depend on configuration
 come from `nk-write-files` or `nk-generate-files`. Never overwrite an edited
-source-of-truth file; use the nullkomma-resolve-file-conflicts skill.
+source-of-truth file; use the nk-resolve-file-conflicts skill.

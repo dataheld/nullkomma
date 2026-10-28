@@ -1,5 +1,5 @@
 ---
-name: adopt-nullkomma
+name: nk-adopt
 description: Set up nullkomma (Nix devshells, formatters, checks, tasks, CI and agent instructions) in a project that does not use it yet.
 ---
 
@@ -7,7 +7,7 @@ description: Set up nullkomma (Nix devshells, formatters, checks, tasks, CI and 
 
 Use this only in a project without a nullkomma `flake.nix`.
 Once nullkomma is set up, the project's `AGENTS.md` and
-`.agents/skills/nullkomma-*` replace this plugin.
+`.agents/skills/nk-*` replace this plugin.
 
 1. Read the "Getting started" section of
    [nullkomma's README](https://github.com/dataheld/nullkomma#getting-started)

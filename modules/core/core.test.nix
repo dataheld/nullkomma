@@ -200,7 +200,7 @@
                       directory = true;
                       sections = [ ];
                     };
-                    ".agents/skills/nullkomma-resolve-file-conflicts" = {
+                    ".agents/skills/nk-resolve-file-conflicts" = {
                       mode = "generated";
                       directory = true;
                       sections = [ ];
@@ -366,8 +366,8 @@
                   "result-*"
                   ".direnv/"
                   "/.nullkomma/processes/"
-                  "/.agents/skills/nullkomma-resolve-file-conflicts"
-                  "/.agents/skills/nullkomma-upgrade"
+                  "/.agents/skills/nk-resolve-file-conflicts"
+                  "/.agents/skills/nk-upgrade"
                   "/.nvim.lua"
                   "/.vscode/extensions.json"
                   "/.vscode/settings.json"
@@ -377,8 +377,8 @@
                   "result-*"
                   ".direnv/"
                   "/.nullkomma/processes/"
-                  "/.agents/skills/nullkomma-resolve-file-conflicts"
-                  "/.agents/skills/nullkomma-upgrade"
+                  "/.agents/skills/nk-resolve-file-conflicts"
+                  "/.agents/skills/nk-upgrade"
                   "/.nvim.lua"
                 ])
               ];

@@ -88,6 +88,6 @@ Check your work locally, from fastest to strictest:
    `nix flake check` runs the checks sandboxed, as CI does,
    and sees only files that Git tracks: `git add` new files first.
 
-Skills for nullkomma itself are in `.agents/skills/nullkomma-*`;
+Skills for nullkomma itself are in `.agents/skills/nk-*`;
 if they are missing, run `nk-generate-files`.
 <!-- nullkomma:agents:end -->
