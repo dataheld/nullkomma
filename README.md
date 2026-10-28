@@ -230,6 +230,10 @@ inputs.brand = {
 nullkomma.brand = inputs.brand;
 ```
 
+In a flake that other flakes consume, keep the brand out of their `flake.lock`:
+declare it in a [partition](https://flake.parts/options/flake-parts-partitions.html)'s `extraInputsFlake` and set `nullkomma.brand` there,
+as nullkomma does in [`dev/flake.nix`](dev/flake.nix) and [`modules/dev/dogfood.nix`](modules/dev/dogfood.nix).
+
 Brand owns the declarations; nullkomma owns their translation and placement.
 R and Quarto keep their native themes unless their branding feature is enabled.
 Enable the owning plugin and then its feature:
