@@ -309,6 +309,7 @@
                   exec ${lib.getExe tasks.r-test.package} "$@"
                 '';
                 sandboxArgs = tasks.r-test.sandboxArgs;
+                allowLocalNetworking = pcfg.browser != null;
               };
               r-namespace = {
                 packages = [ pcfg.package ];

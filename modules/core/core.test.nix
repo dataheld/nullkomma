@@ -250,6 +250,27 @@
                 };
               };
             };
+            testChecksAllowLocalNetworkingOnlyWhenRequested =
+              let
+                checks =
+                  (perSystem (raw {
+                    perSystem.nullkomma.checks.default.command = "true";
+                    perSystem.nullkomma.checks.localNetworking = {
+                      command = "true";
+                      allowLocalNetworking = true;
+                    };
+                  })).nullkomma.checks;
+              in
+              {
+                expr = {
+                  default = checks.default.sandboxed.drvAttrs.__darwinAllowLocalNetworking or false;
+                  requested = checks.localNetworking.sandboxed.drvAttrs.__darwinAllowLocalNetworking or false;
+                };
+                expected = {
+                  default = false;
+                  requested = pkgs.stdenv.isDarwin;
+                };
+              };
             testChecksBecomeTaskAndCheck = {
               expr = {
                 inherit
