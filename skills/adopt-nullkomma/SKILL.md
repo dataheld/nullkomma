@@ -15,6 +15,9 @@ Once nullkomma is set up, the project's `AGENTS.md` and
    Do not copy files from the nullkomma repository by hand.
 1. Ask the user which optional plugins (for example `r` or `quarto`)
    the project needs, and set them in `flake.nix`.
+1. For FlakeHub publishing, ensure the publishing job has
+   `permissions: id-token: write`; the `github` plugin's generated workflow
+   already grants it.
 1. Investigate the rest of the repository:
    remove what nullkomma now provides.
 1. Run `nix develop --command tasks all`,
