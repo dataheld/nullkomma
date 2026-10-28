@@ -304,13 +304,25 @@
               };
             testDevPartitionServesDevelopmentOutputs =
               let
-                demo.perSystem.packages.demo = pkgs.hello;
-                packages = module: lib.attrNames (raw module).packages.${pkgs.stdenv.hostPlatform.system};
+                demo.perSystem = {
+                  packages.demo = pkgs.hello;
+                  custom = "demo";
+                };
+                served =
+                  module:
+                  let
+                    flake = raw ({ transposition.custom.adHoc = true; } // module);
+                    inherit (pkgs.stdenv.hostPlatform) system;
+                  in
+                  {
+                    packages = lib.attrNames flake.packages.${system};
+                    custom = flake.custom.${system};
+                  };
                 dev.partitions.dev = { };
               in
               {
                 expr = {
-                  packages = map packages [
+                  served = map served [
                     demo
                     { partitions.dev.module = demo; }
                   ];
@@ -321,7 +333,10 @@
                   ];
                 };
                 expected = {
-                  packages = lib.replicate 2 [ "demo" ];
+                  served = lib.replicate 2 {
+                    packages = [ "demo" ];
+                    custom = "demo";
+                  };
                   outputsEvaluate = lib.replicate 3 true;
                 };
               };

@@ -1,8 +1,13 @@
 # Dogfooding and tests are evaluated only in the `dev` partition.
-# Schemas come from the shared framework imported by dogfooding.
 # Dev-only inputs live in ../../dev/flake.nix, outside consumers' flake.lock.
+{ lib, ... }:
 {
   partitions.dev.extraInputsFlake = ../../dev;
-  # The root lacks the nix plugin that routes `tests` for consumers.
-  partitionedAttrs.tests = "dev";
+  # The root lacks the framework and plugins that add these outputs.
+  partitionedAttrs = lib.genAttrs [
+    "processTrees"
+    "schemas"
+    "taskRunners"
+    "tests"
+  ] (_: "dev");
 }

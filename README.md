@@ -112,8 +112,8 @@ partitions.dev = {
 };
 ```
 
-nullkomma then takes `apps`, `checks`, `devShells`, `formatter`, `packages`, `processTrees`, `schemas`, `taskRunners` and `tests` from the partition.
-Other outputs, such as `lib` or modules, are evaluated without the development inputs.
+nullkomma then takes per-system outputs, such as `packages` or `checks`, from the partition.
+Flake-level outputs, such as `lib` or modules, are evaluated without the development inputs.
 
 ### Plugins
 
