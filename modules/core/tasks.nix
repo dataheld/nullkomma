@@ -201,17 +201,16 @@
         let
           cfg = config.nullkomma.tasks;
           up = inputs.up.lib { inherit lib pkgs; };
-          processCommands = lib.mapAttrs' (
-            name: tree:
-            lib.nameValuePair tree.meta.mainProgram {
+          processCommands = lib.mapAttrsToList (name: tree: {
+            "nk-pc-up-${lib.removePrefix "nk-" name}" = {
               skip = true;
               raw = true;
               description = tree.meta.description or "Run ${name}";
               command = "exec ${lib.getExe tree}";
-            }
-          ) config.processTrees;
+            };
+          }) config.processTrees;
           # Defined here rather than in nullkomma.tasks, whose names they depend on.
-          watches = lib.concatMapAttrs (
+          watches = lib.mapAttrsToList (
             name: task:
             let
               watched = lib.filter (dep: cfg.${dep}.watch != null) task.closure;
@@ -240,6 +239,13 @@
               };
             }
           ) cfg;
+          generatedCommands = lib.zipAttrsWith (
+            name: definitions:
+            assert lib.assertMsg (
+              lib.length definitions == 1 && !(builtins.hasAttr name cfg)
+            ) "Conflicting generated command '${name}'; rename the task or process tree.";
+            lib.head definitions
+          ) (watches ++ processCommands);
           runner = up.mkTaskRunner {
             name = "tasks";
             description = "Project tasks (for arguments, run the listed command directly)";
@@ -269,8 +275,7 @@
                     + lib.optionalString (task.output != null) " (build: .#${task.output})";
                 }
               ) cfg
-              // watches
-              // processCommands;
+              // generatedCommands;
           };
         in
         lib.mkIf (cfg != { }) {
@@ -289,7 +294,7 @@
                 runtimeInputs = task.packages or [ ];
                 text = task.command;
               }
-            ) (watches // processCommands)
+            ) generatedCommands
             ++ [ runner ];
         };
     };

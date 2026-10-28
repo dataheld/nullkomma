@@ -416,6 +416,8 @@ Generated outputs must be declared to avoid feedback loops.
 `watch.paths` can override the default; paths missing from the flake source are skipped.
 `nk-watch-<task>` runs the task and its `after` steps initially and on input changes;
 a task's own `nk-` prefix isn't repeated, e.g. `nk-watch-r-test` for `nk-r-test`.
+Generated command names must be unique and must not match declared task names;
+evaluation fails on a conflict rather than replacing a command.
 
 Every watched task automatically supplies a process tree containing its dependency graph.
 Use `process = { };` for a service without any watcher.
