@@ -63,6 +63,7 @@
           expected = {
             packages = [
               "deploy"
+              "dev"
               "site"
             ];
             checks = [

@@ -194,9 +194,6 @@
                     "/r/tests/testthat/_snaps/**/*.new.*"
                   ];
               nestedContentPaths = (perSystem nested).nullkomma.tasks.nk-r-document.watch.contentPaths;
-              processOutputs = lib.all (
-                process: lib.all (path: lib.elem path process.watch.ignore) defaults.nk-r-document.watch.outputs
-              ) (lib.attrValues (perSystem fixtures.r).processTrees.nk-r-test.processes);
               ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
               invalidDestination =
                 (builtins.tryEval (
@@ -226,7 +223,6 @@
               "r/man"
               "r/tests/testthat/_snaps"
             ];
-            processOutputs = true;
             ignore = true;
             invalidDestination = false;
           };
@@ -457,27 +453,6 @@
         };
       };
       checks = {
-        r-watch =
-          let
-            flake = callFlakeWith {
-              perSystem.nullkomma.tasks.nk-r-test.command = lib.mkMerge [
-                (lib.mkBefore ''echo started >> "$OBSERVED"'')
-                (lib.mkAfter ''echo finished >> "$OBSERVED"'')
-              ];
-            } fixture;
-          in
-          check "r-watch" ''
-            git init -q
-            export OBSERVED="$TMPDIR/observed"
-            ${lib.getExe pkgs.python3} ${./_watch.test.py} \
-              ${
-                lib.getExe (
-                  lib.findFirst (p: lib.getName p == "nk-watch-r-test") null
-                    (perSystem flake).nullkomma.devShell.packages
-                )
-              } \
-              || { cat "$TMPDIR/watcher.log"; exit 1; }
-          '';
         r-console =
           pkgs.runCommand "nullkomma-r-console"
             {

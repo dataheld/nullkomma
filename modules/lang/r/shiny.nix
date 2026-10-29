@@ -143,10 +143,6 @@
                 exec Rscript --vanilla ${script (pkgload ''"."'')} "$@"
               '';
             };
-            nullkomma.processTrees.nk-r-shiny = {
-              description = "Keep nk-r-pkg current and serve the Shiny app, reloaded in the browser after each nk-r-namespace";
-              tasks = config.nullkomma.processTrees.nk-r-pkg.tasks ++ [ "nk-shiny" ];
-            };
           };
       };
     };

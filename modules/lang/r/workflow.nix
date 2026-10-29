@@ -293,15 +293,6 @@
                 };
               })
             ];
-            nullkomma.processTrees.nk-r-pkg = {
-              description = "Keep NAMESPACE, manuals, tests, website and R CMD check current";
-              tasks = [
-                "nk-r-document"
-              ]
-              ++ lib.optional cfg.testthat.enable "nk-r-test"
-              ++ lib.optional cfg.pkgdown.enable "nk-r-pkgdown"
-              ++ lib.optional cfg.check.enable "nk-r-check";
-            };
             nullkomma.checks = {
               r-testthat = lib.mkIf cfg.testthat.enable {
                 command = ''
