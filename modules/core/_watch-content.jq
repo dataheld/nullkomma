@@ -9,12 +9,25 @@ def changed:
       | $previous.hash != $hash
     end;
 
-[.tags[]? | select(.kind == "path") | .absolute] as $paths
-| if $paths == [] then true
+def content:
+  . as $path
+  | any($roots[]; . as $root
+      | $path == $root or ($path | startswith($root + "/")));
+
+# inotify reports in-place writes before they finish,
+# so decide on content files only once the writer closes them.
+(first(.tags[]? | select(.kind == "fs") | .full) // "") as $kind
+| ($kind == "Access(Close(Write))") as $closed
+| [.tags[]? | select(.kind == "path") | .absolute] as $paths
+| if ($kind | startswith("Access(")) and ($closed | not) then false
+  elif $paths == [] then true
   else
-    [$paths[] | . as $path
-      | if any($roots[]; . as $root
-          | $path == $root or ($path | startswith($root + "/")))
-        then changed else true end]
+    [$paths[]
+      | if content then
+          if $closed then changed
+          elif $inotify and ($kind | startswith("Create(") or startswith("Modify(Data("))
+          then false
+          else changed end
+        else ($closed | not) end]
     | any
   end
