@@ -429,6 +429,7 @@
             testTasksAllFormatsAndChecks = {
               expr = lib.attrNames (perSystem fixtures.md).processTrees.dev.processes.all.depends_on;
               expected = [
+                "flake-checker"
                 "nk-check"
                 "treefmt"
               ];
@@ -654,6 +655,7 @@
                 update = task fixtures.md "nk-update";
               in
               pkgs.runCommandLocal "nullkomma-file-update-task" { nativeBuildInputs = [ nix ]; } ''
+                ${lib.getExe pkgs.git} init -q
                 export NULLKOMMA_TEST_LOG="$PWD/calls"
                 if ${update} nullkomma; then
                   echo "Update did not propagate file conflicts" >&2
@@ -668,6 +670,12 @@
                 fi
                 printf '%s\n' 'flake update fail' > expected
                 cmp calls expected
+                : > calls
+                mkdir dev
+                touch dev/flake.nix
+                ${update} || true
+                printf '%s\n' 'flake update' 'flake update --flake ./dev' > expected
+                head -n 2 calls | cmp - expected
                 touch $out
               '';
             # Renders nullkomma's options the way https://flake.parts does for listed modules:
