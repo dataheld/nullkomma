@@ -197,6 +197,7 @@
                 RS
                 touch .R/library/sentinel project-only.txt
                 # Git worktrees have a .git file, which R does not exclude itself.
+                rm -rf .git
                 printf 'gitdir: /unavailable/worktree\n' > .git
                 R CMD build --no-build-vignettes --no-manual .
                 tar -tf nullkommafixture_0.0.1.tar.gz > package-files
