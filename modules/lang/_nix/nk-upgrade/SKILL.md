@@ -6,9 +6,9 @@ description: Upgrade this project to the latest nullkomma (and its other flake i
 # Upgrading nullkomma
 
 1. Start from a clean Git working tree.
-1. Run `nk-update`, or `nk-update nullkomma` to update only nullkomma.
+1. Run `tasks nk-update`, or `tasks nk-update nullkomma` to update only nullkomma.
    It updates `flake.lock`, then runs `nk-write-files` and `nk-generate-files`.
-1. If `nk-write-files` reports conflicts,
+1. If `tasks nk-write-files` reports conflicts,
    use the nk-resolve-file-conflicts skill.
 1. Check the project's *existing* nullkomma configuration
    for deprecations and updates.

@@ -10,7 +10,7 @@
         enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Whether to add the `r-cmd-check` check (build and check the package with rcmdcheck).";
+          description = "Whether to add the `nk-r-check` check (build and check the package with rcmdcheck).";
         };
         args = lib.mkOption {
           type = lib.types.listOf lib.types.str;

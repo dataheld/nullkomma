@@ -96,7 +96,7 @@
         ];
         # Bootstrap 3 templates load their assets from CDNs.
         nullkomma.r.pkgdown.config.template.bootstrap = lib.mkIf cfg.pkgdown.enable (lib.mkDefault 5);
-        # Keep the writer and watcher on the same destination, including custom sites.
+        # Keep local and sandboxed builds on the same destination, including custom sites.
         nullkomma.r.pkgdown.config.destination = lib.mkIf cfg.pkgdown.enable (lib.mkDefault "docs");
         nullkomma.lint.markdown = {
           MD013 = lib.mkDefault false;

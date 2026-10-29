@@ -49,4 +49,4 @@ with a single `lib` path.
   optionally remove it from the project library with
   `pak::pkg_remove("packageName", lib = getOption("nullkomma.r.library"))`.
 - Commit `DESCRIPTION`. `pkg.lock` pins the packages for Nix; a Nix collaborator
-  refreshes it with `nk-r-lock`.
+  refreshes it with `tasks nk-r-lock`.

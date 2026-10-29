@@ -45,13 +45,10 @@ flake.parts takes a PR adding it to flake.parts-website's `render.inputs`.
 
 Candidates for upstreaming instead of keeping here:
 
-- the up task-runner integration (`nullkomma.tasks`, `taskRunners`) as a flake
-  module in [DeterminateSystems/up](https://github.com/DeterminateSystems/up);
-  also transitive prerequisites for individual tasks (up has `after`/`before`
-  but only runs direct prerequisites there), and fixes to `mkProcessTree`
-  (forward arguments, configurable `log_location` instead of the shared
-  `/tmp/pc-debug.log`, a per-project socket rather than nullkomma's
-  `PC_SOCKET_PATH` workaround in `modules/core/processes.nix`);
+- typed process-compose `watch` and MCP options in
+  [process-compose-flake](https://github.com/Platonic-Systems/process-compose-flake)
+  (#276, #277), and the `taskRunners`/`processTrees` schemas in
+  [flake-schemas](https://github.com/DeterminateSystems/flake-schemas) (#278);
 - source-of-truth/generated file modes in
   [mightyiam/files](https://github.com/mightyiam/files);
 - editor-neutral language servers (`nullkomma.editor`) as a standalone module.
@@ -77,12 +74,14 @@ rendered pages on narrow and wide screens before changing presentation.
 This project's development environment comes from [nullkomma](https://github.com/dataheld/nullkomma).
 Run commands inside its dev shell:
 `direnv exec . <command>`, or `nix develop --command <command>` without direnv.
-`tasks` lists the project's workflows.
+`tasks` lists the project's workflows;
+`tasks <name> [args]` runs one.
+Agents can also use them as MCP tools, from `.mcp.json`.
 
 Check your work locally, from fastest to strictest:
 
 1. While you work, run the narrowest task that covers the change,
-   e.g. `nk-check <name>` or a single language task.
+   e.g. `tasks nk-r-test`.
 1. Before you report a change as done, run `tasks all`, then `nix flake check`,
    and fix what fails.
    `tasks all` formats, regenerates files and runs the checks in the working tree.
@@ -90,5 +89,5 @@ Check your work locally, from fastest to strictest:
    and sees only files that Git tracks: `git add` new files first.
 
 Skills for nullkomma itself are in `.agents/skills/nk-*`;
-if they are missing, run `nk-generate-files`.
+if they are missing, run `tasks nk-generate-files`.
 <!-- nullkomma:agents:end -->
