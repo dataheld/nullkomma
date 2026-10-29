@@ -200,7 +200,7 @@
                       directory = true;
                       sections = [ ];
                     };
-                    ".agents/skills/nullkomma-resolve-file-conflicts" = {
+                    ".agents/skills/nk-resolve-file-conflicts" = {
                       mode = "generated";
                       directory = true;
                       sections = [ ];
@@ -222,17 +222,17 @@
               expected = lib.replicate 3 {
                 files = [ ];
                 tools = [
-                  "format"
                   "nk-generate-files"
                   "nk-write-files"
+                  "treefmt"
                   "tasks"
                   "treefmt"
                 ];
                 formatters = [ ];
                 tasks = [
-                  "format"
                   "nk-generate-files"
                   "nk-write-files"
+                  "treefmt"
                 ];
                 checks = [ "treefmt" ];
                 shells = [ ];
@@ -262,10 +262,10 @@
               };
               expected = {
                 tasks = [
-                  "check"
-                  "format"
+                  "nk-check"
                   "nk-generate-files"
                   "nk-write-files"
+                  "treefmt"
                 ];
                 checks = [
                   "custom"
@@ -388,6 +388,67 @@
                 ];
               };
             };
+            testGeneratedCommandCollisions = {
+              expr =
+                map
+                  (
+                    module:
+                    let
+                      flake = perSystem (raw {
+                        nullkomma.devShell.enable = true;
+                        perSystem = module;
+                      });
+                    in
+                    {
+                      runner = (builtins.tryEval flake.taskRunners.default.drvPath).success;
+                      shell = (builtins.tryEval flake.devShells.default.drvPath).success;
+                    }
+                  )
+                  [
+                    {
+                      processTrees = lib.mkForce { };
+                      nullkomma.tasks = lib.genAttrs [ "demo" "nk-demo" ] (_: {
+                        command = ":";
+                        watch.paths = [ "flake.nix" ];
+                      });
+                    }
+                    {
+                      nullkomma.tasks = lib.genAttrs [ "demo" "nk-demo" ] (_: {
+                        command = ":";
+                        process = { };
+                      });
+                    }
+                    {
+                      nullkomma.tasks.demo.command = ":";
+                      nullkomma.processTrees = lib.genAttrs [ "demo" "nk-demo" ] (_: {
+                        description = "Demo";
+                        tasks = [ "demo" ];
+                      });
+                    }
+                    {
+                      nullkomma.tasks = {
+                        demo = {
+                          command = ":";
+                          watch.paths = [ "flake.nix" ];
+                        };
+                        nk-watch-demo.command = ":";
+                      };
+                    }
+                    {
+                      nullkomma.tasks = {
+                        demo = {
+                          command = ":";
+                          process = { };
+                        };
+                        nk-pc-up-demo.command = ":";
+                      };
+                    }
+                  ];
+              expected = lib.replicate 5 {
+                runner = false;
+                shell = false;
+              };
+            };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
               expr = map (flake: (perSystem flake).nullkomma.files.".gitignore".text) [
                 fixtures.md
@@ -404,8 +465,8 @@
                   "result-*"
                   ".direnv/"
                   "/.nullkomma/processes/"
-                  "/.agents/skills/nullkomma-resolve-file-conflicts"
-                  "/.agents/skills/nullkomma-upgrade"
+                  "/.agents/skills/nk-resolve-file-conflicts"
+                  "/.agents/skills/nk-upgrade"
                   "/.nvim.lua"
                   "/.vscode/extensions.json"
                   "/.vscode/settings.json"
@@ -415,8 +476,8 @@
                   "result-*"
                   ".direnv/"
                   "/.nullkomma/processes/"
-                  "/.agents/skills/nullkomma-resolve-file-conflicts"
-                  "/.agents/skills/nullkomma-upgrade"
+                  "/.agents/skills/nk-resolve-file-conflicts"
+                  "/.agents/skills/nk-upgrade"
                   "/.nvim.lua"
                 ])
               ];
@@ -475,7 +536,9 @@
                 expr = {
                   paths = flake.nullkomma.tasks.serve.watch.paths;
                   watch = flake.processTrees.serve.processes.serve.watch;
-                  aliases = lib.filter (lib.hasPrefix "watch-") (map lib.getName flake.nullkomma.devShell.packages);
+                  aliases = lib.filter (lib.hasPrefix "nk-watch-") (
+                    map lib.getName flake.nullkomma.devShell.packages
+                  );
                 };
                 expected = {
                   paths = [ ];
@@ -531,7 +594,9 @@
                   closure = flake.nullkomma.tasks.c.closure;
                   trees = lib.attrNames flake.processTrees;
                   processes = lib.attrNames flake.processTrees.tree.processes;
-                  watches = lib.filter (lib.hasPrefix "watch-") (map lib.getName flake.nullkomma.devShell.packages);
+                  watches = lib.filter (lib.hasPrefix "nk-watch-") (
+                    map lib.getName flake.nullkomma.devShell.packages
+                  );
                   downstream = flake.processTrees.tree.processes.b.watch.paths;
                   dependency = flake.processTrees.tree.processes.b.depends_on.a.condition;
                   native = (perSystem workflow).processTrees.artifact.processes.artifact.environment;
@@ -554,8 +619,8 @@
                   ];
                   # c's own path is missing, but it watches a's inputs too.
                   watches = [
-                    "watch-a"
-                    "watch-c"
+                    "nk-watch-a"
+                    "nk-watch-c"
                   ];
                   downstream = [ ".nullkomma/processes/tree/a.ok" ];
                   dependency = "process_completed_successfully";
@@ -567,9 +632,9 @@
                 lib.filterAttrs (_: t: !(t.skip or false)) (perSystem fixtures.md).nullkomma.tasks
               );
               expected = [
-                "check"
                 "flake-checker"
-                "format"
+                "nk-check"
+                "treefmt"
               ];
             };
             testTemplatesAreFixtures = {
@@ -683,7 +748,7 @@
                   python ${./_watch.test.py} \
                     ${
                       lib.getExe (
-                        lib.findFirst (p: lib.getName p == "watch-generate") null
+                        lib.findFirst (p: lib.getName p == "nk-watch-generate") null
                           (perSystem watched).nullkomma.devShell.packages
                       )
                     } \
@@ -726,16 +791,29 @@
               let
                 flake = raw {
                   perSystem.nullkomma.checks.custom.command = "echo custom-check";
+                  perSystem.processTrees.server = pkgs.symlinkJoin {
+                    name = "custom-server";
+                    paths = [ (pkgs.writeShellScriptBin "custom-server" "echo native-server") ];
+                  };
                 };
                 runner = (perSystem flake).taskRunners.default;
               in
               pkgs.runCommand "nullkomma-task-menu" { } ''
                 ${lib.getExe pkgs.git} init -q
                 ${lib.getExe runner} > menu
-                grep -qF 'check <name> [args]: custom' menu
+                grep -qF 'nk-check <name> [args]: custom' menu
                 grep -qF "for arguments, run the listed command directly" menu
-                ${lib.getExe runner} check > checked
+                ${lib.getExe runner} nk-check > checked
                 grep -qF custom-check checked
+                ${lib.getExe runner} nk-pc-up-server > process
+                grep -qF native-server process
+                ${
+                  lib.getExe (
+                    lib.findFirst (p: lib.getName p == "nk-pc-up-server") null
+                      (perSystem flake).nullkomma.devShell.packages
+                  )
+                } > process
+                grep -qxF native-server process
                 touch flake.nix
                 export HOME="$TMPDIR"
                 ${lib.getExe runner} all > checked-all || { cat checked-all; exit 1; }
@@ -899,7 +977,7 @@
                     "develop --command nk-write-files") exit 1 ;;
                   esac
                 '';
-                update = task fixtures.md "update";
+                update = task fixtures.md "nk-update";
               in
               pkgs.runCommandLocal "nullkomma-file-update-task" { nativeBuildInputs = [ nix ]; } ''
                 export NULLKOMMA_TEST_LOG="$PWD/calls"

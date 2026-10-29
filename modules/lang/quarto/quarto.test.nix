@@ -269,7 +269,7 @@
                 nullkomma.quarto.root = self.outPath + "/docs";
                 perSystem = {
                   nullkomma.quarto.package = quarto;
-                  nullkomma.tasks.build-site.command = lib.mkBefore ''
+                  nullkomma.tasks.nk-build-site.command = lib.mkBefore ''
                     printf 'shared Quarto workflow\n' > task-override.txt
                   '';
                   nullkomma.files."docs/generated.txt" = {
@@ -284,10 +284,10 @@
           pkgs.runCommand "nullkomma-quarto-preview" { nativeBuildInputs = [ pkgs.git ]; } ''
             export CALLED=$PWD/called
             mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
-            ${task flake "preview"} --no-browser
+            ${task flake "nk-preview"} --no-browser
             printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
             cmp expected "$CALLED"
-            ${task flake "build-site"} --to html
+            ${task flake "nk-build-site"} --to html
             printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected
             cmp expected "$CALLED"
             grep -qxF 'shared Quarto workflow' ../task-override.txt

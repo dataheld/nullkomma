@@ -280,8 +280,8 @@
               perSystem = {
                 terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
                 nullkomma.tasks = {
-                  deploy.packages = lib.mkForce [ nix ];
-                  terraform.packages = lib.mkForce [ nix ];
+                  nk-deploy.packages = lib.mkForce [ nix ];
+                  nk-terraform.packages = lib.mkForce [ nix ];
                 };
               };
             };
@@ -300,12 +300,12 @@
             fi
             grep -q CLOUDFLARE_R2_ACCESS_KEY_ID error
             rm "$CALLED"
-            ${lib.getExe tasks.deploy.package}
+            ${lib.getExe tasks.nk-deploy.package}
             test -f "$CALLED"
-            ${lib.getExe tasks.terraform.package}
+            ${lib.getExe tasks.nk-terraform.package}
             printf '%s\n' plan > expected
             cmp expected "$CALLED"
-            ${lib.getExe tasks.terraform.package} import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id'
+            ${lib.getExe tasks.nk-terraform.package} import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id'
             printf '%s\n' import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id' > expected
             cmp expected "$CALLED"
             touch $out

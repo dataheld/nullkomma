@@ -1,15 +1,15 @@
 ---
-name: nullkomma-upgrade
+name: nk-upgrade
 description: Upgrade this project to the latest nullkomma (and its other flake inputs), resolve file conflicts and verify the result.
 ---
 
 # Upgrading nullkomma
 
 1. Start from a clean Git working tree.
-1. Run `update`, or `update nullkomma` to update only nullkomma.
+1. Run `nk-update`, or `nk-update nullkomma` to update only nullkomma.
    It updates `flake.lock`, then runs `nk-write-files` and `nk-generate-files`.
 1. If `nk-write-files` reports conflicts,
-   use the nullkomma-resolve-file-conflicts skill.
+   use the nk-resolve-file-conflicts skill.
 1. Check the project's *existing* nullkomma configuration
    for deprecations and updates.
    An upgraded nullkomma often fixes something

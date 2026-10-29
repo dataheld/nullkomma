@@ -73,13 +73,13 @@
               meta.description = "Publish the site to Cloudflare";
             };
             nullkomma.tasks = {
-              deploy = {
+              nk-deploy = {
                 skip = true;
                 description = "Publish the site to Cloudflare";
                 packages = [ pkgs.nix ];
                 command = ''exec nix run .#deploy -- "$@"'';
               };
-              terraform = {
+              nk-terraform = {
                 skip = true;
                 description = "Plan Cloudflare changes, or run terraform <command> [args]";
                 packages = [ pkgs.nix ];

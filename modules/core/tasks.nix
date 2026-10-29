@@ -1,6 +1,6 @@
 # Workflows: each is a command on the dev shell PATH (taking arguments), and
 # the `tasks` runner (DeterminateSystems/up) lists them and runs them without arguments.
-# `after` makes them a DAG: every entry point (command, `tasks`, `watch-<name>`,
+# `after` makes them a DAG: every entry point (command, `tasks`, `nk-watch-<name>`,
 # process trees and sandboxed outputs) runs the same steps in the same order.
 { inputs, ... }:
 {
@@ -53,7 +53,7 @@
                     after = lib.mkOption {
                       type = lib.types.listOf lib.types.str;
                       default = [ ];
-                      example = [ "r-document" ];
+                      example = [ "nk-r-document" ];
                       description = "Tasks whose steps run first, transitively and once each, wherever this task runs.";
                     };
                     before = lib.mkOption {
@@ -85,7 +85,7 @@
                     process = lib.mkOption {
                       type = lib.types.nullOr (lib.types.attrsOf lib.types.anything);
                       default = null;
-                      description = "Additional native up process attributes (health probes, shutdown, environment). Also creates a `pc-up-<name>` process tree, without requiring a file watch.";
+                      description = "Additional native up process attributes (health probes, shutdown, environment). Also creates a `nk-pc-up-<name>` process tree, without requiring a file watch.";
                     };
                     watch = lib.mkOption {
                       type = lib.types.nullOr (
@@ -125,7 +125,7 @@
                         )
                       );
                       default = null;
-                      description = "Re-run the task when these inputs (or those of its `after` tasks) change, in `watch-<name>` and process trees.";
+                      description = "Re-run the task when these inputs (or those of its `after` tasks) change, in `nk-watch-<name>` and process trees.";
                     };
                     step = lib.mkOption {
                       type = lib.types.package;
@@ -201,17 +201,16 @@
         let
           cfg = config.nullkomma.tasks;
           up = inputs.up.lib { inherit lib pkgs; };
-          processCommands = lib.mapAttrs' (
-            name: tree:
-            lib.nameValuePair "pc-up-${name}" {
+          processCommands = lib.mapAttrsToList (name: tree: {
+            "nk-pc-up-${lib.removePrefix "nk-" name}" = {
               skip = true;
               raw = true;
               description = tree.meta.description or "Run ${name}";
               command = "exec ${lib.getExe tree}";
-            }
-          ) config.processTrees;
+            };
+          }) config.processTrees;
           # Defined here rather than in nullkomma.tasks, whose names they depend on.
-          watches = lib.concatMapAttrs (
+          watches = lib.mapAttrsToList (
             name: task:
             let
               watched = lib.filter (dep: cfg.${dep}.watch != null) task.closure;
@@ -226,7 +225,7 @@
                 ++ lib.optional (manifests != [ ]) "@${pkgs.concatText "workflow-inputs.txt" manifests}";
             in
             lib.optionalAttrs (task.watch != null && !task.watch.native && paths != [ ]) {
-              "watch-${name}" = up.mkWatch {
+              "nk-watch-${lib.removePrefix "nk-" name}" = up.mkWatch {
                 description = "Run ${name} again whenever its inputs change";
                 package = import ./_watch.nix {
                   inherit lib pkgs;
@@ -240,6 +239,13 @@
               };
             }
           ) cfg;
+          generatedCommands = lib.zipAttrsWith (
+            name: definitions:
+            assert lib.assertMsg (
+              lib.length definitions == 1 && !(builtins.hasAttr name cfg)
+            ) "Conflicting generated command '${name}'; rename the task or process tree.";
+            lib.head definitions
+          ) (watches ++ processCommands);
           runner = up.mkTaskRunner {
             name = "tasks";
             description = "Project tasks (for arguments, run the listed command directly)";
@@ -269,8 +275,7 @@
                     + lib.optionalString (task.output != null) " (build: .#${task.output})";
                 }
               ) cfg
-              // watches
-              // processCommands;
+              // generatedCommands;
           };
         in
         lib.mkIf (cfg != { }) {
@@ -289,7 +294,7 @@
                 runtimeInputs = task.packages or [ ];
                 text = task.command;
               }
-            ) (watches // processCommands)
+            ) generatedCommands
             ++ [ runner ];
         };
     };

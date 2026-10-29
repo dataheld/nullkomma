@@ -46,7 +46,7 @@
                   chmod -R u+w source
                   cd source
                   export NULLKOMMA_ROOT="$PWD"
-                  ${lib.getExe config.nullkomma.tasks.r-namespace.package}
+                  ${lib.getExe config.nullkomma.tasks.nk-r-namespace.package}
                   cd ${lib.escapeShellArg "./${cfg.prefix}"}
                   mkdir -p "$out/library"
                   R CMD INSTALL --library="$out/library" .
@@ -115,11 +115,11 @@
               program = lib.getExe launcher;
               meta.description = "Run the project's exported Shiny app";
             };
-            nullkomma.tasks.shiny = {
+            nullkomma.tasks.nk-shiny = {
               skip = true;
               raw = true;
               description = "Serve the working-tree Shiny app with pkgload";
-              after = [ "r-namespace" ];
+              after = [ "nk-r-namespace" ];
               # Shiny reloads in its own session; don't restart the server.
               watch.native = true;
               packages = [
@@ -129,23 +129,23 @@
               ];
               command = ''
                 root="$(git rev-parse --show-toplevel)"
-                # In a process tree: reload whenever r-namespace succeeds.
+                # In a process tree: reload whenever nk-r-namespace succeeds.
                 if [[ -n "''${NULLKOMMA_PROCESSES-}" ]]; then
                   dir="$root/$NULLKOMMA_PROCESSES/shiny"
                   mkdir -p "$dir"
                   install -m 644 ${appR} "$dir/app.R"
                   export NULLKOMMA_SHINY_PACKAGE="$root"/${lib.escapeShellArg cfg.prefix}
                   # Touching app.R makes Shiny reload the package and every browser.
-                  watchexec --quiet --postpone --watch "$root/$NULLKOMMA_PROCESSES/r-namespace.ok" -- touch "$dir/app.R" &
+                  watchexec --quiet --postpone --watch "$root/$NULLKOMMA_PROCESSES/nk-r-namespace.ok" -- touch "$dir/app.R" &
                   exec Rscript --vanilla ${autoreload} "$dir"
                 fi
                 cd "$root"/${lib.escapeShellArg cfg.prefix}
                 exec Rscript --vanilla ${script (pkgload ''"."'')} "$@"
               '';
             };
-            nullkomma.processTrees.r-shiny = {
-              description = "Keep r-pkg current and serve the Shiny app, reloaded in the browser after each r-namespace";
-              tasks = config.nullkomma.processTrees.r-pkg.tasks ++ [ "shiny" ];
+            nullkomma.processTrees.nk-r-shiny = {
+              description = "Keep nk-r-pkg current and serve the Shiny app, reloaded in the browser after each nk-r-namespace";
+              tasks = config.nullkomma.processTrees.nk-r-pkg.tasks ++ [ "nk-shiny" ];
             };
           };
       };

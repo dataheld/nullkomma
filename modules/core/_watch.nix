@@ -33,7 +33,8 @@ pkgs.writeShellApplication {
       done
       roots_json="$(printf '%s\n' "''${roots[@]}" | jq -Rsc 'split("\n")[:-1]')"
       initial_json="$(printf '%s\n' "''${initial[@]}" | jq -sc 'from_entries')"
-      args+=(--filter-prog "$initial_json as \$initial | $roots_json as \$roots | $(cat ${./_watch-content.jq})")
+      args+=(--fs-events "access,create,remove,rename,modify,metadata")
+      args+=(--filter-prog "${lib.boolToString pkgs.stdenv.hostPlatform.isLinux} as \$inotify | $initial_json as \$initial | $roots_json as \$roots | $(cat ${./_watch-content.jq})")
     ''}
     busy=(--on-busy-update queue)
     while (( $# )); do

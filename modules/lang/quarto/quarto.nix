@@ -44,7 +44,7 @@
           type = lib.types.path;
           default = self.outPath;
           defaultText = lib.literalExpression "self.outPath";
-          description = "Quarto project rendered into `packages.site` and served by the `preview` task.";
+          description = "Quarto project rendered into `packages.site` and served by the `nk-preview` task.";
         };
         extensions = lib.mkOption {
           type = lib.types.attrsOf lib.types.path;
@@ -112,7 +112,7 @@
           {
             nullkomma.devShell.packages = [ quarto ];
             nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
-            nullkomma.tasks.build-site =
+            nullkomma.tasks.nk-build-site =
               task "Render the Quarto site" ''
                 if [[ -n "''${NULLKOMMA_OUTPUT-}" ]]; then
                   set -- "$@" --output-dir "$NULLKOMMA_OUTPUT"
@@ -123,7 +123,7 @@
                 output = "site";
               };
             # Quarto watches the working tree and live-reloads the browser itself.
-            nullkomma.tasks.preview =
+            nullkomma.tasks.nk-preview =
               task "Serve the site on localhost, re-rendering and reloading on changes" ''exec quarto preview "$@"''
               // {
                 watch.native = true;

@@ -102,7 +102,7 @@ process_file() {
     cp --remove-destination "$source" "$incoming"
     echo "Upstream conflict: $path (project file preserved)." >&2
     echo "Baseline: $base (may be absent); incoming: $incoming" >&2
-    echo "Use the nullkomma-resolve-file-conflicts skill: https://github.com/dataheld/nullkomma/blob/main/modules/tools/_agents/nullkomma-resolve-file-conflicts/SKILL.md" >&2
+    echo "Use the nk-resolve-file-conflicts skill: https://github.com/dataheld/nullkomma/blob/main/modules/tools/_agents/nk-resolve-file-conflicts/SKILL.md" >&2
     status=1
   fi
 }

@@ -35,7 +35,7 @@
         };
       };
       config = lib.mkIf cfg.nix.enable {
-        nullkomma.agents.skills.nullkomma-upgrade = ./_nix/nullkomma-upgrade;
+        nullkomma.agents.skills.nk-upgrade = ./_nix/nk-upgrade;
         partitionedAttrs.tests = lib.mkIf (config.partitions ? dev) (lib.mkDefault "dev");
         # Unconditional: deciding by the tests would make every output depend on every system.
         flake = {
@@ -132,7 +132,7 @@
                 packages = [ pkgs.flake-checker ];
                 command = ''exec flake-checker "$@"'';
               };
-              update = {
+              nk-update = {
                 skip = true;
                 raw = true;
                 description = "Update flake.lock, then refresh written and generated files using the updated flake";

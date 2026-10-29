@@ -53,14 +53,14 @@
         testShinyIsOptIn = {
           expr = {
             app = fixtures.r.apps.${system} ? shiny;
-            task = (perSystem fixtures.r).nullkomma.tasks ? shiny;
-            taskAfter = (perSystem local).nullkomma.tasks.shiny.after;
+            task = (perSystem fixtures.r).nullkomma.tasks ? nk-shiny;
+            taskAfter = (perSystem local).nullkomma.tasks.nk-shiny.after;
             dependency = lib.elem "shiny" (perSystem fixtures.r).nullkomma.r.packages;
           };
           expected = {
             app = false;
             task = false;
-            taskAfter = [ "r-namespace" ];
+            taskAfter = [ "nk-r-namespace" ];
             dependency = false;
           };
         };
@@ -110,7 +110,7 @@
                 else
                   mkdir -p man
                   printf 'keep\n' > man/sentinel
-                  command=${harness.task local "shiny"}
+                  command=${harness.task local "nk-shiny"}
                   expected='working-tree Shiny fixture'
                 fi
                 : > server.log

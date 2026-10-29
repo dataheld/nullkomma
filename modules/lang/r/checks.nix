@@ -33,10 +33,10 @@
       config.perSystem = lib.mkIf (cfg.enable && cfg.check.enable) (
         { config, pkgs, ... }:
         {
-          nullkomma.tasks.r-check = {
+          nullkomma.tasks.nk-r-check = {
             skip = true;
             description = "Run R CMD check";
-            after = [ "r-document" ];
+            after = [ "nk-r-document" ];
             working_dir = cfg.prefix;
             watch.paths = [ ];
             packages = [ config.nullkomma.r.package ];
@@ -64,7 +64,7 @@
           nullkomma.checks.r-cmd-check = {
             command = ''
               export NULLKOMMA_ROOT="$PWD"
-              exec ${lib.getExe config.nullkomma.tasks.r-check.package} "$@"
+              exec ${lib.getExe config.nullkomma.tasks.nk-r-check.package} "$@"
             '';
           };
         }
