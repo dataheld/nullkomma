@@ -95,39 +95,36 @@
           ".luarc.json"
         ];
         perSystem =
-          { config, ... }:
+          { config, pkgs, ... }:
           let
             quarto = config.nullkomma.quarto.package;
-            task = description: command: {
-              skip = true;
-              raw = true;
+            quartoProcess = description: command: {
+              namespace = "quarto";
               inherit description;
-              packages = [
-                quarto
-              ];
-              working_dir = prefix;
-              inherit command;
+              working_dir = "./${prefix}";
+              command = pkgs.writeShellApplication {
+                name = "quarto-${command}";
+                runtimeInputs = [ quarto ];
+                text = ''exec quarto ${command} "$@"'';
+              };
             };
           in
           {
             nullkomma.devShell.packages = [ quarto ];
             nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
-            nullkomma.tasks.nk-build-site =
-              task "Render the Quarto site" ''
-                if [[ -n "''${NULLKOMMA_OUTPUT-}" ]]; then
-                  set -- "$@" --output-dir "$NULLKOMMA_OUTPUT"
-                fi
-                exec quarto render "$@"
-              ''
-              // {
-                output = "site";
+            process-compose.dev.settings.processes = {
+              nk-build-site = quartoProcess "Render the Quarto site" "render" // {
+                disabled = true;
               };
-            # Quarto watches the working tree and live-reloads the browser itself.
-            nullkomma.tasks.nk-preview =
-              task "Serve the site on localhost, re-rendering and reloading on changes" ''exec quarto preview "$@"''
-              // {
-                watch.native = true;
-              };
+              # Quarto watches the working tree and live-reloads the browser itself.
+              nk-preview = quartoProcess "Serve the site on localhost, re-rendering and reloading on changes" "preview";
+            };
+            packages.site = lib.mkDefault (
+              config.nullkomma.sandbox {
+                process = "nk-build-site";
+                output = "${prefix}_site";
+              }
+            );
             nullkomma.files =
               lib.mapAttrs' (
                 name: source:
