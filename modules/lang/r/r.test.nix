@@ -640,10 +640,10 @@
           mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/cloudflare .agents/skills/demo
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
             .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/cloudflare/terraform.tfstate \
-            .agents/skills/demo/SKILL.md AGENTS.md
+            .agents/skills/demo/SKILL.md AGENTS.md .mcp.json
           R CMD build --no-build-vignettes --no-manual .
           tar -tf nullkommafixture_0.0.1.tar.gz > package-files
-          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]nullkomma|[.]agents|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
+          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]mcp[.]json|[.]nullkomma|[.]agents|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
             echo "Development-only files leaked into the package source" >&2
             exit 1
           fi

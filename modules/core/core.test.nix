@@ -681,6 +681,8 @@
                 update = task fixtures.md "nk-update";
               in
               pkgs.runCommandLocal "nullkomma-file-update-task" { nativeBuildInputs = [ nix ]; } ''
+                mkdir project
+                cd project
                 ${lib.getExe pkgs.git} init -q
                 export NULLKOMMA_TEST_LOG="$PWD/calls"
                 if ${update} nullkomma; then

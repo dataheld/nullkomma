@@ -179,7 +179,7 @@
               args ? [ ],
               output ? null,
             }:
-            pkgs.runCommand "nk-${process}" { } ''
+            pkgs.runCommand process { } ''
               cp -R ${config.nullkomma.src} source
               chmod -R u+w source
               patchShebangs --build source >/dev/null

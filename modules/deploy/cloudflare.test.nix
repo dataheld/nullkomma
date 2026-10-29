@@ -102,6 +102,8 @@
             }
             ''
               export HOME="$TMPDIR"
+              mkdir project
+              cd project
               git init -q
               ${task (raw bare) "nk-cloudflare-validate"}
               touch "$out"
@@ -305,6 +307,8 @@
               fi
               grep -q CLOUDFLARE_R2_ACCESS_KEY_ID error
               rm "$CALLED"
+              mkdir project
+              cd project
               git init -q
               ${task flake "nk-deploy"}
               test -f "$CALLED"
