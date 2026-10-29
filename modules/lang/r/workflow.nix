@@ -81,6 +81,7 @@
         };
       };
       config = lib.mkIf cfg.enable {
+        nullkomma.agents.skills.nullkomma-r-package-development = ./_agents/nullkomma-r-package-development;
         nullkomma.r.extraPackages = [
           "roxygen2"
         ]
