@@ -6,15 +6,15 @@
         callFlakeWith
         project
         root
-        runCheck
+        task
         ;
       fixture = root + "/tests/fixtures/md";
-      jscpd = runCheck (callFlakeWith { nullkomma.generatedPaths = [ "generated/**" ]; } fixture) "jscpd";
-      customized = runCheck (callFlakeWith {
+      jscpd = task (callFlakeWith { nullkomma.generatedPaths = [ "generated/**" ]; } fixture) "jscpd";
+      customized = task (callFlakeWith {
         nullkomma.generatedPaths = [ "generated/**" ];
         nullkomma.lint.jscpd.ignore = [ "custom/**" ];
       } fixture) "jscpd";
-      relaxed = runCheck (callFlakeWith { nullkomma.lint.jscpd.threshold = 100; } fixture) "jscpd";
+      relaxed = task (callFlakeWith { nullkomma.lint.jscpd.threshold = 100; } fixture) "jscpd";
     in
     {
       checks.jscpd-nix-config = pkgs.runCommand "jscpd-nix-config" { } ''

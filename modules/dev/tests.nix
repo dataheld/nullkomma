@@ -84,15 +84,7 @@
         let
           perSystem = flake: flake.allSystems.${system};
           # Command running a flake's task, from inside a Git repository.
-          task =
-            flake: name:
-            let
-              p = perSystem flake;
-            in
-            if p.nullkomma.tasks ? ${name} then
-              lib.getExe p.nullkomma.tasks.${name}.package
-            else
-              "${lib.getExe p.taskRunners.default} ${name}";
+          task = flake: name: "${lib.getExe (perSystem flake).taskRunners.default} ${name}";
         in
         {
           _module.args.harness = {
@@ -128,23 +120,12 @@
                 pandoc lua ${./_legal.lua} "$PWD" $(find . -name '*.html' -printf '%P\n')
                 touch $out
               '';
-            runCheck =
-              flake: name:
-              let
-                p = perSystem flake;
-              in
-              if p.nullkomma.checks ? ${name} then
-                lib.getExe p.nullkomma.checks.${name}.package
-              else
-                task flake name;
             # What plugins can contribute to a consumer flake.
             summary = flake: {
               files = lib.attrNames (perSystem flake).nullkomma.files;
               tools = map lib.getName (perSystem flake).nullkomma.devShell.packages;
               formatters = lib.attrNames (perSystem flake).treefmt.build.programs;
-              tasks = lib.attrNames (
-                (perSystem flake).taskRunners.default.tasks // (perSystem flake).nullkomma.tasks
-              );
+              tasks = lib.attrNames (perSystem flake).taskRunners.default.tasks;
               checks = lib.attrNames flake.checks.${system};
               shells = lib.attrNames flake.devShells.${system};
               editor =
@@ -202,57 +183,60 @@
               "terranix/import-tree" = inputs.terranix.inputs.import-tree.outPath;
               "terranix/systems" = inputs.terranix.inputs.systems.outPath;
             };
-          nullkomma.tasks.check-fixtures = {
+          process-compose.dev.settings.processes.check-fixtures = {
+            namespace = "dev";
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
-            packages = [
-              pkgs.coreutils
-              pkgs.flake-checker
-              pkgs.git
-              pkgs.gnugrep
-            ];
-            command = ''
-              root="$(git rev-parse --show-toplevel)"
-              scratch="$(mktemp -d)"
-              trap 'rm -rf "$scratch"' EXIT
-              mkdir "$scratch/project"
-              cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
-              check() {
-                nix flake check "path:$scratch/project" \
+            disabled = true;
+            command = pkgs.writeShellApplication {
+              name = "check-fixtures";
+              runtimeInputs = [
+                pkgs.flake-checker
+                pkgs.git
+              ];
+              text = ''
+                root="$(git rev-parse --show-toplevel)"
+                scratch="$(mktemp -d)"
+                trap 'rm -rf "$scratch"' EXIT
+                mkdir "$scratch/project"
+                cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
+                check() {
+                  nix flake check "path:$scratch/project" \
+                    --override-input nullkomma "path:$root" \
+                    --no-write-lock-file --print-build-logs
+                }
+                check
+                cp -R "$root/tests/fixtures/r" "$scratch/r"
+                rm "$scratch/r/pkg.lock"
+                # Bootstrapping must not evaluate the lock-dependent R environment.
+                nix eval --raw "path:$scratch/r#apps.${system}.r-lock.program" \
                   --override-input nullkomma "path:$root" \
-                  --no-write-lock-file --print-build-logs
-              }
-              check
-              cp -R "$root/tests/fixtures/r" "$scratch/r"
-              rm "$scratch/r/pkg.lock"
-              # Bootstrapping must not evaluate the lock-dependent R environment.
-              nix eval --raw "path:$scratch/r#apps.${system}.r-lock.program" \
-                --override-input nullkomma "path:$root" \
-                --no-write-lock-file > /dev/null
-              if nix eval "path:$scratch/r#devShells.${system}.default.drvPath" \
-                --override-input nullkomma "path:$root" \
-                --no-write-lock-file > "$scratch/missing-lock.log" 2>&1; then
-                echo "R environment without pkg.lock unexpectedly evaluated" >&2
-                exit 1
-              fi
-              grep -qF "lockfile \`pkg.lock\` of DESCRIPTION is missing" "$scratch/missing-lock.log"
-              # Consumer CI lints the lock; its Nixpkgs must be visible as a root input.
-              nix flake lock "path:$scratch/project" --override-input nullkomma "path:$root"
-              flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
-              rm "$scratch/project/flake.lock"
-            ''
-            + lib.concatMapStrings (case: ''
+                  --no-write-lock-file > /dev/null
+                if nix eval "path:$scratch/r#devShells.${system}.default.drvPath" \
+                  --override-input nullkomma "path:$root" \
+                  --no-write-lock-file > "$scratch/missing-lock.log" 2>&1; then
+                  echo "R environment without pkg.lock unexpectedly evaluated" >&2
+                  exit 1
+                fi
+                grep -qF "lockfile \`pkg.lock\` of DESCRIPTION is missing" "$scratch/missing-lock.log"
+                # Consumer CI lints the lock; its Nixpkgs must be visible as a root input.
+                nix flake lock "path:$scratch/project" --override-input nullkomma "path:$root"
+                flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
+                rm "$scratch/project/flake.lock"
+              ''
+              + lib.concatMapStrings (case: ''
 
-              printf %s ${lib.escapeShellArg case.content} > "$scratch/project/${case.file}"
-              if check > "$scratch/failure.log" 2>&1; then
-                echo "Consumer with invalid ${case.file} unexpectedly passed nix flake check" >&2
-                exit 1
-              fi
-              cat "$scratch/failure.log"
-              ${lib.concatMapStrings (entry: ''
-                grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log"
-              '') case.expect}
-              rm "$scratch/project/${case.file}"
-            '') (lib.attrValues rejects);
+                printf %s ${lib.escapeShellArg case.content} > "$scratch/project/${case.file}"
+                if check > "$scratch/failure.log" 2>&1; then
+                  echo "Consumer with invalid ${case.file} unexpectedly passed nix flake check" >&2
+                  exit 1
+                fi
+                cat "$scratch/failure.log"
+                ${lib.concatMapStrings (entry: ''
+                  grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log"
+                '') case.expect}
+                rm "$scratch/project/${case.file}"
+              '') (lib.attrValues rejects);
+            };
           };
           checks =
             lib.concatMapAttrs (
