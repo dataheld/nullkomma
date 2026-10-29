@@ -83,6 +83,16 @@
         { pkgs, system, ... }:
         let
           perSystem = flake: flake.allSystems.${system};
+          # Command running a flake's task, from inside a Git repository.
+          task =
+            flake: name:
+            let
+              p = perSystem flake;
+            in
+            if p.nullkomma.tasks ? ${name} then
+              lib.getExe p.nullkomma.tasks.${name}.package
+            else
+              "${lib.getExe p.taskRunners.default} ${name}";
         in
         {
           _module.args.harness = {
@@ -95,18 +105,9 @@
               rawAt
               fixtures
               perSystem
+              task
               ;
             raw = rawAt (root + "/tests/fixtures/md");
-            # Command running a flake's task, from inside a Git repository.
-            task =
-              flake: name:
-              let
-                p = perSystem flake;
-              in
-              if p.nullkomma.tasks ? ${name} then
-                lib.getExe p.nullkomma.tasks.${name}.package
-              else
-                "${lib.getExe p.taskRunners.default} ${name}";
             # A built site's local links and fragments resolve.
             linkcheck =
               name: site:
@@ -127,7 +128,15 @@
                 pandoc lua ${./_legal.lua} "$PWD" $(find . -name '*.html' -printf '%P\n')
                 touch $out
               '';
-            runCheck = flake: name: lib.getExe (perSystem flake).nullkomma.checks.${name}.package;
+            runCheck =
+              flake: name:
+              let
+                p = perSystem flake;
+              in
+              if p.nullkomma.checks ? ${name} then
+                lib.getExe p.nullkomma.checks.${name}.package
+              else
+                task flake name;
             # What plugins can contribute to a consumer flake.
             summary = flake: {
               files = lib.attrNames (perSystem flake).nullkomma.files;
@@ -148,12 +157,13 @@
                   inherit (editor) vscode;
                 };
             };
-            # Shell prelude: a writable copy of `src` as the working directory, and
+            # Shell prelude: a writable copy of `src` as the working Git repository, and
             # `fails <message> <command...>`, expecting the command to fail with message.
             project = src: ''
               cp -R ${src} project
               chmod -R u+w project
               cd project
+              ${lib.getExe pkgs.git} init -q
               export HOME="$TMPDIR/home"
               mkdir -p "$HOME"
               fails() {

@@ -51,11 +51,13 @@
             });
           in
           {
-            nullkomma.checks.jscpd = {
-              packages = [ jscpd ];
-              command = ''
-                export JSCPD_NO_TIPS=1
-                exec jscpd --config ${
+            process-compose.dev.settings.processes = {
+              jscpd = {
+                namespace = "jscpd";
+                description = "Find duplicated code";
+                environment.JSCPD_NO_TIPS = "1";
+                disabled = true;
+                command = "${lib.getExe jscpd} --config ${
                   (pkgs.formats.json { }).generate "jscpd.json" (
                     {
                       threshold = 0;
@@ -65,8 +67,9 @@
                       ignore = config.treefmt.settings.excludes ++ (settings.ignore or [ ]);
                     }
                   )
-                } "$@"
-              '';
+                }";
+              };
+              nk-check.depends_on.jscpd.condition = "process_completed_successfully";
             };
           }
         );
