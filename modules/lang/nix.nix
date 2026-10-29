@@ -139,8 +139,8 @@
                 command = ''
                   nix flake update "$@"
                   status=0
-                  nix develop --command nk-write-files || status=1
-                  nix develop --command nk-generate-files || status=1
+                  nix develop --command tasks nk-write-files || status=1
+                  nix develop --command tasks nk-generate-files || status=1
                   exit "$status"
                 '';
               };

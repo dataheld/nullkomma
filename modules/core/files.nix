@@ -118,41 +118,45 @@
                 f.source
               ]
           ) (lib.filterAttrs (_: f: f.mode == "generated") files);
-          task = mode: {
-            skip = true;
-            description =
-              if mode == "source" then
-                "Write source-of-truth files; keep your edits and report upstream conflicts"
-              else
-                "Overwrite Git-ignored files generated from Nix";
-            packages = [
-              pkgs.coreutils
-              pkgs.git
-            ];
-            command = ''
-              mode=${mode}
-            ''
-            + builtins.readFile ./_files.sh
-            + lib.concatStrings (
-              lib.mapAttrsToList (
-                path: f:
-                let
-                  source =
-                    assert lib.assertMsg (
-                      !f.directory || mode == "generated"
-                    ) "Directory ${path} must be a generated file.";
-                    if mode == "generated" then generated.${path} else f.source;
-                in
-                ''
-                  process_file ${lib.escapeShellArg path} ${lib.escapeShellArg "${source}"} ${
-                    lib.escapeShellArg (if f.initialSource == null then "" else "${f.initialSource}")
-                  }
-                ''
-              ) (lib.filterAttrs (_: f: f.mode == mode) files)
-            )
-            + ''
-              finish
-            '';
+          script =
+            name: mode:
+            pkgs.writeShellApplication {
+              inherit name;
+              runtimeInputs = [
+                pkgs.coreutils
+                pkgs.git
+              ];
+              text = ''
+                mode=${mode}
+              ''
+              + builtins.readFile ./_files.sh
+              + lib.concatStrings (
+                lib.mapAttrsToList (
+                  path: f:
+                  let
+                    source =
+                      assert lib.assertMsg (
+                        !f.directory || mode == "generated"
+                      ) "Directory ${path} must be a generated file.";
+                      if mode == "generated" then generated.${path} else f.source;
+                  in
+                  ''
+                    process_file ${lib.escapeShellArg path} ${lib.escapeShellArg "${source}"} ${
+                      lib.escapeShellArg (if f.initialSource == null then "" else "${f.initialSource}")
+                    }
+                  ''
+                ) (lib.filterAttrs (_: f: f.mode == mode) files)
+              )
+              + ''
+                finish
+              '';
+            };
+          write = script "nk-write-files" "source";
+          generate = script "nk-generate-files" "generated";
+          task = description: command: {
+            namespace = "nullkomma";
+            inherit description command;
+            disabled = true;
           };
         in
         {
@@ -170,14 +174,16 @@
               '') generated
             )
           );
-          nullkomma.tasks.nk-write-files = task "source";
-          nullkomma.tasks.nk-generate-files = task "generated";
+          process-compose.dev.settings.processes = {
+            nk-write-files = task "Write source-of-truth files; keep your edits and report upstream conflicts" write;
+            nk-generate-files = task "Overwrite Git-ignored files generated from Nix" generate;
+          };
           # Generated files follow the Nix configuration, not the working tree: refresh them on
           # entering the dev shell (direnv re-enters when the flake changes), only if they changed.
           nullkomma.devShell.shellHook = lib.mkIf (generated != { }) ''
             if stamp="$(git rev-parse --git-path nullkomma/files/generated-by 2>/dev/null)" &&
-              [ "$(cat "$stamp" 2>/dev/null)" != ${config.nullkomma.tasks.nk-generate-files.package} ]; then
-              ${lib.getExe config.nullkomma.tasks.nk-generate-files.package} && echo ${config.nullkomma.tasks.nk-generate-files.package} > "$stamp"
+              [ "$(cat "$stamp" 2>/dev/null)" != ${generate} ]; then
+              ${lib.getExe generate} && echo ${generate} > "$stamp"
             fi
           '';
         };

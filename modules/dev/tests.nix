@@ -97,8 +97,16 @@
               perSystem
               ;
             raw = rawAt (root + "/tests/fixtures/md");
-            # Executables of a flake's nullkomma tasks and checks.
-            task = flake: name: lib.getExe (perSystem flake).nullkomma.tasks.${name}.package;
+            # Command running a flake's task, from inside a Git repository.
+            task =
+              flake: name:
+              let
+                p = perSystem flake;
+              in
+              if p.nullkomma.tasks ? ${name} then
+                lib.getExe p.nullkomma.tasks.${name}.package
+              else
+                "${lib.getExe p.taskRunners.default} ${name}";
             # A built site's local links and fragments resolve.
             linkcheck =
               name: site:
@@ -125,7 +133,9 @@
               files = lib.attrNames (perSystem flake).nullkomma.files;
               tools = map lib.getName (perSystem flake).nullkomma.devShell.packages;
               formatters = lib.attrNames (perSystem flake).treefmt.build.programs;
-              tasks = lib.attrNames (perSystem flake).nullkomma.tasks;
+              tasks = lib.attrNames (
+                (perSystem flake).taskRunners.default.tasks // (perSystem flake).nullkomma.tasks
+              );
               checks = lib.attrNames flake.checks.${system};
               shells = lib.attrNames flake.devShells.${system};
               editor =

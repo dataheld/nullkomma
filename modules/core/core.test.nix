@@ -150,15 +150,14 @@
               expected = lib.replicate 3 {
                 files = [ ];
                 tools = [
-                  "nk-generate-files"
-                  "nk-write-files"
-                  "treefmt"
                   "tasks"
                   "process-compose"
                   "treefmt"
                 ];
                 formatters = [ ];
                 tasks = [
+                  "all"
+                  "nk-check"
                   "nk-generate-files"
                   "nk-write-files"
                   "treefmt"
@@ -179,11 +178,14 @@
                 };
               };
             };
-            testChecksBecomeTaskAndCheck = {
+            testChecksAreNkCheckDependencies = {
               expr = {
                 inherit
                   (summary (raw {
-                    perSystem.nullkomma.checks.custom.command = "true";
+                    perSystem.process-compose.dev.settings.processes = {
+                      custom.command = "true";
+                      nk-check.depends_on.custom.condition = "process_completed_successfully";
+                    };
                   }))
                   tasks
                   checks
@@ -191,6 +193,7 @@
               };
               expected = {
                 tasks = [
+                  "all"
                   "nk-check"
                   "nk-generate-files"
                   "nk-write-files"
@@ -423,35 +426,41 @@
                 missingLanguage = false;
               };
             };
-            testTasksAllHonorsSkip = {
-              expr = lib.attrNames (
-                lib.filterAttrs (_: t: !(t.skip or false)) (perSystem fixtures.md).nullkomma.tasks
-              );
+            testTasksAllFormatsAndChecks = {
+              expr = lib.attrNames (perSystem fixtures.md).processTrees.dev.processes.all.depends_on;
               expected = [
-                "flake-checker"
                 "nk-check"
                 "treefmt"
               ];
             };
-            testTasksAreDescribedProcesses = {
-              expr = {
-                tasks = lib.attrNames (perSystem contract).taskRunners.default.tasks;
-                processes = lib.attrNames (perSystem contract).processTrees.dev.processes;
+            testTasksAreDescribedProcesses =
+              let
+                p = perSystem contract;
+              in
+              {
+                expr = lib.genAttrs [ "a" "b" "broken" "serve" ] (name: {
+                  task = p.taskRunners.default.tasks ? ${name};
+                  process = p.processTrees.dev.processes ? ${name};
+                });
+                expected = {
+                  a = {
+                    task = true;
+                    process = true;
+                  };
+                  b = {
+                    task = true;
+                    process = true;
+                  };
+                  broken = {
+                    task = true;
+                    process = true;
+                  };
+                  serve = {
+                    task = false;
+                    process = true;
+                  };
+                };
               };
-              expected = {
-                tasks = [
-                  "a"
-                  "b"
-                  "broken"
-                ];
-                processes = [
-                  "a"
-                  "b"
-                  "broken"
-                  "serve"
-                ];
-              };
-            };
             testTemplatesAreFixtures = {
               expr = lib.mapAttrs (_: t: {
                 flake = builtins.readFile (t.path + "/flake.nix");
@@ -615,7 +624,7 @@
                 mkdir ../branded
                 cd ../branded
                 git init --quiet
-                generate=${task fixtures.quarto-branded "nk-generate-files"}
+                generate="${task fixtures.quarto-branded "nk-generate-files"}"
                 mkdir -p _extensions/greeting
                 touch _extensions/greeting/stale.lua
                 $generate
@@ -639,7 +648,7 @@
                   printf '%s\n' "$*" >> "$NULLKOMMA_TEST_LOG"
                   case "$*" in
                     "flake update fail") exit 7 ;;
-                    "develop --command nk-write-files") exit 1 ;;
+                    "develop --command tasks nk-write-files") exit 1 ;;
                   esac
                 '';
                 update = task fixtures.md "nk-update";
@@ -650,7 +659,7 @@
                   echo "Update did not propagate file conflicts" >&2
                   exit 1
                 fi
-                printf '%s\n' 'flake update nullkomma' 'develop --command nk-write-files' 'develop --command nk-generate-files' > expected
+                printf '%s\n' 'flake update nullkomma' 'develop --command tasks nk-write-files' 'develop --command tasks nk-generate-files' > expected
                 cmp calls expected
                 : > calls
                 if ${update} fail; then

@@ -2,7 +2,7 @@
 mode="${mode:?file mode must be set by the caller}"
 root="$(git rev-parse --show-toplevel)"
 cd "$root" || exit 1
-state="$(git rev-parse --git-path nullkomma/files)"
+state="$(git rev-parse --path-format=absolute --git-common-dir)/nullkomma/files"
 accept=""
 accepted=false
 status=0

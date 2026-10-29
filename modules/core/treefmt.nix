@@ -57,10 +57,14 @@
             vscode.extensions = [ "ibecker.treefmt-vscode" ];
             vscode.settings."editor.defaultFormatter" = lib.mkDefault "ibecker.treefmt-vscode";
           };
-          nullkomma.tasks.treefmt = {
-            description = "Format and lint all files";
-            packages = [ config.treefmt.build.wrapper ];
-            command = ''exec treefmt "$@"'';
+          process-compose.dev.settings.processes = {
+            treefmt = {
+              namespace = "nullkomma";
+              description = "Format and lint all files";
+              command = config.treefmt.build.wrapper;
+              disabled = true;
+            };
+            all.depends_on.treefmt.condition = "process_completed_successfully";
           };
         };
     };
