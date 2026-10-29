@@ -28,19 +28,71 @@
         };
       };
       config.perSystem =
-        { config, pkgs, ... }:
+        {
+          config,
+          pkgs,
+          system,
+          ...
+        }:
         let
           tree = config.process-compose.dev;
           inherit (tree.settings) processes;
           tasks = lib.filterAttrs (_: p: p.description != null) processes;
-          once = pkgs.writeText "process-compose-once.json" (
-            builtins.toJSON {
-              processes = lib.mapAttrs (_: _: {
-                is_disabled = false;
-                availability.restart = "exit_on_failure";
-              }) processes;
-            }
-          );
+          overlay = name: settings: pkgs.writeText "process-compose-${name}.json" (builtins.toJSON settings);
+          once = overlay "once" {
+            processes = lib.mapAttrs (_: _: {
+              is_disabled = false;
+              availability.restart = "exit_on_failure";
+            }) processes;
+          };
+          idle = overlay "idle" { processes = lib.mapAttrs (_: _: { is_disabled = true; }) processes; };
+          # One-shot tasks become MCP tools; agents start services with the `pc_*` control tools.
+          # Tools run through `nk-run`, as an MCP call does not start `depends_on`.
+          mcp = overlay "mcp" {
+            mcp_server = {
+              transport = "stdio";
+              expose_control_tools = true;
+            };
+            processes = lib.mapAttrs (name: _: {
+              command = "${lib.getExe run} ${name} @{args}";
+              mcp = {
+                type = "tool";
+                arguments = [
+                  {
+                    name = "args";
+                    type = "string";
+                    description = "Shell words passed to the task, as in `tasks ${name} <args>`";
+                  }
+                ];
+              };
+            }) (lib.filterAttrs (_: p: p.disabled == true) tasks);
+          };
+          # Graph and MCP commands need a project, but no process started.
+          serve =
+            name: files: text:
+            pkgs.writeShellApplication {
+              inherit name text;
+              runtimeInputs = [ tree.package ];
+              runtimeEnv.PC_CONFIG_FILES = lib.concatMapStringsSep "," toString (
+                [
+                  tree.outputs.settingsFile
+                  idle
+                ]
+                ++ files
+              );
+            };
+          mcpServer = serve "nk-mcp" [ mcp ] ''
+            PC_NO_SERVER=1 exec process-compose up -t=false
+          '';
+          graph = serve "nk-graph" [ ] ''
+            [ $# -gt 0 ] || set -- -f mermaid
+            PC_SOCKET_PATH="$(mktemp -u)"
+            export PC_SOCKET_PATH
+            process-compose up -D >/dev/null
+            trap 'process-compose down >/dev/null' EXIT
+            process-compose project is-ready --wait >/dev/null
+            process-compose graph "$@"
+          '';
           run = pkgs.writeShellApplication {
             name = "nk-run";
             runtimeInputs = [ tree.package ];
@@ -72,6 +124,14 @@
               [private]
               default:
                   @just --justfile {{justfile()}} --list --unsorted
+
+              [doc("Serve the tasks as MCP tools over stdio, for agents")]
+              mcp:
+                  @exec ${lib.getExe mcpServer}
+
+              [doc("Print the process dependency graph; args go to `process-compose graph` (default: -f mermaid)")]
+              graph *args:
+                  @exec ${lib.getExe graph} "$@"
             ''
             + lib.concatStrings (
               lib.mapAttrsToList (name: p: ''
@@ -94,11 +154,25 @@
             }
             // {
               tasks = lib.mapAttrs (_: p: { inherit (p) description; }) tasks;
+              # Launches `tasks mcp` without the dev shell, whose hooks may write to stdout.
+              mcpServer = {
+                command = "nix";
+                args = [
+                  "run"
+                  ".#taskRunners.${system}.default"
+                  "--"
+                  "mcp"
+                ];
+              };
             };
         in
         {
           taskRunners.default = runner;
           nullkomma.devShell.packages = [ runner ];
+          nullkomma.files.".mcp.json" = {
+            mode = lib.mkDefault "generated";
+            text = builtins.toJSON { mcpServers.nullkomma = runner.mcpServer; };
+          };
           nullkomma.sandbox =
             {
               process,

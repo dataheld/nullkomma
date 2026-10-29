@@ -100,13 +100,15 @@
               let
                 files =
                   enable:
-                  (perSystem (raw {
-                    imports = [ plugins.agents ];
-                    nullkomma.agents = {
-                      inherit enable;
-                      skills.demo = md;
-                    };
-                  })).nullkomma.files;
+                  removeAttrs
+                    (perSystem (raw {
+                      imports = [ plugins.agents ];
+                      nullkomma.agents = {
+                        inherit enable;
+                        skills.demo = md;
+                      };
+                    })).nullkomma.files
+                    [ ".mcp.json" ];
               in
               {
                 expr = {
@@ -148,7 +150,7 @@
                 } md)
               ];
               expected = lib.replicate 3 {
-                files = [ ];
+                files = [ ".mcp.json" ];
                 tools = [
                   "tasks"
                   "process-compose"
@@ -340,8 +342,10 @@
                   ".direnv/"
                   "/.agents/skills/nk-resolve-file-conflicts"
                   "/.agents/skills/nk-upgrade"
+                  "/.mcp.json"
                   "/.nvim.lua"
                   "/.vscode/extensions.json"
+                  "/.vscode/mcp.json"
                   "/.vscode/settings.json"
                 ])
                 (lib.concatLines [
@@ -350,7 +354,9 @@
                   ".direnv/"
                   "/.agents/skills/nk-resolve-file-conflicts"
                   "/.agents/skills/nk-upgrade"
+                  "/.mcp.json"
                   "/.nvim.lua"
+                  "/.vscode/mcp.json"
                 ])
               ];
             };
@@ -494,6 +500,26 @@
                 printf 'a\nb local value\n' | diff - log
                 if ${tasks} broken; then exit 1; fi
                 printf 'a\nb sandboxed value\n' | diff - ${sandboxed}
+                ${tasks} graph | grep -qF 'b --> a'
+                # MCP clients stop a stdio server with SIGTERM.
+                mkfifo requests
+                timeout 60 ${tasks} mcp < requests > mcp.out &
+                server=$!
+                exec 3> requests
+                printf '%s\n' >&3 \
+                  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}' \
+                  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+                  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+                  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"b","arguments":{"args":"mcp value"}}}'
+                until grep -q '"id":3' mcp.out; do
+                  kill -0 "$server"
+                  sleep 0.2
+                done
+                kill "$server"
+                grep -qF '"name":"b"' mcp.out
+                grep -qF '"name":"pc_process_start"' mcp.out
+                if grep -qF '"name":"serve"' mcp.out; then exit 1; fi
+                tail -n 1 log | grep -qx 'b mcp value'
                 touch $out
               '';
             neovim-config =
