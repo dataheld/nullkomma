@@ -815,14 +815,6 @@ Nullkomma always provides **two self-documenting entrypoints**:
    In addition, `tasks` include important development-only workflows,
    especially previews.
 
-nullkomma's own commands and agent skills start with `nk-`:
-you can tell them apart from those of other tools,
-and completing `nk-` lists them all.
-Tasks that only run another tool, with that tool's own arguments,
-keep its name (`treefmt`, `flake-checker`), as does [up]'s `tasks` runner.
-Flake outputs and checks have no prefix:
-you run them through `nix` (`nix run .#deploy`) or `nk-check` (`nk-check r-testthat`).
-
 As much as possible, the flake outputs and `tasks` reuse implementation,
 to make interactive development work in the `devShell` as close as possible to the flake outputs.
 Exceptions include:
