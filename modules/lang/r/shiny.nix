@@ -44,10 +44,8 @@
                   export HOME="$TMPDIR"
                   cp -R ${config.nullkomma.src} source
                   chmod -R u+w source
-                  cd source
-                  export NULLKOMMA_ROOT="$PWD"
-                  ${lib.getExe config.nullkomma.tasks.nk-r-namespace.package}
-                  cd ${lib.escapeShellArg "./${cfg.prefix}"}
+                  cd ${lib.escapeShellArg "source/${cfg.prefix}"}
+                  Rscript --vanilla -e 'roxygen2::roxygenise(roclets = "namespace")'
                   mkdir -p "$out/library"
                   R CMD INSTALL --library="$out/library" .
                 '';
@@ -96,12 +94,6 @@
               pkgload::load_all(${dir}, export_all = FALSE)
               package <- pkgload::pkg_name(${dir})
             '';
-            # Sourced again by Shiny whenever it changes; returns the app.
-            appR = pkgs.writeText "app.R" (app (pkgload ''Sys.getenv("NULLKOMMA_SHINY_PACKAGE")'') + "app\n");
-            autoreload = pkgs.writeText "autoreload.R" ''
-              options(shiny.autoreload = TRUE)
-              ${run "commandArgs(TRUE)[[1]]"}
-            '';
             launcher = pkgs.writeShellScriptBin "shiny" ''
               exec ${pkgsR.R}/bin/Rscript --vanilla ${script ''
                 .libPaths(c("${installed}/library", "${dependencies}/library"), include.site = FALSE)
@@ -115,33 +107,23 @@
               program = lib.getExe launcher;
               meta.description = "Run the project's exported Shiny app";
             };
-            nullkomma.tasks.nk-shiny = {
-              skip = true;
-              raw = true;
+            process-compose.dev.settings.processes.nk-shiny = {
+              namespace = "r";
               description = "Serve the working-tree Shiny app with pkgload";
-              after = [ "nk-r-namespace" ];
-              # Shiny reloads in its own session; don't restart the server.
-              watch.native = true;
-              packages = [
-                pkgs.git
-                pkgs.watchexec
-                config.nullkomma.r.package
-              ];
-              command = ''
-                root="$(git rev-parse --show-toplevel)"
-                # In a process tree: reload whenever nk-r-namespace succeeds.
-                if [[ -n "''${NULLKOMMA_PROCESSES-}" ]]; then
-                  dir="$root/$NULLKOMMA_PROCESSES/shiny"
-                  mkdir -p "$dir"
-                  install -m 644 ${appR} "$dir/app.R"
-                  export NULLKOMMA_SHINY_PACKAGE="$root"/${lib.escapeShellArg cfg.prefix}
-                  # Touching app.R makes Shiny reload the package and every browser.
-                  watchexec --quiet --postpone --watch "$root/$NULLKOMMA_PROCESSES/nk-r-namespace.ok" -- touch "$dir/app.R" &
-                  exec Rscript --vanilla ${autoreload} "$dir"
-                fi
-                cd "$root"/${lib.escapeShellArg cfg.prefix}
-                exec Rscript --vanilla ${script (pkgload ''"."'')} "$@"
-              '';
+              working_dir = "./${cfg.prefix}";
+              # nk-r-namespace's watch restarts the server on R changes.
+              depends_on.nk-r-namespace.condition = "process_completed_successfully";
+              command = pkgs.writeShellApplication {
+                name = "nk-shiny";
+                runtimeInputs = [ config.nullkomma.r.package ];
+                text = ''exec Rscript --vanilla ${script (pkgload ''"."'')} "$@"'';
+              };
+              readiness_probe = lib.mkIf (cfg.shiny.port != null) {
+                http_get = {
+                  host = if cfg.shiny.host == "0.0.0.0" then "127.0.0.1" else cfg.shiny.host;
+                  inherit (cfg.shiny) port;
+                };
+              };
             };
           };
       };
