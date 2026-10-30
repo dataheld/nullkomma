@@ -47,8 +47,8 @@ In your project, run:
 ```sh
 nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
 git add flake.nix .envrc
-nix develop --command tasks nk-write-files
-nix develop --command tasks nk-generate-files
+nix develop --command nk nk-write-files
+nix develop --command nk nk-generate-files
 direnv allow
 ```
 
@@ -62,7 +62,7 @@ To use your own, declare `nixpkgs.url` and set `nullkomma.inputs.nixpkgs.follows
 
 ### Upgrading
 
-Run `tasks nk-update`: it updates `flake.lock`, then runs `nk-write-files` and `nk-generate-files`.
+Run `nk nk-update`: it updates `flake.lock`, then runs `nk-write-files` and `nk-generate-files`.
 After any other `nix flake update` (e.g. by a bot), run those two yourself.
 After editing `flake.nix`, run `direnv reload`.
 
@@ -125,7 +125,7 @@ Files and editor settings that plugins write into your repository are under [Plu
 
 | Plugin                                                                                            | Default | `devShells`                                                               | `formatter`[^treefmt]                | `checks`                                                    | `packages`       | `apps`[^apps]              | `taskRunners`                                                                                                                   | `processTrees`[^processTrees]                      |
 | ------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------- | ---------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| framework                                                                                         | always  | `tasks`, `process-compose`                                                | [treefmt]                            | `treefmt`; [each `nk-check` prerequisite](#checks)          |                  |                            | `all`, `nk-check`, `treefmt`, `nk-write-files`, `nk-generate-files`; [`mcp`, `graph`](#taskrunners)                             | `dev`                                              |
+| framework                                                                                         | always  | `nk`, `process-compose`                                                   | [treefmt]                            | `treefmt`; [each `nk-check` prerequisite](#checks)          |                  |                            | `all`, `nk-check`, `treefmt`, `nk-write-files`, `nk-generate-files`; [`mcp`, `graph`](#taskrunners)                             | `dev`                                              |
 | [`nix`](#nix)                                                                                     | ✅      | [nixd]                                                                    | `nixfmt`, `deadnix`, `nixf-diagnose` | [`nix-unit`](#tests)                                        |                  |                            | `nix-unit`, `nk-update`, [`flake-checker`] [^flake-checker]                                                                     |                                                    |
 | [`markdown`][md]                                                                                  | ✅      | [marksman]                                                                | `mdformat`, `rumdl`                  |                                                             |                  |                            |                                                                                                                                 |                                                    |
 | [`json`][json]                                                                                    | ✅      | [JSON language server][jsonls]                                            | `jsonfmt`                            |                                                             |                  |                            |                                                                                                                                 |                                                    |
@@ -158,7 +158,7 @@ Headings omit the system, which `perSystem` and commands like `nix build .#site`
 
 The development shell holds:
 
-- the [`tasks`](#taskrunners) runner;
+- the [`nk`](#taskrunners) runner;
 - [process-compose], set to the [`dev` tree](#processtrees);
 - language servers and the formatter for [editors](#vscode-and-neovim);
 - the plugins' and your `perSystem.nullkomma.devShell.packages`.
@@ -222,7 +222,7 @@ Runs the [formatter](#formatter) and fails on formatting changes or lint errors.
 #### `<name>`
 
 Every [task](#taskrunners) that `nk-check` depends on is a check:
-`tasks nk-check` runs them in your working tree,
+`nk nk-check` runs them in your working tree,
 and each also runs sandboxed against the flake's source as `checks.<name>`, in `nix flake check` and CI.
 Plugins add their own (see the `checks` column above); so can you:
 
@@ -362,18 +362,18 @@ at `http://127.0.0.1:3838` using the pinned R environment.
 
 #### `default`
 
-`tasks` lists your project's tasks, grouped by namespace, and runs one:
+`nk` lists your project's tasks, grouped by namespace, and runs one:
 
 ```sh
-tasks                 # list tasks
-tasks nk-r-test       # run one task, after its prerequisites
-tasks nk-r-pkgdown --preview # arguments go to the task
-tasks all             # format and run all checks
+nk                 # list tasks
+nk nk-r-test       # run one task, after its prerequisites
+nk nk-r-pkgdown --preview # arguments go to the task
+nk all             # format and run all checks
 ```
 
 A task is a process with a `description` in the [`dev` tree](#processtrees);
 `taskRunners.<system>.default.tasks` lists them, following [up]'s schema.
-`tasks <name>` runs the process once and in the foreground, as `process-compose run` does,
+`nk <name>` runs the process once and in the foreground, as `process-compose run` does,
 after its `depends_on` prerequisites; it fails when any of them fails.
 Builds use the same processes: `nullkomma.sandbox { process, args ? [ ], output ? null }`
 runs one in a writable copy of the flake's source (`nullkomma.src`), for [checks](#checks) and packages:
@@ -399,11 +399,11 @@ builds and checks then use the changed task too.
 Since tasks only use [process-compose-flake]'s options,
 a flake-parts module outside nullkomma can declare its own.
 
-`tasks mcp` serves the tasks to coding agents as [MCP] tools over stdio,
+`nk mcp` serves the tasks to coding agents as [MCP] tools over stdio,
 along with process-compose's tools to start, stop and inspect [services](#processtrees).
 `.mcp.json`, and `.vscode/mcp.json` with the [`vscode`](#vscode-and-neovim) plugin,
 are generated so that agents find it.
-`tasks graph` prints the dependency graph of all processes as Mermaid;
+`nk graph` prints the dependency graph of all processes as Mermaid;
 other arguments go to `process-compose graph`.
 
 ### `processTrees`
@@ -449,7 +449,7 @@ then they are yours to edit and commit.
 When nullkomma later changes a file, `nk-write-files` updates it only if you haven't edited it.
 Otherwise it keeps your version, saves an incoming copy in Git's metadata directory and fails,
 printing the copy's path and pointing you to the [nk-resolve-file-conflicts skill](#resolving-conflicts).
-After resolving, `tasks nk-write-files --accept <path>` marks the file as up to date.
+After resolving, `nk nk-write-files --accept <path>` marks the file as up to date.
 
 A file can instead hold marked `sections` inside your own text (e.g. R's `.Rbuildignore` rules):
 `nk-write-files` replaces only those, wherever you moved them.
@@ -492,7 +492,7 @@ see [`tests`](#tests).
 Instructs coding agents, through two kinds of files:
 
 - An `agents` section in `AGENTS.md`, written by `nk-write-files` and committed:
-  run commands in the dev shell, and run `tasks all` before reporting a change as done.
+  run commands in the dev shell, and run `nk all` before reporting a change as done.
   The rest of `AGENTS.md` is yours.
 - [Agent Skills](https://agentskills.io) in `.agents/skills/<name>`, generated from Nix,
   so they always match your `flake.lock`.
@@ -615,7 +615,7 @@ pin `worker` separately if it differs. Worker names must be unique within the
 account, and state keys within the bucket, including across repositories with
 the same name. Changing these settings does not automatically migrate state.
 
-Locally, run `tasks nk-terraform` to plan changes (or `tasks nk-terraform <command> [args]`) and `tasks nk-deploy` to publish;
+Locally, run `nk nk-terraform` to plan changes (or `nk nk-terraform <command> [args]`) and `nk nk-deploy` to publish;
 in CI, run `nix run .#deploy`.
 Both need an existing private R2 bucket for Terraform state; in GitHub Actions:
 
@@ -647,7 +647,7 @@ and DNS only after successful CI on pushes to `main`, never from PRs or tags.
 
 1. Add `nullkomma.r.enable = true;` to `flake.nix`; for a package in a subdirectory, also `nullkomma.r.root = ./pkg;`.
 1. Run `nix run .#r-lock`: the development shell needs the [`pkg.lock`](#dependencies) it writes.
-1. Run `tasks nk-write-files` and commit the changes; run `tasks nk-generate-files` for editor configuration.
+1. Run `nk nk-write-files` and commit the changes; run `nk nk-generate-files` for editor configuration.
 
 #### Dependencies
 
@@ -655,7 +655,7 @@ Declare dependencies in `DESCRIPTION`; [pak] locks them in `pkg.lock`.
 Refresh the lock after changing dependencies or updating Nix:
 
 ```sh
-tasks nk-r-lock
+nk nk-r-lock
 git add DESCRIPTION pkg.lock
 ```
 
@@ -685,7 +685,7 @@ and system libraries come with the packages that need them.
 
 #### Workflows
 
-`tasks` describes the available workflows; `tasks nk-check` runs the checks.
+`nk` describes the available workflows; `nk nk-check` runs the checks.
 Disable optional checks and site builds with `nullkomma.r.{check,testthat,pkgdown}.enable`.
 `nk-r-test`, `nk-r-coverage` and `nk-shiny` regenerate `NAMESPACE` first.
 `nk-r-pkgdown` and `nk-r-check` regenerate documentation and `NAMESPACE` first.
@@ -697,7 +697,7 @@ Generated `man/*.Rd` files are Git-ignored, but not `man/` itself; commit `NAMES
 The `r` plugin keeps its package-build exclusions in a marked section of `.Rbuildignore`,
 and ignores R build outputs in `.gitignore`.
 
-`tasks nk-r-test` is quick: it loads the source with pkgload instead of installing it.
+`nk nk-r-test` is quick: it loads the source with pkgload instead of installing it.
 `nix flake check` and CI run it with `--installed`, which tests an installed copy, as `R CMD check` does.
 `checks.nk-r-namespace` fails if the committed `NAMESPACE` is stale.
 `Config/testthat/parallel: true` in `DESCRIPTION` runs tests [in parallel](https://testthat.r-lib.org/articles/parallel.html).
@@ -708,7 +708,7 @@ Locking chromote (e.g. via [shinytest2](https://rstudio.github.io/shinytest2/)) 
 #### pkgdown website
 
 `packages.site` builds the [pkgdown](https://pkgdown.r-lib.org) site in the sandbox,
-also in `nix flake check`; `tasks nk-r-pkgdown` builds it locally, and `tasks nk-r-pkgdown --preview` also opens it.
+also in `nix flake check`; `nk nk-r-pkgdown` builds it locally, and `nk nk-r-pkgdown --preview` also opens it.
 [Cloudflare](#cloudflare) can publish it.
 
 - A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
@@ -747,7 +747,7 @@ Ship assets in `inst/` (find them with `system.file()`) and write data outside t
 Test it by passing the function to
 [shinytest2](https://rstudio.github.io/shinytest2/articles/use-package.html#application-objects):
 `shinytest2::AppDriver$new(app)`.
-Under `tasks nk-r-test`, the app process loads your source with pkgload,
+Under `nk nk-r-test`, the app process loads your source with pkgload,
 so there's nothing to install and no stale installed copy; with `--installed`, it uses the installed package.
 
 #### Formatting and tools
@@ -770,7 +770,7 @@ Everything runs on one locked R version; add a CI matrix if you need Windows or 
 #### R development without Nix
 
 For collaborators without Nix, enable `nullkomma.r.nonNix.enable = true` alongside `nullkomma.r.enable = true`,
-run `tasks nk-write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
+run `nk nk-write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
 and the [R development without Nix](https://github.com/dataheld/nullkomma/blob/main/modules/lang/r-non-nix/_assets/development.md) section added to your README.
 These are [source-of-truth files](#source-of-truth-files).
 The startup profile only acts in native R sessions, installing from the same PPM snapshot
@@ -781,14 +781,14 @@ The startup profile only acts in native R sessions, installing from the same PPM
 Nullkomma always provides **two self-documenting entrypoints**:
 
 1. The consumer's flake outputs. These are already self-documenting.
-1. `tasks` expose a selection of useful builds and checks.
-   This does not mean that `tasks` aliases every subcommand and flag.
+1. `nk` exposes a selection of useful builds and checks as tasks.
+   This does not mean that `nk` aliases every subcommand and flag.
    As a heuristic, if some command is run to produce a flake output,
-   it is also exposed as a `tasks`.
-   In addition, `tasks` include important development-only workflows,
+   it is also exposed as a task.
+   In addition, `nk` includes important development-only workflows,
    especially previews.
 
-As much as possible, the flake outputs and `tasks` reuse implementation,
+As much as possible, the flake outputs and tasks reuse implementation,
 to make interactive development work in the `devShell` as close as possible to the flake outputs.
 Exceptions include:
 
@@ -810,7 +810,7 @@ Every output is fed by framework options (in `perSystem`) that plugins fill in, 
 | `checks.<name>`               | `nk-check.depends_on.<name>`                    | `nk-check`                       |
 | `packages.site`               | `packages.site`                                 | `nk-build-site` / `nk-r-pkgdown` |
 | `apps.<name>`                 | `apps.<name>`                                   | plugin-specific                  |
-| `taskRunners`, `processTrees` | `process-compose.dev.settings.processes.<name>` | `tasks`                          |
+| `taskRunners`, `processTrees` | `process-compose.dev.settings.processes.<name>` | `nk`                             |
 
 Formatting and linting are treefmt's job: plugins add `treefmt.programs`, not their own runner.
 Two more framework options act on your working tree rather than on outputs:
@@ -844,7 +844,7 @@ projects' `flake.lock`.
 
 nullkomma's own website is this README, built as a [`quarto`](#quarto) nkdocs
 site into [`packages.site`](#site) styled by [Quarto's branding feature](#brand) with [Max Held's](https://www.maxheld.de) brand and
-[privacy policy](#privacy-policy). `tasks` lists how to preview and check it.
+[privacy policy](#privacy-policy). `nk` lists how to preview and check it.
 
 ### Testing nullkomma
 

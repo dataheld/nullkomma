@@ -1,4 +1,4 @@
-# `tasks` is a just menu of the `dev` tree's tasks, grouped by namespace.
+# `nk` is a just menu of the `dev` tree's tasks, grouped by namespace.
 # Each recipe runs its task once, as `nullkomma.sandbox` does in builds:
 # prerequisites (`depends_on`) with `up`, then the task with its arguments.
 { inputs, ... }:
@@ -61,7 +61,7 @@
                   {
                     name = "args";
                     type = "string";
-                    description = "Shell words passed to the task, as in `tasks ${name} <args>`";
+                    description = "Shell words passed to the task, as in `nk ${name} <args>`";
                   }
                 ];
               };
@@ -145,7 +145,7 @@
           );
           runner =
             pkgs.writeShellApplication {
-              name = "tasks";
+              name = "nk";
               runtimeInputs = [
                 pkgs.git
                 pkgs.just
@@ -154,7 +154,7 @@
             }
             // {
               tasks = lib.mapAttrs (_: p: { inherit (p) description; }) tasks;
-              # Launches `tasks mcp` without the dev shell, whose hooks may write to stdout.
+              # Launches `nk mcp` without the dev shell, whose hooks may write to stdout.
               mcpServer = {
                 command = "nix";
                 args = [

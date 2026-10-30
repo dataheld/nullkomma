@@ -32,7 +32,7 @@
         ${lib.getExe pkgs.jq} -S . modules/lang/r/_vendored-pkgdown.json > generated.json
         ${lib.getExe pkgs.jq} -S . ${./_vendored-pkgdown.json} > vendored.json
         diff -u vendored.json generated.json || {
-          echo "pkgdown's vendored asset manifest is stale; run tasks refresh-vendored-pkgdown." >&2
+          echo "pkgdown's vendored asset manifest is stale; run nk refresh-vendored-pkgdown." >&2
           exit 1
         }
         touch "$out"

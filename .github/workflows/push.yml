@@ -16,7 +16,7 @@ jobs:
           persist-credentials: false
       - uses: DeterminateSystems/determinate-nix-action@v3
       - name: Test R development in Ubuntu without Nix
-        run: nix develop --command tasks test-r-non-nix
+        run: nix develop --command nk test-r-non-nix
   consumer-contract:
     runs-on: ubuntu-latest
     permissions:
@@ -29,7 +29,7 @@ jobs:
       - uses: DeterminateSystems/determinate-nix-action@v3
       - uses: DeterminateSystems/flakehub-cache-action@v3
       - name: Check good and bad consumers through the Nix CLI
-        run: nix develop --command tasks check-fixtures
+        run: nix develop --command nk check-fixtures
   nullkomma:
     needs: consumer-contract
     uses: ./.github/workflows/ci.yml

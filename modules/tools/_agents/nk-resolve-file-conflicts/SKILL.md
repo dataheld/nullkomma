@@ -5,7 +5,7 @@ description: Review and resolve nullkomma file-update conflicts after upgrades, 
 
 # Resolving file conflicts
 
-Run `tasks nk-write-files` to get the current conflicts and candidate paths.
+Run `nk nk-write-files` to get the current conflicts and candidate paths.
 Do not overwrite edited source-of-truth files or silently accept all baselines.
 
 ## Source-of-truth files
@@ -23,16 +23,16 @@ Do not overwrite edited source-of-truth files or silently accept all baselines.
    user about substantive ambiguities. Review workflows for permissions,
    credentials and execution changes. Never copy secrets into reports.
 1. After resolution (including a deliberate decision to retain project content),
-   run `tasks nk-write-files --accept <path>` for that file. This
+   run `nk nk-write-files --accept <path>` for that file. This
    acknowledges the current upstream initializer without overwriting the project
    file. Do not accept changes you have not reviewed.
-1. Rerun `tasks nk-write-files`, inspect the Git diff, and run `tasks all`.
+1. Rerun `nk nk-write-files`, inspect the Git diff, and run `nk all`.
    Commit the changes as usual. Baselines are local Git metadata,
    shared by the clone's worktrees but not committed;
    a new clone may need review again.
 
 ## Files generated from Nix
 
-These never conflict: `tasks nk-generate-files` overwrites them. To keep a change, make it
+These never conflict: `nk nk-generate-files` overwrites them. To keep a change, make it
 in the Nix options instead. Generation refuses symlinks and non-regular targets;
 investigate rather than removing them automatically.

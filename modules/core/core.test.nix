@@ -152,7 +152,7 @@
               expected = lib.replicate 3 {
                 files = [ ".mcp.json" ];
                 tools = [
-                  "tasks"
+                  "nk"
                   "process-compose"
                   "treefmt"
                 ];
@@ -675,7 +675,7 @@
                   printf '%s\n' "$*" >> "$NULLKOMMA_TEST_LOG"
                   case "$*" in
                     "flake update fail") exit 7 ;;
-                    "develop --command tasks nk-write-files") exit 1 ;;
+                    "develop --command nk nk-write-files") exit 1 ;;
                   esac
                 '';
                 update = task fixtures.md "nk-update";
@@ -689,7 +689,7 @@
                   echo "Update did not propagate file conflicts" >&2
                   exit 1
                 fi
-                printf '%s\n' 'flake update nullkomma' 'develop --command tasks nk-write-files' 'develop --command tasks nk-generate-files' > expected
+                printf '%s\n' 'flake update nullkomma' 'develop --command nk nk-write-files' 'develop --command nk nk-generate-files' > expected
                 cmp calls expected
                 : > calls
                 if ${update} fail; then

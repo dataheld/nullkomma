@@ -44,7 +44,7 @@
         testthat.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Run testthat with `nk-r-test`: on the pkgload-loaded source in the dev loop and `nk-check`, on the installed package in nix flake check (or with `tasks nk-r-test --installed`).";
+          description = "Run testthat with `nk-r-test`: on the pkgload-loaded source in the dev loop and `nk-check`, on the installed package in nix flake check (or with `nk nk-r-test --installed`).";
         };
         pkgdown.enable = lib.mkOption {
           type = lib.types.bool;
@@ -216,7 +216,7 @@
                 fi
                 Rscript --vanilla -e 'roxygen2::roxygenise(roclets = "namespace")'
                 if [[ -v original ]] && ! diff -u "$original" NAMESPACE; then
-                  echo "NAMESPACE is stale; run tasks nk-r-namespace and commit NAMESPACE." >&2
+                  echo "NAMESPACE is stale; run nk nk-r-namespace and commit NAMESPACE." >&2
                   exit 1
                 fi
               '';

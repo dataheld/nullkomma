@@ -1,7 +1,7 @@
 # Tasks and services are processes of process-compose-flake's `dev` tree:
 # plugins and external modules declare them with its options alone,
 # one `namespace` each.
-# Processes with a `description` are tasks, shown by `tasks`.
+# Processes with a `description` are tasks, shown by `nk`.
 # Bare `process-compose up` and `nix run .#dev` start the enabled ones;
 # set `disabled = true` on actions that should only run when asked for.
 { inputs, ... }:
