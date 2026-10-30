@@ -60,8 +60,7 @@
             validate = configuration: ''
               cd "$(mktemp -d)"
               ln -s ${configuration} config.tf.json
-              # Nix pins the provider; the throwaway lock file's warning is noise.
-              ${lib.getExe tf.terraformWrapper.package} init -backend=false >/dev/null
+              ${lib.getExe tf.terraformWrapper.package} init -backend=false
               ${lib.getExe tf.terraformWrapper.package} validate
             '';
           in
