@@ -20,7 +20,7 @@
             git init --quiet
             mkdir nested
             cd nested
-            ${lib.getExe config.taskRunners.default} nk-build-site
+            ${lib.getExe config.taskRunners.default} build-site
             cmp ../_site/index.html ${site}/index.html
             touch "$out"
           '';

@@ -19,7 +19,6 @@
     {
       process-compose.dev.settings.processes = {
         refresh-vendored-pkgdown = {
-          namespace = "dev";
           description = "Refresh the vendored pkgdown asset manifest after upgrading pkgdown";
           command = refresh;
           disabled = true;

@@ -12,7 +12,7 @@
           flags = "--config ${configFile} --gitleaks-ignore-path ${pkgs.writeText "gitleaksignore" ""}";
         in
         {
-          process-compose.dev.settings.processes.nk-secret-history = {
+          process-compose.dev.settings.processes.secret-history = {
             namespace = "gitleaks";
             description = "Scan Git history for secrets";
             command = "${lib.getExe pkgs.gitleaks} git ${flags} --no-banner --redact .";

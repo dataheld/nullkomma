@@ -134,19 +134,19 @@
                     description = "Check flake.lock for outdated or non-upstream Nixpkgs";
                     command = pkgs.flake-checker;
                   };
-                  nk-update = {
-                    description = "Update flake.lock (and dev/flake.lock, unless given inputs), then refresh written and generated files";
+                  flake-update = {
+                    description = "`nix flake update` flake.lock and dev/flake.lock, then write-files and generate-files; args go to `nix flake update` and skip dev/flake.lock";
                     # Uses the project's own `nix`, which may differ from Nixpkgs'.
                     command = pkgs.writeShellApplication {
-                      name = "nk-update";
+                      name = "flake-update";
                       text = ''
                         nix flake update "$@"
                         if [[ $# == 0 && -f dev/flake.nix ]]; then
                           nix flake update --flake ./dev
                         fi
                         status=0
-                        nix develop --command nk nk-write-files || status=1
-                        nix develop --command nk nk-generate-files || status=1
+                        nix develop --command nk write-files || status=1
+                        nix develop --command nk generate-files || status=1
                         exit "$status"
                       '';
                     };
@@ -161,7 +161,7 @@
                   command = ''${lib.getExe pkgs.nix-unit} --extra-experimental-features flakes --flake ".#${attr}"'';
                   disabled = true;
                 };
-                nk-check.depends_on.nix-unit.condition = "process_completed_successfully";
+                check.depends_on.nix-unit.condition = "process_completed_successfully";
               })
             ];
             checks = lib.mkIf (unit.tests != { }) {

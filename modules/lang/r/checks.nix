@@ -10,7 +10,7 @@
         enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Whether to add the `nk-r-check` check (build and check the package with rcmdcheck).";
+          description = "Whether to add the `r-check` check (build and check the package with rcmdcheck).";
         };
         args = lib.mkOption {
           type = lib.types.listOf lib.types.str;
@@ -19,7 +19,7 @@
             "--ignore-vignettes"
           ]
           ++ lib.optional cfg.testthat.enable "--no-tests";
-          defaultText = lib.literalMD "`--no-manual --ignore-vignettes`, plus `--no-tests` while `nk-r-test` runs the tests";
+          defaultText = lib.literalMD "`--no-manual --ignore-vignettes`, plus `--no-tests` while `r-test` runs the tests";
           description = "Arguments to `R CMD check`. Set them without `--no-tests` to also run the tests inside `R CMD check`.";
         };
         errorOn = lib.mkOption {
@@ -36,14 +36,14 @@
         { config, pkgs, ... }:
         {
           process-compose.dev.settings.processes = {
-            nk-r-check = {
+            r-check = {
               namespace = "r";
               description = "Run R CMD check";
-              depends_on.nk-r-document.condition = "process_completed_successfully";
+              depends_on.r-document.condition = "process_completed_successfully";
               working_dir = "./${cfg.prefix}";
               disabled = true;
               command = pkgs.writeShellApplication {
-                name = "nk-r-check";
+                name = "r-check";
                 runtimeInputs = [ config.nullkomma.r.package ];
                 text = ''
                   scratch="$(mktemp -d)"
@@ -51,7 +51,7 @@
                   cp -r . "$scratch/pkg"
                   chmod -R u+w "$scratch/pkg"
                   cd "$scratch/pkg"
-                  # Share nk-write-files' exclusions without discarding working-tree rules.
+                  # Share write-files' exclusions without discarding working-tree rules.
                   printf '\n' >> .Rbuildignore
                   cat ${pkgs.writeText "Rbuildignore" cfg.buildIgnore} >> .Rbuildignore
                   export _R_CHECK_CRAN_INCOMING_=false _R_CHECK_FORCE_SUGGESTS_=false _R_CHECK_SYSTEM_CLOCK_=false
@@ -67,7 +67,7 @@
                 '';
               };
             };
-            nk-check.depends_on.nk-r-check.condition = "process_completed_successfully";
+            check.depends_on.r-check.condition = "process_completed_successfully";
           };
         }
       );

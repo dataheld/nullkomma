@@ -67,7 +67,7 @@
               "site"
             ];
             checks = [
-              "nk-cloudflare-validate"
+              "cloudflare-validate"
               "treefmt"
             ];
           };
@@ -84,7 +84,7 @@
         };
       };
       checks = {
-        cloudflare-config = cloudflare.checks.${system}.nk-cloudflare-validate;
+        cloudflare-config = cloudflare.checks.${system}.cloudflare-validate;
         cloudflare-validation-local =
           let
             nix = pkgs.writeShellScriptBin "nix" ''
@@ -105,7 +105,7 @@
               mkdir project
               cd project
               git init -q
-              ${task (raw bare) "nk-cloudflare-validate"}
+              ${task (raw bare) "cloudflare-validate"}
               touch "$out"
             '';
         cloudflare-devshell =
@@ -310,12 +310,12 @@
               mkdir project
               cd project
               git init -q
-              ${task flake "nk-deploy"}
+              ${task flake "deploy"}
               test -f "$CALLED"
-              ${task flake "nk-terraform"}
+              ${task flake "terraform"}
               printf '%s\n' plan > expected
               cmp expected "$CALLED"
-              ${task flake "nk-terraform"} import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id'
+              ${task flake "terraform"} import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id'
               printf '%s\n' import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id' > expected
               cmp expected "$CALLED"
               touch $out

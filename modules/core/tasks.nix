@@ -1,4 +1,5 @@
-# `nk` is a just menu of the `dev` tree's tasks, grouped by namespace.
+# `nk` is a just menu of the `dev` tree's tasks, grouped by namespace;
+# tasks in the `default` namespace, the project's own, come first.
 # Each recipe runs its task once, as `nullkomma.sandbox` does in builds:
 # prerequisites (`depends_on`) with `up`, then the task with its arguments.
 { inputs, ... }:
@@ -123,21 +124,22 @@
 
               [private]
               default:
-                  @just --justfile {{justfile()}} --list --unsorted
+                  @just --justfile {{justfile()}} --list
 
-              [doc("Serve the tasks as MCP tools over stdio, for agents")]
+              [group("nullkomma"), doc("Serve the tasks as MCP tools over stdio, for agents")]
               mcp:
                   @exec ${lib.getExe mcpServer}
 
-              [doc("Print the process dependency graph; args go to `process-compose graph` (default: -f mermaid)")]
+              [group("nullkomma"), doc("Print the process dependency graph; args go to `process-compose graph` (default: -f mermaid)")]
               graph *args:
                   @exec ${lib.getExe graph} "$@"
             ''
             + lib.concatStrings (
               lib.mapAttrsToList (name: p: ''
 
-                [group(${builtins.toJSON p.namespace})]
-                [doc(${builtins.toJSON p.description})]
+                [${
+                  lib.optionalString (p.namespace != "default") "group(${builtins.toJSON p.namespace}), "
+                }doc(${builtins.toJSON p.description})]
                 ${name} *args:
                     @exec ${lib.getExe run} ${name} "$@"
               '') tasks

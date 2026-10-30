@@ -184,7 +184,6 @@
               "terranix/systems" = inputs.terranix.inputs.systems.outPath;
             };
           process-compose.dev.settings.processes.check-fixtures = {
-            namespace = "dev";
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
             disabled = true;
             command = pkgs.writeShellApplication {

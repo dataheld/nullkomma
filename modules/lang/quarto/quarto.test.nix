@@ -275,7 +275,7 @@
                       working_dir = "./docs";
                       command = "echo 'shared Quarto workflow' > task-override.txt";
                     };
-                    nk-build-site.depends_on.task-override.condition = "process_completed_successfully";
+                    build-site.depends_on.task-override.condition = "process_completed_successfully";
                   };
                   nullkomma.files."docs/generated.txt" = {
                     mode = "generated";
@@ -289,10 +289,10 @@
           pkgs.runCommand "nullkomma-quarto-preview" { nativeBuildInputs = [ pkgs.git ]; } ''
             export CALLED=$PWD/called
             mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
-            ${task flake "nk-preview"} --no-browser
+            ${task flake "preview"} --no-browser
             printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
             cmp expected "$CALLED"
-            ${task flake "nk-build-site"} --to html
+            ${task flake "build-site"} --to html
             printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected
             cmp expected "$CALLED"
             grep -qxF 'shared Quarto workflow' ../task-override.txt

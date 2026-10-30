@@ -53,15 +53,14 @@
         testShinyIsOptIn = {
           expr = {
             app = fixtures.r.apps.${system} ? shiny;
-            task = (perSystem fixtures.r).process-compose.dev.settings.processes ? nk-shiny;
-            taskAfter = lib.attrNames (perSystem local)
-              .process-compose.dev.settings.processes.nk-shiny.depends_on;
+            task = (perSystem fixtures.r).process-compose.dev.settings.processes ? shiny;
+            taskAfter = lib.attrNames (perSystem local).process-compose.dev.settings.processes.shiny.depends_on;
             dependency = lib.elem "shiny" (perSystem fixtures.r).nullkomma.r.packages;
           };
           expected = {
             app = false;
             task = false;
-            taskAfter = [ "nk-r-namespace" ];
+            taskAfter = [ "r-namespace" ];
             dependency = false;
           };
         };
@@ -113,7 +112,7 @@
                 else
                   mkdir -p man
                   printf 'keep\n' > man/sentinel
-                  command=(${task local "nk-shiny"})
+                  command=(${task local "shiny"})
                   expected='working-tree Shiny fixture'
                 fi
                 : > server.log
@@ -161,7 +160,7 @@
               substituteInPlace "$TMPDIR/stale/R/app.R" --replace-fail 'input$number * 2' 'input$number * 3'
               mkdir "$TMPDIR/library"
               R CMD INSTALL --library="$TMPDIR/library" "$TMPDIR/stale"
-              R_LIBS_USER="$TMPDIR/library" ${task plain "nk-r-test"}
+              R_LIBS_USER="$TMPDIR/library" ${task plain "r-test"}
               # Installed tests must run apps from the installed package, not the source.
               cat > tests/testthat/test-installed.R <<'RS'
               test_that("apps come from the installed package", {
@@ -171,7 +170,7 @@
                 expect_equal(driver$get_value(output = "doubled"), "2")
               })
               RS
-              ${task plain "nk-r-test"} --installed
+              ${task plain "r-test"} --installed
               touch $out
             '';
       };

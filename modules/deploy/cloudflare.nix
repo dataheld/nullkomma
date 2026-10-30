@@ -85,11 +85,11 @@
                   disabled = true;
                 })
                 {
-                  nk-deploy = {
+                  deploy = {
                     description = "Publish the site to Cloudflare";
                     text = ''exec nix run .#deploy -- "$@"'';
                   };
-                  nk-terraform = {
+                  terraform = {
                     description = "Plan Cloudflare changes, or run terraform <command> [args]";
                     text = ''
                       nix run .#deploy.init
@@ -97,7 +97,7 @@
                       exec nix run .#deploy.terraform -- "$@"
                     '';
                   };
-                  nk-cloudflare-validate = {
+                  cloudflare-validate = {
                     description = "Validate the Cloudflare Terraform configuration";
                     text = ''
                       configuration="$(nix build --no-link --print-out-paths .#deploy.config)"
@@ -106,9 +106,9 @@
                   };
                 }
               // {
-                nk-check.depends_on.nk-cloudflare-validate.condition = "process_completed_successfully";
+                check.depends_on.cloudflare-validate.condition = "process_completed_successfully";
               };
-            checks.nk-cloudflare-validate = pkgs.runCommand "nk-cloudflare-validate" { } ''
+            checks.cloudflare-validate = pkgs.runCommand "cloudflare-validate" { } ''
               export HOME="$TMPDIR"
               ${validate tf.result.terraformConfiguration}
               touch "$out"

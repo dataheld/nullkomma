@@ -51,7 +51,7 @@
         nullkomma.cloudflare = cloudflare;
         perSystem.process-compose.dev.settings.processes = {
           workflow-asset.command = "mkdir -p pkgdown/assets && echo 'shared R workflow' > pkgdown/assets/workflow.txt";
-          nk-r-pkgdown.depends_on.workflow-asset.condition = "process_completed_successfully";
+          r-pkgdown.depends_on.workflow-asset.condition = "process_completed_successfully";
         };
       } fixture;
       # A package site as nullkomma's own brand publishes it.
@@ -173,16 +173,16 @@
               defaults = processes fixtures.r;
             in
             {
-              namespace = defaults.nk-r-namespace.watch;
-              test = defaults.nk-r-test.watch.paths;
+              namespace = defaults.r-namespace.watch;
+              test = defaults.r-test.watch.paths;
               enabled = lib.filter (name: !defaults.${name}.disabled) [
-                "nk-r-namespace"
-                "nk-r-document"
-                "nk-r-test"
-                "nk-r-check"
-                "nk-r-pkgdown"
+                "r-namespace"
+                "r-document"
+                "r-test"
+                "r-check"
+                "r-pkgdown"
               ];
-              nested = (processes nested).nk-r-test.working_dir;
+              nested = (processes nested).r-test.working_dir;
               ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
               invalidDestination =
                 (builtins.tryEval (
@@ -205,8 +205,8 @@
               }
             ];
             enabled = [
-              "nk-r-namespace"
-              "nk-r-test"
+              "r-namespace"
+              "r-test"
             ];
             nested = "./r/";
             ignore = true;
@@ -227,8 +227,8 @@
               );
             in
             lib.elem "roxygen2" minimal.nullkomma.r.packages
-            && minimal.process-compose.dev.settings.processes ? nk-r-document
-            && minimal.checks ? nk-r-namespace;
+            && minimal.process-compose.dev.settings.processes ? r-document
+            && minimal.checks ? r-namespace;
           expected = true;
         };
         testRNamespaceTaskIsSeparate = {
@@ -240,29 +240,29 @@
               after = name: lib.attrNames (lib.defaultTo { } processes.${name}.depends_on);
             in
             {
-              namespace = after "nk-r-namespace";
-              document = after "nk-r-document";
-              documentRoclets = lib.hasInfix ''setdiff(roxygen2::load_options()[["roclets"]], "namespace")'' processes.nk-r-document.command;
-              test = after "nk-r-test";
-              coverage = after "nk-r-coverage";
-              check = after "nk-r-check";
-              pkgdown = after "nk-r-pkgdown";
-              nkCheck = after "nk-check";
+              namespace = after "r-namespace";
+              document = after "r-document";
+              documentRoclets = lib.hasInfix ''setdiff(roxygen2::load_options()[["roclets"]], "namespace")'' processes.r-document.command;
+              test = after "r-test";
+              coverage = after "r-coverage";
+              check = after "r-check";
+              pkgdown = after "r-pkgdown";
+              nkCheck = after "check";
             };
           expected = {
             namespace = [ ];
-            document = [ "nk-r-namespace" ];
+            document = [ "r-namespace" ];
             documentRoclets = true;
-            test = [ "nk-r-namespace" ];
-            coverage = [ "nk-r-namespace" ];
-            check = [ "nk-r-document" ];
-            pkgdown = [ "nk-r-document" ];
+            test = [ "r-namespace" ];
+            coverage = [ "r-namespace" ];
+            check = [ "r-document" ];
+            pkgdown = [ "r-document" ];
             nkCheck = [
               "jscpd"
-              "nk-r-check"
-              "nk-r-namespace"
-              "nk-r-pkgdown"
-              "nk-r-test"
+              "r-check"
+              "r-namespace"
+              "r-pkgdown"
+              "r-test"
             ];
           };
         };
@@ -558,13 +558,13 @@
         r-pkgdown-local = check "r-pkgdown-local" ''
           export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1
           git init -q
-          ${task branded "nk-write-files"}
+          ${task branded "write-files"}
           (${(perSystem branded).nullkomma.devShell.shellHook})
           # Language tasks must not overwrite files generated on shell entry.
           printf 'local asset\n' > pkgdown/assets/local-only.txt
           # Repeated builds must not trip over read-only assets copied from the store.
-          ${task branded "nk-r-pkgdown"}
-          ${task branded "nk-r-pkgdown"}
+          ${task branded "r-pkgdown"}
+          ${task branded "r-pkgdown"}
           cmp pkgdown/assets/local-only.txt docs/local-only.txt
           cmp pkgdown/assets/workflow.txt docs/workflow.txt
           grep -qxF 'shared R workflow' docs/workflow.txt
@@ -577,7 +577,7 @@
           export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
           git init -q
           printf 'destination: yaml-destination\n' >> _pkgdown.yml
-          ${task customDestination "nk-r-pkgdown"} --preview
+          ${task customDestination "r-pkgdown"} --preview
           # browseURL doesn't wait for the browser.
           for _ in {1..50}; do test -f "$TMPDIR/opened" && break; sleep 0.1; done
           grep -qF "$PWD/public/index.html" "$TMPDIR/opened"
@@ -589,7 +589,7 @@
           in
           check "r-coverage" ''
             git init -q
-            ${task flake "nk-r-coverage"}
+            ${task flake "r-coverage"}
             grep -q '<coverage ' coverage.xml
             grep -q 'hello.R' coverage.xml
           '';
@@ -597,7 +597,7 @@
           git init -q
           cp man/hello.Rd "$TMPDIR/hello.Rd"
           printf '# Generated by roxygen2: do not edit by hand\n' > NAMESPACE
-          ${task fixtures.r "nk-r-namespace"}
+          ${task fixtures.r "r-namespace"}
           grep -q '^export(hello)$' NAMESPACE
           grep -q '^importFrom(stats,setNames)$' NAMESPACE
           cmp "$TMPDIR/hello.Rd" man/hello.Rd
@@ -605,13 +605,13 @@
         r-test-namespace-only = check "r-test-namespace-only" ''
           git init -q
           mv man "$TMPDIR/man"
-          ${task fixtures.r "nk-r-test"}
+          ${task fixtures.r "r-test"}
           test ! -e man/hello.Rd
         '';
         r-document = check "r-document" ''
           git init -q
           rm -r man
-          ${task fixtures.r "nk-r-document"}
+          ${task fixtures.r "r-document"}
           grep -q '^export(hello)$' NAMESPACE
           test -s man/hello.Rd
         '';
@@ -622,20 +622,20 @@
             expect_true(startsWith(find.package("nullkommafixture"), Sys.getenv("R_LIBS_USER")))
           })
           RS
-          ${task fixtures.r "nk-r-test"} --installed
+          ${task fixtures.r "r-test"} --installed
         '';
         r-rejects-drift = check "r-rejects-drift" ''
           cp NAMESPACE "$TMPDIR/NAMESPACE"
           printf '# Generated by roxygen2: do not edit by hand\n' > NAMESPACE
-          fails 'NAMESPACE is stale' ${task fixtures.r "nk-r-namespace"} --check
+          fails 'NAMESPACE is stale' ${task fixtures.r "r-namespace"} --check
           cp "$TMPDIR/NAMESPACE" NAMESPACE
           # Tests check the working tree, not the flake's source.
           echo 'stop("local-r-source-marker")' >> R/hello.R
-          fails local-r-source-marker ${task fixtures.r "nk-r-check"}
+          fails local-r-source-marker ${task fixtures.r "r-check"}
         '';
         r-files = check "r-files" ''
           git init -q
-          ${task fixtures.r "nk-write-files"}
+          ${task fixtures.r "write-files"}
           grep -qxF '^project-only[.]txt$' .Rbuildignore
           mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/cloudflare .agents/skills/demo
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
@@ -668,10 +668,10 @@
           mv project nested/r
           cd nested
           git init -q
-          ${task nested "nk-write-files"}
+          ${task nested "write-files"}
           grep -qxF '^project-only[.]txt$' r/.Rbuildignore
-          ${task nested "nk-r-test"}
-          ${task nested "nk-r-check"}
+          ${task nested "r-test"}
+          ${task nested "r-check"}
         '';
       };
     };

@@ -20,7 +20,7 @@
           pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
           description = "Resolve DESCRIPTION into the R lockfile (pkg.lock) with pak";
           lock = pkgs.writeShellApplication {
-            name = "nk-r-lock";
+            name = "r-lock";
             runtimeInputs = [
               pkgs.coreutils
               pkgs.git
@@ -59,7 +59,7 @@
             program = lib.getExe lock;
             meta.description = description;
           };
-          process-compose.dev.settings.processes.nk-r-lock = {
+          process-compose.dev.settings.processes.r-lock = {
             namespace = "r";
             inherit description;
             command = lock;

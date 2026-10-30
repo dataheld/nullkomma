@@ -82,7 +82,7 @@
                     text = ''exec bats "$@" ${lib.escapeShellArg testDir}'';
                   };
                 };
-                nk-check.depends_on.bats.condition = "process_completed_successfully";
+                check.depends_on.bats.condition = "process_completed_successfully";
               };
             })
           ];

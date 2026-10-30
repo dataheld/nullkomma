@@ -69,7 +69,7 @@
                   )
                 }";
               };
-              nk-check.depends_on.jscpd.condition = "process_completed_successfully";
+              check.depends_on.jscpd.condition = "process_completed_successfully";
             };
           }
         );

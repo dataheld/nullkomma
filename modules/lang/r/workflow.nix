@@ -44,12 +44,12 @@
         testthat.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Run testthat with `nk-r-test`: on the pkgload-loaded source in the dev loop and `nk-check`, on the installed package in nix flake check (or with `nk nk-r-test --installed`).";
+          description = "Run testthat with `r-test`: on the pkgload-loaded source in the dev loop and `check`, on the installed package in nix flake check (or with `nk r-test --installed`).";
         };
         pkgdown.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Build a pkgdown website with nk-r-pkgdown (`--preview` opens it in a browser) and packages.site, both checked by nk-check.";
+          description = "Build a pkgdown website with r-pkgdown (`--preview` opens it in a browser) and packages.site, both checked by check.";
         };
         pkgdown.privacy.page = lib.mkOption {
           type = lib.types.nullOr (lib.types.strMatching "[^/\n]+[.]html");
@@ -70,7 +70,7 @@
           type = lib.types.bool;
           default = lib.any (p: p.package == "covr") (cfg.locked.packages or [ ]);
           defaultText = lib.literalMD "whether covr is in pkg.lock";
-          description = "Provide nk-r-coverage, writing a local Cobertura coverage.xml report; no uploads or coverage threshold.";
+          description = "Provide r-coverage, writing a local Cobertura coverage.xml report; no uploads or coverage threshold.";
         };
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption {
@@ -137,7 +137,7 @@
             after = name: { ${name}.condition = "process_completed_successfully"; };
             rscript = "${pcfg.package}/bin/Rscript --vanilla";
             pkgdown = pkgs.writeShellApplication {
-              name = "nk-r-pkgdown";
+              name = "r-pkgdown";
               runtimeInputs = [
                 pcfg.package
                 pkgs.pandoc
@@ -188,7 +188,7 @@
               '';
             };
             test = pkgs.writeShellApplication {
-              name = "nk-r-test";
+              name = "r-test";
               runtimeInputs = [ pcfg.package ];
               text = ''
                 load=source
@@ -206,7 +206,7 @@
               '';
             };
             namespace = pkgs.writeShellApplication {
-              name = "nk-r-namespace";
+              name = "r-namespace";
               runtimeInputs = [ pcfg.package ];
               text = ''
                 if [[ "''${1-}" == --check ]]; then
@@ -216,7 +216,7 @@
                 fi
                 Rscript --vanilla -e 'roxygen2::roxygenise(roclets = "namespace")'
                 if [[ -v original ]] && ! diff -u "$original" NAMESPACE; then
-                  echo "NAMESPACE is stale; run nk nk-r-namespace and commit NAMESPACE." >&2
+                  echo "NAMESPACE is stale; run nk r-namespace and commit NAMESPACE." >&2
                   exit 1
                 fi
               '';
@@ -225,7 +225,7 @@
           {
             process-compose.dev.settings.processes = lib.mkMerge [
               {
-                nk-r-namespace = r // {
+                r-namespace = r // {
                   description = "Generate NAMESPACE with roxygen2; --check fails if it was stale";
                   command = namespace;
                   # The dev loop: R changes regenerate NAMESPACE, then restart its dependents.
@@ -235,17 +235,17 @@
                     cascade = true;
                   };
                 };
-                nk-r-document = r // {
+                r-document = r // {
                   description = "Generate R manuals and NAMESPACE with roxygen2";
-                  depends_on = after "nk-r-namespace";
+                  depends_on = after "r-namespace";
                   command = "${rscript} -e 'roxygen2::roxygenise(roclets = setdiff(roxygen2::load_options()[[\"roclets\"]], \"namespace\"))'";
                 };
-                nk-check.depends_on = after "nk-r-namespace";
+                check.depends_on = after "r-namespace";
               }
               (lib.mkIf cfg.testthat.enable {
-                nk-r-test = r // {
+                r-test = r // {
                   description = "Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package";
-                  depends_on = after "nk-r-namespace";
+                  depends_on = after "r-namespace";
                   command = test;
                   disabled = false;
                   # testthat writes `_snaps/*.new.*` when snapshots fail.
@@ -256,41 +256,41 @@
                     }
                   ];
                 };
-                nk-check.depends_on = after "nk-r-test";
+                check.depends_on = after "r-test";
               })
               (lib.mkIf cfg.pkgdown.enable {
-                nk-r-pkgdown = r // {
+                r-pkgdown = r // {
                   description = "Build the pkgdown website; --preview opens it in a browser";
-                  depends_on = after "nk-r-document";
+                  depends_on = after "r-document";
                   command = pkgdown;
                 };
-                nk-check.depends_on = after "nk-r-pkgdown";
+                check.depends_on = after "r-pkgdown";
               })
               (lib.mkIf cfg.coverage.enable {
-                nk-r-coverage = r // {
+                r-coverage = r // {
                   description = "Write a Cobertura test coverage report to coverage.xml";
-                  depends_on = after "nk-r-namespace";
+                  depends_on = after "r-namespace";
                   command = "${rscript} -e 'covr::to_cobertura(covr::package_coverage(), filename = \"coverage.xml\")'";
                 };
               })
             ];
             checks = {
-              nk-r-namespace = config.nullkomma.sandbox {
-                process = "nk-r-namespace";
+              r-namespace = config.nullkomma.sandbox {
+                process = "r-namespace";
                 args = [ "--check" ];
               };
-              nk-r-test = lib.mkIf cfg.testthat.enable (
+              r-test = lib.mkIf cfg.testthat.enable (
                 config.nullkomma.sandbox {
-                  process = "nk-r-test";
+                  process = "r-test";
                   args = [ "--installed" ];
                 }
               );
-              nk-r-pkgdown = lib.mkIf cfg.pkgdown.enable config.packages.site;
+              r-pkgdown = lib.mkIf cfg.pkgdown.enable config.packages.site;
             };
             packages.site = lib.mkIf cfg.pkgdown.enable (
               lib.mkDefault (
                 config.nullkomma.sandbox {
-                  process = "nk-r-pkgdown";
+                  process = "r-pkgdown";
                   output = "${prefix}${destination}";
                 }
               )

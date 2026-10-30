@@ -34,15 +34,15 @@
               git init -q
               cp README.md "$TMPDIR/README.md"
               echo "Unseen working-tree edit" >> README.md
-              fails 'Upstream conflict: README.md' ${task withProfile "nk-write-files"}
+              fails 'Upstream conflict: README.md' ${task withProfile "write-files"}
               grep -qF 'Unseen working-tree edit' README.md
               cp "$TMPDIR/README.md" README.md
-              ${task withProfile "nk-write-files"}
+              ${task withProfile "write-files"}
               grep -qF 'Keep these project-specific development notes.' README.md
               cp README.md "$TMPDIR/expected"
-              ${task withProfile "nk-write-files"}
+              ${task withProfile "write-files"}
               cmp "$TMPDIR/expected" README.md
-              ${task withProfile "nk-generate-files"}
+              ${task withProfile "generate-files"}
               mkdir $out
               cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .R .Rprofile .Renviron .Rbuildignore .nvim.lua README.md flake.nix $out/
             '';
@@ -144,14 +144,14 @@
             })
             RS
             done
-            ${task withProfile "nk-r-test"} --installed
-            ${task withProfile "nk-r-test"}
-            ${task withProfile "nk-r-check"}
+            ${task withProfile "r-test"} --installed
+            ${task withProfile "r-test"}
+            ${task withProfile "r-check"}
             # Keep NIX_BUILD_TOP for R CMD check: Nix's cc-wrapper needs it.
             unset NIX_BUILD_TOP
             rm .Renviron
-            ${task withProfile "nk-r-test"} --installed
-            ${task withProfile "nk-r-test"}
+            ${task withProfile "r-test"} --installed
+            ${task withProfile "r-test"}
             test ! -d .R/library
             touch $out
           '';
@@ -213,7 +213,6 @@
               '';
         };
         process-compose.dev.settings.processes.test-r-non-nix = {
-          namespace = "dev";
           description = "Test Ubuntu R workflows without Nix; args go to docker build (requires a running Docker daemon and network)";
           disabled = true;
           command = pkgs.writeShellApplication {

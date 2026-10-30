@@ -30,7 +30,7 @@
                     "generated"
                   ];
                   default = "source";
-                  description = "`source`: written by `nk-write-files`, then a committed source of truth, updated only while unedited. `generated`: written from Nix by `nk-generate-files` (also on entering the dev shell), overwritten when changed and Git-ignored.";
+                  description = "`source`: written by `write-files`, then a committed source of truth, updated only while unedited. `generated`: written from Nix by `generate-files` (also on entering the dev shell), overwritten when changed and Git-ignored.";
                 };
                 commentPrefix = lib.mkOption {
                   type = lib.types.nullOr lib.types.str;
@@ -59,7 +59,7 @@
                 initialSource = lib.mkOption {
                   type = lib.types.nullOr lib.types.path;
                   default = null;
-                  description = "Project content `source` is derived from; `nk-write-files` replaces the file while it still matches.";
+                  description = "Project content `source` is derived from; `write-files` replaces the file while it still matches.";
                 };
                 sections = lib.mkOption {
                   type = lib.types.attrsOf lib.types.lines;
@@ -95,7 +95,7 @@
           options.nullkomma.src = lib.mkOption {
             type = lib.types.package;
             readOnly = true;
-            description = "The flake's source with every generated file in place, as after `nk-generate-files`: where sandboxed checks and site builds start.";
+            description = "The flake's source with every generated file in place, as after `generate-files`: where sandboxed checks and site builds start.";
           };
         }
       );
@@ -148,8 +148,8 @@
                 finish
               '';
             };
-          write = script "nk-write-files" "source";
-          generate = script "nk-generate-files" "generated";
+          write = script "write-files" "source";
+          generate = script "generate-files" "generated";
           task = description: command: {
             namespace = "nullkomma";
             inherit description command;
@@ -172,8 +172,8 @@
             )
           );
           process-compose.dev.settings.processes = {
-            nk-write-files = task "Write source-of-truth files; keep your edits and report upstream conflicts" write;
-            nk-generate-files = task "Overwrite Git-ignored files generated from Nix" generate;
+            write-files = task "Write source-of-truth files; keep your edits and report upstream conflicts" write;
+            generate-files = task "Overwrite Git-ignored files generated from Nix" generate;
           };
           # Generated files follow the Nix configuration, not the working tree: refresh them on
           # entering the dev shell (direnv re-enters when the flake changes), only if they changed.
