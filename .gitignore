@@ -8,8 +8,10 @@ result-*
 /.agents/skills/nk-resolve-file-conflicts
 /.agents/skills/nk-upgrade
 /.agents/skills/update-integration-matrix
+/.mcp.json
 /.nullkomma/cloudflare/
 /.nvim.lua
+/.vscode/mcp.json
 /_brand
 /_extensions/nullkomma-brand
 /_extensions/nkdocs

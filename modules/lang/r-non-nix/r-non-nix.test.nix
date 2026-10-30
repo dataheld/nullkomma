@@ -20,7 +20,6 @@
           root
           summary
           task
-          runCheck
           ;
         fixture = root + "/tests/fixtures/r";
         withProfile = callFlakeWith {
@@ -35,15 +34,15 @@
               git init -q
               cp README.md "$TMPDIR/README.md"
               echo "Unseen working-tree edit" >> README.md
-              fails 'Upstream conflict: README.md' ${task withProfile "nk-write-files"}
+              fails 'Upstream conflict: README.md' ${task withProfile "write-files"}
               grep -qF 'Unseen working-tree edit' README.md
               cp "$TMPDIR/README.md" README.md
-              ${task withProfile "nk-write-files"}
+              ${task withProfile "write-files"}
               grep -qF 'Keep these project-specific development notes.' README.md
               cp README.md "$TMPDIR/expected"
-              ${task withProfile "nk-write-files"}
+              ${task withProfile "write-files"}
               cmp "$TMPDIR/expected" README.md
-              ${task withProfile "nk-generate-files"}
+              ${task withProfile "generate-files"}
               mkdir $out
               cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .R .Rprofile .Renviron .Rbuildignore .nvim.lua README.md flake.nix $out/
             '';
@@ -145,14 +144,14 @@
             })
             RS
             done
-            ${runCheck withProfile "r-testthat"} --installed
-            ${runCheck withProfile "r-testthat"}
-            ${runCheck withProfile "r-cmd-check"}
+            ${task withProfile "r-test"} --installed
+            ${task withProfile "r-test"}
+            ${task withProfile "r-check"}
             # Keep NIX_BUILD_TOP for R CMD check: Nix's cc-wrapper needs it.
             unset NIX_BUILD_TOP
             rm .Renviron
-            ${runCheck withProfile "r-testthat"} --installed
-            ${runCheck withProfile "r-testthat"}
+            ${task withProfile "r-test"} --installed
+            ${task withProfile "r-test"}
             test ! -d .R/library
             touch $out
           '';
@@ -198,6 +197,7 @@
                 RS
                 touch .R/library/sentinel project-only.txt
                 # Git worktrees have a .git file, which R does not exclude itself.
+                rm -rf .git
                 printf 'gitdir: /unavailable/worktree\n' > .git
                 R CMD build --no-build-vignettes --no-manual .
                 tar -tf nullkommafixture_0.0.1.tar.gz > package-files
@@ -212,27 +212,27 @@
                 touch $out
               '';
         };
-        nullkomma.tasks.test-r-non-nix = {
+        process-compose.dev.settings.processes.test-r-non-nix = {
           description = "Test Ubuntu R workflows without Nix; args go to docker build (requires a running Docker daemon and network)";
-          skip = true;
-          packages = [
-            pkgs.coreutils
-            pkgs.docker-client
-          ];
-          command = ''
-            docker info > /dev/null
-            scratch="$(mktemp -d)"
-            trap 'rm -rf "$scratch"' EXIT
-            cp -R ${nonNixProject} "$scratch/project"
-            chmod -R u+w "$scratch/project"
-            cp ${root + "/tests/r-non-nix/Dockerfile"} "$scratch/Dockerfile"
-            cp ${root + "/tests/r-non-nix/run.sh"} "$scratch/run.sh"
-            image=nullkomma-r-non-nix:${builtins.substring 11 12 (toString nonNixProject)}
-            BUILDKIT_PROGRESS=plain docker build --platform linux/amd64 \
-              --build-arg R_VERSION=${(perSystem withProfile).nullkomma.r.package.version} \
-              --tag "$image" "$@" "$scratch"
-            docker run --rm --platform linux/amd64 "$image" bash /test.sh
-          '';
+          disabled = true;
+          command = pkgs.writeShellApplication {
+            name = "test-r-non-nix";
+            runtimeInputs = [ pkgs.docker-client ];
+            text = ''
+              docker info > /dev/null
+              scratch="$(mktemp -d)"
+              trap 'rm -rf "$scratch"' EXIT
+              cp -R ${nonNixProject} "$scratch/project"
+              chmod -R u+w "$scratch/project"
+              cp ${root + "/tests/r-non-nix/Dockerfile"} "$scratch/Dockerfile"
+              cp ${root + "/tests/r-non-nix/run.sh"} "$scratch/run.sh"
+              image=nullkomma-r-non-nix:${builtins.substring 11 12 (toString nonNixProject)}
+              BUILDKIT_PROGRESS=plain docker build --platform linux/amd64 \
+                --build-arg R_VERSION=${(perSystem withProfile).nullkomma.r.package.version} \
+                --tag "$image" "$@" "$scratch"
+              docker run --rm --platform linux/amd64 "$image" bash /test.sh
+            '';
+          };
         };
       };
   };

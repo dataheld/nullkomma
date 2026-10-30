@@ -47,13 +47,13 @@ In your project, run:
 ```sh
 nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
 git add flake.nix .envrc
-nix develop --command nk-write-files
-nix develop --command nk-generate-files
+nix develop --command nk write-files
+nix develop --command nk generate-files
 direnv allow
 ```
 
 The template adds `flake.nix` and an `.envrc` with `use flake`, keeping existing files;
-`nk-write-files` and `nk-generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
+`write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
 From now on, entering the directory loads the [development shell](#devshells);
 the first time takes a while.
 
@@ -62,7 +62,7 @@ To use your own, declare `nixpkgs.url` and set `nullkomma.inputs.nixpkgs.follows
 
 ### Upgrading
 
-Run `nk-update`: it updates `flake.lock`, then runs `nk-write-files` and `nk-generate-files`.
+Run `nk flake-update`: it updates `flake.lock`, then runs `write-files` and `generate-files`.
 After any other `nix flake update` (e.g. by a bot), run those two yourself.
 After editing `flake.nix`, run `direnv reload`.
 
@@ -123,29 +123,29 @@ not to separately selected companion plugins.
 All plugins are optional; those marked under Default are enabled unless you opt out.
 Files and editor settings that plugins write into your repository are under [Plugin details](#plugin-details).
 
-| Plugin                                                                                            | Default | `devShells`                                                               | `formatter`[^treefmt]                | `checks`                                                | `packages`       | `apps`[^apps]              | `taskRunners`                                                                                                                                                              | `processTrees`[^processTrees]                                                                                                                |
-| ------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------- | ---------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| framework                                                                                         | always  | every task, `tasks` runner                                                | [treefmt]                            | `treefmt`                                               | task `output`s   |                            | `nk-check` (when checks exist), `treefmt`, `nk-write-files`, `nk-generate-files`, [`nk-watch-<task>`, `nk-pc-up-<tree>`](#keeping-generated-files-current)                 | watched/process tasks and groups                                                                                                             |
-| [`nix`](#nix)                                                                                     | ✅      | [nixd]                                                                    | `nixfmt`, `deadnix`, `nixf-diagnose` | [`nix-unit`](#tests)                                    |                  |                            | `nk-update`, [`flake-checker`] [^flake-checker]                                                                                                                            |                                                                                                                                              |
-| [`markdown`][md]                                                                                  | ✅      | [marksman]                                                                | `mdformat`, `rumdl`                  |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`json`][json]                                                                                    | ✅      | [JSON language server][jsonls]                                            | `jsonfmt`                            |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`yaml`][yaml]                                                                                    | ✅      | [yaml-language-server]                                                    | `yamlfmt`, `yamllint`, `actionlint`  |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`toml`][toml]                                                                                    | ✅      |                                                                           | `toml-sort`                          |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`shell`][bash]                                                                                   | ✅      | [bash-language-server]                                                    | `shfmt`, `shellcheck`                | [bats] [^bats]                                          |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`github`](#github)                                                                               | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`agents`](#agents)                                                                               | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`keepSorted`][keep-sorted]                                                                       | ✅      |                                                                           | `keep-sorted`                        |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`gitleaks`][gitleaks]                                                                            | ✅      |                                                                           | `gitleaks`                           |                                                         |                  |                            | `nk-secret-history`                                                                                                                                                        |                                                                                                                                              |
-| [`typos`][typos]                                                                                  | ✅      |                                                                           | `typos`                              |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`jscpd`][jscpd]                                                                                  | ✅      |                                                                           |                                      | `jscpd`                                                 |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`git`](#git)                                                                                     | ✅      | `git`                                                                     |                                      |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`direnv`](#direnv)                                                                               | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`vscode`](#vscode-and-neovim)                                                                    | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`neovim`](#vscode-and-neovim)                                                                    | ✅      |                                                                           |                                      |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`flakehub`][flakehub]                                                                            | ✅      | [`fh`]                                                                    |                                      |                                                         |                  |                            |                                                                                                                                                                            |                                                                                                                                              |
-| [`quarto`](#quarto) (includes nkdocs; optional [brand](#brand))                                   |         | `quarto`                                                                  |                                      |                                                         | `site`           |                            | `nk-build-site`, `nk-preview`, `nk-pc-up-preview`                                                                                                                          | `nk-preview`                                                                                                                                 |
-| [`cloudflare`](#cloudflare)                                                                       |         | `wrangler`                                                                |                                      | `cloudflare` (OpenTofu validation)                      |                  | `deploy`[^deploy]          | `nk-terraform`, `nk-deploy`                                                                                                                                                |                                                                                                                                              |
-| [`r`](#r) (optional [non-Nix collaboration](#r-development-without-nix), [pkgdown brand](#brand)) |         | R, radian, Air; languageserver, `pkgload`, pak, httpgd, later, rstudioapi | `air`, `jarl`                        | `r-testthat`, `r-cmd-check`, `r-namespace`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `nk-r-namespace`, `nk-r-document`, `nk-r-test`, `nk-r-check`, `nk-r-pkgdown`, `nk-r-pkgdown-preview`, `nk-r-coverage`, `nk-r-lock`, `nk-shiny` (opt-in); `nk-pc-up-<tree>` | `nk-r-namespace`, `nk-r-document`, `nk-r-test`, `nk-r-check`, `nk-r-pkgdown`, `nk-r-pkg`; `nk-r-coverage`, `nk-shiny`, `nk-r-shiny` (opt-in) |
+| Plugin                                                                                            | Default | `devShells`                                                               | `formatter`[^treefmt]                | `checks`                                        | `packages`       | `apps`[^apps]              | `taskRunners`                                                                                           | `processTrees`[^processTrees]             |
+| ------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------- | ---------------- | -------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| framework                                                                                         | always  | `nk`, `process-compose`                                                   | [treefmt]                            | `treefmt`; [each `check` prerequisite](#checks) |                  |                            | `all`, `check`, `treefmt`, `write-files`, `generate-files`; [`mcp`, `graph`](#taskrunners)              | `dev`                                     |
+| [`nix`](#nix)                                                                                     | ✅      | [nixd]                                                                    | `nixfmt`, `deadnix`, `nixf-diagnose` | [`nix-unit`](#tests)                            |                  |                            | `nix-unit`, `flake-update`, [`flake-checker`] [^flake-checker]                                          |                                           |
+| [`markdown`][md]                                                                                  | ✅      | [marksman]                                                                | `mdformat`, `rumdl`                  |                                                 |                  |                            |                                                                                                         |                                           |
+| [`json`][json]                                                                                    | ✅      | [JSON language server][jsonls]                                            | `jsonfmt`                            |                                                 |                  |                            |                                                                                                         |                                           |
+| [`yaml`][yaml]                                                                                    | ✅      | [yaml-language-server]                                                    | `yamlfmt`, `yamllint`, `actionlint`  |                                                 |                  |                            |                                                                                                         |                                           |
+| [`toml`][toml]                                                                                    | ✅      |                                                                           | `toml-sort`                          |                                                 |                  |                            |                                                                                                         |                                           |
+| [`shell`][bash]                                                                                   | ✅      | [bash-language-server]                                                    | `shfmt`, `shellcheck`                | [bats] [^bats]                                  |                  |                            | `bats`                                                                                                  |                                           |
+| [`github`](#github)                                                                               | ✅      |                                                                           |                                      |                                                 |                  |                            |                                                                                                         |                                           |
+| [`agents`](#agents)                                                                               | ✅      |                                                                           |                                      |                                                 |                  |                            |                                                                                                         |                                           |
+| [`keepSorted`][keep-sorted]                                                                       | ✅      |                                                                           | `keep-sorted`                        |                                                 |                  |                            |                                                                                                         |                                           |
+| [`gitleaks`][gitleaks]                                                                            | ✅      |                                                                           | `gitleaks`                           |                                                 |                  |                            | `secret-history`                                                                                        |                                           |
+| [`typos`][typos]                                                                                  | ✅      |                                                                           | `typos`                              |                                                 |                  |                            |                                                                                                         |                                           |
+| [`jscpd`][jscpd]                                                                                  | ✅      |                                                                           |                                      | `jscpd`                                         |                  |                            | `jscpd`                                                                                                 |                                           |
+| [`git`](#git)                                                                                     | ✅      | `git`                                                                     |                                      |                                                 |                  |                            |                                                                                                         |                                           |
+| [`direnv`](#direnv)                                                                               | ✅      |                                                                           |                                      |                                                 |                  |                            |                                                                                                         |                                           |
+| [`vscode`](#vscode-and-neovim)                                                                    | ✅      |                                                                           |                                      |                                                 |                  |                            |                                                                                                         |                                           |
+| [`neovim`](#vscode-and-neovim)                                                                    | ✅      |                                                                           |                                      |                                                 |                  |                            |                                                                                                         |                                           |
+| [`flakehub`][flakehub]                                                                            | ✅      | [`fh`]                                                                    |                                      |                                                 |                  |                            |                                                                                                         |                                           |
+| [`quarto`](#quarto) (includes nkdocs; optional [brand](#brand))                                   |         | `quarto`                                                                  |                                      |                                                 | `site`           |                            | `build-site`, `preview`                                                                                 | `preview`                                 |
+| [`cloudflare`](#cloudflare)                                                                       |         | `wrangler`                                                                |                                      | `cloudflare-validate` (OpenTofu validation)     |                  | `deploy`[^deploy]          | `cloudflare-validate`, `terraform`, `deploy`                                                            |                                           |
+| [`r`](#r) (optional [non-Nix collaboration](#r-development-without-nix), [pkgdown brand](#brand)) |         | R, radian, Air; languageserver, `pkgload`, pak, httpgd, later, rstudioapi | `air`, `jarl`                        | `r-namespace`, `r-test`, `r-check`, `r-pkgdown` | `site` (pkgdown) | `r-lock`, `shiny` (opt-in) | `r-namespace`, `r-document`, `r-test`, `r-check`, `r-pkgdown`, `r-coverage`, `r-lock`, `shiny` (opt-in) | `r-namespace`, `r-test`, `shiny` (opt-in) |
 
 ## Your flake outputs
 
@@ -158,8 +158,8 @@ Headings omit the system, which `perSystem` and commands like `nix build .#site`
 
 The development shell holds:
 
-- every task as a command, taking arguments (e.g. `nk-write-files --accept <path>`);
-- the `tasks` runner;
+- the [`nk`](#taskrunners) runner;
+- [process-compose], set to the [`dev` tree](#processtrees);
 - language servers and the formatter for [editors](#vscode-and-neovim);
 - the plugins' and your `perSystem.nullkomma.devShell.packages`.
 
@@ -221,18 +221,26 @@ Runs the [formatter](#formatter) and fails on formatting changes or lint errors.
 
 #### `<name>`
 
-Checks in `perSystem.nullkomma.checks.<name>`, e.g. test suites, run in your working tree with `nk-check`,
-and sandboxed against the flake's source in `nix flake check` and CI, with extra `sandboxArgs`.
+Every [task](#taskrunners) that `check` depends on is a check:
+`nk check` runs them in your working tree,
+and each also runs sandboxed against the flake's source as `checks.<name>`, in `nix flake check` and CI.
 Plugins add their own (see the `checks` column above); so can you:
 
 ```nix
 perSystem = { pkgs, ... }: {
-  nullkomma.checks.greeting = {
-    packages = [ pkgs.hello ];
-    command = "hello | grep -q Hello";
+  process-compose.dev.settings.processes = {
+    greeting = {
+      description = "Check the greeting";
+      disabled = true;
+      command = "${pkgs.hello}/bin/hello | grep -q Hello";
+    };
+    check.depends_on.greeting.condition = "process_completed_successfully";
   };
 };
 ```
+
+To pass sandbox-only arguments, override the check, as R does for its tests:
+`checks.r-test = config.nullkomma.sandbox { process = "r-test"; args = [ "--installed" ]; };`.
 
 ### `tests`
 
@@ -353,131 +361,71 @@ at `http://127.0.0.1:3838` using the pinned R environment.
 
 #### `default`
 
-[up]'s runner for the tasks in `perSystem.nullkomma.tasks.<name>`, where you can add your own:
+`nk` lists your project's tasks and runs one.
+Tasks are grouped by `namespace`: nullkomma and its plugins set one each;
+your own tasks leave it unset and form the `project` group.
 
 ```sh
-tasks          # list tasks
-tasks nk-check # run one task
-tasks all      # run all tasks not marked skip
+nk                     # list tasks
+nk r-test              # run one task, after its prerequisites
+nk r-pkgdown --preview # arguments go to the task
+nk all                 # format and run all checks
 ```
 
-Tasks can change files: R checks regenerate documentation and `NAMESPACE`.
-`tasks all` includes formatting and linting through treefmt.
-Set `skip = true` on custom tasks that should not run as part of `tasks all`.
-The pinned [up] runner does not forward optional arguments; invoke the listed
-task as a shell command for those, e.g. `nk-preview --port 4200` or `nk-check r-cmd-check`.
-
-#### Workflows: one command and graph
-
-`nullkomma.tasks` is the workflow definition, not a second build recipe.
-Language plugins declare their defaults next to their implementation:
-R documentation, tests and pkgdown in `modules/lang/r/workflow.nix`,
-R CMD check in `modules/lang/r/checks.nix`, Shiny in `modules/lang/r/shiny.nix`,
-and Quarto in `modules/lang/quarto/quarto.nix`.
-Enabling the plugin supplies those tasks and processes; `tasks` lists them.
-
-A task's `after` lists tasks whose steps run first, transitively and once each,
-wherever it runs: as a command, through `tasks`, in builds, in `nk-watch-<task>` and in process trees.
-For example, `nk-r-test`, `nk-r-coverage` and `nk-shiny` run after `nk-r-namespace`;
-`nk-r-document` also runs after `nk-r-namespace`, while `nk-r-pkgdown` and `nk-r-check`
-run after `nk-r-document`. Each therefore sees the generated files it needs,
-through the same command you'd run by hand.
-Outside process trees, steps run one after another and stop at the first failure.
+A task is a process with a `description` in the [`dev` tree](#processtrees);
+`taskRunners.<system>.default.tasks` lists them, following [up]'s schema.
+`nk <name>` runs the process once and in the foreground, as `process-compose run` does,
+after its `depends_on` prerequisites; it fails when any of them fails.
+Builds use the same processes: `nullkomma.sandbox { process, args ? [ ], output ? null }`
+runs one in a writable copy of the flake's source (`nullkomma.src`), for [checks](#checks) and packages:
 
 ```nix
-perSystem.nullkomma.tasks.report = {
-  description = "Render the report";
-  after = [ "nk-r-document" ];
-  working_dir = ""; # checkout root, or the same root in the sandbox
-  packages = [ pkgs.quarto ];
-  command = ''
-    quarto render report.qmd --output-dir "''${NULLKOMMA_OUTPUT:-report}"
-  '';
-  output = "report"; # adds packages.report; omit for development-only tasks
-  watch.outputs = [ "/report" "/report/**" ]; # watch the tree, excluding this output
+perSystem = { config, pkgs, ... }: {
+  process-compose.dev.settings.processes.report = {
+    description = "Render the report";
+    disabled = true; # a task, not a service
+    depends_on.r-document.condition = "process_completed_successfully";
+    command = "${pkgs.quarto}/bin/quarto render report.qmd";
+  };
+  packages.report = config.nullkomma.sandbox {
+    process = "report";
+    output = "_report";
+  };
 };
 ```
 
-This adds `report`, `tasks report`, `nk-watch-report`, `nk-pc-up-report` and `nix build .#report`
-from one definition. Builds run the same executable and DAG on a writable `nullkomma.src`,
-with `NULLKOMMA_ROOT` pointing to that copy and `NULLKOMMA_OUTPUT` to the Nix output.
-`working_dir` is relative to that root; if omitted, tasks keep the caller's directory.
-`sandboxArgs` explicitly selects any necessary build-only behavior: R tests use
-`--installed` in the sandbox, versus pkgload locally. There is no separate build command.
+Change plugins' tasks with ordinary module merging, e.g. `lib.mkForce` on a `command`;
+builds and checks then use the changed task too.
+Since tasks only use [process-compose-flake]'s options,
+a flake-parts module outside nullkomma can declare its own.
 
-Extend defaults using ordinary flake-parts merging: add a task, append `after` prerequisites,
-or use `lib.mkBefore`/`lib.mkAfter` for extra command lines and `lib.mkForce` to replace a command.
-Builds, checks and processes then use the changed task too.
-`before` is also supported. Up schedules the runner; nullkomma expands transitive prerequisites
-because the pinned runner otherwise runs only direct prerequisites for a named task.
+`nk mcp` serves the tasks to coding agents as [MCP] tools over stdio,
+along with process-compose's tools to start, stop and inspect [services](#processtrees).
+`.mcp.json`, and `.vscode/mcp.json` with the [`vscode`](#vscode-and-neovim) plugin,
+are generated so that agents find it.
+`nk graph` prints the dependency graph of all processes as Mermaid;
+other arguments go to `process-compose graph`.
 
-#### Keeping generated files current
+### `processTrees`
 
-These watches refresh artifacts derived from the working tree, such as roxygen2's
-`NAMESPACE` and manuals. Files generated from Nix (editor settings, brand assets and
-Quarto extensions) are separate: the dev shell refreshes them on entry with
-`nk-generate-files`, and sandboxed builds use `nullkomma.src`.
-Tasks and process trees don't regenerate those files.
+#### `dev`
 
-Choose the tool's own dependency knowledge before adding another watcher:
+The [process-compose-flake] tree of all tasks and services.
+Services are processes that are not `disabled`: they keep running, or rerun on file changes.
+`process-compose up` in the dev shell (or `nix run .#processTrees.<system>.dev`) starts them,
+with process-compose's terminal UI, e.g. `preview` for Quarto, and for R
+`r-namespace` and `r-test`, which rerun when files in `R/` or `tests/` change.
+`process-compose up preview` starts only one service and its prerequisites.
+Further process-compose commands, such as `process-compose process logs r-test`,
+reach the running tree through a per-checkout socket.
 
-- `watch.native = true` records that the command already watches and reloads, as
-  `quarto preview` does. For `nk-preview`, this adds `nk-pc-up-preview`, not a redundant `nk-watch-preview`.
-- `watch.manifest = ./inputs.txt` accepts a tool-produced, immutable file of
-  newline-separated input paths, relative to the checkout root. It replaces the broad
-  default; the tool must include every dependency. Watch containing directories for
-  atomic saves and new files. Restart the watcher when the manifest changes.
-- Otherwise, `watch = { };` watches the whole checkout, including new and Git-ignored
-  inputs. `watch.outputs` declares output globs excluded throughout that process tree
-  or standalone task's graph; `watch.ignore` adds local exclusions. Avoid narrow input
-  allowlists unless the tool guarantees their completeness.
+Use process-compose's own settings, such as
+[`watch`](https://f1bonacc1.github.io/process-compose/launcher/#watching-files),
+`readiness_probe` and `availability`.
+A tool that watches files itself, as `quarto preview` does, needs no `watch`.
 
-Native watching only covers dependencies the tool knows. Quarto, for example,
-does not discover arbitrary files read with `io.open` in Lua filters. Prefer
-declaring shared YAML through `metadata-files` and reading it from the filter's
-metadata; otherwise an external watch must cover those extra inputs.
-Do not add private inputs as site `resources` merely to watch them: resources
-are copied into the published site.
-
-The fallback uses [watchexec] with changes queued while busy and Git/project ignore
-discovery disabled. Its built-in ignores still apply, as do `.direnv/` and
-`.nullkomma/`; explicitly watched dependency stamps remain observable.
-Arbitrary external files, environment or network changes are not discovered.
-Generated outputs must be declared to avoid feedback loops.
-`watch.paths` can override the default; paths missing from the flake source are skipped.
-`nk-watch-<task>` runs the task and its `after` steps initially and on input changes;
-a task's own `nk-` prefix isn't repeated, e.g. `nk-watch-r-test` for `nk-r-test`.
-Generated command names must be unique and must not match declared task names;
-evaluation fails on a conflict rather than replacing a command.
-
-Every watched task automatically supplies a process tree containing its dependency graph.
-Use `process = { };` for a service without any watcher.
-`process` also accepts native [up] process settings such as `readiness_probe` and `shutdown`;
-the workflow owns `command` and merges its dependency edges into `depends_on`.
-
-Additional groups, `perSystem.nullkomma.processTrees.<tree>`, keep several tasks current
-in the background, as [process-compose] processes; `nk-pc-up-<tree>` (also `nix run .#processTrees.<system>.<tree>`)
-starts them with a dashboard showing which currently fail:
-
-```nix
-perSystem.nullkomma.processTrees.docs = {
-  description = "Keep the report current";
-  tasks = [ "report" ]; # plus its `after` tasks
-};
-```
-
-- Tasks run in `after` order, independent ones in parallel.
-- Fallback-watched steps run again on input changes or successful prerequisite reruns;
-  native-watched services handle changes themselves.
-- A failing task doesn't stop the tree. Only successful reruns notify dependents,
-  so running dependents keep their last good state until it's fixed.
-- Steps that write files (e.g. roxygen2) run once per tree, for every process that needs them;
-  state of a single R session (e.g. pkgload in `nk-shiny`) stays in that process.
-- Successes are recorded as Git-ignored stamps in `.nullkomma/processes/<tree>/`,
-  while each run uses its own process-compose socket in the temporary directory.
-
-Trees don't start with the dev shell ([#217](https://github.com/dataheld/nullkomma/issues/217));
-run `nk-pc-up-<tree>` in a spare terminal.
+Tasks and services don't regenerate files from Nix (editor settings, brand assets, Quarto extensions);
+the dev shell does on entry, with `generate-files`, and sandboxed builds use `nullkomma.src`.
 
 ## Files in your repository
 
@@ -488,37 +436,37 @@ editors need settings). Each is one of two kinds:
 |                             | **Source of truth** (committed, yours to edit)       | **Generated from Nix** (Git-ignored, don't edit)                               |
 | --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `nix flake init --template` | `flake.nix`, `.envrc`                                | (not possible)                                                                 |
-| `nk-write-files`            | `.gitignore`, GitHub workflows, `AGENTS.md` sections |                                                                                |
-| `nk-generate-files`         |                                                      | `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
+| `write-files`               | `.gitignore`, GitHub workflows, `AGENTS.md` sections |                                                                                |
+| `generate-files`            |                                                      | `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
 
 Templates can't take parameters, so anything that depends on your configuration
-comes from `nk-write-files` or `nk-generate-files`.
+comes from `write-files` or `generate-files`.
 
 ### Source-of-truth files
 
-`nk-write-files` writes these once (`nullkomma.files."<path>".mode = "source"`, the default);
+`write-files` writes these once (`nullkomma.files."<path>".mode = "source"`, the default);
 then they are yours to edit and commit.
-When nullkomma later changes a file, `nk-write-files` updates it only if you haven't edited it.
+When nullkomma later changes a file, `write-files` updates it only if you haven't edited it.
 Otherwise it keeps your version, saves an incoming copy in Git's metadata directory and fails,
 printing the copy's path and pointing you to the [nk-resolve-file-conflicts skill](#resolving-conflicts).
-After resolving, `nk-write-files --accept <path>` marks the file as up to date.
+After resolving, `nk write-files --accept <path>` marks the file as up to date.
 
 A file can instead hold marked `sections` inside your own text (e.g. R's `.Rbuildignore` rules):
-`nk-write-files` replaces only those, wherever you moved them.
+`write-files` replaces only those, wherever you moved them.
 Once nullkomma no longer declares a file (say, you disabled its plugin),
-`nk-write-files` strips its sections, deletes it if unedited, or keeps your edited version and says so.
+`write-files` strips its sections, deletes it if unedited, or keeps your edited version and says so.
 
 ### Generated files
 
-`nk-generate-files` overwrites these (`mode = "generated"`) when they differ from Nix,
+`generate-files` overwrites these (`mode = "generated"`) when they differ from Nix,
 starts them with a "do not edit" comment, and the `git` plugin ignores them.
 They follow your Nix configuration, not your working tree:
-entering the dev shell runs `nk-generate-files` if they changed, while tasks such as `nk-preview` never do.
-direnv re-enters when `flake.nix` or `flake.lock` change (say, after `nk-update`);
+entering the dev shell runs `generate-files` if they changed, while tasks such as `preview` never do.
+direnv re-enters when `flake.nix` or `flake.lock` change (say, after `flake-update`);
 if local Nix modules declare files too, add e.g. `watch_dir nix` to your `.envrc`.
 To change one, change the Nix options.
 Directories (`directory = true`) are copied whole, without the comment.
-`nk-generate-files` refuses to overwrite a file tracked by Git,
+`generate-files` refuses to overwrite a file tracked by Git,
 and removes files it generated before that are no longer declared.
 
 ### Resolving conflicts
@@ -543,8 +491,8 @@ see [`tests`](#tests).
 
 Instructs coding agents, through two kinds of files:
 
-- An `agents` section in `AGENTS.md`, written by `nk-write-files` and committed:
-  run commands in the dev shell, and run `tasks all` before reporting a change as done.
+- An `agents` section in `AGENTS.md`, written by `write-files` and committed:
+  run commands in the dev shell, and run `nk all` before reporting a change as done.
   The rest of `AGENTS.md` is yours.
 - [Agent Skills](https://agentskills.io) in `.agents/skills/<name>`, generated from Nix,
   so they always match your `flake.lock`.
@@ -591,7 +539,7 @@ e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
 
 ### `quarto`
 
-Opt-in `quarto` renders the project into `packages.site`; `nk-preview` serves it locally and reloads on edits.
+Opt-in `quarto` renders the project into `packages.site`; `preview` serves it locally and reloads on edits.
 It ignores `.quarto/`, `_site/` and Quarto's generated `.luarc.json`.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`,
 generated into `_extensions/<name>`.
@@ -667,7 +615,7 @@ pin `worker` separately if it differs. Worker names must be unique within the
 account, and state keys within the bucket, including across repositories with
 the same name. Changing these settings does not automatically migrate state.
 
-Locally, run `nk-terraform` to plan changes (or `nk-terraform <command> [args]`) and `nk-deploy` to publish;
+Locally, run `nk terraform` to plan changes (or `nk terraform <command> [args]`) and `nk deploy` to publish;
 in CI, run `nix run .#deploy`.
 Both need an existing private R2 bucket for Terraform state; in GitHub Actions:
 
@@ -699,7 +647,7 @@ and DNS only after successful CI on pushes to `main`, never from PRs or tags.
 
 1. Add `nullkomma.r.enable = true;` to `flake.nix`; for a package in a subdirectory, also `nullkomma.r.root = ./pkg;`.
 1. Run `nix run .#r-lock`: the development shell needs the [`pkg.lock`](#dependencies) it writes.
-1. Run `nk-write-files` and commit the changes; run `nk-generate-files` for editor configuration.
+1. Run `nk write-files` and commit the changes; run `nk generate-files` for editor configuration.
 
 #### Dependencies
 
@@ -707,13 +655,13 @@ Declare dependencies in `DESCRIPTION`; [pak] locks them in `pkg.lock`.
 Refresh the lock after changing dependencies or updating Nix:
 
 ```sh
-nk-r-lock
+nk r-lock
 git add DESCRIPTION pkg.lock
 ```
 
 Nix takes package names from `pkg.lock`, but versions and builds from the `nixpkgs-r` input
 (which follows Nixpkgs; override `inputs.nullkomma.inputs.nixpkgs-r` for newer R).
-`nk-r-lock` resolves against the [PPM] snapshot of the same date (`nullkomma.r.snapshot`);
+`r-lock` resolves against the [PPM] snapshot of the same date (`nullkomma.r.snapshot`);
 it writes the lockfile, not an installed library, and requires Nix.
 Outside Nix, [R's non-Nix collaboration feature](#r-development-without-nix) installs from that PPM snapshot.
 
@@ -737,28 +685,21 @@ and system libraries come with the packages that need them.
 
 #### Workflows
 
-`tasks` describes the available workflows and lists the checks.
+`nk` describes the available workflows; `nk check` runs the checks.
 Disable optional checks and site builds with `nullkomma.r.{check,testthat,pkgdown}.enable`.
-`nk-r-test`, `nk-r-coverage` and `nk-shiny` regenerate `NAMESPACE` first.
-`nk-r-pkgdown` and `nk-r-check` regenerate documentation and `NAMESPACE` first.
-`nk-pc-up-r-pkg` keeps documentation, tests, the pkgdown site and `R CMD check` current while you work,
-and `nk-pc-up-r-shiny` (with the [Shiny app](#shiny-app)) also serves the app, reloading it in the browser
-whenever `NAMESPACE` is regenerated (see [Keeping generated files current](#keeping-generated-files-current)).
+`r-test`, `r-coverage` and `shiny` regenerate `NAMESPACE` first.
+`r-pkgdown` and `r-check` regenerate documentation and `NAMESPACE` first.
+`process-compose up` keeps `NAMESPACE` and tests current while you work:
+`r-namespace` reruns when `R/` changes, and then restarts `r-test` and `shiny`;
+`r-test` also reruns when `tests/` changes.
 Generated `man/*.Rd` files are Git-ignored, but not `man/` itself; commit `NAMESPACE`.
-The fallback broadly watches the checkout through `nk-r-namespace` and `nk-r-document`;
-downstream R steps follow their successful reruns rather than racing roxygen2.
-Known outputs are excluded:
-`NAMESPACE`, `man/*.Rd`, compiler products, coverage and the pkgdown destination.
-This follows the plugin's convention that `man/*.Rd` are generated; for handwritten
-manuals, explicitly add their paths to `nk-r-document.watch.paths` (explicit file watches
-override output ignores). Files such as `man/figures/` remain inputs.
-Declare any extra outputs written by custom roclets or project code with `watch.outputs`.
 `nullkomma.r.check.errorOn` sets the failing severity (default `"note"`).
 The `r` plugin keeps its package-build exclusions in a marked section of `.Rbuildignore`,
 and ignores R build outputs in `.gitignore`.
 
-`nk-check r-testthat` is quick: it loads the source with pkgload instead of installing it.
-`nix flake check` and CI run `nk-check r-testthat --installed`, which tests an installed copy, as `R CMD check` does.
+`nk r-test` is quick: it loads the source with pkgload instead of installing it.
+`nix flake check` and CI run it with `--installed`, which tests an installed copy, as `R CMD check` does.
+`checks.r-namespace` fails if the committed `NAMESPACE` is stale.
 `Config/testthat/parallel: true` in `DESCRIPTION` runs tests [in parallel](https://testthat.r-lib.org/articles/parallel.html).
 
 Locking chromote (e.g. via [shinytest2](https://rstudio.github.io/shinytest2/)) adds Chromium on Linux
@@ -767,7 +708,7 @@ Locking chromote (e.g. via [shinytest2](https://rstudio.github.io/shinytest2/)) 
 #### pkgdown website
 
 `packages.site` builds the [pkgdown](https://pkgdown.r-lib.org) site in the sandbox,
-also in `nix flake check`; `nk-r-pkgdown` builds it locally, and `nk-r-pkgdown-preview` also opens it.
+also in `nix flake check`; `nk r-pkgdown` builds it locally, and `nk r-pkgdown --preview` also opens it.
 [Cloudflare](#cloudflare) can publish it.
 
 - A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
@@ -776,7 +717,7 @@ also in `nix flake check`; `nk-r-pkgdown` builds it locally, and `nk-r-pkgdown-p
 - `_pkgdown.yml` overrides template packages, e.g. [R's branding feature](#brand)'s, which `nullkomma.r.pkgdown.libraries` provides;
   `nullkomma.r.pkgdown.config` is merged over both.
 - `nullkomma.r.pkgdown.config.destination` defaults to `"docs"` and overrides a YAML
-  destination, so local builds and watcher exclusions agree. Set custom destinations
+  destination, so local and sandboxed builds agree. Set custom destinations
   here rather than in `_pkgdown.yml`, as a normalized package-relative directory
   (no leading slash, `.` or `..` components).
 - `nullkomma.r.pkgdown.assets` is a directory generated into Git-ignored `pkgdown/assets/`,
@@ -798,14 +739,15 @@ nullkomma.r.shiny = {
 ```
 
 `nix run .#shiny` installs your package from the flake's source, calls the function and serves the app.
-The `nk-shiny` task instead loads the working-tree package with pkgload, without installing it.
 Its runtime is R, Shiny and your package's `Depends`/`Imports` closure: no `Suggests`, `Config/Needs/*`, `extraPackages` or pkgload.
+The `shiny` service (`process-compose up shiny`) instead loads the working-tree package with pkgload, without installing it,
+and restarts when `r-namespace` reruns.
 Ship assets in `inst/` (find them with `system.file()`) and write data outside the installed package.
 
 Test it by passing the function to
 [shinytest2](https://rstudio.github.io/shinytest2/articles/use-package.html#application-objects):
 `shinytest2::AppDriver$new(app)`.
-Under `nk-check r-testthat`, the app process loads your source with pkgload,
+Under `nk r-test`, the app process loads your source with pkgload,
 so there's nothing to install and no stale installed copy; with `--installed`, it uses the installed package.
 
 #### Formatting and tools
@@ -828,7 +770,7 @@ Everything runs on one locked R version; add a CI matrix if you need Windows or 
 #### R development without Nix
 
 For collaborators without Nix, enable `nullkomma.r.nonNix.enable = true` alongside `nullkomma.r.enable = true`,
-run `nk-write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
+run `nk write-files`, and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
 and the [R development without Nix](https://github.com/dataheld/nullkomma/blob/main/modules/lang/r-non-nix/_assets/development.md) section added to your README.
 These are [source-of-truth files](#source-of-truth-files).
 The startup profile only acts in native R sessions, installing from the same PPM snapshot
@@ -839,14 +781,14 @@ The startup profile only acts in native R sessions, installing from the same PPM
 Nullkomma always provides **two self-documenting entrypoints**:
 
 1. The consumer's flake outputs. These are already self-documenting.
-1. `tasks` expose a selection of useful builds and checks.
-   This does not mean that `tasks` aliases every subcommand and flag.
+1. `nk` exposes a selection of useful builds and checks as tasks.
+   This does not mean that `nk` aliases every subcommand and flag.
    As a heuristic, if some command is run to produce a flake output,
-   it is also exposed as a `tasks`.
-   In addition, `tasks` include important development-only workflows,
+   it is also exposed as a task.
+   In addition, `nk` includes important development-only workflows,
    especially previews.
 
-As much as possible, the flake outputs and `tasks` reuse implementation,
+As much as possible, the flake outputs and tasks reuse implementation,
 to make interactive development work in the `devShell` as close as possible to the flake outputs.
 Exceptions include:
 
@@ -861,18 +803,18 @@ The [Plugins](#plugins) table maps nullkomma's outputs onto yours:
 each row is one of nullkomma's `flakeModules.<name>`, each column an output of your flake.
 Every output is fed by framework options (in `perSystem`) that plugins fill in, and so can you:
 
-| Your output                   | Options                   | Task                             |
-| ----------------------------- | ------------------------- | -------------------------------- |
-| `devShells.default`           | `nullkomma.devShell.*`    |                                  |
-| `formatter`, `checks.treefmt` | `treefmt.programs`        | `treefmt`                        |
-| `checks.<name>`               | `nullkomma.checks.<name>` | `nk-check`                       |
-| `packages.site`               | `packages.site`           | `nk-build-site` / `nk-r-pkgdown` |
-| `apps.<name>`                 | `apps.<name>`             | plugin-specific                  |
-| `taskRunners`                 | `nullkomma.tasks.<name>`  | `tasks`                          |
+| Your output                   | Options                                         | Task                       |
+| ----------------------------- | ----------------------------------------------- | -------------------------- |
+| `devShells.default`           | `nullkomma.devShell.*`                          |                            |
+| `formatter`, `checks.treefmt` | `treefmt.programs`                              | `treefmt`                  |
+| `checks.<name>`               | `check.depends_on.<name>`                       | `check`                    |
+| `packages.site`               | `packages.site`                                 | `build-site` / `r-pkgdown` |
+| `apps.<name>`                 | `apps.<name>`                                   | plugin-specific            |
+| `taskRunners`, `processTrees` | `process-compose.dev.settings.processes.<name>` | `nk`                       |
 
 Formatting and linting are treefmt's job: plugins add `treefmt.programs`, not their own runner.
 Two more framework options act on your working tree rather than on outputs:
-`nullkomma.files.<path>` (and the top-level `nullkomma.gitignore`), written by `nk-write-files` and `nk-generate-files`;
+`nullkomma.files.<path>` (and the top-level `nullkomma.gitignore`), written by `write-files` and `generate-files`;
 and `nullkomma.editor`, whose language servers join the dev shell and which `vscode` and `neovim` render into files.
 
 Independent plugins do not read each other's options. Values shared between plugins are
@@ -902,7 +844,7 @@ projects' `flake.lock`.
 
 nullkomma's own website is this README, built as a [`quarto`](#quarto) nkdocs
 site into [`packages.site`](#site) styled by [Quarto's branding feature](#brand) with [Max Held's](https://www.maxheld.de) brand and
-[privacy policy](#privacy-policy). `tasks` lists how to preview and check it.
+[privacy policy](#privacy-policy). `nk` lists how to preview and check it.
 
 ### Testing nullkomma
 
@@ -918,6 +860,11 @@ nullkomma is tested against small example projects ("fixtures") in
   the only test of how real projects fetch nullkomma. CI runs it on every push.
 - **Without Nix:** `test-r-non-nix` builds the `r-non-nix` fixture in Docker (Ubuntu 24.04, `linux/amd64`, no Nix),
   runs the documented R examples and builds the package; extra arguments go to `docker build`. CI runs it on manual dispatch.
+- **Snapshot tests:** `tests/snapshots/<fixture>.md` records each fixture's `nk` menu and task graph;
+  `snapshot-<fixture>` fails on any change. Review the diff, then run `nk update-snapshots`.
+
+`nk try-fixture <fixture>` copies a fixture into a new Git repository under `/tmp`
+that uses this checkout, including uncommitted changes, and prints how to enter it.
 
 New plugins should add a valid and a deliberately broken fixture, and check that
 the broken one fails with the real tool's error, not just any error.
@@ -929,14 +876,16 @@ metadata. Nix fetches the assets using that manifest, so sandboxed site builds
 need no CDN access; the asset files are not committed to this repository.
 `checks.vendored-pkgdown` detects a stale manifest after a pkgdown upgrade.
 
-Add another refresh task through the existing task DAG, not a separate registry:
+Add another refresh task as a prerequisite of `refresh-vendored`:
 
 ```nix
-perSystem.nullkomma.tasks.refresh-vendored-example = {
-  description = "Refresh vendored Example assets";
-  before = [ "refresh-vendored" ];
-  working_dir = ".";
-  command = "...";
+perSystem.process-compose.dev.settings.processes = {
+  refresh-vendored-example = {
+    description = "Refresh vendored Example assets";
+    disabled = true;
+    command = "...";
+  };
+  refresh-vendored.depends_on.refresh-vendored-example.condition = "process_completed_successfully";
 };
 ```
 
@@ -948,8 +897,7 @@ These are nullkomma's own maintenance tasks, not tasks added to consumer project
 [^apps]: `packages` are what Nix builds (`nix build`), `apps` what it runs (`nix run`):
     a program, e.g. a deploy script or a Shiny server, usually backed by a package.
 
-[^processTrees]: [up] process trees, each also the `nk-pc-up-<tree>` task; see
-    [Keeping generated files current](#keeping-generated-files-current).
+[^processTrees]: [process-compose-flake] trees; see [`processTrees`](#processtrees).
 
 [^flake-checker]: The `flake-checker` task checks `flake.lock` for outdated or non-upstream Nixpkgs inputs.
 
@@ -974,6 +922,7 @@ These are nullkomma's own maintenance tasks, not tasks added to consumer project
 [jsonls]: https://github.com/hrsh7th/vscode-langservers-extracted
 [keep-sorted]: https://github.com/google/keep-sorted
 [marksman]: https://github.com/artempyanykh/marksman
+[mcp]: https://modelcontextprotocol.io
 [md]: https://commonmark.org
 [nix-direnv]: https://github.com/nix-community/nix-direnv
 [nix-unit]: https://github.com/nix-community/nix-unit
@@ -981,13 +930,13 @@ These are nullkomma's own maintenance tasks, not tasks added to consumer project
 [pak]: https://pak.r-lib.org
 [ppm]: https://packagemanager.posit.co
 [process-compose]: https://f1bonacc1.github.io/process-compose/
+[process-compose-flake]: https://github.com/Platonic-Systems/process-compose-flake
 [terranix]: https://terranix.org/flake-parts.html
 [toml]: https://toml.io
 [treefmt]: https://treefmt.com
 [typos]: https://github.com/crate-ci/typos
 [up]: https://github.com/DeterminateSystems/up
 [vscode-treefmt]: https://marketplace.visualstudio.com/items?itemName=ibecker.treefmt-vscode
-[watchexec]: https://watchexec.github.io
 [yaml]: https://yaml.org
 [yaml-language-server]: https://github.com/redhat-developer/yaml-language-server
 [`fh`]: https://github.com/DeterminateSystems/fh

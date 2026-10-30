@@ -6,9 +6,9 @@ description: Upgrade this project to the latest nullkomma (and its other flake i
 # Upgrading nullkomma
 
 1. Start from a clean Git working tree.
-1. Run `nk-update`, or `nk-update nullkomma` to update only nullkomma.
-   It updates `flake.lock`, then runs `nk-write-files` and `nk-generate-files`.
-1. If `nk-write-files` reports conflicts,
+1. Run `nk flake-update`, or `nk flake-update nullkomma` to update only nullkomma.
+   It updates `flake.lock`, then runs `write-files` and `generate-files`.
+1. If `nk write-files` reports conflicts,
    use the nk-resolve-file-conflicts skill.
 1. Check the project's *existing* nullkomma configuration
    for deprecations and updates.
@@ -19,7 +19,7 @@ description: Upgrade this project to the latest nullkomma (and its other flake i
    For each difference: is it still needed?
    Does nullkomma now do this by default, or offer a more concise way?
 1. Reload the dev shell (`direnv reload`) so later commands use the new version.
-1. Run `tasks all`, then `nix flake check`, and fix what fails.
+1. Run `nk all`, then `nix flake check`, and fix what fails.
    For breaking changes, read nullkomma's README and commit log
    between the old and new revisions in `flake.lock`.
 1. Commit `flake.lock` and the updated files together.

@@ -9,13 +9,11 @@
     }:
     let
       inherit (harness)
-        callFlakeWith
         fixtures
         perSystem
         plugins
         raw
-        root
-        runCheck
+        task
         ;
       tfConfig =
         flake: (perSystem flake).terranix.terranixConfigurations.deploy.result.terraformConfiguration;
@@ -32,14 +30,7 @@
             packages.site = pkgs.writeTextDir "content.txt" "Independent static assets\n";
           };
       };
-      cloudflare = callFlakeWith {
-        nullkomma.cloudflare = {
-          enable = true;
-          worker = "fixture-site";
-          domain = "example.org";
-          name = "www";
-        };
-      } (root + "/tests/fixtures/quarto");
+      inherit (fixtures) cloudflare;
     in
     {
       nullkomma.nix.unit.tests = {
@@ -63,10 +54,11 @@
           expected = {
             packages = [
               "deploy"
+              "dev"
               "site"
             ];
             checks = [
-              "cloudflare"
+              "cloudflare-validate"
               "treefmt"
             ];
           };
@@ -83,7 +75,6 @@
         };
       };
       checks = {
-        cloudflare-config = cloudflare.checks.${system}.cloudflare;
         cloudflare-validation-local =
           let
             nix = pkgs.writeShellScriptBin "nix" ''
@@ -91,16 +82,22 @@
               test "$*" = 'build --no-link --print-out-paths .#deploy.config'
               echo ${tfConfig (raw bare)}
             '';
-            flake = raw {
-              imports = [ bare ];
-              perSystem.nullkomma.checks.cloudflare.packages = lib.mkForce [ nix ];
-            };
           in
-          pkgs.runCommand "nullkomma-cloudflare-validation-local" { } ''
-            export HOME="$TMPDIR"
-            ${runCheck flake "cloudflare"}
-            touch "$out"
-          '';
+          pkgs.runCommand "nullkomma-cloudflare-validation-local"
+            {
+              nativeBuildInputs = [
+                pkgs.git
+                nix
+              ];
+            }
+            ''
+              export HOME="$TMPDIR"
+              mkdir project
+              cd project
+              git init -q
+              ${task (raw bare) "cloudflare-validate"}
+              touch "$out"
+            '';
         cloudflare-devshell =
           (raw {
             imports = [ bare ];
@@ -277,39 +274,42 @@
             '';
             flake = raw {
               imports = [ bare ];
-              perSystem = {
-                terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
-                nullkomma.tasks = {
-                  nk-deploy.packages = lib.mkForce [ nix ];
-                  nk-terraform.packages = lib.mkForce [ nix ];
-                };
-              };
+              perSystem.terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
             };
             deploy = lib.getExe flake.packages.${system}.deploy;
-            tasks = (perSystem flake).nullkomma.tasks;
           in
-          pkgs.runCommand "nullkomma-cloudflare-deploy" { } ''
-            export CALLED=$PWD/called CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
-            export CLOUDFLARE_R2_ACCESS_KEY_ID=r2-key CLOUDFLARE_R2_SECRET_ACCESS_KEY=r2-secret
-            export AWS_ACCESS_KEY_ID=other-key AWS_SECRET_ACCESS_KEY=other-secret
-            ${deploy}
-            test -f "$CALLED"
-            if (unset CLOUDFLARE_R2_ACCESS_KEY_ID; ${deploy}) > /dev/null 2>error; then
-              echo "Deployment must reject missing Cloudflare R2 credentials" >&2
-              exit 1
-            fi
-            grep -q CLOUDFLARE_R2_ACCESS_KEY_ID error
-            rm "$CALLED"
-            ${lib.getExe tasks.nk-deploy.package}
-            test -f "$CALLED"
-            ${lib.getExe tasks.nk-terraform.package}
-            printf '%s\n' plan > expected
-            cmp expected "$CALLED"
-            ${lib.getExe tasks.nk-terraform.package} import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id'
-            printf '%s\n' import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id' > expected
-            cmp expected "$CALLED"
-            touch $out
-          '';
+          pkgs.runCommand "nullkomma-cloudflare-deploy"
+            {
+              nativeBuildInputs = [
+                pkgs.git
+                nix
+              ];
+            }
+            ''
+              export CALLED=$PWD/called CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
+              export CLOUDFLARE_R2_ACCESS_KEY_ID=r2-key CLOUDFLARE_R2_SECRET_ACCESS_KEY=r2-secret
+              export AWS_ACCESS_KEY_ID=other-key AWS_SECRET_ACCESS_KEY=other-secret
+              ${deploy}
+              test -f "$CALLED"
+              if (unset CLOUDFLARE_R2_ACCESS_KEY_ID; ${deploy}) > /dev/null 2>error; then
+                echo "Deployment must reject missing Cloudflare R2 credentials" >&2
+                exit 1
+              fi
+              grep -q CLOUDFLARE_R2_ACCESS_KEY_ID error
+              rm "$CALLED"
+              mkdir project
+              cd project
+              git init -q
+              ${task flake "deploy"}
+              test -f "$CALLED"
+              ${task flake "terraform"}
+              printf '%s\n' plan > expected
+              cmp expected "$CALLED"
+              ${task flake "terraform"} import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id'
+              printf '%s\n' import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id' > expected
+              cmp expected "$CALLED"
+              touch $out
+            '';
       };
     };
 }

@@ -12,11 +12,11 @@
           flags = "--config ${configFile} --gitleaks-ignore-path ${pkgs.writeText "gitleaksignore" ""}";
         in
         {
-          nullkomma.tasks.nk-secret-history = {
+          process-compose.dev.settings.processes.secret-history = {
+            namespace = "gitleaks";
             description = "Scan Git history for secrets";
-            packages = [ pkgs.gitleaks ];
-            skip = true;
-            command = "gitleaks git ${flags} --no-banner --redact .";
+            command = "${lib.getExe pkgs.gitleaks} git ${flags} --no-banner --redact .";
+            disabled = true;
           };
           treefmt.settings.formatter.gitleaks = {
             command = lib.getExe (

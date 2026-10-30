@@ -2,7 +2,7 @@
 mode="${mode:?file mode must be set by the caller}"
 root="$(git rev-parse --show-toplevel)"
 cd "$root" || exit 1
-state="$(git rev-parse --git-path nullkomma/files)"
+state="$(git rev-parse --path-format=absolute --git-common-dir)/nullkomma/files"
 accept=""
 accepted=false
 status=0
@@ -10,7 +10,7 @@ declared=()
 if [ "$mode" = source ] && [ "${1:-}" = --accept ] && [ "$#" = 2 ]; then
   accept="$2"
 elif [ "$#" != 0 ]; then
-  echo "Usage: nk-write-files [--accept <path>] (after resolving a conflict); nk-generate-files takes no arguments" >&2
+  echo "Usage: write-files [--accept <path>] (after resolving a conflict); generate-files takes no arguments" >&2
   exit 1
 fi
 

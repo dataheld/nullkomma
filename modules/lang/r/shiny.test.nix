@@ -13,7 +13,7 @@
         fixtures
         perSystem
         root
-        runCheck
+        task
         ;
       fixture = root + "/tests/fixtures/r-shiny";
       enabled = callFlakeWith {
@@ -53,14 +53,14 @@
         testShinyIsOptIn = {
           expr = {
             app = fixtures.r.apps.${system} ? shiny;
-            task = (perSystem fixtures.r).nullkomma.tasks ? nk-shiny;
-            taskAfter = (perSystem local).nullkomma.tasks.nk-shiny.after;
+            task = (perSystem fixtures.r).process-compose.dev.settings.processes ? shiny;
+            taskAfter = lib.attrNames (perSystem local).process-compose.dev.settings.processes.shiny.depends_on;
             dependency = lib.elem "shiny" (perSystem fixtures.r).nullkomma.r.packages;
           };
           expected = {
             app = false;
             task = false;
-            taskAfter = [ "nk-r-namespace" ];
+            taskAfter = [ "r-namespace" ];
             dependency = false;
           };
         };
@@ -103,18 +103,20 @@
               mkdir sub
               cd sub
               export R_LIBS_SITE="${pkgs.rPackages.pkgload}/library:${pkgs.rPackages.testthat}/library"
+              # A stopped `process-compose run` signals its whole process group, so the builder needs its own.
+              set -m
               for mode in installed working-tree; do
                 if [[ "$mode" == installed ]]; then
-                  command=${enabled.apps.${system}.shiny.program}
+                  command=(${enabled.apps.${system}.shiny.program})
                   expected='nullkomma Shiny fixture'
                 else
                   mkdir -p man
                   printf 'keep\n' > man/sentinel
-                  command=${harness.task local "nk-shiny"}
+                  command=(${task local "shiny"})
                   expected='working-tree Shiny fixture'
                 fi
                 : > server.log
-                "$command" >> server.log 2>&1 &
+                "''${command[@]}" >> server.log 2>&1 &
                 pid=$!
                 trap 'kill "$pid"; wait "$pid" || true' EXIT
                 ready=false
@@ -158,7 +160,7 @@
               substituteInPlace "$TMPDIR/stale/R/app.R" --replace-fail 'input$number * 2' 'input$number * 3'
               mkdir "$TMPDIR/library"
               R CMD INSTALL --library="$TMPDIR/library" "$TMPDIR/stale"
-              R_LIBS_USER="$TMPDIR/library" ${runCheck plain "r-testthat"}
+              R_LIBS_USER="$TMPDIR/library" ${task plain "r-test"}
               # Installed tests must run apps from the installed package, not the source.
               cat > tests/testthat/test-installed.R <<'RS'
               test_that("apps come from the installed package", {
@@ -168,7 +170,7 @@
                 expect_equal(driver$get_value(output = "doubled"), "2")
               })
               RS
-              ${runCheck plain "r-testthat"} --installed
+              ${task plain "r-test"} --installed
               touch $out
             '';
       };

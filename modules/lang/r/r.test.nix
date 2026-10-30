@@ -22,7 +22,6 @@
         rawAt
         root
         task
-        runCheck
         treefmt
         ;
       rlib = import (root + "/lib/r.nix") { inherit lib; };
@@ -50,10 +49,10 @@
         nullkomma.r.pkgdown.brand.enable = true;
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
         nullkomma.cloudflare = cloudflare;
-        perSystem.nullkomma.tasks.nk-r-document.command = lib.mkAfter ''
-          mkdir -p pkgdown/assets
-          printf 'shared R workflow\n' > pkgdown/assets/workflow.txt
-        '';
+        perSystem.process-compose.dev.settings.processes = {
+          workflow-asset.command = "mkdir -p pkgdown/assets && echo 'shared R workflow' > pkgdown/assets/workflow.txt";
+          r-pkgdown.depends_on.workflow-asset.condition = "process_completed_successfully";
+        };
       } fixture;
       # A package site as nullkomma's own brand publishes it.
       published = callFlakeWith {
@@ -167,66 +166,49 @@
             siteOff = true;
           };
         };
-        testRWatchDefaults = {
+        testRDevLoop = {
           expr =
             let
-              defaults = (perSystem fixtures.r).nullkomma.tasks;
-              custom = (perSystem customDestination).nullkomma.tasks;
+              processes = flake: (perSystem flake).process-compose.dev.settings.processes;
+              defaults = processes fixtures.r;
             in
             {
-              paths = defaults.nk-r-document.watch.paths;
-              contentPaths = defaults.nk-r-document.watch.contentPaths;
-              downstream = map (name: defaults.${name}.watch.paths) [
-                "nk-r-test"
-                "nk-r-check"
-                "nk-r-pkgdown"
+              namespace = defaults.r-namespace.watch;
+              test = defaults.r-test.watch.paths;
+              enabled = lib.filter (name: !defaults.${name}.disabled) [
+                "r-namespace"
+                "r-document"
+                "r-test"
+                "r-check"
+                "r-pkgdown"
               ];
-              outputs = lib.all (path: lib.elem path custom.nk-r-document.watch.outputs) [
-                "/NAMESPACE"
-                "/man/*.Rd"
-                "/tests/testthat/_snaps/**/*.new.*"
-                "/public"
-                "/public/**"
-              ];
-              nestedOutputs =
-                lib.all (path: lib.elem path (perSystem nested).nullkomma.tasks.nk-r-document.watch.outputs)
-                  [
-                    "/r/tests/testthat/_snaps/**/*.new.*"
-                  ];
-              nestedContentPaths = (perSystem nested).nullkomma.tasks.nk-r-document.watch.contentPaths;
-              processOutputs = lib.all (
-                process: lib.all (path: lib.elem path process.watch.ignore) defaults.nk-r-document.watch.outputs
-              ) (lib.attrValues (perSystem fixtures.r).processTrees.nk-r-test.processes);
+              nested = (processes nested).r-test.working_dir;
               ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
               invalidDestination =
                 (builtins.tryEval (
                   builtins.deepSeq
-                    (perSystem (
-                      callFlakeWith {
-                        nullkomma.r.pkgdown.config.destination = "../site";
-                      } fixture
-                    )).nullkomma.tasks.nk-r-document.watch.outputs
+                    (callFlakeWith {
+                      nullkomma.r.pkgdown.config.destination = "../site";
+                    } fixture).debug.config.nullkomma.gitignore
                     true
                 )).success;
             };
           expected = {
-            paths = [ "." ];
-            contentPaths = [
-              "man"
-              "tests/testthat/_snaps"
+            namespace = {
+              paths = [ { path = "R"; } ];
+              cascade = true;
+            };
+            test = [
+              {
+                path = "tests";
+                exclude = [ "_snaps" ];
+              }
             ];
-            downstream = [
-              [ ]
-              [ ]
-              [ ]
+            enabled = [
+              "r-namespace"
+              "r-test"
             ];
-            outputs = true;
-            nestedOutputs = true;
-            nestedContentPaths = [
-              "r/man"
-              "r/tests/testthat/_snaps"
-            ];
-            processOutputs = true;
+            nested = "./r/";
             ignore = true;
             invalidDestination = false;
           };
@@ -245,37 +227,61 @@
               );
             in
             lib.elem "roxygen2" minimal.nullkomma.r.packages
-            && minimal.nullkomma.tasks ? nk-r-document
-            && minimal.nullkomma.checks ? r-namespace;
+            && minimal.process-compose.dev.settings.processes ? r-document
+            && minimal.checks ? r-namespace;
           expected = true;
         };
         testRNamespaceTaskIsSeparate = {
           expr =
             let
-              tasks = (perSystem (callFlakeWith { nullkomma.r.coverage.enable = true; } fixture)).nullkomma.tasks;
+              processes =
+                (perSystem (callFlakeWith { nullkomma.r.coverage.enable = true; } fixture))
+                .process-compose.dev.settings.processes;
+              after = name: lib.attrNames (lib.defaultTo { } processes.${name}.depends_on);
             in
             {
-              namespace = tasks.nk-r-namespace.after;
-              namespaceOnly = lib.hasInfix ''roxygen2::roxygenise(roclets = "namespace")'' tasks.nk-r-namespace.command;
-              namespaceOutputs = tasks.nk-r-namespace.watch.outputs;
-              document = tasks.nk-r-document.after;
-              documentRoclets = lib.hasInfix ''setdiff(roxygen2::load_options()[["roclets"]], "namespace")'' tasks.nk-r-document.command;
-              test = tasks.nk-r-test.after;
-              coverage = tasks.nk-r-coverage.after;
-              check = tasks.nk-r-check.after;
-              pkgdown = tasks.nk-r-pkgdown.after;
+              namespace = after "r-namespace";
+              document = after "r-document";
+              documentRoclets = lib.hasInfix ''setdiff(roxygen2::load_options()[["roclets"]], "namespace")'' processes.r-document.command;
+              test = after "r-test";
+              coverage = after "r-coverage";
+              check = after "r-check";
+              pkgdown = after "r-pkgdown";
+              nkCheck = after "check";
             };
           expected = {
             namespace = [ ];
-            namespaceOnly = true;
-            namespaceOutputs = [ "/NAMESPACE" ];
-            document = [ "nk-r-namespace" ];
+            document = [ "r-namespace" ];
             documentRoclets = true;
-            test = [ "nk-r-namespace" ];
-            coverage = [ "nk-r-namespace" ];
-            check = [ "nk-r-document" ];
-            pkgdown = [ "nk-r-document" ];
+            test = [ "r-namespace" ];
+            coverage = [ "r-namespace" ];
+            check = [ "r-document" ];
+            pkgdown = [ "r-document" ];
+            nkCheck = [
+              "jscpd"
+              "r-check"
+              "r-namespace"
+              "r-pkgdown"
+              "r-test"
+            ];
           };
+        };
+        testRCheckSkipsTestsRunSeparately = {
+          expr = map (flake: flake.debug.config.nullkomma.r.check.args) [
+            fixtures.r
+            (callFlakeWith { nullkomma.r.testthat.enable = false; } fixture)
+          ];
+          expected = [
+            [
+              "--no-manual"
+              "--ignore-vignettes"
+              "--no-tests"
+            ]
+            [
+              "--no-manual"
+              "--ignore-vignettes"
+            ]
+          ];
         };
         testRAttributeNames = {
           expr = map rlib.attrName [
@@ -457,27 +463,6 @@
         };
       };
       checks = {
-        r-watch =
-          let
-            flake = callFlakeWith {
-              perSystem.nullkomma.tasks.nk-r-test.command = lib.mkMerge [
-                (lib.mkBefore ''echo started >> "$OBSERVED"'')
-                (lib.mkAfter ''echo finished >> "$OBSERVED"'')
-              ];
-            } fixture;
-          in
-          check "r-watch" ''
-            git init -q
-            export OBSERVED="$TMPDIR/observed"
-            ${lib.getExe pkgs.python3} ${./_watch.test.py} \
-              ${
-                lib.getExe (
-                  lib.findFirst (p: lib.getName p == "nk-watch-r-test") null
-                    (perSystem flake).nullkomma.devShell.packages
-                )
-              } \
-              || { cat "$TMPDIR/watcher.log"; exit 1; }
-          '';
         r-console =
           pkgs.runCommand "nullkomma-r-console"
             {
@@ -573,13 +558,13 @@
         r-pkgdown-local = check "r-pkgdown-local" ''
           export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1
           git init -q
-          ${task branded "nk-write-files"}
+          ${task branded "write-files"}
           (${(perSystem branded).nullkomma.devShell.shellHook})
           # Language tasks must not overwrite files generated on shell entry.
           printf 'local asset\n' > pkgdown/assets/local-only.txt
           # Repeated builds must not trip over read-only assets copied from the store.
-          ${task branded "nk-r-pkgdown"}
-          ${task branded "nk-r-pkgdown"}
+          ${task branded "r-pkgdown"}
+          ${task branded "r-pkgdown"}
           cmp pkgdown/assets/local-only.txt docs/local-only.txt
           cmp pkgdown/assets/workflow.txt docs/workflow.txt
           grep -qxF 'shared R workflow' docs/workflow.txt
@@ -592,7 +577,7 @@
           export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
           git init -q
           printf 'destination: yaml-destination\n' >> _pkgdown.yml
-          ${task customDestination "nk-r-pkgdown-preview"}
+          ${task customDestination "r-pkgdown"} --preview
           # browseURL doesn't wait for the browser.
           for _ in {1..50}; do test -f "$TMPDIR/opened" && break; sleep 0.1; done
           grep -qF "$PWD/public/index.html" "$TMPDIR/opened"
@@ -604,7 +589,7 @@
           in
           check "r-coverage" ''
             git init -q
-            ${task flake "nk-r-coverage"}
+            ${task flake "r-coverage"}
             grep -q '<coverage ' coverage.xml
             grep -q 'hello.R' coverage.xml
           '';
@@ -612,7 +597,7 @@
           git init -q
           cp man/hello.Rd "$TMPDIR/hello.Rd"
           printf '# Generated by roxygen2: do not edit by hand\n' > NAMESPACE
-          ${task fixtures.r "nk-r-namespace"}
+          ${task fixtures.r "r-namespace"}
           grep -q '^export(hello)$' NAMESPACE
           grep -q '^importFrom(stats,setNames)$' NAMESPACE
           cmp "$TMPDIR/hello.Rd" man/hello.Rd
@@ -620,13 +605,13 @@
         r-test-namespace-only = check "r-test-namespace-only" ''
           git init -q
           mv man "$TMPDIR/man"
-          ${task fixtures.r "nk-r-test"}
+          ${task fixtures.r "r-test"}
           test ! -e man/hello.Rd
         '';
         r-document = check "r-document" ''
           git init -q
           rm -r man
-          ${task fixtures.r "nk-r-document"}
+          ${task fixtures.r "r-document"}
           grep -q '^export(hello)$' NAMESPACE
           test -s man/hello.Rd
         '';
@@ -637,28 +622,28 @@
             expect_true(startsWith(find.package("nullkommafixture"), Sys.getenv("R_LIBS_USER")))
           })
           RS
-          ${runCheck fixtures.r "r-testthat"} --installed
+          ${task fixtures.r "r-test"} --installed
         '';
         r-rejects-drift = check "r-rejects-drift" ''
           cp NAMESPACE "$TMPDIR/NAMESPACE"
           printf '# Generated by roxygen2: do not edit by hand\n' > NAMESPACE
-          fails 'NAMESPACE is stale' ${runCheck fixtures.r "r-namespace"}
+          fails 'NAMESPACE is stale' ${task fixtures.r "r-namespace"} --check
           cp "$TMPDIR/NAMESPACE" NAMESPACE
           # Tests check the working tree, not the flake's source.
           echo 'stop("local-r-source-marker")' >> R/hello.R
-          fails local-r-source-marker ${runCheck fixtures.r "r-cmd-check"}
+          fails local-r-source-marker ${task fixtures.r "r-check"}
         '';
         r-files = check "r-files" ''
           git init -q
-          ${task fixtures.r "nk-write-files"}
+          ${task fixtures.r "write-files"}
           grep -qxF '^project-only[.]txt$' .Rbuildignore
-          mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/processes .agents/skills/demo
+          mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/cloudflare .agents/skills/demo
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
-            .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/processes/nk-r-document.ok \
-            .agents/skills/demo/SKILL.md AGENTS.md
+            .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/cloudflare/terraform.tfstate \
+            .agents/skills/demo/SKILL.md AGENTS.md .mcp.json
           R CMD build --no-build-vignettes --no-manual .
           tar -tf nullkommafixture_0.0.1.tar.gz > package-files
-          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]nullkomma|[.]agents|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
+          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]mcp[.]json|[.]nullkomma|[.]agents|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
             echo "Development-only files leaked into the package source" >&2
             exit 1
           fi
@@ -683,10 +668,10 @@
           mv project nested/r
           cd nested
           git init -q
-          ${task nested "nk-write-files"}
+          ${task nested "write-files"}
           grep -qxF '^project-only[.]txt$' r/.Rbuildignore
-          ${runCheck nested "r-testthat"}
-          ${runCheck nested "r-cmd-check"}
+          ${task nested "r-test"}
+          ${task nested "r-check"}
         '';
       };
     };

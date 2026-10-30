@@ -6,8 +6,8 @@
       # Welcome to nullkomma
 
       1. `git add flake.nix .envrc` (flakes only see tracked files)
-      2. `nix develop -c nk-write-files` and `nix develop -c nk-generate-files`
-      3. `direnv allow` (or `nix develop`), then `tasks` to list tasks
+      2. `nix develop -c tasks write-files` and `nix develop -c tasks generate-files`
+      3. `direnv allow` (or `nix develop`), then `nk` to list tasks
     '';
   };
 }

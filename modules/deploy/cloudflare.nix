@@ -72,24 +72,47 @@
               program = lib.getExe config.packages.deploy;
               meta.description = "Publish the site to Cloudflare";
             };
-            nullkomma.tasks = {
-              nk-deploy = {
-                skip = true;
-                description = "Publish the site to Cloudflare";
-                packages = [ pkgs.nix ];
-                command = ''exec nix run .#deploy -- "$@"'';
+            # These use the caller's `nix` to evaluate the working tree, not the dev shell's build of it.
+            process-compose.dev.settings.processes =
+              lib.mapAttrs
+                (name: p: {
+                  namespace = "cloudflare";
+                  inherit (p) description;
+                  command = pkgs.writeShellApplication {
+                    inherit name;
+                    inherit (p) text;
+                  };
+                  disabled = true;
+                })
+                {
+                  deploy = {
+                    description = "Publish the site to Cloudflare";
+                    text = ''exec nix run .#deploy -- "$@"'';
+                  };
+                  terraform = {
+                    description = "Plan Cloudflare changes, or run terraform <command> [args]";
+                    text = ''
+                      nix run .#deploy.init
+                      if [[ $# == 0 ]]; then set -- plan; fi
+                      exec nix run .#deploy.terraform -- "$@"
+                    '';
+                  };
+                  cloudflare-validate = {
+                    description = "Validate the Cloudflare Terraform configuration";
+                    text = ''
+                      configuration="$(nix build --no-link --print-out-paths .#deploy.config)"
+                      ${validate ''"$configuration"''}
+                    '';
+                  };
+                }
+              // {
+                check.depends_on.cloudflare-validate.condition = "process_completed_successfully";
               };
-              nk-terraform = {
-                skip = true;
-                description = "Plan Cloudflare changes, or run terraform <command> [args]";
-                packages = [ pkgs.nix ];
-                command = ''
-                  nix run .#deploy.init
-                  if [[ $# == 0 ]]; then set -- plan; fi
-                  exec nix run .#deploy.terraform -- "$@"
-                '';
-              };
-            };
+            checks.cloudflare-validate = pkgs.runCommand "cloudflare-validate" { } ''
+              export HOME="$TMPDIR"
+              ${validate tf.result.terraformConfiguration}
+              touch "$out"
+            '';
             terranix = {
               exportDevShells = false;
               terranixConfigurations.deploy = {
@@ -185,18 +208,6 @@
                   };
                 };
               };
-            };
-            nullkomma.checks.cloudflare = {
-              packages = [ pkgs.nix ];
-              command = ''
-                configuration="$(nix build --no-link --print-out-paths .#deploy.config)"
-                ${validate ''"$configuration"''}
-              '';
-              sandboxed = pkgs.runCommand "check-cloudflare" { } ''
-                export HOME="$TMPDIR"
-                ${validate tf.result.terraformConfiguration}
-                touch "$out"
-              '';
             };
           };
       };

@@ -24,100 +24,28 @@
             ;
           md = root + "/tests/fixtures/md";
           section = text: builtins.toFile "section.md" text;
-          # c runs after a and b, b after a; each appends to `log`.
-          dagTasks = lib.mapAttrs (name: task: { description = name; } // task) {
-            a = {
-              before = [ "b" ];
-              command = "echo a >> log";
-              watch.paths = [ "flake.nix" ];
-            };
-            b = {
-              command = "echo b >> log";
-            };
-            c = {
-              after = [ "b" ];
-              command = ''echo c "$@" >> log'';
-              watch.paths = [ "missing" ];
-            };
-            broken.command = "exit 3";
-            d = {
-              after = [ "broken" ];
-              command = "echo d >> log";
-            };
-          };
-          workflow = raw {
-            imports = [
-              {
-                perSystem.nullkomma.tasks.artifact.command = lib.mkAfter ''
-                  printf 'shared extension\n' > "$destination/extension"
-                '';
-              }
-            ];
-            perSystem.nullkomma.tasks = lib.mapAttrs (_: task: { working_dir = ""; } // task) (
-              dagTasks
-              // {
-                artifact = {
-                  after = [
-                    "a"
-                    "c"
-                  ];
-                  output = "artifact";
-                  sandboxArgs = [ "sandbox value" ];
-                  command = ''
-                    test -f README.md
-                    destination="''${NULLKOMMA_OUTPUT:-artifact}"
-                    mkdir -p "$destination"
-                    cp log "$destination/log"
-                    printf '%s\n' "$@" > "$destination/args"
-                  '';
-                  process = {
-                    environment.WORKFLOW = "native-up-settings";
-                    shutdown.signal = 15;
-                  };
-                };
-              }
-            );
-          };
-          watched = raw {
-            perSystem.nullkomma.tasks.prepare = {
-              command = ":";
-              watch.manifest = pkgs.writeText "broad-inputs.txt" ".\n";
-              watch.outputs = [ "/prepared" ];
-              watch.ignore = [ "/local-ignore" ];
-            };
-            perSystem.nullkomma.tasks.generate = {
-              after = [ "prepare" ];
-              working_dir = "";
-              watch = {
-                manifest = pkgs.writeText "inputs.txt" "input\n";
-                outputs = [
-                  "/output"
-                  "/output/**"
-                  "/other-output"
-                  "/other-output/**"
-                ];
+          # Uses process-compose-flake options only, as external modules would.
+          contract = raw {
+            perSystem.process-compose.dev.settings.processes = {
+              a = {
+                namespace = "demo";
+                description = "A";
+                command = "echo a >> log";
+                disabled = true;
               };
-              command = ''
-                echo started >> "$OBSERVED"
-                while [[ -e "$HOLD" ]]; do sleep 0.05; done
-                test "$(cat input)" != broken
-                destination="$(cat destination)"
-                mkdir -p "$destination"
-                cat input > "$destination/result"
-                echo finished >> "$OBSERVED"
-              '';
-              process.watch = {
-                paths = [ "input" ];
-                ignore = [ "/process-ignore" ];
+              b = {
+                namespace = "demo";
+                description = "B";
+                command = ''echo b "$@" >> log'';
+                depends_on.a.condition = "process_completed_successfully";
+                disabled = true;
               };
-            };
-            perSystem.nullkomma.tasks.unrelated = {
-              command = ":";
-              watch = {
-                paths = [ "input" ];
-                contentPaths = [ "content-inputs" ];
-                outputs = [ "/external-output" ];
+              broken = {
+                description = "Broken";
+                command = "exit 3";
+                disabled = true;
               };
+              serve.command = "sleep 60";
             };
           };
           privacy =
@@ -172,13 +100,15 @@
               let
                 files =
                   enable:
-                  (perSystem (raw {
-                    imports = [ plugins.agents ];
-                    nullkomma.agents = {
-                      inherit enable;
-                      skills.demo = md;
-                    };
-                  })).nullkomma.files;
+                  removeAttrs
+                    (perSystem (raw {
+                      imports = [ plugins.agents ];
+                      nullkomma.agents = {
+                        inherit enable;
+                        skills.demo = md;
+                      };
+                    })).nullkomma.files
+                    [ ".mcp.json" ];
               in
               {
                 expr = {
@@ -220,19 +150,19 @@
                 } md)
               ];
               expected = lib.replicate 3 {
-                files = [ ];
+                files = [ ".mcp.json" ];
                 tools = [
-                  "nk-generate-files"
-                  "nk-write-files"
-                  "treefmt"
-                  "tasks"
+                  "nk"
+                  "process-compose"
                   "treefmt"
                 ];
                 formatters = [ ];
                 tasks = [
-                  "nk-generate-files"
-                  "nk-write-files"
+                  "all"
+                  "check"
+                  "generate-files"
                   "treefmt"
+                  "write-files"
                 ];
                 checks = [ "treefmt" ];
                 shells = [ ];
@@ -250,11 +180,14 @@
                 };
               };
             };
-            testChecksBecomeTaskAndCheck = {
+            testChecksAreCheckDependencies = {
               expr = {
                 inherit
                   (summary (raw {
-                    perSystem.nullkomma.checks.custom.command = "true";
+                    perSystem.process-compose.dev.settings.processes = {
+                      custom.command = "true";
+                      check.depends_on.custom.condition = "process_completed_successfully";
+                    };
                   }))
                   tasks
                   checks
@@ -262,10 +195,11 @@
               };
               expected = {
                 tasks = [
-                  "nk-check"
-                  "nk-generate-files"
-                  "nk-write-files"
+                  "all"
+                  "check"
+                  "generate-files"
                   "treefmt"
+                  "write-files"
                 ];
                 checks = [
                   "custom"
@@ -334,7 +268,10 @@
                 };
                 expected = {
                   served = lib.replicate 2 {
-                    packages = [ "demo" ];
+                    packages = [
+                      "demo"
+                      "dev"
+                    ];
                     custom = "demo";
                   };
                   outputsEvaluate = lib.replicate 3 true;
@@ -388,67 +325,6 @@
                 ];
               };
             };
-            testGeneratedCommandCollisions = {
-              expr =
-                map
-                  (
-                    module:
-                    let
-                      flake = perSystem (raw {
-                        nullkomma.devShell.enable = true;
-                        perSystem = module;
-                      });
-                    in
-                    {
-                      runner = (builtins.tryEval flake.taskRunners.default.drvPath).success;
-                      shell = (builtins.tryEval flake.devShells.default.drvPath).success;
-                    }
-                  )
-                  [
-                    {
-                      processTrees = lib.mkForce { };
-                      nullkomma.tasks = lib.genAttrs [ "demo" "nk-demo" ] (_: {
-                        command = ":";
-                        watch.paths = [ "flake.nix" ];
-                      });
-                    }
-                    {
-                      nullkomma.tasks = lib.genAttrs [ "demo" "nk-demo" ] (_: {
-                        command = ":";
-                        process = { };
-                      });
-                    }
-                    {
-                      nullkomma.tasks.demo.command = ":";
-                      nullkomma.processTrees = lib.genAttrs [ "demo" "nk-demo" ] (_: {
-                        description = "Demo";
-                        tasks = [ "demo" ];
-                      });
-                    }
-                    {
-                      nullkomma.tasks = {
-                        demo = {
-                          command = ":";
-                          watch.paths = [ "flake.nix" ];
-                        };
-                        nk-watch-demo.command = ":";
-                      };
-                    }
-                    {
-                      nullkomma.tasks = {
-                        demo = {
-                          command = ":";
-                          process = { };
-                        };
-                        nk-pc-up-demo.command = ":";
-                      };
-                    }
-                  ];
-              expected = lib.replicate 5 {
-                runner = false;
-                shell = false;
-              };
-            };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
               expr = map (flake: (perSystem flake).nullkomma.files.".gitignore".text) [
                 fixtures.md
@@ -464,21 +340,23 @@
                   "result"
                   "result-*"
                   ".direnv/"
-                  "/.nullkomma/processes/"
                   "/.agents/skills/nk-resolve-file-conflicts"
                   "/.agents/skills/nk-upgrade"
+                  "/.mcp.json"
                   "/.nvim.lua"
                   "/.vscode/extensions.json"
+                  "/.vscode/mcp.json"
                   "/.vscode/settings.json"
                 ])
                 (lib.concatLines [
                   "result"
                   "result-*"
                   ".direnv/"
-                  "/.nullkomma/processes/"
                   "/.agents/skills/nk-resolve-file-conflicts"
                   "/.agents/skills/nk-upgrade"
+                  "/.mcp.json"
                   "/.nvim.lua"
+                  "/.vscode/mcp.json"
                 ])
               ];
             };
@@ -523,29 +401,6 @@
                 );
                 expected = normalize (summary fixtures.md);
               };
-            testNativeWatch =
-              let
-                flake = perSystem (raw {
-                  perSystem.nullkomma.tasks.serve = {
-                    command = "sleep 1";
-                    watch.native = true;
-                  };
-                });
-              in
-              {
-                expr = {
-                  paths = flake.nullkomma.tasks.serve.watch.paths;
-                  watch = flake.processTrees.serve.processes.serve.watch;
-                  aliases = lib.filter (lib.hasPrefix "nk-watch-") (
-                    map lib.getName flake.nullkomma.devShell.packages
-                  );
-                };
-                expected = {
-                  paths = [ ];
-                  watch = null;
-                  aliases = [ ];
-                };
-              };
             testPrivacyPolicyOrdersEnabledSections = {
               expr = {
                 policy = privacy {
@@ -577,66 +432,42 @@
                 missingLanguage = false;
               };
             };
-            testTaskDag =
-              let
-                flake = perSystem (raw {
-                  perSystem.nullkomma = {
-                    tasks = dagTasks;
-                    processTrees.tree = {
-                      description = "Tree";
-                      tasks = [ "c" ];
-                    };
-                  };
-                });
-              in
-              {
-                expr = {
-                  closure = flake.nullkomma.tasks.c.closure;
-                  trees = lib.attrNames flake.processTrees;
-                  processes = lib.attrNames flake.processTrees.tree.processes;
-                  watches = lib.filter (lib.hasPrefix "nk-watch-") (
-                    map lib.getName flake.nullkomma.devShell.packages
-                  );
-                  downstream = flake.processTrees.tree.processes.b.watch.paths;
-                  dependency = flake.processTrees.tree.processes.b.depends_on.a.condition;
-                  native = (perSystem workflow).processTrees.artifact.processes.artifact.environment;
-                };
-                expected = {
-                  closure = [
-                    "a"
-                    "b"
-                    "c"
-                  ];
-                  trees = [
-                    "a"
-                    "c"
-                    "tree"
-                  ];
-                  processes = [
-                    "a"
-                    "b"
-                    "c"
-                  ];
-                  # c's own path is missing, but it watches a's inputs too.
-                  watches = [
-                    "nk-watch-a"
-                    "nk-watch-c"
-                  ];
-                  downstream = [ ".nullkomma/processes/tree/a.ok" ];
-                  dependency = "process_completed_successfully";
-                  native.WORKFLOW = "native-up-settings";
-                };
-              };
-            testTasksAllHonorsSkip = {
-              expr = lib.attrNames (
-                lib.filterAttrs (_: t: !(t.skip or false)) (perSystem fixtures.md).nullkomma.tasks
-              );
+            testTasksAllFormatsAndChecks = {
+              expr = lib.attrNames (perSystem fixtures.md).processTrees.dev.processes.all.depends_on;
               expected = [
+                "check"
                 "flake-checker"
-                "nk-check"
                 "treefmt"
               ];
             };
+            testTasksAreDescribedProcesses =
+              let
+                p = perSystem contract;
+              in
+              {
+                expr = lib.genAttrs [ "a" "b" "broken" "serve" ] (name: {
+                  task = p.taskRunners.default.tasks ? ${name};
+                  process = p.processTrees.dev.processes ? ${name};
+                });
+                expected = {
+                  a = {
+                    task = true;
+                    process = true;
+                  };
+                  b = {
+                    task = true;
+                    process = true;
+                  };
+                  broken = {
+                    task = true;
+                    process = true;
+                  };
+                  serve = {
+                    task = false;
+                    process = true;
+                  };
+                };
+              };
             testTemplatesAreFixtures = {
               expr = lib.mapAttrs (_: t: {
                 flake = builtins.readFile (t.path + "/flake.nix");
@@ -647,178 +478,48 @@
                 envrc = (perSystem (callFlake t.path)).nullkomma.files.".envrc".text;
               }) nullkomma.templates;
             };
-            testWatchOutputExclusions =
-              let
-                processes = (perSystem watched).processTrees.generate.processes;
-                outputs = [
-                  "/prepared"
-                  "/external-output"
-                ]
-                ++ (perSystem watched).nullkomma.tasks.generate.watch.outputs;
-              in
-              {
-                expr = {
-                  graph = lib.all (process: lib.all (path: lib.elem path process.watch.ignore) outputs) (
-                    lib.attrValues processes
-                  );
-                  local = lib.elem "/local-ignore" processes.prepare.watch.ignore;
-                  override = lib.elem "/process-ignore" processes.generate.watch.ignore;
-                  paths = processes.generate.watch.paths;
-                };
-                expected = {
-                  graph = true;
-                  local = true;
-                  override = true;
-                  paths = [ "input" ];
-                };
-              };
             # keep-sorted end
           };
           checks = {
-            process-task-failure =
+            tasks =
               let
-                flake = perSystem (raw {
-                  perSystem.nullkomma.tasks.fail = {
-                    process = { };
-                    command = "exit 42";
-                  };
-                });
-                command = flake.processTrees.fail.processes.fail.command;
-              in
-              pkgs.runCommand "nullkomma-process-task-failure"
-                {
-                  nativeBuildInputs = [
-                    pkgs.bash
-                    pkgs.coreutils
-                  ];
-                }
-                ''
-                  ${harness.project md}
-                  export NULLKOMMA_ROOT="$PWD"
-                  mkdir -p .nullkomma/processes/fail
-                  stamp=.nullkomma/processes/fail/fail.ok
-                  touch -d @1 "$stamp"
-                  before="$(stat -c %Y "$stamp")"
-                  if bash -c ${lib.escapeShellArg command}; then
-                    echo "Failed process task returned success" >&2
-                    exit 1
-                  fi
-                  [[ "$(stat -c %Y "$stamp")" == "$before" ]]
-                  touch "$out"
-                '';
-            process-socket =
-              let
-                flake = raw {
-                  perSystem.nullkomma.tasks.socket = {
-                    process = { };
-                    command = ''
-                      test -S "$PC_SOCKET_PATH"
-                      cp -r . "$TMPDIR/copied"
-                      touch "$TMPDIR/copied-ok"
-                    '';
-                  };
+                tasks = lib.getExe (perSystem contract).taskRunners.default;
+                sandboxed = (perSystem contract).nullkomma.sandbox {
+                  process = "b";
+                  args = [ "sandboxed value" ];
+                  output = "log";
                 };
               in
-              pkgs.runCommand "nullkomma-process-socket" { nativeBuildInputs = [ pkgs.git ]; } ''
+              pkgs.runCommand "nullkomma-tasks" { } ''
                 ${harness.project md}
-                git init -q
-                export PC_DISABLE_TUI=1
-                ${lib.getExe (perSystem flake).processTrees.socket}
-                test -f "$TMPDIR/copied-ok"
-                touch "$out"
-              '';
-            workflow-watch =
-              pkgs.runCommand "nullkomma-workflow-watch"
-                {
-                  nativeBuildInputs = [
-                    pkgs.git
-                    pkgs.python3
-                  ];
-                }
-                ''
-                  mkdir repo
-                  cd repo
-                  git init --quiet
-                  printf 'ignored-input\n' > .gitignore
-                  printf 'first\n' > input
-                  printf 'output\n' > destination
-                  mkdir content-inputs
-                  printf 'saved\n' > content-inputs/saved
-                  export OBSERVED="$TMPDIR/observed" HOLD="$TMPDIR/hold"
-                  python ${./_watch.test.py} \
-                    ${
-                      lib.getExe (
-                        lib.findFirst (p: lib.getName p == "nk-watch-generate") null
-                          (perSystem watched).nullkomma.devShell.packages
-                      )
-                    } \
-                    ${lib.getExe (import ./_watch.nix { inherit lib pkgs; })} \
-                    || { cat "$TMPDIR/watcher.log"; exit 1; }
-                  touch "$out"
-                '';
-            task-dag =
-              let
-                flake = raw { perSystem.nullkomma.tasks = dagTasks; };
-              in
-              pkgs.runCommand "nullkomma-task-dag" { } ''
-                ${task flake "c"} arg
-                printf 'a\nb\nc arg\n' | diff - log
-                rm log
-                if ${task flake "d"}; then exit 1; fi
-                [[ ! -e log ]]
-                ${lib.getExe (perSystem flake).taskRunners.default} c
-                printf 'a\nb\nc\n' | diff - log
-                rm log
-                if ${lib.getExe (perSystem flake).taskRunners.default} d; then exit 1; fi
-                [[ ! -e log ]]
-                mkdir project
-                cd project
-                cp ${md + "/README.md"} README.md
-                ${lib.getExe pkgs.git} init --quiet
-                mkdir nested && cd nested
-                ${task workflow "artifact"} 'local value'
-                cd ..
-                printf 'a\nb\nc\n' | diff - artifact/log
-                printf 'local value\n' | diff - artifact/args
-                cmp artifact/log ${(perSystem workflow).packages.artifact}/log
-                cmp artifact/extension ${(perSystem workflow).packages.artifact}/extension
-                grep -qxF 'shared extension' artifact/extension
-                test -x ${lib.getExe (perSystem workflow).processTrees.artifact}
-                printf 'sandbox value\n' | diff - ${(perSystem workflow).packages.artifact}/args
-                touch $out
-              '';
-            task-menu =
-              let
-                flake = raw {
-                  perSystem.nullkomma.checks.custom.command = "echo custom-check";
-                  perSystem.processTrees.server = pkgs.symlinkJoin {
-                    name = "custom-server";
-                    paths = [ (pkgs.writeShellScriptBin "custom-server" "echo native-server") ];
-                  };
-                };
-                runner = (perSystem flake).taskRunners.default;
-              in
-              pkgs.runCommand "nullkomma-task-menu" { } ''
                 ${lib.getExe pkgs.git} init -q
-                ${lib.getExe runner} > menu
-                grep -qF 'nk-check <name> [args]: custom' menu
-                grep -qF "for arguments, run the listed command directly" menu
-                ${lib.getExe runner} nk-check > checked
-                grep -qF custom-check checked
-                ${lib.getExe runner} nk-pc-up-server > process
-                grep -qF native-server process
-                ${
-                  lib.getExe (
-                    lib.findFirst (p: lib.getName p == "nk-pc-up-server") null
-                      (perSystem flake).nullkomma.devShell.packages
-                  )
-                } > process
-                grep -qxF native-server process
-                touch flake.nix
-                export HOME="$TMPDIR"
-                ${lib.getExe runner} all > checked-all || { cat checked-all; exit 1; }
-                grep -qF custom-check checked-all
-                grep -qF 'formatted' checked-all
+                export HOME="$TMPDIR" PC_LOG_FILE="$TMPDIR/pc.log"
+                ${tasks} > menu
+                grep -qF '[demo]' menu
+                ${tasks} b 'local value'
+                printf 'a\nb local value\n' | diff - log
+                if ${tasks} broken; then exit 1; fi
+                printf 'a\nb sandboxed value\n' | diff - ${sandboxed}
+                ${tasks} graph | grep -qF 'b --> a'
+                # MCP clients stop a stdio server with SIGTERM.
+                mkfifo requests
+                timeout 60 ${tasks} mcp < requests > mcp.out &
+                server=$!
+                exec 3> requests
+                printf '%s\n' >&3 \
+                  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}' \
+                  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+                  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+                  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"b","arguments":{"args":"mcp value"}}}'
+                until grep -q '"id":3' mcp.out; do
+                  kill -0 "$server"
+                  sleep 0.2
+                done
+                kill "$server"
+                grep -qF '"name":"b"' mcp.out
+                grep -qF '"name":"pc_process_start"' mcp.out
+                if grep -qF '"name":"serve"' mcp.out; then exit 1; fi
+                tail -n 1 log | grep -qx 'b mcp value'
                 touch $out
               '';
             neovim-config =
@@ -892,12 +593,12 @@
                 mkdir project
                 cd project
                 git init --quiet
-                ${at "old" "nk-write-files"}
-                ${at "old" "nk-generate-files"}
+                ${at "old" "write-files"}
+                ${at "old" "generate-files"}
                 grep -q 'Generated by nullkomma. DO NOT EDIT' generated.txt
                 # Unchanged generated files keep their mtime, so e.g. `quarto preview` doesn't re-render them.
                 touch -d @0 generated.txt
-                ${at "old" "nk-generate-files"}
+                ${at "old" "generate-files"}
                 test "$(stat -c %Y generated.txt)" = 0
                 # Entering the dev shell regenerates only when the generated files changed.
                 rm generated.txt
@@ -906,12 +607,12 @@
                 rm generated.txt
                 (${(perSystem fileVersions.old).nullkomma.devShell.shellHook})
                 test ! -e generated.txt
-                ${at "old" "nk-generate-files"}
+                ${at "old" "generate-files"}
                 printf 'project edit' > source.txt
                 printf 'local edit' > generated.txt
                 printf 'project edit' > edited.txt
                 printf 'Project notes.\n\n%s\n' "$(cat notes.md)" > notes.md
-                if ${at "new" "nk-write-files"}; then
+                if ${at "new" "write-files"}; then
                   echo "Edited source-of-truth file unexpectedly overwritten" >&2
                   exit 1
                 fi
@@ -923,11 +624,11 @@
                 test "$(cat untouched.txt)" = new
                 test "$(cat .git/nullkomma/files/base/source.txt)" = old
                 test "$(cat .git/nullkomma/files/incoming/source.txt)" = new
-                ${at "new" "nk-generate-files"} < /dev/null
+                ${at "new" "generate-files"} < /dev/null
                 grep -q 'DO NOT EDIT' generated.txt
                 test ! -e stale-generated.txt
-                ${at "new" "nk-write-files"} --accept source.txt
-                ${at "new" "nk-write-files"}
+                ${at "new" "write-files"} --accept source.txt
+                ${at "new" "write-files"}
                 test "$(cat source.txt)" = 'project edit'
                 test "$(cat .git/nullkomma/files/base/source.txt)" = new
                 test ! -f .git/nullkomma/files/incoming/source.txt
@@ -935,14 +636,14 @@
                 cd ../unknown
                 git init --quiet
                 printf 'preexisting' > source.txt
-                if ${at "new" "nk-write-files"}; then
+                if ${at "new" "write-files"}; then
                   echo "Unknown source-of-truth file was not reported" >&2
                   exit 1
                 fi
                 test "$(cat source.txt)" = preexisting
                 test ! -f .git/nullkomma/files/base/source.txt
                 ln -s source.txt generated.txt
-                if ${at "new" "nk-generate-files"}; then
+                if ${at "new" "generate-files"}; then
                   echo "Symlink target was not rejected" >&2
                   exit 1
                 fi
@@ -950,7 +651,7 @@
                 mkdir ../branded
                 cd ../branded
                 git init --quiet
-                generate=${task fixtures.quarto-branded "nk-generate-files"}
+                generate="${task fixtures.quarto-branded "generate-files"}"
                 mkdir -p _extensions/greeting
                 touch _extensions/greeting/stale.lua
                 $generate
@@ -974,18 +675,21 @@
                   printf '%s\n' "$*" >> "$NULLKOMMA_TEST_LOG"
                   case "$*" in
                     "flake update fail") exit 7 ;;
-                    "develop --command nk-write-files") exit 1 ;;
+                    "develop --command nk write-files") exit 1 ;;
                   esac
                 '';
-                update = task fixtures.md "nk-update";
+                update = task fixtures.md "flake-update";
               in
               pkgs.runCommandLocal "nullkomma-file-update-task" { nativeBuildInputs = [ nix ]; } ''
+                mkdir project
+                cd project
+                ${lib.getExe pkgs.git} init -q
                 export NULLKOMMA_TEST_LOG="$PWD/calls"
                 if ${update} nullkomma; then
                   echo "Update did not propagate file conflicts" >&2
                   exit 1
                 fi
-                printf '%s\n' 'flake update nullkomma' 'develop --command nk-write-files' 'develop --command nk-generate-files' > expected
+                printf '%s\n' 'flake update nullkomma' 'develop --command nk write-files' 'develop --command nk generate-files' > expected
                 cmp calls expected
                 : > calls
                 if ${update} fail; then
@@ -994,6 +698,12 @@
                 fi
                 printf '%s\n' 'flake update fail' > expected
                 cmp calls expected
+                : > calls
+                mkdir dev
+                touch dev/flake.nix
+                ${update} || true
+                printf '%s\n' 'flake update' 'flake update --flake ./dev' > expected
+                head -n 2 calls | cmp - expected
                 touch $out
               '';
             # Renders nullkomma's options the way https://flake.parts does for listed modules:

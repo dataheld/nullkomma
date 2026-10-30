@@ -17,6 +17,7 @@
         "^[.]github$"
         "^[.]vscode$"
         "^[.]nvim[.]lua$"
+        "^[.]mcp[.]json$"
         "^[.]nullkomma$"
         "^result(-.*)?$"
         "^docs$"

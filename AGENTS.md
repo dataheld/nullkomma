@@ -22,16 +22,17 @@ Every new input lands in every consumer's `flake.lock`; dev-only inputs go in
 
 ### Decisions so far
 
-| Module                                                              | Decision                                                                                                                           |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| treefmt-nix                                                         | used, imported by the framework                                                                                                    |
-| flake-parts `flakeModules`, `modules`, `partitions`                 | used for exports and dev-only evaluation                                                                                           |
-| nix-unit                                                            | not its flake module: the `nix` plugin runs `pkgs.nix-unit` itself, so projects get no extra input                                 |
-| [files](https://flake.parts/options/files.html)                     | not used: its files are generated _and committed_; ours are user-owned (3-way updates or marked sections) or generated and ignored |
-| [devshell](https://flake.parts/options/devshell.html)               | not used: own builder and command menu overlap with up tasks                                                                       |
-| [make-shell](https://flake.parts/options/make-shell.html)           | not used: would add a consumer input for ~30 lines of `mkShell` wrapper                                                            |
-| [std](https://flake.parts/options/std.html)                         | not used: heavy framework with many inputs                                                                                         |
-| [mission-control](https://flake.parts/options/mission-control.html) | not used: deprecated; tasks use DeterminateSystems/up                                                                              |
+| Module                                                                          | Decision                                                                                                                           |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| treefmt-nix                                                                     | used, imported by the framework                                                                                                    |
+| [process-compose-flake](https://flake.parts/options/process-compose-flake.html) | used: defines all tasks and process trees; up is kept only for its flake schemas                                                   |
+| flake-parts `flakeModules`, `modules`, `partitions`                             | used for exports and dev-only evaluation                                                                                           |
+| nix-unit                                                                        | not its flake module: the `nix` plugin runs `pkgs.nix-unit` itself, so projects get no extra input                                 |
+| [files](https://flake.parts/options/files.html)                                 | not used: its files are generated _and committed_; ours are user-owned (3-way updates or marked sections) or generated and ignored |
+| [devshell](https://flake.parts/options/devshell.html)                           | not used: own builder and command menu overlap with up tasks                                                                       |
+| [make-shell](https://flake.parts/options/make-shell.html)                       | not used: would add a consumer input for ~30 lines of `mkShell` wrapper                                                            |
+| [std](https://flake.parts/options/std.html)                                     | not used: heavy framework with many inputs                                                                                         |
+| [mission-control](https://flake.parts/options/mission-control.html)             | not used: deprecated; tasks use process-compose-flake                                                                              |
 
 Revisit these when the module or our needs change.
 
@@ -44,13 +45,10 @@ flake.parts takes a PR adding it to flake.parts-website's `render.inputs`.
 
 Candidates for upstreaming instead of keeping here:
 
-- the up task-runner integration (`nullkomma.tasks`, `taskRunners`) as a flake
-  module in [DeterminateSystems/up](https://github.com/DeterminateSystems/up);
-  also transitive prerequisites for individual tasks (up has `after`/`before`
-  but only runs direct prerequisites there), and fixes to `mkProcessTree`
-  (forward arguments, configurable `log_location` instead of the shared
-  `/tmp/pc-debug.log`, a per-project socket rather than nullkomma's
-  `PC_SOCKET_PATH` workaround in `modules/core/processes.nix`);
+- typed process-compose `watch` and MCP options in
+  [process-compose-flake](https://github.com/Platonic-Systems/process-compose-flake)
+  (#276, #277), and the `taskRunners`/`processTrees` schemas in
+  [flake-schemas](https://github.com/DeterminateSystems/flake-schemas) (#278);
 - source-of-truth/generated file modes in
   [mightyiam/files](https://github.com/mightyiam/files);
 - editor-neutral language servers (`nullkomma.editor`) as a standalone module.
@@ -76,18 +74,20 @@ rendered pages on narrow and wide screens before changing presentation.
 This project's development environment comes from [nullkomma](https://github.com/dataheld/nullkomma).
 Run commands inside its dev shell:
 `direnv exec . <command>`, or `nix develop --command <command>` without direnv.
-`tasks` lists the project's workflows.
+`nk` lists the project's workflows;
+`nk <name> [args]` runs one.
+Agents can also use them as MCP tools, from `.mcp.json`.
 
 Check your work locally, from fastest to strictest:
 
 1. While you work, run the narrowest task that covers the change,
-   e.g. `nk-check <name>` or a single language task.
-1. Before you report a change as done, run `tasks all`, then `nix flake check`,
+   e.g. `nk r-test`.
+1. Before you report a change as done, run `nk all`, then `nix flake check`,
    and fix what fails.
-   `tasks all` formats, regenerates files and runs the checks in the working tree.
+   `nk all` formats, regenerates files and runs the checks in the working tree.
    `nix flake check` runs the checks sandboxed, as CI does,
    and sees only files that Git tracks: `git add` new files first.
 
 Skills for nullkomma itself are in `.agents/skills/nk-*`;
-if they are missing, run `nk-generate-files`.
+if they are missing, run `nk generate-files`.
 <!-- nullkomma:agents:end -->

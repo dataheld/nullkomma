@@ -12,29 +12,21 @@
     {
       config.perSystem = lib.mkIf cfg.enable (
         {
-          config,
           pkgs,
           system,
           ...
         }:
         let
           pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
-        in
-        {
-          apps.r-lock = {
-            type = "app";
-            program = lib.getExe config.nullkomma.tasks.nk-r-lock.package;
-            meta.description = config.nullkomma.tasks.nk-r-lock.description;
-          };
-          nullkomma.tasks.nk-r-lock = {
-            description = "Resolve DESCRIPTION into the R lockfile (pkg.lock) with pak";
-            skip = true;
-            packages = [
+          description = "Resolve DESCRIPTION into the R lockfile (pkg.lock) with pak";
+          lock = pkgs.writeShellApplication {
+            name = "r-lock";
+            runtimeInputs = [
               pkgs.coreutils
               pkgs.git
               (pkgsR.rWrapper.override { packages = [ pkgsR.rPackages.pak ]; })
             ];
-            command = ''
+            text = ''
               while [ ! -f flake.nix ] && [ "$PWD" != / ]; do cd ..; done
               description=${lib.escapeShellArg "./${cfg.prefix}DESCRIPTION"}
               lockfile=${lib.escapeShellArg "./${cfg.prefix}pkg.lock"}
@@ -59,6 +51,19 @@
               fi
               echo "nullkomma: wrote $lockfile; commit it"
             '';
+          };
+        in
+        {
+          apps.r-lock = {
+            type = "app";
+            program = lib.getExe lock;
+            meta.description = description;
+          };
+          process-compose.dev.settings.processes.r-lock = {
+            namespace = "r";
+            inherit description;
+            command = lock;
+            disabled = true;
           };
         }
       );

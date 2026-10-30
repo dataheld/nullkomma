@@ -252,15 +252,16 @@
           let
             quarto = pkgs.writeShellScriptBin "quarto" ''
               set -e
-              if [[ -n "''${NULLKOMMA_OUTPUT-}" ]]; then
+              if [[ -z "''${CALLED-}" ]]; then
                 test -e generated.txt
-                mkdir -p "$NULLKOMMA_OUTPUT"
-                cp task-override.txt "$NULLKOMMA_OUTPUT/"
-                printf '%s\n' "$@" > "$NULLKOMMA_OUTPUT/args"
               else
-                # Generating files is the dev shell's job, not the preview's.
+                # Generating files is the dev shell's job, not the tasks'.
                 test ! -e generated.txt
                 printf '%s\n' "$PWD" "$@" > "$CALLED"
+              fi
+              if [[ "$1" == render ]]; then
+                mkdir -p _site
+                cp task-override.txt _site/
               fi
             '';
             flake = callFlakeWith (
@@ -269,9 +270,13 @@
                 nullkomma.quarto.root = self.outPath + "/docs";
                 perSystem = {
                   nullkomma.quarto.package = quarto;
-                  nullkomma.tasks.nk-build-site.command = lib.mkBefore ''
-                    printf 'shared Quarto workflow\n' > task-override.txt
-                  '';
+                  process-compose.dev.settings.processes = {
+                    task-override = {
+                      working_dir = "./docs";
+                      command = "echo 'shared Quarto workflow' > task-override.txt";
+                    };
+                    build-site.depends_on.task-override.condition = "process_completed_successfully";
+                  };
                   nullkomma.files."docs/generated.txt" = {
                     mode = "generated";
                     commentPrefix = "#";
@@ -284,16 +289,14 @@
           pkgs.runCommand "nullkomma-quarto-preview" { nativeBuildInputs = [ pkgs.git ]; } ''
             export CALLED=$PWD/called
             mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
-            ${task flake "nk-preview"} --no-browser
+            ${task flake "preview"} --no-browser
             printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
             cmp expected "$CALLED"
-            ${task flake "nk-build-site"} --to html
+            ${task flake "build-site"} --to html
             printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected
             cmp expected "$CALLED"
             grep -qxF 'shared Quarto workflow' ../task-override.txt
             cmp ../task-override.txt ${flake.packages.${system}.site}/task-override.txt
-            printf '%s\n' render --output-dir ${flake.packages.${system}.site} > expected
-            cmp expected ${flake.packages.${system}.site}/args
             touch $out
           '';
       };

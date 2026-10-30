@@ -1,6 +1,7 @@
 {
-  partitions.dev.module.perSystem.nullkomma.tasks.refresh-vendored = {
+  partitions.dev.module.perSystem.process-compose.dev.settings.processes.refresh-vendored = {
     description = "Refresh all vendored third-party assets and dependency manifests";
-    command = ":";
+    command = "true";
+    disabled = true;
   };
 }
