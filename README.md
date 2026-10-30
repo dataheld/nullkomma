@@ -362,8 +362,8 @@ at `http://127.0.0.1:3838` using the pinned R environment.
 #### `default`
 
 `nk` lists your project's tasks and runs one.
-Your own tasks come first; tasks from nullkomma and its plugins follow,
-one group per `namespace`: plugins and external modules set it, your own tasks leave it unset.
+Tasks are grouped by `namespace`: nullkomma and its plugins set one each;
+your own tasks leave it unset and form the `project` group.
 
 ```sh
 nk                     # list tasks

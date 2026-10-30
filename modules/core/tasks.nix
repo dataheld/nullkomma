@@ -1,5 +1,5 @@
 # `nk` is a just menu of the `dev` tree's tasks, grouped by namespace;
-# tasks in the `default` namespace, the project's own, come first.
+# tasks without one, the project's own, form the `project` group.
 # Each recipe runs its task once, as `nullkomma.sandbox` does in builds:
 # prerequisites (`depends_on`) with `up`, then the task with its arguments.
 { inputs, ... }:
@@ -137,9 +137,9 @@
             + lib.concatStrings (
               lib.mapAttrsToList (name: p: ''
 
-                [${
-                  lib.optionalString (p.namespace != "default") "group(${builtins.toJSON p.namespace}), "
-                }doc(${builtins.toJSON p.description})]
+                [group(${
+                  builtins.toJSON (if p.namespace == "default" then "project" else p.namespace)
+                }), doc(${builtins.toJSON p.description})]
                 ${name} *args:
                     @exec ${lib.getExe run} ${name} "$@"
               '') tasks
