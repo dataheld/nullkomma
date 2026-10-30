@@ -25,6 +25,7 @@
           enable = true;
           brand.enable = true;
         };
+        lint.jscpd.ignore = [ "tests/snapshots/**" ];
         lint.markdown = {
           MD013 = false;
           MD028 = false;

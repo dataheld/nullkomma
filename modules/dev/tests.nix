@@ -55,9 +55,15 @@
           ];
           debug = true;
         };
-      fixtures = lib.genAttrs [ "md" "quarto" "quarto-branded" "r" "r-remotes" "shell" ] (
-        name: callFlake (root + "/tests/fixtures/${name}")
-      );
+      fixtures = lib.genAttrs [
+        "cloudflare"
+        "md"
+        "quarto"
+        "quarto-branded"
+        "r"
+        "r-remotes"
+        "shell"
+      ] (name: callFlake (root + "/tests/fixtures/${name}"));
       # One invalid file per formatter, checked by both the derivation and the real CLI.
       rejects = {
         nix = {
@@ -85,8 +91,43 @@
           perSystem = flake: flake.allSystems.${system};
           # Command running a flake's task, from inside a Git repository.
           task = flake: name: "${lib.getExe (perSystem flake).taskRunners.default} ${name}";
+          # Shell prelude: a writable copy of `src` as the working Git repository, and
+          # `fails <message> <command...>`, expecting the command to fail with message.
+          project = src: ''
+            cp -R ${src} project
+            chmod -R u+w project
+            cd project
+            ${lib.getExe pkgs.git} init -q
+            export HOME="$TMPDIR/home"
+            mkdir -p "$HOME"
+            fails() {
+              message="$1"
+              shift
+              if "$@" > "$TMPDIR/failure.log" 2>&1; then
+                echo "Expected failure: $message" >&2
+                exit 1
+              fi
+              grep -qF -- "$message" "$TMPDIR/failure.log" || { cat "$TMPDIR/failure.log"; exit 1; }
+            }
+          '';
+          # What a fixture's user sees: the `nk` menu and the task graph.
+          snapshots = lib.mapAttrs (
+            name: flake:
+            pkgs.runCommand "nullkomma-snapshot-${name}" { } ''
+              ${project (root + "/tests/fixtures/${name}")}
+              export PC_LOG_FILE="$TMPDIR/pc.log"
+              {
+                printf '# `nk` in `tests/fixtures/%s`\n\n```text\n' ${name}
+                ${task flake ""}
+                printf '```\n\n## `nk graph`\n\n```mermaid\n'
+                ${task flake "graph"}
+                printf '```\n'
+              } > "$out"
+            ''
+          ) fixtures;
         in
         {
+          legacyPackages = { inherit snapshots; };
           _module.args.harness = {
             inherit
               nullkomma
@@ -98,6 +139,7 @@
               fixtures
               perSystem
               task
+              project
               ;
             raw = rawAt (root + "/tests/fixtures/md");
             # A built site's local links and fragments resolve.
@@ -138,25 +180,6 @@
                   inherit (editor) vscode;
                 };
             };
-            # Shell prelude: a writable copy of `src` as the working Git repository, and
-            # `fails <message> <command...>`, expecting the command to fail with message.
-            project = src: ''
-              cp -R ${src} project
-              chmod -R u+w project
-              cd project
-              ${lib.getExe pkgs.git} init -q
-              export HOME="$TMPDIR/home"
-              mkdir -p "$HOME"
-              fails() {
-                message="$1"
-                shift
-                if "$@" > "$TMPDIR/failure.log" 2>&1; then
-                  echo "Expected failure: $message" >&2
-                  exit 1
-                fi
-                grep -qF -- "$message" "$TMPDIR/failure.log" || { cat "$TMPDIR/failure.log"; exit 1; }
-              }
-            '';
             # After `project`: shell functions `format [files]` and `rejects <message> [files]` with `flake`'s treefmt.
             treefmt = flake: ''
               format() {
@@ -183,6 +206,44 @@
               "terranix/import-tree" = inputs.terranix.inputs.import-tree.outPath;
               "terranix/systems" = inputs.terranix.inputs.systems.outPath;
             };
+          process-compose.dev.settings.processes.try-fixture = {
+            description = "Copy a fixture into a new Git repository using this checkout, to try it out";
+            disabled = true;
+            command = pkgs.writeShellApplication {
+              name = "try-fixture";
+              runtimeInputs = [
+                pkgs.git
+                pkgs.gnused
+              ];
+              text = ''
+                root="$(git rev-parse --show-toplevel)"
+                case "''${1-}" in
+                  ${lib.concatStringsSep "|" (lib.attrNames fixtures)}) ;;
+                  *)
+                    echo "Usage: nk try-fixture <${lib.concatStringsSep "|" (lib.attrNames fixtures)}>" >&2
+                    exit 1
+                    ;;
+                esac
+                # Not $TMPDIR: `nix develop` deletes its own when it exits.
+                scratch="$(mktemp -d "/tmp/nk-$1.XXXXXX")"
+                cp -R "$root/tests/fixtures/$1/." "$scratch"
+                sed -i "s|nullkomma.url = .*|nullkomma.url = \"git+file://$root\";|" "$scratch/flake.nix"
+                git -C "$scratch" init -q
+                git -C "$scratch" add -A
+                echo "cd $scratch && nix develop"
+              '';
+            };
+          };
+          process-compose.dev.settings.processes.update-snapshots = {
+            description = "Rewrite tests/snapshots from the fixtures, after reviewing the snapshot checks' diffs";
+            disabled = true;
+            command = pkgs.writeShellApplication {
+              name = "update-snapshots";
+              text = lib.concatMapStrings (name: ''
+                install -m 644 "$(nix build --no-link --print-out-paths .#legacyPackages.${system}.snapshots.${name})" tests/snapshots/${name}.md
+              '') (lib.attrNames snapshots);
+            };
+          };
           process-compose.dev.settings.processes.check-fixtures = {
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
             disabled = true;
@@ -244,6 +305,18 @@
                 flake.checks.${system} // { devshell = flake.devShells.${system}.default; }
               )
             ) fixtures
+            // lib.mapAttrs' (
+              name: snapshot:
+              lib.nameValuePair "snapshot-${name}" (
+                pkgs.runCommand "nullkomma-snapshot-${name}-check" { } ''
+                  diff -u ${root + "/tests/snapshots/${name}.md"} ${snapshot} || {
+                    echo "tests/snapshots/${name}.md is stale; review the diff, then run nk update-snapshots." >&2
+                    exit 1
+                  }
+                  touch "$out"
+                ''
+              )
+            ) snapshots
             // lib.mapAttrs' (
               name: case:
               lib.nameValuePair "formatting-rejects-${name}" (

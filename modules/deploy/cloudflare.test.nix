@@ -9,12 +9,10 @@
     }:
     let
       inherit (harness)
-        callFlakeWith
         fixtures
         perSystem
         plugins
         raw
-        root
         task
         ;
       tfConfig =
@@ -32,14 +30,7 @@
             packages.site = pkgs.writeTextDir "content.txt" "Independent static assets\n";
           };
       };
-      cloudflare = callFlakeWith {
-        nullkomma.cloudflare = {
-          enable = true;
-          worker = "fixture-site";
-          domain = "example.org";
-          name = "www";
-        };
-      } (root + "/tests/fixtures/quarto");
+      inherit (fixtures) cloudflare;
     in
     {
       nullkomma.nix.unit.tests = {
@@ -84,7 +75,6 @@
         };
       };
       checks = {
-        cloudflare-config = cloudflare.checks.${system}.cloudflare-validate;
         cloudflare-validation-local =
           let
             nix = pkgs.writeShellScriptBin "nix" ''
