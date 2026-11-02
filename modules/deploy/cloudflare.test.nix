@@ -12,7 +12,9 @@
         fixtures
         perSystem
         plugins
+        project
         raw
+        root
         task
         ;
       tfConfig =
@@ -75,29 +77,21 @@
         };
       };
       checks = {
+        # `nk cloudflare-validate` in the fixture; the sandbox has no Nix, so a stub
+        # stands in for `nix build`, whose result the fixture's own check validates.
         cloudflare-validation-local =
           let
             nix = pkgs.writeShellScriptBin "nix" ''
               set -eu
               test "$*" = 'build --no-link --print-out-paths .#deploy.config'
-              echo ${tfConfig (raw bare)}
+              echo ${tfConfig cloudflare}
             '';
           in
-          pkgs.runCommand "nullkomma-cloudflare-validation-local"
-            {
-              nativeBuildInputs = [
-                pkgs.git
-                nix
-              ];
-            }
-            ''
-              export HOME="$TMPDIR"
-              mkdir project
-              cd project
-              git init -q
-              ${task (raw bare) "cloudflare-validate"}
-              touch "$out"
-            '';
+          pkgs.runCommand "nullkomma-cloudflare-validation-local" { nativeBuildInputs = [ nix ]; } ''
+            ${project (root + "/tests/fixtures/cloudflare")}
+            ${task cloudflare "cloudflare-validate"}
+            touch "$out"
+          '';
         cloudflare-devshell =
           (raw {
             imports = [ bare ];
