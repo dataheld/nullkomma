@@ -868,7 +868,8 @@ nullkomma is tested against small example projects ("fixtures") in
 - **Snapshot tests:** `tests/snapshots/<fixture>.md` records each fixture's `nk` menu;
   `snapshot-<fixture>` fails on any change. Review the diff, then run `nk update-snapshots`.
 
-`nk try-fixture <fixture>` sets up a fixture as [Getting started](#getting-started) does,
+`nk build-fixture-interactive <fixture>` builds a fixture for interactive use,
+set up as [Getting started](#getting-started) does,
 in a new Git repository under `/tmp` that uses this checkout, including uncommitted changes,
 and allows its `.envrc`; `cd` into the printed path.
 

@@ -15,8 +15,8 @@
     in
     {
       process-compose.dev.settings.processes = {
-        check = task "Run all checks";
-        all = task "Format and run all checks" // {
+        check = task "Run the checks that are tasks, in the working tree";
+        all = task "Format and run check" // {
           depends_on.check.condition = "process_completed_successfully";
         };
       };

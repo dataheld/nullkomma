@@ -3,8 +3,8 @@
 ```text
 Available recipes:
     [nullkomma]
-    all *args            # Format and run all checks
-    check *args          # Run all checks
+    all *args            # Format and run check
+    check *args          # Run the checks that are tasks, in the working tree
     generate-files *args # Overwrite Git-ignored files generated from Nix
     treefmt *args        # Format and lint all files
     write-files *args    # Write source-of-truth files; keep your edits and report upstream conflicts

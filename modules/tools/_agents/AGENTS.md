@@ -13,8 +13,8 @@ Check your work locally, from fastest to strictest:
    e.g. `nk r-test`.
 1. Before you report a change as done, run `nk all`, then `nix flake check`,
    and fix what fails.
-   `nk all` formats, regenerates files and runs the checks in the working tree.
-   `nix flake check` runs the checks sandboxed, as CI does,
+   `nk all` formats and runs the checks that are tasks, in the working tree.
+   `nix flake check` runs all checks sandboxed, as CI does,
    and sees only files that Git tracks: `git add` new files first.
 
 Skills for nullkomma itself are in `.agents/skills/nk-*`;
