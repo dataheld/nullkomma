@@ -503,7 +503,7 @@
                 ${tasks} graph | grep -qF 'b --> a'
                 # MCP clients stop a stdio server with SIGTERM.
                 mkfifo requests
-                timeout 60 ${tasks} mcp < requests > mcp.out &
+                timeout -k 5 60 ${tasks} mcp < requests > mcp.out &
                 server=$!
                 exec 3> requests
                 printf '%s\n' >&3 \
