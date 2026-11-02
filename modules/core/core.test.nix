@@ -39,6 +39,12 @@
                 command = ''echo b "$@" >> log'';
                 depends_on.a.condition = "process_completed_successfully";
               };
+              inspect = {
+                description = "Inspect";
+                command = "echo inspected";
+                disabled = true;
+                mcp.type = "resource";
+              };
               broken = {
                 description = "Broken";
                 command = "exit 3";
@@ -179,6 +185,7 @@
                 tasks = [
                   "all"
                   "check"
+                  "flake-check"
                   "generate-files"
                   "treefmt"
                   "write-files"
@@ -216,6 +223,7 @@
                 tasks = [
                   "all"
                   "check"
+                  "flake-check"
                   "generate-files"
                   "treefmt"
                   "write-files"
@@ -545,16 +553,22 @@
                   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}' \
                   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
                   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-                  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"b","arguments":{"args":"mcp value"}}}'
-                until grep -q '"id":3' mcp.out; do
+                  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"b","arguments":{"args":"mcp value"}}}' \
+                  '{"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":"process://inspect"}}' \
+                  '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"pc_process_start","arguments":{"name":"preview"}}}'
+                # Servers start with their prerequisites.
+                until [ -e watched ]; do
                   kill -0 "$server"
                   sleep 0.2
                 done
                 kill "$server"
+                rm watched
                 grep -qF '"name":"b"' mcp.out
                 grep -qF '"name":"pc_process_start"' mcp.out
                 if grep -qF '"name":"serve"' mcp.out; then exit 1; fi
                 if grep -qF '"name":"preview"' mcp.out; then exit 1; fi
+                if grep -qF '"name":"inspect"' mcp.out; then exit 1; fi
+                grep -qF 'inspected' mcp.out
                 tail -n 1 log | grep -qx 'b mcp value'
                 touch trigger
                 ${tasks} rerun 'once'

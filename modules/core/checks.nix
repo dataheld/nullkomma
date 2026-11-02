@@ -20,6 +20,12 @@
         all = task "Format, build and run every check" // {
           depends_on.check.condition = "process_completed_successfully";
         };
+        flake-check =
+          task "Run every check sandboxed, on Git-tracked files, as CI does; args go to `nix flake check`"
+          // {
+            # Uses the project's own `nix`, which may differ from Nixpkgs'.
+            command = ''nix flake check "$@"'';
+          };
       };
       checks = lib.mapAttrs (name: _: lib.mkDefault (config.nullkomma.sandbox { process = name; })) (
         lib.defaultTo { } processes.check.depends_on

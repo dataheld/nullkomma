@@ -75,26 +75,34 @@
             }) processes;
           };
           idle = overlay "idle" { processes = lib.mapAttrs (_: _: { is_disabled = true; }) processes; };
-          # One-shot tasks become MCP tools; agents start services with the `pc_*` control tools.
-          # Tools run through `nk-run`, as an MCP call does not start `depends_on`.
+          # One-shot tasks become MCP tools, unless they declare their own `mcp`;
+          # agents start servers with the `pc_*` control tools.
+          # Both run as `nk` does, since an MCP call or `pc_process_start` doesn't start `depends_on`.
           mcp = overlay "mcp" {
             mcp_server = {
               transport = "stdio";
               expose_control_tools = true;
+              timeout = "1h";
             };
-            processes = lib.mapAttrs (name: _: {
-              command = "${lib.getExe run} ${name} @{args}";
-              mcp = {
-                type = "tool";
-                arguments = [
-                  {
-                    name = "args";
-                    type = "string";
-                    description = "Shell words passed to the task, as in `nk ${name} <args>`";
-                  }
-                ];
-              };
-            }) (lib.filterAttrs (name: _: !server name) tasks);
+            processes = lib.mapAttrs (
+              name: _:
+              if server name then
+                { command = "${lib.getExe tree.outputs.package} up ${name} -t=false"; }
+              else
+                {
+                  command = "${lib.getExe run} ${name} @{args}";
+                  mcp = {
+                    type = "tool";
+                    arguments = [
+                      {
+                        name = "args";
+                        type = "string";
+                        description = "Shell words passed to the task, as in `nk ${name} <args>`";
+                      }
+                    ];
+                  };
+                }
+            ) (lib.filterAttrs (name: p: server name || p.description != null && !(p ? mcp)) processes);
           };
           # Graph and MCP commands need a project, but no process started.
           serve =

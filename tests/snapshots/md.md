@@ -5,6 +5,7 @@ Available recipes:
     [nullkomma]
     all *args            # Format, build and run every check
     check *args          # Run the checks that `nix flake check` also runs
+    flake-check *args    # Run every check sandboxed, on Git-tracked files, as CI does; args go to `nix flake check`
     generate-files *args # Regenerate nullkomma's Git-ignored files; entering the dev shell does this too
     treefmt *args        # Format and lint all files
     write-files *args    # Update the files nullkomma committed, keeping your edits
