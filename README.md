@@ -49,9 +49,12 @@ nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#defau
 git add flake.nix .envrc
 nix develop --command nk write-files
 nix develop --command nk generate-files
+git add -A
+git commit -m "add nullkomma"
 direnv allow
 ```
 
+Start from a clean working tree, so the commit holds only nullkomma's files.
 The template adds `flake.nix` and an `.envrc` with `use flake`, keeping existing files;
 `write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
 From now on, entering the directory loads the [development shell](#devshells);

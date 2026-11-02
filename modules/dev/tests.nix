@@ -231,6 +231,8 @@
                 git add -A
                 nix develop --command nk write-files
                 nix develop --command nk generate-files
+                git add -A
+                git commit -qm "add nullkomma"
                 direnv allow
                 echo "cd $scratch"
               '';
