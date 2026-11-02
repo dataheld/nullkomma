@@ -433,7 +433,6 @@ reach the running tree through a per-checkout socket.
 Use process-compose's own settings, such as
 [`watch`](https://f1bonacc1.github.io/process-compose/launcher/#watching-files),
 `readiness_probe` and `availability`.
-A tool that watches files itself, as `quarto preview` does, needs no `watch`.
 
 Tasks and services don't regenerate files from Nix (editor settings, brand assets, Quarto extensions);
 the dev shell does on entry, with `generate-files`, and sandboxed builds use `nullkomma.src`.
@@ -550,7 +549,9 @@ e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
 
 ### `quarto`
 
-Opt-in `quarto` renders the project into `packages.site`; `quarto-preview` serves it locally and reloads on edits.
+Opt-in `quarto` renders the project into `packages.site`; `quarto-preview` formats and renders it,
+serves `_site/` locally with live-server,
+and re-renders and reloads on edits.
 It ignores `.quarto/`, `_site/` and Quarto's generated `.luarc.json`.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`,
 generated into `_extensions/<name>`.

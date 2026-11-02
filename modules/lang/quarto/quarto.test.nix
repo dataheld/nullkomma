@@ -276,6 +276,11 @@
                 printf '%s\n' "$PWD" "$@" > "$CALLED"
               fi
               if [[ "$1" == render ]]; then
+                test ! -e broken
+                # Quarto's intermediates, removed once moved into _site.
+                mkdir -p index_files site_libs
+                touch index.html index_files/x site_libs/x
+                rm -r index.html index_files site_libs
                 mkdir -p _site
                 cp task-override.txt _site/
               fi
@@ -302,19 +307,46 @@
               }
             ) (root + "/tests/fixtures/quarto");
           in
-          pkgs.runCommand "nullkomma-quarto-preview" { nativeBuildInputs = [ pkgs.git ]; } ''
-            export CALLED=$PWD/called
-            mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
-            ${task flake "quarto-preview"} --no-browser
-            printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
-            cmp expected "$CALLED"
-            ${task flake "quarto-render"} --to html
-            printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected
-            cmp expected "$CALLED"
-            grep -qxF 'shared Quarto workflow' ../task-override.txt
-            cmp ../task-override.txt ${flake.packages.${system}.site}/task-override.txt
-            touch $out
-          '';
+          pkgs.runCommand "nullkomma-quarto-preview"
+            {
+              nativeBuildInputs = [
+                pkgs.curl
+                pkgs.git
+              ];
+            }
+            ''
+              export CALLED=$PWD/called
+              mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
+              ${task flake "quarto-render"} --to html
+              printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected
+              cmp expected "$CALLED"
+              grep -qxF 'shared Quarto workflow' ../task-override.txt
+              cmp ../task-override.txt ${flake.packages.${system}.site}/task-override.txt
+              # Serves the last rendered site, even if a render fails,
+              # and re-renders on changes to sources only.
+              touch ../broken
+              PC_DISABLE_TUI=1 ${task flake "quarto-preview"} > preview.out 2>&1 &
+              server=$!
+              (sleep 60; kill "$server") > /dev/null 2>&1 &
+              watchdog=$!
+              until url=$(grep -o 'http://127.0.0.1:[0-9]*' preview.out); do
+                kill -0 "$server"
+                sleep 0.2
+              done
+              curl -fsS "$url/task-override.txt" | grep -qxF 'shared Quarto workflow'
+              test "$(curl -s -o /dev/null -w '%{http_code}' "$url/_site/task-override.txt")" = 404
+              rm "$CALLED" ../broken
+              until [ -e "$CALLED" ]; do
+                kill -0 "$server"
+                sleep 0.2
+              done
+              sleep 1
+              rm "$CALLED"
+              sleep 1
+              test ! -e "$CALLED"
+              kill "$server" "$watchdog"
+              touch $out
+            '';
       };
     };
 }
