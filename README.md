@@ -11,19 +11,13 @@ boilerplate experiment 🧪.
 
 > nullkommanix [ɪn ˈnʊl ˌkɔma ˈnɪçt͡s] noun German colloquialism (translation: in next to time).
 
-An ideal environment to build and develop software should meet these criteria:
+An ideal development environment has these criteria:
 
-1. 🤌 Extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself): It should have as small a footprint in a user's source (under `git`) as possible.
-  The anti-pattern to avoid here is [the makefile effect](https://blog.yossarian.net/2025/01/10/Be-aware-of-the-Makefile-effect), where copy and pasted boilerplate causes technical debt and drift between projects.
-  Ideally, a user should only have to declare "I want nullkomma version x.x.x with support for languages foo and bar".
-  Radically standardizing the development environment reduces the fixed costs of any given project and clarifies separation of concerns.
-1. 🫥 Maximum transparency, minimal [indirection](https://en.wikipedia.org/wiki/Indirection): It should have the least amount of additional abstraction over existing tooling as possible.
-  Ideally, you could use each part of nullkomma by just using it's upstream tools directly, without any changes necessary.
-  The anti-pattern here "wrapperities", a sub-species of "speculative generality", where the benefits of abstractions do not justify their costs.
-  Uneconomical abstractions in development tooling are especially costly, because they layer any bugs or leakage they have on top of much of project's unrelated codebase.
-1. 📋 Comprehensive quality gates: It should enforce as many checks as possible, from linting to integration tests.
-  Ideally, a project would "know" what it means to be in a good state, and it would expose all such checks as well as their feedback in a programmatic way (including to agents).
-  The anti-pattern here is missing or poorly discoverable quality gates.
+| Criterion maximized                                                                       | Design goal                                                                                                             | Positive effects                                                                    | Antipatterns avoided                                                                                                                                               |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 🤌 Extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)                     | Minimize the footprint in a project's version-controlled source; declare only a tooling version and required languages. | Lower fixed costs per project and clearer separation of concerns.                   | [The Makefile effect](https://blog.yossarian.net/2025/01/10/Be-aware-of-the-Makefile-effect): copied boilerplate causes technical debt and drift between projects. |
+| 🫥 Maximum transparency, minimal [indirection](https://en.wikipedia.org/wiki/Indirection) | Minimize additional abstraction over existing tools.                                                                    | Use upstream tools directly, without changes.                                       | Wrappers whose abstraction costs exceed their benefits, adding bugs and abstraction leaks across a project.                                                        |
+| 📋 Comprehensive quality gates                                                            | Enforce as many checks as possible, from linting to integration tests.                                                  | Expose all project checks and their feedback programmatically, including to agents. | Missing or poorly discoverable quality gates.                                                                                                                      |
 
 Unfortunately, these criteria sometimes conflict.
 In fact, you can only maximize two ouf three, forming a kind of ["impossible trinity"](https://en.wikipedia.org/wiki/Impossible_trinity).
@@ -956,8 +950,6 @@ perSystem.nullkomma.tasks.refresh-vendored-example = {
 ```
 
 These are nullkomma's own maintenance tasks, not tasks added to consumer projects.
-
-
 
 ## Nullkomma in the Context of dataheld's Infrastructure
 
