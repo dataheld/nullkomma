@@ -26,6 +26,7 @@
       } fixture;
       plain = callFlakeWith { nullkomma.r.shiny.enable = lib.mkForce false; } fixture;
       local = callFlakeWith { nullkomma.r.shiny.port = 38381; } fixture;
+      mcpServer = (perSystem local).nullkomma.agents.mcpServers.r;
       heavy = [
         "shiny"
         "shinytest2"
@@ -87,6 +88,7 @@
               nativeBuildInputs = [
                 pkgs.curl
                 pkgs.git
+                pkgs.jq
                 pkgs.lsof
               ];
               __darwinAllowLocalNetworking = true;
@@ -162,6 +164,29 @@
                 sleep 1
               done
               diff <(printf '%s\n' http://127.0.0.1:38381 http://127.0.0.1:38382) <(sort "$TMPDIR/opened")
+
+              call() {
+                jq -nc --argjson id "$1" --arg name "$2" --argjson arguments "$3" \
+                  '{jsonrpc: "2.0", $id, method: "tools/call", params: {$name, $arguments}}'
+              }
+              mcp() {
+                {
+                  echo '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"check","version":"0"}}}'
+                  printf '%s\n' "$@"
+                  sleep 10
+                } | ${lib.escapeShellArgs ([ mcpServer.command ] ++ mcpServer.args)} > mcp.jsonl
+              }
+              mcp "$(call 1 btw_tool_run_r '{"_intent":"check","code":"1 + 1"}')" \
+                "$(call 2 btw_tool_docs_help_page '{"_intent":"check","topic":"runApp","package_name":"shiny"}')"
+              jq -e 'select(.id == 1).result.content[0].text == "[1] 2"' mcp.jsonl
+              jq -e 'select(.id == 2).result.content[0].text | contains("Run Shiny Application")' mcp.jsonl
+              if ${mcpServer.command} -e 'quit(status = packageVersion("mcptools") < "1.0.1")'; then
+                mcp "$(call 1 list_r_sessions '{}')" \
+                  "$(call 2 select_r_session '{"session":1}')" \
+                  "$(call 3 btw_tool_run_r '{"_intent":"check","code":"app_function"}')"
+                jq -e 'select(.id == 1).result.content[0].text | split("\n") | length == 2' mcp.jsonl
+                jq -e 'select(.id == 3).result.content[0].text | test("\"(app|greeting_app)\"")' mcp.jsonl
+              fi
               stop
               touch "$out"
             '';

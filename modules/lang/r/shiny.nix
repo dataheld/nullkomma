@@ -89,10 +89,13 @@
                 ${lib.optionalString dev ''
                   # Rscript prints deferred warnings only once runApp() returns, which it never does.
                   # Restarts replace Shiny's autoreload, which devmode() would turn on.
-                  options(warn = 1, shiny.autoreload = FALSE)
+                  options(warn = 1, shiny.autoreload = FALSE, shiny.reactlog = TRUE)
                   shiny::devmode()
+                  # Lets the r MCP server's agents inspect this app; earlier mcptools exposes it to all local users.
+                  if (packageVersion("mcptools") >= "1.0.1") mcptools::mcp_session()
                 ''}
-                entrypoint <- getExportedValue(package, ${builtins.toJSON function})
+                app_function <- ${builtins.toJSON function}
+                entrypoint <- getExportedValue(package, app_function)
                 if (!is.function(entrypoint)) {
                   stop("${function} must name an exported function")
                 }

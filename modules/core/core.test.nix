@@ -487,6 +487,7 @@
                   [
                     "nullkomma"
                     "playwright"
+                    "r"
                   ]
                 ];
               };
