@@ -3,7 +3,7 @@
 ```text
 Available recipes:
     [gitleaks]
-    secret-history *args # Scan Git history for secrets
+    gitleaks-git *args   # Scan Git history for secrets
 
     [jscpd]
     jscpd *args          # Find duplicated code
@@ -22,6 +22,6 @@ Available recipes:
     write-files *args    # Write source-of-truth files; keep your edits and report upstream conflicts
 
     [quarto]
-    build-site *args     # Render the Quarto site
-    preview *args        # Serve the site on localhost, re-rendering and reloading on changes
+    quarto-preview *args # Serve the site on localhost, re-rendering and reloading on changes
+    quarto-render *args  # Render the Quarto site
 ```

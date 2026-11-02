@@ -85,7 +85,7 @@
                   disabled = true;
                 })
                 {
-                  deploy = {
+                  cloudflare-deploy = {
                     description = "Publish the site to Cloudflare";
                     text = ''exec nix run .#deploy -- "$@"'';
                   };

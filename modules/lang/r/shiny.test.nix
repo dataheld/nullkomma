@@ -54,13 +54,14 @@
           expr = {
             app = fixtures.r.apps.${system} ? shiny;
             task = (perSystem fixtures.r).process-compose.dev.settings.processes ? shiny;
-            taskAfter = lib.attrNames (perSystem local).process-compose.dev.settings.processes.shiny.depends_on;
+            taskAfter = lib.attrNames (perSystem local)
+              .process-compose.dev.settings.processes.r-run-app.depends_on;
             dependency = lib.elem "shiny" (perSystem fixtures.r).nullkomma.r.packages;
           };
           expected = {
             app = false;
             task = false;
-            taskAfter = [ "r-namespace" ];
+            taskAfter = [ "r-document-namespace" ];
             dependency = false;
           };
         };
@@ -112,7 +113,7 @@
                 else
                   mkdir -p man
                   printf 'keep\n' > man/sentinel
-                  command=(${task local "shiny"})
+                  command=(${task local "r-run-app"})
                   expected='working-tree Shiny fixture'
                 fi
                 : > server.log

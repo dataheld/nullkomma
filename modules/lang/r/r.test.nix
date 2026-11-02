@@ -51,7 +51,7 @@
         nullkomma.cloudflare = cloudflare;
         perSystem.process-compose.dev.settings.processes = {
           workflow-asset.command = "mkdir -p pkgdown/assets && echo 'shared R workflow' > pkgdown/assets/workflow.txt";
-          r-pkgdown.depends_on.workflow-asset.condition = "process_completed_successfully";
+          r-build-site.depends_on.workflow-asset.condition = "process_completed_successfully";
         };
       } fixture;
       # A package site as nullkomma's own brand publishes it.
@@ -173,14 +173,14 @@
               defaults = processes fixtures.r;
             in
             {
-              namespace = defaults.r-namespace.watch;
+              namespace = defaults.r-document-namespace.watch;
               test = defaults.r-test.watch.paths;
               enabled = lib.filter (name: !defaults.${name}.disabled) [
-                "r-namespace"
+                "r-document-namespace"
                 "r-document"
                 "r-test"
                 "r-check"
-                "r-pkgdown"
+                "r-build-site"
               ];
               nested = (processes nested).r-test.working_dir;
               ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
@@ -205,7 +205,7 @@
               }
             ];
             enabled = [
-              "r-namespace"
+              "r-document-namespace"
               "r-test"
             ];
             nested = "./r/";
@@ -228,7 +228,7 @@
             in
             lib.elem "roxygen2" minimal.nullkomma.r.packages
             && minimal.process-compose.dev.settings.processes ? r-document
-            && minimal.checks ? r-namespace;
+            && minimal.checks ? r-document-namespace;
           expected = true;
         };
         testRNamespaceTaskIsSeparate = {
@@ -240,28 +240,28 @@
               after = name: lib.attrNames (lib.defaultTo { } processes.${name}.depends_on);
             in
             {
-              namespace = after "r-namespace";
+              namespace = after "r-document-namespace";
               document = after "r-document";
               documentRoclets = lib.hasInfix ''setdiff(roxygen2::load_options()[["roclets"]], "namespace")'' processes.r-document.command;
               test = after "r-test";
-              coverage = after "r-coverage";
+              coverage = after "r-test-coverage";
               check = after "r-check";
-              pkgdown = after "r-pkgdown";
+              pkgdown = after "r-build-site";
               nkCheck = after "check";
             };
           expected = {
             namespace = [ ];
-            document = [ "r-namespace" ];
+            document = [ "r-document-namespace" ];
             documentRoclets = true;
-            test = [ "r-namespace" ];
-            coverage = [ "r-namespace" ];
+            test = [ "r-document-namespace" ];
+            coverage = [ "r-document-namespace" ];
             check = [ "r-document" ];
             pkgdown = [ "r-document" ];
             nkCheck = [
               "jscpd"
+              "r-build-site"
               "r-check"
-              "r-namespace"
-              "r-pkgdown"
+              "r-document-namespace"
               "r-test"
             ];
           };
@@ -563,8 +563,8 @@
           # Language tasks must not overwrite files generated on shell entry.
           printf 'local asset\n' > pkgdown/assets/local-only.txt
           # Repeated builds must not trip over read-only assets copied from the store.
-          ${task branded "r-pkgdown"}
-          ${task branded "r-pkgdown"}
+          ${task branded "r-build-site"}
+          ${task branded "r-build-site"}
           cmp pkgdown/assets/local-only.txt docs/local-only.txt
           cmp pkgdown/assets/workflow.txt docs/workflow.txt
           grep -qxF 'shared R workflow' docs/workflow.txt
@@ -577,19 +577,19 @@
           export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
           git init -q
           printf 'destination: yaml-destination\n' >> _pkgdown.yml
-          ${task customDestination "r-pkgdown"} --preview
+          ${task customDestination "r-build-site"} --preview
           # browseURL doesn't wait for the browser.
           for _ in {1..50}; do test -f "$TMPDIR/opened" && break; sleep 0.1; done
           grep -qF "$PWD/public/index.html" "$TMPDIR/opened"
           test ! -e yaml-destination
         '';
-        r-coverage =
+        r-test-coverage =
           let
             flake = callFlakeWith { nullkomma.r.coverage.enable = true; } fixture;
           in
-          check "r-coverage" ''
+          check "r-test-coverage" ''
             git init -q
-            ${task flake "r-coverage"}
+            ${task flake "r-test-coverage"}
             grep -q '<coverage ' coverage.xml
             grep -q 'hello.R' coverage.xml
           '';
@@ -597,7 +597,7 @@
           git init -q
           cp man/hello.Rd "$TMPDIR/hello.Rd"
           printf '# Generated by roxygen2: do not edit by hand\n' > NAMESPACE
-          ${task fixtures.r "r-namespace"}
+          ${task fixtures.r "r-document-namespace"}
           grep -q '^export(hello)$' NAMESPACE
           grep -q '^importFrom(stats,setNames)$' NAMESPACE
           cmp "$TMPDIR/hello.Rd" man/hello.Rd
@@ -627,7 +627,7 @@
         r-rejects-drift = check "r-rejects-drift" ''
           cp NAMESPACE "$TMPDIR/NAMESPACE"
           printf '# Generated by roxygen2: do not edit by hand\n' > NAMESPACE
-          fails 'NAMESPACE is stale' ${task fixtures.r "r-namespace"} --check
+          fails 'NAMESPACE is stale' ${task fixtures.r "r-document-namespace"} --check
           cp "$TMPDIR/NAMESPACE" NAMESPACE
           # Tests check the working tree, not the flake's source.
           echo 'stop("local-r-source-marker")' >> R/hello.R

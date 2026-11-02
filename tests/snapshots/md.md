@@ -3,7 +3,7 @@
 ```text
 Available recipes:
     [gitleaks]
-    secret-history *args # Scan Git history for secrets
+    gitleaks-git *args   # Scan Git history for secrets
 
     [jscpd]
     jscpd *args          # Find duplicated code

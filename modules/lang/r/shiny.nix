@@ -107,14 +107,14 @@
               program = lib.getExe launcher;
               meta.description = "Run the project's exported Shiny app";
             };
-            process-compose.dev.settings.processes.shiny = {
+            process-compose.dev.settings.processes.r-run-app = {
               namespace = "r";
               description = "Serve the working-tree Shiny app with pkgload";
               working_dir = "./${cfg.prefix}";
-              # r-namespace's watch restarts the server on R changes.
-              depends_on.r-namespace.condition = "process_completed_successfully";
+              # r-document-namespace's watch restarts the server on R changes.
+              depends_on.r-document-namespace.condition = "process_completed_successfully";
               command = pkgs.writeShellApplication {
-                name = "shiny";
+                name = "r-run-app";
                 runtimeInputs = [ config.nullkomma.r.package ];
                 text = ''exec Rscript --vanilla ${script (pkgload ''"."'')} "$@"'';
               };

@@ -300,7 +300,7 @@
               mkdir project
               cd project
               git init -q
-              ${task flake "deploy"}
+              ${task flake "cloudflare-deploy"}
               test -f "$CALLED"
               ${task flake "terraform"}
               printf '%s\n' plan > expected

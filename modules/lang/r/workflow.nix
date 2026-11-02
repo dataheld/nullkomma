@@ -49,7 +49,7 @@
         pkgdown.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Build a pkgdown website with r-pkgdown (`--preview` opens it in a browser) and packages.site, both checked by check.";
+          description = "Build a pkgdown website with r-build-site (`--preview` opens it in a browser) and packages.site, both checked by check.";
         };
         pkgdown.privacy.page = lib.mkOption {
           type = lib.types.nullOr (lib.types.strMatching "[^/\n]+[.]html");
@@ -70,7 +70,7 @@
           type = lib.types.bool;
           default = lib.any (p: p.package == "covr") (cfg.locked.packages or [ ]);
           defaultText = lib.literalMD "whether covr is in pkg.lock";
-          description = "Provide r-coverage, writing a local Cobertura coverage.xml report; no uploads or coverage threshold.";
+          description = "Provide r-test-coverage, writing a local Cobertura coverage.xml report; no uploads or coverage threshold.";
         };
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption {
@@ -137,7 +137,7 @@
             after = name: { ${name}.condition = "process_completed_successfully"; };
             rscript = "${pcfg.package}/bin/Rscript --vanilla";
             pkgdown = pkgs.writeShellApplication {
-              name = "r-pkgdown";
+              name = "r-build-site";
               runtimeInputs = [
                 pcfg.package
                 pkgs.pandoc
@@ -206,7 +206,7 @@
               '';
             };
             namespace = pkgs.writeShellApplication {
-              name = "r-namespace";
+              name = "r-document-namespace";
               runtimeInputs = [ pcfg.package ];
               text = ''
                 if [[ "''${1-}" == --check ]]; then
@@ -216,7 +216,7 @@
                 fi
                 Rscript --vanilla -e 'roxygen2::roxygenise(roclets = "namespace")'
                 if [[ -v original ]] && ! diff -u "$original" NAMESPACE; then
-                  echo "NAMESPACE is stale; run nk r-namespace and commit NAMESPACE." >&2
+                  echo "NAMESPACE is stale; run nk r-document-namespace and commit NAMESPACE." >&2
                   exit 1
                 fi
               '';
@@ -225,7 +225,7 @@
           {
             process-compose.dev.settings.processes = lib.mkMerge [
               {
-                r-namespace = r // {
+                r-document-namespace = r // {
                   description = "Generate NAMESPACE with roxygen2; --check fails if it was stale";
                   command = namespace;
                   # The dev loop: R changes regenerate NAMESPACE, then restart its dependents.
@@ -237,15 +237,15 @@
                 };
                 r-document = r // {
                   description = "Generate R manuals and NAMESPACE with roxygen2";
-                  depends_on = after "r-namespace";
+                  depends_on = after "r-document-namespace";
                   command = "${rscript} -e 'roxygen2::roxygenise(roclets = setdiff(roxygen2::load_options()[[\"roclets\"]], \"namespace\"))'";
                 };
-                check.depends_on = after "r-namespace";
+                check.depends_on = after "r-document-namespace";
               }
               (lib.mkIf cfg.testthat.enable {
                 r-test = r // {
                   description = "Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package";
-                  depends_on = after "r-namespace";
+                  depends_on = after "r-document-namespace";
                   command = test;
                   disabled = false;
                   # testthat writes `_snaps/*.new.*` when snapshots fail.
@@ -259,24 +259,24 @@
                 check.depends_on = after "r-test";
               })
               (lib.mkIf cfg.pkgdown.enable {
-                r-pkgdown = r // {
+                r-build-site = r // {
                   description = "Build the pkgdown website; --preview opens it in a browser";
                   depends_on = after "r-document";
                   command = pkgdown;
                 };
-                check.depends_on = after "r-pkgdown";
+                check.depends_on = after "r-build-site";
               })
               (lib.mkIf cfg.coverage.enable {
-                r-coverage = r // {
+                r-test-coverage = r // {
                   description = "Write a Cobertura test coverage report to coverage.xml";
-                  depends_on = after "r-namespace";
+                  depends_on = after "r-document-namespace";
                   command = "${rscript} -e 'covr::to_cobertura(covr::package_coverage(), filename = \"coverage.xml\")'";
                 };
               })
             ];
             checks = {
-              r-namespace = config.nullkomma.sandbox {
-                process = "r-namespace";
+              r-document-namespace = config.nullkomma.sandbox {
+                process = "r-document-namespace";
                 args = [ "--check" ];
               };
               r-test = lib.mkIf cfg.testthat.enable (
@@ -285,12 +285,12 @@
                   args = [ "--installed" ];
                 }
               );
-              r-pkgdown = lib.mkIf cfg.pkgdown.enable config.packages.site;
+              r-build-site = lib.mkIf cfg.pkgdown.enable config.packages.site;
             };
             packages.site = lib.mkIf cfg.pkgdown.enable (
               lib.mkDefault (
                 config.nullkomma.sandbox {
-                  process = "r-pkgdown";
+                  process = "r-build-site";
                   output = "${prefix}${destination}";
                 }
               )

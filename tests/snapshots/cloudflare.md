@@ -3,12 +3,12 @@
 ```text
 Available recipes:
     [cloudflare]
+    cloudflare-deploy *args   # Publish the site to Cloudflare
     cloudflare-validate *args # Validate the Cloudflare Terraform configuration
-    deploy *args              # Publish the site to Cloudflare
     terraform *args           # Plan Cloudflare changes, or run terraform <command> [args]
 
     [gitleaks]
-    secret-history *args      # Scan Git history for secrets
+    gitleaks-git *args        # Scan Git history for secrets
 
     [jscpd]
     jscpd *args               # Find duplicated code
