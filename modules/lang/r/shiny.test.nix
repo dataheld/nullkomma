@@ -113,7 +113,7 @@
                 else
                   mkdir -p man
                   printf 'keep\n' > man/sentinel
-                  command=(${task local "r-run-app"})
+                  command=(env PC_DISABLE_TUI=1 ${task local "r-run-app"})
                   expected='working-tree Shiny fixture'
                 fi
                 : > server.log
@@ -122,7 +122,7 @@
                 trap 'kill "$pid"; wait "$pid" || true' EXIT
                 ready=false
                 for attempt in {1..60}; do
-                  url=$(sed -n 's/^Listening on \(http:\/\/127[.]0[.]0[.]1:[0-9]*\).*$/\1/p' server.log)
+                  url=$(sed -n 's/^.*Listening on \(http:\/\/127[.]0[.]0[.]1:[0-9]*\).*$/\1/p' server.log)
                   if [[ -n "$url" ]] && curl --noproxy '*' --fail --silent "$url" > response.html; then
                     grep -qF "$expected" response.html
                     if [[ "$mode" == working-tree ]]; then

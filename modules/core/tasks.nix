@@ -3,6 +3,8 @@
 # `--unsorted` lists groups in source order: nullkomma, custom, then plugins.
 # Each recipe runs its task once, as `nullkomma.sandbox` does in builds:
 # prerequisites (`depends_on`) with `up`, then the task with its arguments.
+# Servers, enabled tasks without a `watch` of their own, run with `up <name>` instead,
+# so the watches of their prerequisites rerun them on changes.
 { inputs, ... }:
 {
   framework =
@@ -53,6 +55,7 @@
               inherit name;
               inherit (p) description;
               group = group p;
+              server = p.disabled != true && !(p ? watch);
             }) tasks
           );
           overlay = name: settings: pkgs.writeText "process-compose-${name}.json" (builtins.toJSON settings);
@@ -142,12 +145,25 @@
               default:
                   @just --justfile {{justfile()}} --list --unsorted
             ''
-            + lib.concatMapStrings (t: ''
+            + lib.concatMapStrings (
+              t:
+              ''
 
-              [group(${builtins.toJSON t.group}), doc(${builtins.toJSON t.description})]
-              ${t.name} *args:
-                  @exec ${lib.getExe run} ${t.name} "$@"
-            '') recipes
+                [group(${builtins.toJSON t.group}), doc(${builtins.toJSON t.description})]
+              ''
+              + (
+                if t.server then
+                  ''
+                    ${t.name}:
+                        @exec ${lib.getExe tree.outputs.package} up ${t.name}
+                  ''
+                else
+                  ''
+                    ${t.name} *args:
+                        @exec ${lib.getExe run} ${t.name} "$@"
+                  ''
+              )
+            ) recipes
             + ''
 
               [group("nullkomma"), doc("Serve the tasks as MCP tools over stdio, for agents")]

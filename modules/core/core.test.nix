@@ -46,6 +46,22 @@
                 disabled = true;
               };
               serve.command = "sleep 60";
+              watched = {
+                command = "echo w >> watched";
+                disabled = true;
+                watch.paths = [ { path = "trigger"; } ];
+              };
+              rerun = {
+                description = "Rerun";
+                command = ''echo r "$@" >> log'';
+                watch.paths = [ { path = "trigger"; } ];
+              };
+              preview = {
+                namespace = "demo";
+                description = "Preview";
+                command = "sleep 60";
+                depends_on.watched.condition = "process_completed_successfully";
+              };
             };
           };
           privacy =
@@ -526,6 +542,22 @@
                 grep -qF '"name":"pc_process_start"' mcp.out
                 if grep -qF '"name":"serve"' mcp.out; then exit 1; fi
                 tail -n 1 log | grep -qx 'b mcp value'
+                touch trigger
+                ${tasks} rerun 'once'
+                tail -n 1 log | grep -qx 'r once'
+                # Servers run with their prerequisites' watches.
+                PC_DISABLE_TUI=1 ${tasks} preview > preview.out 2>&1 &
+                server=$!
+                until [ -e watched ]; do
+                  kill -0 "$server"
+                  sleep 0.2
+                done
+                echo >> trigger
+                until [ "$(wc -l < watched)" -eq 2 ]; do
+                  kill -0 "$server"
+                  sleep 0.2
+                done
+                kill "$server"
                 touch $out
               '';
             neovim-config =

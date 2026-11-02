@@ -384,6 +384,8 @@ A task is a process with a `description` in the [`dev` tree](#processtrees);
 `taskRunners.<system>.default.tasks` lists them, following [up]'s schema.
 `nk <name>` runs the process once and in the foreground, as `process-compose run` does,
 after its `depends_on` prerequisites; it fails when any of them fails.
+A server, an enabled process without a `watch` of its own, such as `quarto-preview`,
+runs with `process-compose up <name>` instead, so that the watches of its prerequisites keep it current.
 Builds use the same processes: `nullkomma.sandbox { process, args ? [ ], output ? null }`
 runs one in a writable copy of the flake's source (`nullkomma.src`), for [checks](#checks) and packages:
 
@@ -750,7 +752,7 @@ nullkomma.r.shiny = {
 
 `nix run .#shiny` installs your package from the flake's source, calls the function and serves the app.
 Its runtime is R, Shiny and your package's `Depends`/`Imports` closure: no `Suggests`, `Config/Needs/*`, `extraPackages` or pkgload.
-The `r-run-app` service (`process-compose up r-run-app`) instead loads the working-tree package with pkgload, without installing it,
+The `r-run-app` service (`nk r-run-app`) instead loads the working-tree package with pkgload, without installing it,
 and restarts when `r-document-namespace` reruns.
 Ship assets in `inst/` (find them with `system.file()`) and write data outside the installed package.
 
