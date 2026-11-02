@@ -25,6 +25,12 @@ But if you *can* relax one of the criteria, there is already great tooling out t
 
 ![A triangle comparing DRY, quality gates and transparency across development environments.](assets/development-environment-triangle.svg)
 
+Points nearer a corner give more weight to that criterion;
+points near an edge emphasize the two criteria at its ends.
+The examples compare [devenv](https://devenv.sh/),
+[devshell](https://github.com/numtide/devshell),
+and [flake-parts](https://flake.parts/) with [treefmt](https://treefmt.com/)
+against short and long vanilla flakes.
 Positions illustrate relative emphasis in representative configurations,
 not measured scores or limits on how these tools can be configured.
 
