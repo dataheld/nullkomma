@@ -11,12 +11,6 @@
       cfg = config.nullkomma.quarto;
       inherit (config.nullkomma) privacy;
       prefix = import ../../../lib/prefix.nix lib self cfg.root;
-      ignored = [
-        ".quarto/"
-        "_site/"
-        # Quarto's Lua editor hints, pointing at its store path.
-        ".luarc.json"
-      ];
       privacyPage = ''
 
         ---
@@ -94,7 +88,12 @@
           "${prefix}_site/**"
           "${prefix}.luarc.json"
         ];
-        nullkomma.gitignore = ignored;
+        nullkomma.gitignore = [
+          ".quarto/"
+          "_site/"
+          # Quarto's Lua editor hints, pointing at its store path.
+          ".luarc.json"
+        ];
         perSystem =
           { config, pkgs, ... }:
           let
@@ -116,34 +115,10 @@
             process-compose.dev.settings.processes = {
               quarto-render = quartoProcess "Render the Quarto site" "render" // {
                 disabled = true;
-                watch.paths = [
-                  {
-                    path = ".";
-                    # Quarto writes `<page>.html`, `<page>_files/` and `site_libs/`
-                    # beside the sources before moving them into `_site/`.
-                    exclude = map (lib.removeSuffix "/") ignored ++ [
-                      "*.html"
-                      "*_files"
-                      "site_libs"
-                    ];
-                  }
-                ];
               };
               all.depends_on.quarto-render.condition = "process_completed_successfully";
-              # Not `quarto preview`: it renders a page only when it is opened,
-              # and misses changes to included files (quarto-dev/quarto-cli#2795).
-              quarto-preview = {
-                namespace = "quarto";
-                description = "Format, lint and render the site, then serve it on localhost; re-render and reload on changes";
-                working_dir = "./${prefix}";
-                # live-server fails if `_site` does not exist yet.
-                command = "mkdir -p _site && ${lib.getExe pkgs.live-server} _site --host 127.0.0.1 --open";
-                depends_on = {
-                  treefmt.condition = "process_completed";
-                  # Serve the last site even if a render fails.
-                  quarto-render.condition = "process_completed";
-                };
-              };
+              # Quarto watches the working tree and live-reloads the browser itself.
+              quarto-preview = quartoProcess "Serve the site on localhost, re-rendering and reloading on changes" "preview";
             };
             packages.site = lib.mkDefault (
               config.nullkomma.sandbox {
