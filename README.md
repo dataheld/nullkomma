@@ -761,6 +761,8 @@ These load the working-tree package with pkgload, without installing it,
 restart when `r-document-namespace` reruns, and the open pages then reload.
 Each app is ready when Shiny logs that it listens, restarts when it fails,
 and stops with SIGINT, so `shiny::onStop()` callbacks run.
+They run in [Shiny's developer mode](https://shiny.posit.co/r/reference/shiny/latest/devmode.html),
+without its autoreload, and print warnings as they occur (`options(warn = 1)`).
 `r-run-app` opens each app once with R's `browseURL()`; set `R_BROWSER=true` to not open them.
 Ship assets in `inst/` (find them with `system.file()`) and write data outside the installed package.
 

@@ -100,7 +100,8 @@
               fails 'must return a shiny.appobj' ${invalid "not_an_app"}
               fails 'is not an exported object' ${invalid "internal_app"}
               git init -q
-              substituteInPlace R/app.R --replace-fail 'nullkomma Shiny fixture' 'working-tree Shiny fixture'
+              substituteInPlace R/app.R --replace-fail 'nullkomma Shiny fixture' 'working-tree Shiny fixture' \
+                --replace-fail 'ui = shiny::fluidPage(shiny::h1' 'ui = function(req) shiny::fluidPage(warning("greeting requested"), shiny::h1'
               mkdir sub
               cd sub
               export R_LIBS_SITE="${pkgs.rPackages.pkgload}/library:${pkgs.rPackages.testthat}/library"
@@ -136,8 +137,8 @@
 
               serve ${enabled.apps.${system}.shiny.program}
               await http://127.0.0.1:38380 'nullkomma Shiny fixture'
-              if grep -qF shiny:disconnected response.html; then
-                echo 'The installed app must not reload itself' >&2
+              if grep -qE 'shiny:disconnected|__SHINY_DEV_MODE__' response.html; then
+                echo 'The installed app must run without development features' >&2
                 exit 1
               fi
               stop
@@ -147,7 +148,13 @@
               serve env PC_DISABLE_TUI=1 ${task local "r-run-app"}
               await http://127.0.0.1:38381 'working-tree Shiny fixture'
               grep -qF shiny:disconnected response.html
+              grep -qF __SHINY_DEV_MODE__ response.html
+              if grep -qF shiny-autoreload.js response.html; then
+                echo "Shiny's autoreload must stay off; restarts reload the apps" >&2
+                exit 1
+              fi
               await http://127.0.0.1:38382 'nullkomma greeting'
+              grep -qE 'Warning.*greeting requested' server.log
               test -z "$(find man -type f -name '*.Rd' -print -quit)"
               grep -qx keep man/sentinel
               for attempt in {1..30}; do

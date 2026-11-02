@@ -81,10 +81,16 @@
                 setup,
                 function,
                 port,
-                reload ? false,
+                dev ? false,
               }:
               pkgs.writeText "shiny.R" ''
                 ${setup}
+                ${lib.optionalString dev ''
+                  # Rscript prints deferred warnings only once runApp() returns, which it never does.
+                  # Restarts replace Shiny's autoreload, which devmode() would turn on.
+                  options(warn = 1, shiny.autoreload = FALSE)
+                  shiny::devmode()
+                ''}
                 entrypoint <- getExportedValue(package, ${builtins.toJSON function})
                 if (!is.function(entrypoint)) {
                   stop("${function} must name an exported function")
@@ -93,7 +99,7 @@
                 if (!inherits(app, "shiny.appobj")) {
                   stop("${function}() must return a shiny.appobj")
                 }
-                ${lib.optionalString reload ''
+                ${lib.optionalString dev ''
                   handler <- app$httpHandler
                   script <- paste(c("<script>", readLines("${./live-reload.js}"), "</script></head>"), collapse = "\n")
                   app$httpHandler <- function(req) {
@@ -144,7 +150,7 @@
                       setup = pkgload ''"."'';
                       inherit function;
                       port = if cfg.shiny.port == null then null else cfg.shiny.port + i;
-                      reload = true;
+                      dev = true;
                     }
                   }";
                 };
