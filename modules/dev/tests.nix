@@ -296,10 +296,14 @@
                   echo "Consumer with invalid ${case.file} unexpectedly passed nix flake check" >&2
                   exit 1
                 fi
-                cat "$scratch/failure.log"
                 ${lib.concatMapStrings (entry: ''
-                  grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log"
+                  grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log" || {
+                    cat "$scratch/failure.log"
+                    echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed without: ${entry}"} >&2
+                    exit 1
+                  }
                 '') case.expect}
+                echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed nix flake check, as expected"}
                 rm "$scratch/project/${case.file}"
               '') (lib.attrValues rejects);
             };
