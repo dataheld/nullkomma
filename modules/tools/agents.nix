@@ -28,7 +28,10 @@
     in
     {
       config = lib.mkIf cfg.enable {
-        nullkomma.agents.skills.nk-resolve-file-conflicts = ./_agents/nk-resolve-file-conflicts;
+        nullkomma.agents.skills = {
+          nk-audit-output = ./_agents/nk-audit-output;
+          nk-resolve-file-conflicts = ./_agents/nk-resolve-file-conflicts;
+        };
         perSystem =
           { config, ... }:
           {

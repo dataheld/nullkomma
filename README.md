@@ -517,7 +517,8 @@ Instructs coding agents, through three kinds of files:
   so they always match your `flake.lock`.
   Plugins and you add them with the top-level `nullkomma.agents.skills.<name>`,
   a directory with a `SKILL.md`;
-  nullkomma's own are named `nk-*`, for example `nk-upgrade` from the `nix` plugin.
+  nullkomma's own are named `nk-*`, for example `nk-upgrade` from the `nix` plugin,
+  or `nk-audit-output`, which runs all tasks and fixes the causes of warnings and noise in their output.
 - `.mcp.json`, generated from `perSystem.nullkomma.agents.mcpServers.<name>`,
   where plugins and you add [MCP] servers, for example the framework's `nullkomma` from [`nk mcp`](#taskrunners).
   The [`vscode`](#vscode-and-neovim) plugin writes them to `.vscode/mcp.json` too.

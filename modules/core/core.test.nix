@@ -167,6 +167,11 @@
                       directory = true;
                       sections = [ ];
                     };
+                    ".agents/skills/nk-audit-output" = {
+                      mode = "generated";
+                      directory = true;
+                      sections = [ ];
+                    };
                     ".agents/skills/nk-resolve-file-conflicts" = {
                       mode = "generated";
                       directory = true;
@@ -394,6 +399,7 @@
                   "result"
                   "result-*"
                   ".direnv/"
+                  "/.agents/skills/nk-audit-output"
                   "/.agents/skills/nk-resolve-file-conflicts"
                   "/.agents/skills/nk-upgrade"
                   "/.mcp.json"
@@ -406,6 +412,7 @@
                   "result"
                   "result-*"
                   ".direnv/"
+                  "/.agents/skills/nk-audit-output"
                   "/.agents/skills/nk-resolve-file-conflicts"
                   "/.agents/skills/nk-upgrade"
                   "/.mcp.json"
