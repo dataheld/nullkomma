@@ -3,8 +3,9 @@
 # `--unsorted` lists groups in source order: nullkomma, custom, then plugins.
 # Each recipe runs its task once, as `nullkomma.sandbox` does in builds:
 # prerequisites (`depends_on`) with `up`, then the task with its arguments.
-# Servers, enabled tasks without a `watch` of their own, run with `up <name>` instead,
-# so the watches of their prerequisites rerun them on changes.
+# Servers, tasks that signal readiness (`ready_log_line`, `readiness_probe`)
+# or depend on one, run with `up <name>` instead, as they don't exit;
+# the watches of their prerequisites rerun them on changes.
 { inputs, ... }:
 {
   framework =
@@ -42,6 +43,14 @@
           tree = config.process-compose.dev;
           inherit (tree.settings) processes;
           tasks = lib.filterAttrs (_: p: p.description != null) processes;
+          server =
+            name:
+            let
+              p = processes.${name};
+            in
+            p.ready_log_line != null
+            || p.readiness_probe != null
+            || lib.any server (lib.attrNames (lib.defaultTo { } p.depends_on));
           group = p: if p.namespace == "default" then "custom" else p.namespace;
           rank =
             g:
@@ -55,7 +64,7 @@
               inherit name;
               inherit (p) description;
               group = group p;
-              server = p.disabled != true && !(p ? watch);
+              server = server name;
             }) tasks
           );
           overlay = name: settings: pkgs.writeText "process-compose-${name}.json" (builtins.toJSON settings);
@@ -85,7 +94,7 @@
                   }
                 ];
               };
-            }) (lib.filterAttrs (_: p: p.disabled == true) tasks);
+            }) (lib.filterAttrs (name: _: !server name) tasks);
           };
           # Graph and MCP commands need a project, but no process started.
           serve =

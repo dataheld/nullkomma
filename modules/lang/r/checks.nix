@@ -41,7 +41,6 @@
               description = "Build the package and run R CMD check";
               depends_on.r-document.condition = "process_completed_successfully";
               working_dir = "./${cfg.prefix}";
-              disabled = true;
               command = pkgs.writeShellApplication {
                 name = "r-check";
                 runtimeInputs = [ config.nullkomma.r.package ];

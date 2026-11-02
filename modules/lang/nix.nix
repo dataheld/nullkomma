@@ -133,6 +133,8 @@
                   flake-checker = {
                     description = "Check that flake.lock pins a recent, upstream Nixpkgs";
                     command = "${lib.getExe pkgs.flake-checker} --fail-mode --no-telemetry";
+                    disabled = false;
+                    watch.paths = [ { path = "flake.lock"; } ];
                   };
                   flake-update = {
                     description = "Update flake inputs, then write-files and generate-files; args go to `nix flake update`";
@@ -159,7 +161,15 @@
                   namespace = "nix";
                   description = "Run the nix-unit tests";
                   command = ''${lib.getExe pkgs.nix-unit} --extra-experimental-features flakes --flake ".#${attr}"'';
-                  disabled = true;
+                  watch.paths = [
+                    {
+                      path = ".";
+                      include = [
+                        "*.nix"
+                        "flake.lock"
+                      ];
+                    }
+                  ];
                 };
                 check.depends_on.nix-unit.condition = "process_completed_successfully";
               })

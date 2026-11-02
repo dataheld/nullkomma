@@ -122,6 +122,7 @@
                 quartoProcess "Serve the site on localhost, re-rendering and reloading on changes" "preview"
                 // {
                   depends_on.quarto-preview-includes.condition = "process_started";
+                  ready_log_line = "Browse at";
                 };
               # shortcut: `quarto preview` misses changes to included files,
               # quarto-dev/quarto-cli#2795; ask it to re-render pages with includes
@@ -129,7 +130,6 @@
               # see https://github.com/dataheld/nullkomma/issues/289.
               quarto-preview-includes = {
                 namespace = "quarto";
-                disabled = true;
                 # Runs at the Git root, as includes may reach beyond the project.
                 watch.paths = [
                   {

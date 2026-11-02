@@ -75,7 +75,13 @@
                 bats = {
                   namespace = "shell";
                   description = "Run the Bats tests";
-                  disabled = true;
+                  # Tests may cover any script.
+                  watch.paths = [
+                    {
+                      path = ".";
+                      exclude = config.treefmt.settings.excludes;
+                    }
+                  ];
                   command = pkgs.writeShellApplication {
                     name = "bats";
                     runtimeInputs = [ bats ] ++ cfg.packages;

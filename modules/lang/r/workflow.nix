@@ -23,6 +23,13 @@
         ) "nullkomma.r.pkgdown.config.destination must be a normalized, package-relative directory.";
         cfg.pkgdown.config.destination;
       destinationGlob = lib.escape [ "\\" "[" "]" "*" "?" ] destination;
+      generated = [
+        # testthat compares snapshots byte for byte.
+        "tests/testthat/_snaps/**"
+        "man/*.Rd"
+      ]
+      ++ lib.optional cfg.pkgdown.enable "${destinationGlob}/**"
+      ++ lib.optional cfg.coverage.enable "coverage.xml";
       inherit (config.nullkomma) privacy;
       privacyPage = (
         if lib.length privacy.languages == 1 then
@@ -106,13 +113,7 @@
           extend-glob = [ "DESCRIPTION" ];
           extend-words.fnd = lib.mkDefault "fnd";
         };
-        nullkomma.generatedPaths = [
-          # testthat compares snapshots byte for byte.
-          "${prefix}tests/testthat/_snaps/**"
-          "${prefix}man/*.Rd"
-        ]
-        ++ lib.optional cfg.pkgdown.enable "${prefix}${destinationGlob}/**"
-        ++ lib.optional cfg.coverage.enable "${prefix}coverage.xml";
+        nullkomma.generatedPaths = map (path: prefix + path) generated;
         nullkomma.gitignore = [
           "/${prefix}man/*.Rd"
         ]
@@ -135,6 +136,17 @@
               disabled = true;
             };
             after = name: { ${name}.condition = "process_completed_successfully"; };
+            # For tasks that read the whole package; R changes reach them through the cascade.
+            packageWatch.paths = [
+              {
+                path = ".";
+                exclude = [
+                  "R"
+                  "NAMESPACE"
+                ]
+                ++ generated;
+              }
+            ];
             rscript = "${pcfg.package}/bin/Rscript --vanilla";
             pkgdown = pkgs.writeShellApplication {
               name = "r-build-site";
@@ -239,6 +251,7 @@
                   description = "Generate R manuals and NAMESPACE with roxygen2";
                   depends_on = after "r-document-namespace";
                   command = "${rscript} -e 'roxygen2::roxygenise(roclets = setdiff(roxygen2::load_options()[[\"roclets\"]], \"namespace\"))'";
+                  disabled = false;
                 };
                 check.depends_on = after "r-document-namespace";
               }
@@ -263,16 +276,22 @@
                   description = "Build the pkgdown website; --preview opens it in a browser";
                   depends_on = after "r-document";
                   command = pkgdown;
+                  disabled = false;
+                  watch = packageWatch;
                 };
                 all.depends_on = after "r-build-site";
               })
               (lib.mkIf cfg.coverage.enable {
                 r-test-coverage = r // {
                   description = "Write a Cobertura test coverage report to coverage.xml";
-                  depends_on = after "r-document-namespace";
+                  # Installs the package, so it must not run while r-document writes man/.
+                  depends_on = after "r-document";
                   command = "${rscript} -e 'covr::to_cobertura(covr::package_coverage(), filename = \"coverage.xml\")'";
+                  disabled = false;
+                  watch = packageWatch;
                 };
               })
+              (lib.mkIf cfg.check.enable { r-check.watch = packageWatch; })
             ];
             checks = {
               r-document-namespace = config.nullkomma.sandbox {

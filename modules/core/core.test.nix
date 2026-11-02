@@ -38,14 +38,16 @@
                 description = "B";
                 command = ''echo b "$@" >> log'';
                 depends_on.a.condition = "process_completed_successfully";
-                disabled = true;
               };
               broken = {
                 description = "Broken";
                 command = "exit 3";
                 disabled = true;
               };
-              serve.command = "sleep 60";
+              serve = {
+                command = "sleep 60";
+                ready_log_line = "serving";
+              };
               watched = {
                 command = "echo w >> watched";
                 disabled = true;
@@ -61,6 +63,7 @@
                 description = "Preview";
                 command = "sleep 60";
                 depends_on.watched.condition = "process_completed_successfully";
+                depends_on.serve.condition = "process_started";
               };
             };
           };
@@ -293,6 +296,16 @@
                   outputsEvaluate = lib.replicate 3 true;
                 };
               };
+            testDevTreeRunsShellTasks = {
+              expr = lib.attrNames (
+                lib.filterAttrs (_: p: p.disabled != true) (perSystem fixtures.md).processTrees.dev.processes
+              );
+              expected = [
+                "flake-checker"
+                "jscpd"
+                "treefmt"
+              ];
+            };
             testEveryPluginCanBeDisabled = {
               expr = lib.filter (
                 name:
@@ -541,6 +554,7 @@
                 grep -qF '"name":"b"' mcp.out
                 grep -qF '"name":"pc_process_start"' mcp.out
                 if grep -qF '"name":"serve"' mcp.out; then exit 1; fi
+                if grep -qF '"name":"preview"' mcp.out; then exit 1; fi
                 tail -n 1 log | grep -qx 'b mcp value'
                 touch trigger
                 ${tasks} rerun 'once'

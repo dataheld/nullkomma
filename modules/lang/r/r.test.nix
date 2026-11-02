@@ -175,12 +175,15 @@
             {
               namespace = defaults.r-document-namespace.watch;
               test = defaults.r-test.watch.paths;
-              enabled = lib.filter (name: !defaults.${name}.disabled) [
+              package = defaults.r-check.watch;
+              site = defaults.r-build-site.watch == defaults.r-check.watch;
+              enabled = lib.filter (name: defaults.${name}.disabled != true) [
                 "r-document-namespace"
                 "r-document"
                 "r-test"
                 "r-check"
                 "r-build-site"
+                "r-lock"
               ];
               nested = (processes nested).r-test.working_dir;
               ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
@@ -204,9 +207,26 @@
                 exclude = [ "_snaps" ];
               }
             ];
+            # R changes reach the other tasks through the cascade.
+            package.paths = [
+              {
+                path = ".";
+                exclude = [
+                  "R"
+                  "NAMESPACE"
+                  "tests/testthat/_snaps/**"
+                  "man/*.Rd"
+                  "docs/**"
+                ];
+              }
+            ];
+            site = true;
             enabled = [
               "r-document-namespace"
+              "r-document"
               "r-test"
+              "r-check"
+              "r-build-site"
             ];
             nested = "./r/";
             ignore = true;
@@ -256,7 +276,7 @@
             document = [ "r-document-namespace" ];
             documentRoclets = true;
             test = [ "r-document-namespace" ];
-            coverage = [ "r-document-namespace" ];
+            coverage = [ "r-document" ];
             check = [ "r-document" ];
             pkgdown = [ "r-document" ];
             nkCheck = [

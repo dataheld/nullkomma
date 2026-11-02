@@ -137,7 +137,6 @@
               name = "r-shiny-${function}";
               value = {
                 namespace = "r";
-                disabled = true;
                 working_dir = "./${cfg.prefix}";
                 # r-document-namespace's watch restarts the app on R changes.
                 depends_on.r-document-namespace.condition = "process_completed_successfully";
@@ -173,7 +172,6 @@
               # A prerequisite of the apps, so that their restarts don't open more tabs.
               r-shiny-browser = {
                 namespace = "r";
-                disabled = true;
                 command = pkgs.writeShellApplication {
                   name = "r-shiny-browser";
                   runtimeInputs = [
@@ -195,9 +193,11 @@
                   '';
                 };
               };
-              # Groups the apps: watches restart all dependents, so this one must not open tabs.
+              # Groups the apps for `nk`: watches restart all dependents, so this one must not open tabs.
               r-run-app = {
                 namespace = "r";
+                # Plain `up` runs the apps themselves.
+                disabled = true;
                 description = "Serve the working-tree Shiny apps with pkgload, open them in the browser, and reload them on changes";
                 depends_on = lib.mapAttrs (_: _: { condition = "process_log_ready"; }) (lib.listToAttrs devApps);
                 command = "true";

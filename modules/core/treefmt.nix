@@ -62,7 +62,13 @@
               namespace = "nullkomma";
               description = "Format and lint all files";
               command = config.treefmt.build.wrapper;
-              disabled = true;
+              # Its own fixes rerun it once; then it converges.
+              watch.paths = [
+                {
+                  path = ".";
+                  exclude = config.treefmt.settings.excludes;
+                }
+              ];
             };
             all.depends_on.treefmt.condition = "process_completed_successfully";
           };

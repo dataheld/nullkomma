@@ -56,7 +56,12 @@
                 namespace = "jscpd";
                 description = "Find duplicated code";
                 environment.JSCPD_NO_TIPS = "1";
-                disabled = true;
+                watch.paths = [
+                  {
+                    path = ".";
+                    exclude = config.treefmt.settings.excludes;
+                  }
+                ];
                 command = "${lib.getExe jscpd} --config ${
                   (pkgs.formats.json { }).generate "jscpd.json" (
                     {
