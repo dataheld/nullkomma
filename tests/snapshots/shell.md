@@ -24,15 +24,3 @@ Available recipes:
     [shell]
     bats *args           # Run the Bats tests
 ```
-
-## `nk graph`
-
-```mermaid
-flowchart LR
-    all --> check
-    all --> flake_checker
-    all --> treefmt
-    check --> bats
-    check --> jscpd
-
-```

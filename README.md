@@ -860,7 +860,7 @@ nullkomma is tested against small example projects ("fixtures") in
   the only test of how real projects fetch nullkomma. CI runs it on every push.
 - **Without Nix:** `test-r-non-nix` builds the `r-non-nix` fixture in Docker (Ubuntu 24.04, `linux/amd64`, no Nix),
   runs the documented R examples and builds the package; extra arguments go to `docker build`. CI runs it on manual dispatch.
-- **Snapshot tests:** `tests/snapshots/<fixture>.md` records each fixture's `nk` menu and task graph;
+- **Snapshot tests:** `tests/snapshots/<fixture>.md` records each fixture's `nk` menu;
   `snapshot-<fixture>` fails on any change. Review the diff, then run `nk update-snapshots`.
 
 `nk try-fixture <fixture>` copies a fixture into a new Git repository under `/tmp`

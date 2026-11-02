@@ -29,22 +29,3 @@ Available recipes:
     r-pkgdown *args      # Build the pkgdown website; --preview opens it in a browser
     r-test *args         # Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package
 ```
-
-## `nk graph`
-
-```mermaid
-flowchart LR
-    all --> check
-    all --> flake_checker
-    all --> treefmt
-    check --> jscpd
-    check --> r_check
-    check --> r_namespace
-    check --> r_pkgdown
-    check --> r_test
-    r_check --> r_document
-    r_document --> r_namespace
-    r_pkgdown --> r_document
-    r_test --> r_namespace
-
-```

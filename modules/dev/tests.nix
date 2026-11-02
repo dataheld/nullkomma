@@ -110,17 +110,14 @@
               grep -qF -- "$message" "$TMPDIR/failure.log" || { cat "$TMPDIR/failure.log"; exit 1; }
             }
           '';
-          # What a fixture's user sees: the `nk` menu and the task graph.
+          # What a fixture's user sees: the `nk` menu.
           snapshots = lib.mapAttrs (
             name: flake:
             pkgs.runCommand "nullkomma-snapshot-${name}" { } ''
               ${project (root + "/tests/fixtures/${name}")}
-              export PC_LOG_FILE="$TMPDIR/pc.log"
               {
                 printf '# `nk` in `tests/fixtures/%s`\n\n```text\n' ${name}
                 ${task flake ""}
-                printf '```\n\n## `nk graph`\n\n```mermaid\n'
-                ${task flake "graph"}
                 printf '```\n'
               } > "$out"
             ''

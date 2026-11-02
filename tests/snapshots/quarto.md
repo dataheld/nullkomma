@@ -25,14 +25,3 @@ Available recipes:
     build-site *args     # Render the Quarto site
     preview *args        # Serve the site on localhost, re-rendering and reloading on changes
 ```
-
-## `nk graph`
-
-```mermaid
-flowchart LR
-    all --> check
-    all --> flake_checker
-    all --> treefmt
-    check --> jscpd
-
-```

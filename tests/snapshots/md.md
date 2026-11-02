@@ -21,14 +21,3 @@ Available recipes:
     treefmt *args        # Format and lint all files
     write-files *args    # Write source-of-truth files; keep your edits and report upstream conflicts
 ```
-
-## `nk graph`
-
-```mermaid
-flowchart LR
-    all --> check
-    all --> flake_checker
-    all --> treefmt
-    check --> jscpd
-
-```
