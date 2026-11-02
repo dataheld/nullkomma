@@ -215,15 +215,34 @@
         process-compose.dev.settings.processes.all.depends_on.test-r-non-nix.condition =
           "process_completed_successfully";
         process-compose.dev.settings.processes.test-r-non-nix = {
-          description = "Test Ubuntu R workflows without Nix; args go to docker build (requires a running Docker daemon and network)";
+          description = "Test Ubuntu R workflows without Nix in Docker, on macOS in its own Colima VM; args go to docker build";
           disabled = true;
           command = pkgs.writeShellApplication {
             name = "test-r-non-nix";
-            runtimeInputs = [ pkgs.docker-client ];
+            runtimeInputs = [
+              pkgs.docker-client
+            ]
+            ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+              pkgs.colima
+              pkgs.jq
+            ];
             text = ''
-              docker info > /dev/null
               scratch="$(mktemp -d)"
               trap 'rm -rf "$scratch"' EXIT
+            ''
+            + lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
+              profile=nullkomma-r-test
+              # Colima edits Docker contexts; keep them away from the user's.
+              export DOCKER_CONFIG="$scratch/docker"
+              if ! colima status --profile "$profile" > /dev/null 2>&1; then
+                colima start --profile "$profile" --vm-type vz --vz-rosetta
+                trap 'rm -rf "$scratch"; colima stop --profile "$profile"' EXIT
+              fi
+              DOCKER_HOST="$(colima status --profile "$profile" --json | jq -r .docker_socket)"
+              export DOCKER_HOST
+            ''
+            + ''
+              docker info > /dev/null
               cp -R ${nonNixProject} "$scratch/project"
               chmod -R u+w "$scratch/project"
               cp ${root + "/tests/r-non-nix/Dockerfile"} "$scratch/Dockerfile"
