@@ -203,24 +203,21 @@
             }
             // {
               tasks = lib.mapAttrs (_: p: { inherit (p) description; }) tasks;
-              # Launches `nk mcp` without the dev shell, whose hooks may write to stdout.
-              mcpServer = {
-                command = "nix";
-                args = [
-                  "run"
-                  ".#taskRunners.${system}.default"
-                  "--"
-                  "mcp"
-                ];
-              };
             };
         in
         {
           taskRunners.default = runner;
           nullkomma.devShell.packages = [ runner ];
-          nullkomma.files.".mcp.json" = {
-            mode = lib.mkDefault "generated";
-            text = builtins.toJSON { mcpServers.nullkomma = runner.mcpServer; };
+          # Launches `nk mcp` without the dev shell, whose hooks may write to stdout.
+          nullkomma.agents.mcpServers.nullkomma = {
+            type = "stdio";
+            command = "nix";
+            args = [
+              "run"
+              ".#taskRunners.${system}.default"
+              "--"
+              "mcp"
+            ];
           };
           nullkomma.sandbox =
             {

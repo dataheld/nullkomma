@@ -99,12 +99,7 @@
             ".vscode/mcp.json" = {
               mode = lib.mkDefault "generated";
               commentPrefix = "//";
-              source = json.generate "vscode-mcp.json" {
-                servers.nullkomma = {
-                  type = "stdio";
-                }
-                // config.taskRunners.default.mcpServer;
-              };
+              source = json.generate "vscode-mcp.json" { servers = config.nullkomma.agents.mcpServers; };
             };
             ".vscode/settings.json" = {
               mode = lib.mkDefault "generated";

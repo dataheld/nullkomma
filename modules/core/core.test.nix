@@ -125,15 +125,17 @@
               let
                 files =
                   enable:
-                  removeAttrs
-                    (perSystem (raw {
-                      imports = [ plugins.agents ];
-                      nullkomma.agents = {
-                        inherit enable;
-                        skills.demo = md;
-                      };
-                    })).nullkomma.files
-                    [ ".mcp.json" ];
+                  (perSystem (raw {
+                    imports = [ plugins.agents ];
+                    nullkomma.agents = {
+                      inherit enable;
+                      skills.demo = md;
+                    };
+                    perSystem.nullkomma.agents.mcpServers.demo = {
+                      type = "http";
+                      url = "https://example.com/mcp";
+                    };
+                  })).nullkomma.files;
               in
               {
                 expr = {
@@ -141,10 +143,20 @@
                     inherit (f) mode directory;
                     sections = lib.attrNames f.sections;
                   }) (files true);
+                  servers = lib.mapAttrs (_: s: s.type) (builtins.fromJSON (files true).".mcp.json".text).mcpServers;
                   disabled = files false;
                 };
                 expected = {
+                  servers = {
+                    demo = "http";
+                    nullkomma = "stdio";
+                  };
                   enabled = {
+                    ".mcp.json" = {
+                      mode = "generated";
+                      directory = false;
+                      sections = [ ];
+                    };
                     "AGENTS.md" = {
                       mode = "source";
                       directory = false;
@@ -175,7 +187,7 @@
                 } md)
               ];
               expected = lib.replicate 3 {
-                files = [ ".mcp.json" ];
+                files = [ ];
                 tools = [
                   "nk"
                   "process-compose"

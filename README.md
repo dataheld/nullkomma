@@ -416,8 +416,7 @@ along with process-compose's tools to start, stop and inspect [services](#proces
 A task with its own `mcp` block keeps it,
 e.g. `mcp.type = "resource"` to serve its output as `process://<name>`.
 Calls time out after an hour.
-`.mcp.json`, and `.vscode/mcp.json` with the [`vscode`](#vscode-and-neovim) plugin,
-are generated so that agents find it.
+The [`agents`](#agents) plugin lists it in `.mcp.json` so that agents find it.
 `nk graph` prints the dependency graph of all processes as Mermaid;
 other arguments go to `process-compose graph`.
 
@@ -453,11 +452,11 @@ nullkomma keeps files in your repository to a minimum; features live in Nix.
 Some tools still need real files (Git needs `.gitignore`, GitHub needs workflows,
 editors need settings). Each is one of two kinds:
 
-|                             | **Source of truth** (committed, yours to edit)       | **Generated from Nix** (Git-ignored, don't edit)                               |
-| --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `nix flake init --template` | `flake.nix`, `.envrc`                                | (not possible)                                                                 |
-| `write-files`               | `.gitignore`, GitHub workflows, `AGENTS.md` sections |                                                                                |
-| `generate-files`            |                                                      | `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
+|                             | **Source of truth** (committed, yours to edit)       | **Generated from Nix** (Git-ignored, don't edit)                                            |
+| --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `nix flake init --template` | `flake.nix`, `.envrc`                                | (not possible)                                                                              |
+| `write-files`               | `.gitignore`, GitHub workflows, `AGENTS.md` sections |                                                                                             |
+| `generate-files`            |                                                      | `.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
 
 Templates can't take parameters, so anything that depends on your configuration
 comes from `write-files` or `generate-files`.
@@ -509,7 +508,7 @@ see [`tests`](#tests).
 
 ### `agents`
 
-Instructs coding agents, through two kinds of files:
+Instructs coding agents, through three kinds of files:
 
 - An `agents` section in `AGENTS.md`, written by `write-files` and committed:
   run commands in the dev shell, and run `nk all` before reporting a change as done.
@@ -519,6 +518,9 @@ Instructs coding agents, through two kinds of files:
   Plugins and you add them with the top-level `nullkomma.agents.skills.<name>`,
   a directory with a `SKILL.md`;
   nullkomma's own are named `nk-*`, for example `nk-upgrade` from the `nix` plugin.
+- `.mcp.json`, generated from `perSystem.nullkomma.agents.mcpServers.<name>`,
+  where plugins and you add [MCP] servers, for example the framework's `nullkomma` from [`nk mcp`](#taskrunners).
+  The [`vscode`](#vscode-and-neovim) plugin writes them to `.vscode/mcp.json` too.
 
 Projects that don't use nullkomma yet can install this repository as an
 [Agent Plugin](https://agent-plugins.org) with the nk-adopt skill,
