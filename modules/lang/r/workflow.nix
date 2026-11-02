@@ -49,7 +49,7 @@
         pkgdown.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Build a pkgdown website with r-build-site (`--preview` opens it in a browser) and packages.site, both checked by check.";
+          description = "Build a pkgdown website with r-build-site (`--preview` opens it in a browser) and packages.site, both built by `all`.";
         };
         pkgdown.privacy.page = lib.mkOption {
           type = lib.types.nullOr (lib.types.strMatching "[^/\n]+[.]html");
@@ -264,7 +264,7 @@
                   depends_on = after "r-document";
                   command = pkgdown;
                 };
-                check.depends_on = after "r-build-site";
+                all.depends_on = after "r-build-site";
               })
               (lib.mkIf cfg.coverage.enable {
                 r-test-coverage = r // {
@@ -285,7 +285,6 @@
                   args = [ "--installed" ];
                 }
               );
-              r-build-site = lib.mkIf cfg.pkgdown.enable config.packages.site;
             };
             packages.site = lib.mkIf cfg.pkgdown.enable (
               lib.mkDefault (

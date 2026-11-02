@@ -131,11 +131,11 @@
                 )
                 {
                   flake-checker = {
-                    description = "Check flake.lock for outdated or non-upstream Nixpkgs";
-                    command = pkgs.flake-checker;
+                    description = "Check that flake.lock pins a recent, upstream Nixpkgs";
+                    command = "${lib.getExe pkgs.flake-checker} --fail-mode --no-telemetry";
                   };
                   flake-update = {
-                    description = "`nix flake update` flake.lock and dev/flake.lock, then write-files and generate-files; args go to `nix flake update` and skip dev/flake.lock";
+                    description = "Update flake inputs, then write-files and generate-files; args go to `nix flake update`";
                     # Uses the project's own `nix`, which may differ from Nixpkgs'.
                     command = pkgs.writeShellApplication {
                       name = "flake-update";

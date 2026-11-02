@@ -248,6 +248,8 @@
               check = after "r-check";
               pkgdown = after "r-build-site";
               nkCheck = after "check";
+              nkAll = after "all";
+              sandboxed = fixtures.r.checks.${system} ? r-build-site;
             };
           expected = {
             namespace = [ ];
@@ -259,11 +261,18 @@
             pkgdown = [ "r-document" ];
             nkCheck = [
               "jscpd"
-              "r-build-site"
               "r-check"
               "r-document-namespace"
               "r-test"
             ];
+            nkAll = [
+              "check"
+              "flake-checker"
+              "gitleaks-git"
+              "r-build-site"
+              "treefmt"
+            ];
+            sandboxed = false;
           };
         };
         testRCheckSkipsTestsRunSeparately = {

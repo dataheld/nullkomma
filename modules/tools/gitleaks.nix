@@ -12,11 +12,14 @@
           flags = "--config ${configFile} --gitleaks-ignore-path ${pkgs.writeText "gitleaksignore" ""}";
         in
         {
-          process-compose.dev.settings.processes.gitleaks-git = {
-            namespace = "gitleaks";
-            description = "Scan Git history for secrets";
-            command = "${lib.getExe pkgs.gitleaks} git ${flags} --no-banner --redact .";
-            disabled = true;
+          process-compose.dev.settings.processes = {
+            gitleaks-git = {
+              namespace = "gitleaks";
+              description = "Scan Git history for secrets; treefmt scans the files";
+              command = "${lib.getExe pkgs.gitleaks} git ${flags} --no-banner --redact .";
+              disabled = true;
+            };
+            all.depends_on.gitleaks-git.condition = "process_completed_successfully";
           };
           treefmt.settings.formatter.gitleaks = {
             command = lib.getExe (

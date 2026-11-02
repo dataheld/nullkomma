@@ -325,6 +325,11 @@
                 ];
               };
             };
+            testFlakeCheckerFailsLikeCi = {
+              expr = lib.hasInfix "--fail-mode" (perSystem fixtures.md)
+              .processTrees.dev.processes.flake-checker.command;
+              expected = true;
+            };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
               expr = map (flake: (perSystem flake).nullkomma.files.".gitignore".text) [
                 fixtures.md
@@ -437,6 +442,7 @@
               expected = [
                 "check"
                 "flake-checker"
+                "gitleaks-git"
                 "treefmt"
               ];
             };

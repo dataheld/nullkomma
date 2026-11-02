@@ -116,7 +116,7 @@
               quarto-render = quartoProcess "Render the Quarto site" "render" // {
                 disabled = true;
               };
-              check.depends_on.quarto-render.condition = "process_completed_successfully";
+              all.depends_on.quarto-render.condition = "process_completed_successfully";
               # Quarto watches the working tree and live-reloads the browser itself.
               quarto-preview = quartoProcess "Serve the site on localhost, re-rendering and reloading on changes" "preview";
             };
@@ -126,7 +126,6 @@
                 output = "${prefix}_site";
               }
             );
-            checks.quarto-render = config.packages.site;
             nullkomma.files =
               lib.mapAttrs' (
                 name: source:
