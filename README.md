@@ -43,25 +43,6 @@ Sure, you could get some level of reproducibility by dockerising your developmen
 Technically, there is still a tradeoff between these goals today, but it has gotten much more benign.
 Nix has made high levels of reproducibility so cheap, that there is usually so much budget left to blow on speed and niceties, that the trilemma has been effectively resolved.
 
-
-## Scope
-
-nullkomma is **per-project** Nix scaffolding for devshells, formatters, checks, tasks, CI and editor settings, packaged as composable [flake-parts](https://flake.parts) modules.
-
-It is **not**:
-
-| Concern                                                  | Lives in                                                |
-| -------------------------------------------------------- | ------------------------------------------------------- |
-| Fleet placement, clan, networking, fleet secrets         | [dataheld/aoshima](https://github.com/dataheld/aoshima) |
-| Host baseline (boot, disk, hardening, host services)     | [dataheld/pads](https://github.com/dataheld/pads)       |
-| User environment policy (home-manager, shell ergonomics) | [dataheld/lap](https://github.com/dataheld/lap)         |
-| Agentic coding app / runtime                             | [dataheld/gittens](https://github.com/dataheld/gittens) |
-
-## Charter
-
-This repo contributes to the broader IT infrastructure laid out in [aoshima](https://github.com/dataheld/aoshima).
-When making changes, adhere to [aoshima's charter](https://github.com/dataheld/aoshima#charter).
-
 ## Getting started
 
 ### Prerequisites
@@ -975,6 +956,28 @@ perSystem.nullkomma.tasks.refresh-vendored-example = {
 ```
 
 These are nullkomma's own maintenance tasks, not tasks added to consumer projects.
+
+
+
+## Nullkomma in the Context of dataheld's Infrastructure
+
+### Scope
+
+nullkomma is **per-project** Nix scaffolding for devshells, formatters, checks, tasks, CI and editor settings, packaged as composable [flake-parts](https://flake.parts) modules.
+
+It is **not**:
+
+| Concern                                                  | Lives in                                                |
+| -------------------------------------------------------- | ------------------------------------------------------- |
+| Fleet placement, clan, networking, fleet secrets         | [dataheld/aoshima](https://github.com/dataheld/aoshima) |
+| Host baseline (boot, disk, hardening, host services)     | [dataheld/pads](https://github.com/dataheld/pads)       |
+| User environment policy (home-manager, shell ergonomics) | [dataheld/lap](https://github.com/dataheld/lap)         |
+| Agentic coding app / runtime                             | [dataheld/gittens](https://github.com/dataheld/gittens) |
+
+### Charter
+
+This repo contributes to the broader IT infrastructure laid out in [aoshima](https://github.com/dataheld/aoshima).
+When making changes, adhere to [aoshima's charter](https://github.com/dataheld/aoshima#charter).
 
 [^treefmt]: `nix fmt` and the `treefmt` task fix what they can; `checks.<system>.treefmt`
     fails `nix flake check` (and CI) on any remaining formatting or lint issue.
