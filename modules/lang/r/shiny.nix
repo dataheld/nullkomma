@@ -23,6 +23,12 @@
           default = 3838;
           description = "Port on which the Shiny server listens; null lets Shiny choose an available port.";
         };
+        devFunctions = lib.mkOption {
+          type = lib.types.nonEmptyListOf lib.types.nonEmptyStr;
+          default = [ cfg.shiny.function ];
+          defaultText = lib.literalExpression "[ config.nullkomma.r.shiny.function ]";
+          description = "Exported functions whose apps `r-run-app` serves side by side, the n-th on `port` + n.";
+        };
       };
       config = lib.mkIf (cfg.enable && cfg.shiny.enable) {
         nullkomma.r.extraPackages = [ "shiny" ];
@@ -70,37 +76,86 @@
                   }
                   RS
                 '';
-            app = setup: ''
-              ${setup}
-              entrypoint <- getExportedValue(package, ${builtins.toJSON cfg.shiny.function})
-              if (!is.function(entrypoint)) {
-                stop("nullkomma.r.shiny.function must name an exported function")
-              }
-              app <- entrypoint()
-              if (!inherits(app, "shiny.appobj")) {
-                stop("nullkomma.r.shiny.function must return a shiny.appobj")
-              }
-            '';
-            run = appDir: ''
-              shiny::runApp(
-                appDir = ${appDir},
-                host = ${builtins.toJSON cfg.shiny.host},
-                port = ${if cfg.shiny.port == null then "NULL" else toString cfg.shiny.port},
-                launch.browser = FALSE
-              )
-            '';
-            script = setup: pkgs.writeText "shiny.R" (app setup + run "app");
+            script =
+              {
+                setup,
+                function,
+                port,
+                reload ? false,
+              }:
+              pkgs.writeText "shiny.R" ''
+                ${setup}
+                entrypoint <- getExportedValue(package, ${builtins.toJSON function})
+                if (!is.function(entrypoint)) {
+                  stop("${function} must name an exported function")
+                }
+                app <- entrypoint()
+                if (!inherits(app, "shiny.appobj")) {
+                  stop("${function}() must return a shiny.appobj")
+                }
+                ${lib.optionalString reload ''
+                  handler <- app$httpHandler
+                  script <- paste(c("<script>", readLines("${./live-reload.js}"), "</script></head>"), collapse = "\n")
+                  app$httpHandler <- function(req) {
+                    response <- handler(req)
+                    if (is.character(response$content)) {
+                      response$content <- sub("</head>", script, response$content, fixed = TRUE)
+                    }
+                    response
+                  }
+                ''}
+                shiny::runApp(
+                  app,
+                  host = ${builtins.toJSON cfg.shiny.host},
+                  port = ${if port == null then "NULL" else toString port},
+                  launch.browser = FALSE
+                )
+              '';
             pkgload = dir: ''
               pkgload::load_all(${dir}, export_all = FALSE)
               package <- pkgload::pkg_name(${dir})
             '';
             localHost = if cfg.shiny.host == "0.0.0.0" then "127.0.0.1" else cfg.shiny.host;
             launcher = pkgs.writeShellScriptBin "shiny" ''
-              exec ${pkgsR.R}/bin/Rscript --vanilla ${script ''
-                .libPaths(c("${installed}/library", "${dependencies}/library"), include.site = FALSE)
-                package <- list.dirs("${installed}/library", recursive = FALSE, full.names = FALSE)
-              ''}
+              exec ${pkgsR.R}/bin/Rscript --vanilla ${
+                script {
+                  setup = ''
+                    .libPaths(c("${installed}/library", "${dependencies}/library"), include.site = FALSE)
+                    package <- list.dirs("${installed}/library", recursive = FALSE, full.names = FALSE)
+                  '';
+                  inherit (cfg.shiny) function port;
+                }
+              }
             '';
+            devApps = lib.imap0 (i: function: {
+              name = "r-shiny-${function}";
+              value = {
+                namespace = "r";
+                disabled = true;
+                working_dir = "./${cfg.prefix}";
+                # r-document-namespace's watch restarts the app on R changes.
+                depends_on.r-document-namespace.condition = "process_completed_successfully";
+                depends_on.r-shiny-browser.condition = "process_started";
+                command = pkgs.writeShellApplication {
+                  name = "r-shiny-${function}";
+                  runtimeInputs = [ config.nullkomma.r.package ];
+                  text = "exec Rscript --vanilla ${
+                    script {
+                      setup = pkgload ''"."'';
+                      inherit function;
+                      port = if cfg.shiny.port == null then null else cfg.shiny.port + i;
+                      reload = true;
+                    }
+                  }";
+                };
+                # An HTTP probe would stop apps that load slowly, or that block R while computing.
+                ready_log_line = "Listening on http://";
+                # The watch restarts only running apps, so a failed one retries until it starts.
+                availability.restart = "on_failure";
+                # Unlike SIGTERM, SIGINT lets Shiny run `onStop()` callbacks.
+                shutdown.signal = 2;
+              };
+            }) cfg.shiny.devFunctions;
           in
           {
             apps.shiny = {
@@ -108,45 +163,38 @@
               program = lib.getExe launcher;
               meta.description = "Run the project's exported Shiny app";
             };
-            # Runs once, so that restarts on R changes don't open more tabs.
-            process-compose.dev.settings.processes.r-run-app-browser = {
-              namespace = "r";
-              disabled = true;
-              command = pkgs.writeShellApplication {
-                name = "r-run-app-browser";
-                runtimeInputs = [
-                  config.process-compose.dev.package
-                  config.nullkomma.r.package
-                ];
-                text = ''
-                  for _ in {1..120}; do
-                    if ports=$(process-compose process ports r-run-app 2>&1) && [[ "$ports" =~ \[([0-9]+) ]]; then
-                      exec Rscript --vanilla -e "utils::browseURL('http://${localHost}:''${BASH_REMATCH[1]}')"
-                    fi
-                    sleep 1
-                  done
-                  echo "$ports" >&2
-                  exit 1
-                '';
-              };
-            };
-            process-compose.dev.settings.processes.r-run-app = {
-              namespace = "r";
-              description = "Serve the working-tree Shiny app with pkgload, and open it in the browser";
-              working_dir = "./${cfg.prefix}";
-              # r-document-namespace's watch restarts the server on R changes.
-              depends_on.r-document-namespace.condition = "process_completed_successfully";
-              depends_on.r-run-app-browser.condition = "process_started";
-              command = pkgs.writeShellApplication {
-                name = "r-run-app";
-                runtimeInputs = [ config.nullkomma.r.package ];
-                text = ''exec Rscript --vanilla ${script (pkgload ''"."'')} "$@"'';
-              };
-              readiness_probe = lib.mkIf (cfg.shiny.port != null) {
-                http_get = {
-                  host = localHost;
-                  inherit (cfg.shiny) port;
+            process-compose.dev.settings.processes = lib.listToAttrs devApps // {
+              # A prerequisite of the apps, so that their restarts don't open more tabs.
+              r-shiny-browser = {
+                namespace = "r";
+                disabled = true;
+                command = pkgs.writeShellApplication {
+                  name = "r-shiny-browser";
+                  runtimeInputs = [
+                    config.process-compose.dev.package
+                    config.nullkomma.r.package
+                  ];
+                  text = ''
+                    for app in ${lib.escapeShellArgs (map (a: a.name) devApps)}; do
+                      for _ in {1..120}; do
+                        if ports=$(process-compose process ports "$app" 2>&1) && [[ "$ports" =~ \[([0-9]+) ]]; then
+                          Rscript --vanilla -e "utils::browseURL('http://${localHost}:''${BASH_REMATCH[1]}')"
+                          continue 2
+                        fi
+                        sleep 1
+                      done
+                      echo "$ports" >&2
+                      exit 1
+                    done
+                  '';
                 };
+              };
+              # Groups the apps: watches restart all dependents, so this one must not open tabs.
+              r-run-app = {
+                namespace = "r";
+                description = "Serve the working-tree Shiny apps with pkgload, open them in the browser, and reload them on changes";
+                depends_on = lib.mapAttrs (_: _: { condition = "process_log_ready"; }) (lib.listToAttrs devApps);
+                command = "true";
               };
             };
           };

@@ -27,6 +27,6 @@ Available recipes:
     r-document *args           # Generate R manuals and NAMESPACE with roxygen2
     r-document-namespace *args # Generate NAMESPACE with roxygen2; --check fails if it was stale
     r-lock *args               # Resolve DESCRIPTION into the R lockfile (pkg.lock) with pak
-    r-run-app                  # Serve the working-tree Shiny app with pkgload, and open it in the browser
+    r-run-app                  # Serve the working-tree Shiny apps with pkgload, open them in the browser, and reload them on changes
     r-test *args               # Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package
 ```

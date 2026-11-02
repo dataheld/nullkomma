@@ -704,7 +704,7 @@ Disable optional checks and site builds with `nullkomma.r.{check,testthat,pkgdow
 `r-test`, `r-test-coverage` and `r-run-app` regenerate `NAMESPACE` first.
 `r-build-site` and `r-check` regenerate documentation and `NAMESPACE` first.
 `process-compose up` keeps `NAMESPACE` and tests current while you work:
-`r-document-namespace` reruns when `R/` changes, and then restarts `r-test` and `r-run-app`;
+`r-document-namespace` reruns when `R/` changes, and then restarts `r-test` and the Shiny apps;
 `r-test` also reruns when `tests/` changes.
 Generated `man/*.Rd` files are Git-ignored, but not `man/` itself; commit `NAMESPACE`.
 `nullkomma.r.check.errorOn` sets the failing severity (default `"note"`).
@@ -749,14 +749,19 @@ nullkomma.r.shiny = {
   enable = true;
   function = "app"; # default
   host = "0.0.0.0"; # default "127.0.0.1"; port defaults to 3838
+  devFunctions = [ "app" "module_app" ]; # default [ function ]
 };
 ```
 
 `nix run .#shiny` installs your package from the flake's source, calls the function and serves the app.
 Its runtime is R, Shiny and your package's `Depends`/`Imports` closure: no `Suggests`, `Config/Needs/*`, `extraPackages` or pkgload.
-The `r-run-app` service (`nk r-run-app`) instead loads the working-tree package with pkgload, without installing it,
-and restarts when `r-document-namespace` reruns.
-It opens the app once with R's `browseURL()`; set `R_BROWSER=true` to not open it.
+The `r-run-app` service (`nk r-run-app`) instead serves the app of each of `devFunctions` side by side,
+the n-th on `port` + n (from 0), as process `r-shiny-<function>`.
+These load the working-tree package with pkgload, without installing it,
+restart when `r-document-namespace` reruns, and the open pages then reload.
+Each app is ready when Shiny logs that it listens, restarts when it fails,
+and stops with SIGINT, so `shiny::onStop()` callbacks run.
+`r-run-app` opens each app once with R's `browseURL()`; set `R_BROWSER=true` to not open them.
 Ship assets in `inst/` (find them with `system.file()`) and write data outside the installed package.
 
 Test it by passing the function to

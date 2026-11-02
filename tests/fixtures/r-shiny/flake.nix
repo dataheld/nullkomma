@@ -7,6 +7,12 @@
     inputs:
     inputs.nullkomma.lib.mkFlake { inherit inputs; } {
       nullkomma.r.enable = true;
-      nullkomma.r.shiny.enable = true;
+      nullkomma.r.shiny = {
+        enable = true;
+        devFunctions = [
+          "app"
+          "greeting_app"
+        ];
+      };
     };
 }

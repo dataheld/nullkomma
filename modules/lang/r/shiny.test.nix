@@ -21,16 +21,11 @@
         nullkomma.r.shiny = {
           enable = true;
           function = "isolated_app";
-          port = null;
+          port = 38380;
         };
       } fixture;
       plain = callFlakeWith { nullkomma.r.shiny.enable = lib.mkForce false; } fixture;
-      local = callFlakeWith {
-        nullkomma.r.shiny = {
-          enable = true;
-          port = null;
-        };
-      } fixture;
+      local = callFlakeWith { nullkomma.r.shiny.port = 38381; } fixture;
       heavy = [
         "shiny"
         "shinytest2"
@@ -62,8 +57,8 @@
             app = false;
             task = false;
             taskAfter = [
-              "r-document-namespace"
-              "r-run-app-browser"
+              "r-shiny-app"
+              "r-shiny-greeting_app"
             ];
             dependency = false;
           };
@@ -114,52 +109,53 @@
               chmod +x "$R_BROWSER"
               # A stopped `process-compose run` signals its whole process group, so the builder needs its own.
               set -m
-              for mode in installed working-tree; do
-                if [[ "$mode" == installed ]]; then
-                  command=(${enabled.apps.${system}.shiny.program})
-                  expected='nullkomma Shiny fixture'
-                else
-                  mkdir -p man
-                  printf 'keep\n' > man/sentinel
-                  command=(env PC_DISABLE_TUI=1 ${task local "r-run-app"})
-                  expected='working-tree Shiny fixture'
-                fi
-                : > server.log
-                "''${command[@]}" >> server.log 2>&1 &
+              serve() {
+                "$@" > server.log 2>&1 &
                 pid=$!
                 trap 'kill "$pid"; wait "$pid" || true' EXIT
-                ready=false
+              }
+              # Polls until $1 serves a page containing $2, which stays in response.html.
+              await() {
                 for attempt in {1..60}; do
-                  url=$(sed -n 's/^.*Listening on \(http:\/\/127[.]0[.]0[.]1:[0-9]*\).*$/\1/p' server.log)
-                  if [[ -n "$url" ]] && curl --noproxy '*' --fail --silent "$url" > response.html; then
-                    grep -qF "$expected" response.html
-                    if [[ "$mode" == working-tree ]]; then
-                      test -z "$(find man -type f -name '*.Rd' -print -quit)"
-                      grep -qx keep man/sentinel
-                      for attempt in {1..30}; do
-                        grep -qxF "$url" "$TMPDIR/opened" 2>/dev/null && break
-                        sleep 1
-                      done
-                      grep -qxF "$url" "$TMPDIR/opened" || { cat server.log >&2; exit 1; }
-                    fi
-                    ready=true
-                    break
+                  if curl --noproxy '*' --fail --silent "$1" > response.html; then
+                    grep -qF "$2" response.html
+                    return
                   fi
-                  if ! kill -0 "$pid" 2>/dev/null; then
-                    cat server.log >&2
-                    exit 1
-                  fi
+                  kill -0 "$pid" 2>/dev/null || break
                   sleep 1
                 done
-                if [[ "$ready" != true ]]; then
-                  cat server.log >&2
-                  echo 'Shiny did not become ready' >&2
-                  exit 1
-                fi
+                cat server.log >&2
+                echo "$1 did not serve $2" >&2
+                exit 1
+              }
+              stop() {
                 kill "$pid"
                 wait "$pid" || true
                 trap - EXIT
+              }
+
+              serve ${enabled.apps.${system}.shiny.program}
+              await http://127.0.0.1:38380 'nullkomma Shiny fixture'
+              if grep -qF shiny:disconnected response.html; then
+                echo 'The installed app must not reload itself' >&2
+                exit 1
+              fi
+              stop
+
+              mkdir -p man
+              printf 'keep\n' > man/sentinel
+              serve env PC_DISABLE_TUI=1 ${task local "r-run-app"}
+              await http://127.0.0.1:38381 'working-tree Shiny fixture'
+              grep -qF shiny:disconnected response.html
+              await http://127.0.0.1:38382 'nullkomma greeting'
+              test -z "$(find man -type f -name '*.Rd' -print -quit)"
+              grep -qx keep man/sentinel
+              for attempt in {1..30}; do
+                [[ "$(sort "$TMPDIR/opened" 2>/dev/null)" == $'http://127.0.0.1:38381\nhttp://127.0.0.1:38382' ]] && break
+                sleep 1
               done
+              diff <(printf '%s\n' http://127.0.0.1:38381 http://127.0.0.1:38382) <(sort "$TMPDIR/opened")
+              stop
               touch "$out"
             '';
       }
