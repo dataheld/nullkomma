@@ -3,30 +3,50 @@
 [![built with nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
 [![FlakeHub](https://img.shields.io/endpoint?url=https://flakehub.com/f/dataheld/nullkomma/badge)](https://flakehub.com/flake/dataheld/nullkomma)
 
-Opinionated 🤓,
-batteries-included 🔋,
-extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌
-[Nix](https://nixos.org) ❄️ boilerplate.
+extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌,
+maximally transparent 🫥,
+batteries-included 🔋
+[Nix](https://nixos.org) ❄️
+boilerplate experiment 🧪.
 
 > nullkommanix [ɪn ˈnʊl ˌkɔma ˈnɪçt͡s] noun German colloquialism (translation: in next to time).
 
-## Scope
+An ideal development environment has these criteria:
 
-nullkomma is **per-project** Nix scaffolding for devshells, formatters, checks, tasks, CI and editor settings, packaged as composable [flake-parts](https://flake.parts) modules.
+| Criterion maximized                                                                       | Design goal                                                                                                             | Positive effects                                                                    | Antipatterns avoided                                                                                                                                               |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 🤌 Extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself)                     | Minimize the footprint in a project's version-controlled source; declare only a tooling version and required languages. | Lower fixed costs per project and clearer separation of concerns.                   | [The Makefile effect](https://blog.yossarian.net/2025/01/10/Be-aware-of-the-Makefile-effect): copied boilerplate causes technical debt and drift between projects. |
+| 🫥 Maximum transparency, minimal [indirection](https://en.wikipedia.org/wiki/Indirection) | Minimize additional abstraction over existing tools.                                                                    | Use upstream tools directly, without changes.                                       | Wrappers whose abstraction costs exceed their benefits, adding bugs and abstraction leaks across a project.                                                        |
+| 📋 Comprehensive quality gates                                                            | Enforce as many checks as possible, from linting to integration tests.                                                  | Expose all project checks and their feedback programmatically, including to agents. | Missing or poorly discoverable quality gates.                                                                                                                      |
 
-It is **not**:
+Unfortunately, these criteria sometimes conflict.
+In fact, you can only maximize two ouf three, forming a kind of ["impossible trinity"](https://en.wikipedia.org/wiki/Impossible_trinity).
+But if you *can* relax one of the criteria, there is already great tooling out there for you.
 
-| Concern                                                  | Lives in                                                |
-| -------------------------------------------------------- | ------------------------------------------------------- |
-| Fleet placement, clan, networking, fleet secrets         | [dataheld/aoshima](https://github.com/dataheld/aoshima) |
-| Host baseline (boot, disk, hardening, host services)     | [dataheld/pads](https://github.com/dataheld/pads)       |
-| User environment policy (home-manager, shell ergonomics) | [dataheld/lap](https://github.com/dataheld/lap)         |
-| Agentic coding app / runtime                             | [dataheld/gittens](https://github.com/dataheld/gittens) |
+![A triangle comparing DRY, quality gates and transparency across development environments.](assets/development-environment-triangle.svg)
 
-## Charter
+Points nearer a corner give more weight to that criterion;
+points near an edge emphasize the two criteria at its ends.
+The examples compare [devenv](https://devenv.sh/),
+[devshell](https://github.com/numtide/devshell),
+and [flake-parts](https://flake.parts/) with [treefmt](https://treefmt.com/)
+against short and long vanilla flakes.
+Positions illustrate relative emphasis in representative configurations,
+not measured scores or limits on how these tools can be configured.
 
-This repo contributes to the broader IT infrastructure laid out in [aoshima](https://github.com/dataheld/aoshima).
-When making changes, adhere to [aoshima's charter](https://github.com/dataheld/aoshima#charter).
+nullkomma cannot overcome these tradeoffs, but it is an attempt in achieving a higher [pareto frontier](https://en.wikipedia.org/wiki/Pareto_frontier) of these competing objectives.
+
+nix itself is a good example of how the frontier has been pushed outwards in the past, especially for development environments.
+Thanks to it, some criteria for good development environments are now table stakes, including:
+
+- Hermetic reproducibility of the environment.
+- Speed of iteration.
+- IDE integration.
+
+In the past, technologies such as Docker and [Development Containers](https://containers.dev) still offered fairly steep tradeoffs between these goals.
+Sure, you could get some level of reproducibility by dockerising your development, but there could be a pretty big performance penalty, and getting everyone's favorite tooling to work was a pain.
+Technically, there is still a tradeoff between these goals today, but it has gotten much more benign.
+Nix has made high levels of reproducibility so cheap, that there is usually so much budget left to blow on speed and niceties, that the trilemma has been effectively resolved.
 
 ## Getting started
 
@@ -941,6 +961,26 @@ perSystem.nullkomma.tasks.refresh-vendored-example = {
 ```
 
 These are nullkomma's own maintenance tasks, not tasks added to consumer projects.
+
+## Nullkomma in the Context of dataheld's Infrastructure
+
+### Scope
+
+nullkomma is **per-project** Nix scaffolding for devshells, formatters, checks, tasks, CI and editor settings, packaged as composable [flake-parts](https://flake.parts) modules.
+
+It is **not**:
+
+| Concern                                                  | Lives in                                                |
+| -------------------------------------------------------- | ------------------------------------------------------- |
+| Fleet placement, clan, networking, fleet secrets         | [dataheld/aoshima](https://github.com/dataheld/aoshima) |
+| Host baseline (boot, disk, hardening, host services)     | [dataheld/pads](https://github.com/dataheld/pads)       |
+| User environment policy (home-manager, shell ergonomics) | [dataheld/lap](https://github.com/dataheld/lap)         |
+| Agentic coding app / runtime                             | [dataheld/gittens](https://github.com/dataheld/gittens) |
+
+### Charter
+
+This repo contributes to the broader IT infrastructure laid out in [aoshima](https://github.com/dataheld/aoshima).
+When making changes, adhere to [aoshima's charter](https://github.com/dataheld/aoshima#charter).
 
 [^treefmt]: `nix fmt` and the `treefmt` task fix what they can; `checks.<system>.treefmt`
     fails `nix flake check` (and CI) on any remaining formatting or lint issue.
