@@ -373,7 +373,7 @@ your own tasks leave it unset and form the `custom` group.
 nk                     # list tasks
 nk r-test              # run one task, after its prerequisites
 nk r-build-site --preview # arguments go to the task
-nk all                 # format and run all checks
+nk all                 # format and run check
 ```
 
 A task is a process with a `description` in the [`dev` tree](#processtrees);

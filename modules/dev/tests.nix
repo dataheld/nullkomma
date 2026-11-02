@@ -203,11 +203,11 @@
               "terranix/import-tree" = inputs.terranix.inputs.import-tree.outPath;
               "terranix/systems" = inputs.terranix.inputs.systems.outPath;
             };
-          process-compose.dev.settings.processes.try-fixture = {
-            description = "Set up a fixture in a new Git repository using this checkout, as README's Getting started does";
+          process-compose.dev.settings.processes.build-fixture-interactive = {
+            description = "Build a fixture for interactive use: a new Git repository using this checkout, set up as README's Getting started does";
             disabled = true;
             command = pkgs.writeShellApplication {
-              name = "try-fixture";
+              name = "build-fixture-interactive";
               runtimeInputs = [
                 pkgs.direnv
                 pkgs.git
@@ -218,7 +218,7 @@
                 case "''${1-}" in
                   ${lib.concatStringsSep "|" (lib.attrNames fixtures)}) ;;
                   *)
-                    echo "Usage: nk try-fixture <${lib.concatStringsSep "|" (lib.attrNames fixtures)}>" >&2
+                    echo "Usage: nk build-fixture-interactive <${lib.concatStringsSep "|" (lib.attrNames fixtures)}>" >&2
                     exit 1
                     ;;
                 esac
