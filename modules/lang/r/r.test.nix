@@ -454,7 +454,7 @@
           expectedError.msg = "`notarealpackage` is not in nixpkgs";
         };
         testRAllowsLockedOffNixpkgsPackagesByDefault = {
-          expr = fixtures.r-remotes.debug.config.nullkomma.r.allowOffNixpkgs;
+          expr = fixtures.r-off-nixpkgs.debug.config.nullkomma.r.allowOffNixpkgs;
           expected = true;
         };
         testRRejectsLockedOffNixpkgsPackagesWhenDisabled = {
@@ -464,7 +464,7 @@
                 (perSystem (
                   callFlakeWith {
                     nullkomma.r.allowOffNixpkgs = false;
-                  } (root + "/tests/fixtures/r-remotes")
+                  } (root + "/tests/fixtures/r-off-nixpkgs")
                 )).nullkomma.r.package.drvPath
                 true
             )).success;

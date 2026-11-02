@@ -61,7 +61,7 @@
         "quarto"
         "quarto-branded"
         "r"
-        "r-remotes"
+        "r-off-nixpkgs"
         "r-shiny"
         "shell"
       ] (name: callFlake (root + "/tests/fixtures/${name}"));

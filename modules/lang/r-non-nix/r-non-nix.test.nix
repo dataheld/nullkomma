@@ -108,7 +108,7 @@
           r-non-nix-files = nonNixProject;
           r-non-nix-package =
             (lib.findFirst (p: p.pname or "" == "withr") null
-              (perSystem fixtures.r-remotes).nullkomma.r.package.buildInputs
+              (perSystem fixtures.r-off-nixpkgs).nullkomma.r.package.buildInputs
             ).overrideAttrs
               {
                 src = nonNixProject;

@@ -1,4 +1,4 @@
-# `nk` in `tests/fixtures/r-remotes`
+# `nk` in `tests/fixtures/r-off-nixpkgs`
 
 ```text
 Available recipes:
