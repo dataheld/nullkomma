@@ -4,6 +4,7 @@
 # Processes with a `description` are tasks, shown by `nk`.
 # Bare `process-compose up` and `nix run .#dev` start the enabled ones;
 # set `disabled = true` on actions that should only run when asked for.
+# `up <name>` also starts the disabled processes that `<name>` depends on.
 { inputs, ... }:
 let
   # One process-compose server per checkout, without a TCP port.
@@ -58,6 +59,7 @@ in
                       cd "$(${lib.getExe pkgs.git} rev-parse --show-toplevel)"
                     ''
                     + socket pkgs;
+                    cli.environment.PC_HIDE_DISABLED_PROC = lib.mkDefault true;
                   }
                 ];
               }
@@ -75,7 +77,10 @@ in
           # Native `process-compose` commands use the `dev` tree.
           nullkomma.devShell = {
             packages = [ tree.package ];
-            env.PC_CONFIG_FILES = "${tree.outputs.settingsFile}";
+            env = {
+              PC_CONFIG_FILES = "${tree.outputs.settingsFile}";
+              PC_HIDE_DISABLED_PROC = "true";
+            };
             shellHook = socket pkgs;
           };
           processTrees = lib.mapAttrs (

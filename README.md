@@ -422,8 +422,9 @@ The [process-compose-flake] tree of all tasks and services.
 Services are processes that are not `disabled`: they keep running, or rerun on file changes.
 `process-compose up` in the dev shell (or `nix run .#processTrees.<system>.dev`) starts them,
 with process-compose's terminal UI, e.g. `quarto-preview` for Quarto, and for R
-`r-document-namespace` and `r-test`, which rerun when files in `R/` or `tests/` change.
-`process-compose up quarto-preview` starts only one service and its prerequisites.
+`r-document-namespace` and `r-test`, which rerun when files in `R/` or `tests/` change;
+it hides the disabled processes (`PC_HIDE_DISABLED_PROC`).
+`process-compose up quarto-preview` starts only one service and its prerequisites, including disabled ones.
 Further process-compose commands, such as `process-compose process logs r-test`,
 reach the running tree through a per-checkout socket.
 
