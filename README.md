@@ -3,12 +3,46 @@
 [![built with nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
 [![FlakeHub](https://img.shields.io/endpoint?url=https://flakehub.com/f/dataheld/nullkomma/badge)](https://flakehub.com/flake/dataheld/nullkomma)
 
-Opinionated 🤓,
-batteries-included 🔋,
-extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌
-[Nix](https://nixos.org) ❄️ boilerplate.
+extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌,
+maximally transparent 🫥,
+batteries-included 🔋
+[Nix](https://nixos.org) ❄️
+boilerplate experiment 🧪.
 
 > nullkommanix [ɪn ˈnʊl ˌkɔma ˈnɪçt͡s] noun German colloquialism (translation: in next to time).
+
+An ideal environment to build and develop software should meet these criteria:
+
+1. 🤌 Extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself): It should have as small a footprint in a user's source (under `git`) as possible.
+  The anti-pattern to avoid here is [the makefile effect](https://blog.yossarian.net/2025/01/10/Be-aware-of-the-Makefile-effect), where copy and pasted boilerplate causes technical debt and drift between projects.
+  Ideally, a user should only have to declare "I want nullkomma version x.x.x with support for languages foo and bar".
+  Radically standardizing the development environment reduces the fixed costs of any given project and clarifies separation of concerns.
+1. 🫥 Maximum transparency, minimal [indirection](https://en.wikipedia.org/wiki/Indirection): It should have the least amount of additional abstraction over existing tooling as possible.
+  Ideally, you could use each part of nullkomma by just using it's upstream tools directly, without any changes necessary.
+  The anti-pattern here "wrapperities", a sub-species of "speculative generality", where the benefits of abstractions do not justify their costs.
+  Uneconomical abstractions in development tooling are especially costly, because they layer any bugs or leakage they have on top of much of project's unrelated codebase.
+1. 📋 Comprehensive quality gates: It should enforce as many checks as possible, from linting to integration tests.
+  Ideally, a project would "know" what it means to be in a good state, and it would expose all such checks as well as their feedback in a programmatic way (including to agents).
+  The anti-pattern here is missing or poorly discoverable quality gates.
+
+Unfortunately, these criteria sometimes conflict.
+In fact, you can only maximize two ouf three, forming a kind of ["impossible trinity"](https://en.wikipedia.org/wiki/Impossible_trinity).
+But if you *can* relax one of the criteria, there is already great tooling out there for you.
+
+nullkomma cannot overcome these tradeoffs, but it is an attempt in achieving a higher [pareto frontier](https://en.wikipedia.org/wiki/Pareto_frontier) of these competing objectives.
+
+nix itself is a good example of how the frontier has been pushed outwards in the past, especially for development environments.
+Thanks to it, some criteria for good development environments are now table stakes, including:
+
+- Hermetic reproducibility of the environment.
+- Speed of iteration.
+- IDE integration.
+
+In the past, technologies such as Docker and [Development Containers](https://containers.dev) still offered fairly steep tradeoffs between these goals.
+Sure, you could get some level of reproducibility by dockerising your development, but there could be a pretty big performance penalty, and getting everyone's favorite tooling to work was a pain.
+Technically, there is still a tradeoff between these goals today, but it has gotten much more benign.
+Nix has made high levels of reproducibility so cheap, that there is usually so much budget left to blow on speed and niceties, that the trilemma has been effectively resolved.
+
 
 ## Scope
 
