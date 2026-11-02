@@ -1,5 +1,6 @@
 # `nk` is a just menu of the `dev` tree's tasks, grouped by namespace;
-# tasks without one, the project's own, form the `project` group.
+# tasks without one, the project's own, form the `custom` group.
+# `--unsorted` lists groups in source order: nullkomma, custom, then plugins.
 # Each recipe runs its task once, as `nullkomma.sandbox` does in builds:
 # prerequisites (`depends_on`) with `up`, then the task with its arguments.
 { inputs, ... }:
@@ -39,6 +40,21 @@
           tree = config.process-compose.dev;
           inherit (tree.settings) processes;
           tasks = lib.filterAttrs (_: p: p.description != null) processes;
+          group = p: if p.namespace == "default" then "custom" else p.namespace;
+          rank =
+            g:
+            {
+              nullkomma = "0";
+              custom = "1";
+            }
+            .${g} or "2${g}";
+          recipes = lib.sortOn (t: rank t.group) (
+            lib.mapAttrsToList (name: p: {
+              inherit name;
+              inherit (p) description;
+              group = group p;
+            }) tasks
+          );
           overlay = name: settings: pkgs.writeText "process-compose-${name}.json" (builtins.toJSON settings);
           once = overlay "once" {
             processes = lib.mapAttrs (_: _: {
@@ -124,7 +140,15 @@
 
               [private]
               default:
-                  @just --justfile {{justfile()}} --list
+                  @just --justfile {{justfile()}} --list --unsorted
+            ''
+            + lib.concatMapStrings (t: ''
+
+              [group(${builtins.toJSON t.group}), doc(${builtins.toJSON t.description})]
+              ${t.name} *args:
+                  @exec ${lib.getExe run} ${t.name} "$@"
+            '') recipes
+            + ''
 
               [group("nullkomma"), doc("Serve the tasks as MCP tools over stdio, for agents")]
               mcp:
@@ -134,16 +158,6 @@
               graph *args:
                   @exec ${lib.getExe graph} "$@"
             ''
-            + lib.concatStrings (
-              lib.mapAttrsToList (name: p: ''
-
-                [group(${
-                  builtins.toJSON (if p.namespace == "default" then "project" else p.namespace)
-                }), doc(${builtins.toJSON p.description})]
-                ${name} *args:
-                    @exec ${lib.getExe run} ${name} "$@"
-              '') tasks
-            )
           );
           runner =
             pkgs.writeShellApplication {
