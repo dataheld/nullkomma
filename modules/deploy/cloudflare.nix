@@ -67,6 +67,16 @@
           in
           {
             nullkomma.devShell.packages = [ pkgs.wrangler ];
+            nullkomma.agents.mcpServers = {
+              cloudflare-docs = {
+                type = "http";
+                url = "https://docs.mcp.cloudflare.com/mcp";
+              };
+              opentofu = {
+                type = "http";
+                url = "https://mcp.opentofu.org/mcp";
+              };
+            };
             # terranix also exports packages.deploy, whose .init, .plan, ... `nix run` falls back to.
             apps.deploy = {
               type = "app";

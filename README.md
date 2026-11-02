@@ -522,6 +522,10 @@ Instructs coding agents, through three kinds of files:
 - `.mcp.json`, generated from `perSystem.nullkomma.agents.mcpServers.<name>`,
   where plugins and you add [MCP] servers, for example the framework's `nullkomma` from [`nk mcp`](#taskrunners).
   The [`vscode`](#vscode-and-neovim) plugin writes them to `.vscode/mcp.json` too.
+  `nullkomma.agents.browser.enable`, which `quarto` and Shiny turn on,
+  adds [Playwright's](https://github.com/microsoft/playwright-mcp) `playwright`,
+  so agents can open and operate the previews in a headless browser;
+  its snapshots go to the ignored `.playwright-mcp/`.
 
 Projects that don't use nullkomma yet can install this repository as an
 [Agent Plugin](https://agent-plugins.org) with the nk-adopt skill,
@@ -565,7 +569,8 @@ e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
 Opt-in `quarto` renders the project into `packages.site`; `quarto-preview` serves it locally and reloads on edits.
 Until [quarto-dev/quarto-cli#2795](https://github.com/quarto-dev/quarto-cli/issues/2795) is fixed,
 its prerequisite `quarto-preview-includes` re-renders the pages with `{{< include >}}` when a Markdown file changes.
-It ignores `.quarto/`, `_site/` and Quarto's generated `.luarc.json`.
+It ignores `.quarto/`, `_site/` and Quarto's generated `.luarc.json`,
+and gives agents a [browser](#agents) for the previews.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`,
 generated into `_extensions/<name>`.
 The [privacy policy](#privacy-policy) is generated into `privacy.qmd`.
@@ -601,6 +606,8 @@ The build task renders the working tree into Quarto's local output directory.
 Opt-in `cloudflare` serves whatever `packages.site` holds as [Workers static assets][cloudflare],
 deployed with [Terranix], including custom domains, `_headers` and `_redirects`; `workers.dev` is disabled.
 It adds hosting and analytics to the [privacy policy](#privacy-policy) and ignores `.nullkomma/cloudflare/`.
+Agents get the remote [MCP](#agents) servers `cloudflare-docs`, which searches Cloudflare's documentation,
+and `opentofu`, which searches the OpenTofu registry's providers and resources.
 
 ```nix
 nullkomma.cloudflare = {
@@ -777,6 +784,7 @@ and stops with SIGINT, so `shiny::onStop()` callbacks run.
 They run in [Shiny's developer mode](https://shiny.posit.co/r/reference/shiny/latest/devmode.html),
 without its autoreload, and print warnings as they occur (`options(warn = 1)`).
 `r-shiny-browser` opens each app once with R's `browseURL()`; set `R_BROWSER=true` to not open them.
+Agents get a [browser](#agents) to operate the apps.
 Ship assets in `inst/` (find them with `system.file()`) and write data outside the installed package.
 
 Test it by passing the function to

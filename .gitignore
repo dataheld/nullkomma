@@ -5,6 +5,8 @@ result
 result-*
 .direnv/
 .claude/
+.playwright-mcp/
+/.agents/skills/nk-audit-output
 /.agents/skills/nk-resolve-file-conflicts
 /.agents/skills/nk-upgrade
 /.agents/skills/update-integration-matrix

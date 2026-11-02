@@ -462,6 +462,34 @@
                 );
                 expected = normalize (summary fixtures.md);
               };
+            testPluginsAddMcpServers =
+              let
+                servers = flake: lib.attrNames (perSystem flake).nullkomma.agents.mcpServers;
+              in
+              {
+                expr = map servers [
+                  fixtures.md
+                  fixtures.cloudflare
+                  fixtures.quarto
+                  (callFlakeWith { nullkomma.quarto.enable = true; } (root + "/tests/fixtures/r-shiny"))
+                ];
+                expected = [
+                  [ "nullkomma" ]
+                  [
+                    "cloudflare-docs"
+                    "nullkomma"
+                    "opentofu"
+                  ]
+                  [
+                    "nullkomma"
+                    "playwright"
+                  ]
+                  [
+                    "nullkomma"
+                    "playwright"
+                  ]
+                ];
+              };
             testPrivacyPolicyOrdersEnabledSections = {
               expr = {
                 policy = privacy {

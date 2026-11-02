@@ -32,6 +32,7 @@
       };
       config = lib.mkIf (cfg.enable && cfg.shiny.enable) {
         nullkomma.r.extraPackages = [ "shiny" ];
+        nullkomma.agents.browser.enable = true;
         perSystem =
           {
             config,

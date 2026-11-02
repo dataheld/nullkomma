@@ -3,8 +3,15 @@
 # and MCP servers from a generated `.mcp.json`.
 {
   framework =
-    { flake-parts-lib, lib, ... }:
     {
+      config,
+      flake-parts-lib,
+      lib,
+      ...
+    }:
+    {
+      options.nullkomma.agents.browser.enable =
+        lib.mkEnableOption "a headless browser for agents, to open and operate the project's web previews, through Playwright's MCP server";
       options.nullkomma.agents.skills = lib.mkOption {
         type = lib.types.attrsOf lib.types.path;
         default = { };
@@ -13,13 +20,24 @@
       options.perSystem = flake-parts-lib.mkPerSystemOption (
         { pkgs, ... }:
         {
+          config.nullkomma.agents.mcpServers.playwright = lib.mkIf config.nullkomma.agents.browser.enable {
+            type = "stdio";
+            command = lib.getExe pkgs.playwright-mcp;
+            # The default browser profile would be in the read-only Nix store.
+            args = [
+              "--headless"
+              "--isolated"
+            ];
+          };
           options.nullkomma.agents.mcpServers = lib.mkOption {
-            type = lib.types.attrsOf (pkgs.formats.json { }).type;
+            # Unlike JSON's type, `anything` merges identical definitions from several plugins.
+            type = lib.types.attrsOf lib.types.anything;
             default = { };
             description = "MCP servers by name, each with a `type` (`stdio` with `command` and `args`, or `http` with `url`); plugins add here. The `agents` plugin writes them to `.mcp.json`, the `vscode` plugin to `.vscode/mcp.json`.";
           };
         }
       );
+      config.nullkomma.gitignore = lib.mkIf config.nullkomma.agents.browser.enable [ ".playwright-mcp/" ];
     };
   plugins.agents =
     { config, lib, ... }:
