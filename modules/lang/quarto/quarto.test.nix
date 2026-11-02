@@ -46,6 +46,16 @@
       };
     in
     {
+      nullkomma.nix.unit.tests.testQuartoRenderIsCheckedAsSite = {
+        expr = {
+          checked = (perSystem fixtures.quarto).processTrees.dev.processes.check.depends_on ? quarto-render;
+          sandboxed = fixtures.quarto.checks.${system}.quarto-render.drvPath or null;
+        };
+        expected = {
+          checked = true;
+          sandboxed = fixtures.quarto.packages.${system}.site.drvPath;
+        };
+      };
       nullkomma.nix.unit.tests.testQuartoBrandFeature = {
         expr =
           let
