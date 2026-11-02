@@ -204,11 +204,12 @@
               "terranix/systems" = inputs.terranix.inputs.systems.outPath;
             };
           process-compose.dev.settings.processes.try-fixture = {
-            description = "Copy a fixture into a new Git repository using this checkout, to try it out";
+            description = "Set up a fixture in a new Git repository using this checkout, as README's Getting started does";
             disabled = true;
             command = pkgs.writeShellApplication {
               name = "try-fixture";
               runtimeInputs = [
+                pkgs.direnv
                 pkgs.git
                 pkgs.gnused
               ];
@@ -225,9 +226,13 @@
                 scratch="$(mktemp -d "/tmp/nk-$1.XXXXXX")"
                 cp -R "$root/tests/fixtures/$1/." "$scratch"
                 sed -i "s|nullkomma.url = .*|nullkomma.url = \"git+file://$root\";|" "$scratch/flake.nix"
-                git -C "$scratch" init -q
-                git -C "$scratch" add -A
-                echo "cd $scratch && nix develop"
+                cd "$scratch"
+                git init -q
+                git add -A
+                nix develop --command nk write-files
+                nix develop --command nk generate-files
+                direnv allow
+                echo "cd $scratch"
               '';
             };
           };

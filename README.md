@@ -863,8 +863,9 @@ nullkomma is tested against small example projects ("fixtures") in
 - **Snapshot tests:** `tests/snapshots/<fixture>.md` records each fixture's `nk` menu;
   `snapshot-<fixture>` fails on any change. Review the diff, then run `nk update-snapshots`.
 
-`nk try-fixture <fixture>` copies a fixture into a new Git repository under `/tmp`
-that uses this checkout, including uncommitted changes, and prints how to enter it.
+`nk try-fixture <fixture>` sets up a fixture as [Getting started](#getting-started) does,
+in a new Git repository under `/tmp` that uses this checkout, including uncommitted changes,
+and allows its `.envrc`; `cd` into the printed path.
 
 New plugins should add a valid and a deliberately broken fixture, and check that
 the broken one fails with the real tool's error, not just any error.
