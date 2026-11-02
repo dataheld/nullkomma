@@ -4,8 +4,8 @@
 Available recipes:
     [cloudflare]
     cloudflare-deploy *args   # Publish the site to Cloudflare
+    cloudflare-plan *args     # Show the changes cloudflare-deploy would make; args go to `tofu plan`
     cloudflare-validate *args # Validate the Cloudflare Terraform configuration
-    terraform *args           # Plan Cloudflare changes, or run terraform <command> [args]
 
     [gitleaks]
     gitleaks-git *args        # Scan Git history for secrets

@@ -108,8 +108,8 @@
                 packages.site = lib.mkForce (pkgs.runCommand "unbuildable-site" { } "exit 1");
               };
           }).devShells.${system}.default;
-        cloudflare-plan =
-          pkgs.runCommand "nullkomma-cloudflare-plan"
+        cloudflare-plan-offline =
+          pkgs.runCommand "nullkomma-cloudflare-plan-offline"
             {
               nativeBuildInputs = [
                 (perSystem cloudflare).terranix.terranixConfigurations.deploy.terraformWrapper.package
@@ -302,11 +302,11 @@
               git init -q
               ${task flake "cloudflare-deploy"}
               test -f "$CALLED"
-              ${task flake "terraform"}
+              ${task flake "cloudflare-plan"}
               printf '%s\n' plan > expected
               cmp expected "$CALLED"
-              ${task flake "terraform"} import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id'
-              printf '%s\n' import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id' > expected
+              ${task flake "cloudflare-plan"} -target=cloudflare_workers_script.site
+              printf '%s\n' plan -target=cloudflare_workers_script.site > expected
               cmp expected "$CALLED"
               touch $out
             '';

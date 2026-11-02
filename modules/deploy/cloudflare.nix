@@ -89,12 +89,11 @@
                     description = "Publish the site to Cloudflare";
                     text = ''exec nix run .#deploy -- "$@"'';
                   };
-                  terraform = {
-                    description = "Plan Cloudflare changes, or run terraform <command> [args]";
+                  cloudflare-plan = {
+                    description = "Show the changes cloudflare-deploy would make; args go to `tofu plan`";
                     text = ''
                       nix run .#deploy.init
-                      if [[ $# == 0 ]]; then set -- plan; fi
-                      exec nix run .#deploy.terraform -- "$@"
+                      exec nix run .#deploy.terraform -- plan "$@"
                     '';
                   };
                   cloudflare-validate = {
