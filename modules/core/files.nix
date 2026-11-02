@@ -172,8 +172,8 @@
             )
           );
           process-compose.dev.settings.processes = {
-            write-files = task "Write source-of-truth files; keep your edits and report upstream conflicts" write;
-            generate-files = task "Overwrite Git-ignored files generated from Nix" generate;
+            write-files = task "Update the files nullkomma committed, keeping your edits" write;
+            generate-files = task "Regenerate nullkomma's Git-ignored files; entering the dev shell does this too" generate;
           };
           # Generated files follow the Nix configuration, not the working tree: refresh them on
           # entering the dev shell (direnv re-enters when the flake changes), only if they changed.

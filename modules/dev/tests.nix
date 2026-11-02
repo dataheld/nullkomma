@@ -239,7 +239,7 @@
             };
           };
           process-compose.dev.settings.processes.update-snapshots = {
-            description = "Rewrite tests/snapshots from the fixtures, after reviewing the snapshot checks' diffs";
+            description = "Rewrite tests/snapshots from the fixtures; review the snapshot checks' diffs first";
             disabled = true;
             command = pkgs.writeShellApplication {
               name = "update-snapshots";
@@ -251,7 +251,7 @@
           process-compose.dev.settings.processes.all.depends_on.check-fixtures.condition =
             "process_completed_successfully";
           process-compose.dev.settings.processes.check-fixtures = {
-            description = "Check a real consumer flake accepts valid input and rejects formatting drift";
+            description = "Run nix flake check and flake-checker on fixture projects, including invalid ones";
             disabled = true;
             command = pkgs.writeShellApplication {
               name = "check-fixtures";

@@ -38,7 +38,7 @@
           process-compose.dev.settings.processes = {
             r-check = {
               namespace = "r";
-              description = "Run R CMD check";
+              description = "Build the package and run R CMD check";
               depends_on.r-document.condition = "process_completed_successfully";
               working_dir = "./${cfg.prefix}";
               disabled = true;

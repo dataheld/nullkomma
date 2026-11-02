@@ -154,7 +154,7 @@
               mcp:
                   @exec ${lib.getExe mcpServer}
 
-              [group("nullkomma"), doc("Print the process dependency graph; args go to `process-compose graph` (default: -f mermaid)")]
+              [group("nullkomma"), doc("Print the task dependency graph; args go to `process-compose graph` (default: -f mermaid)")]
               graph *args:
                   @exec ${lib.getExe graph} "$@"
             ''
