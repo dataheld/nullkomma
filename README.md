@@ -551,6 +551,8 @@ e.g. [lap](https://github.com/dataheld/lap), which sets up the same two editors.
 ### `quarto`
 
 Opt-in `quarto` renders the project into `packages.site`; `quarto-preview` serves it locally and reloads on edits.
+Until [quarto-dev/quarto-cli#2795](https://github.com/quarto-dev/quarto-cli/issues/2795) is fixed,
+its prerequisite `quarto-preview-includes` re-renders the pages with `{{< include >}}` when a Markdown file changes.
 It ignores `.quarto/`, `_site/` and Quarto's generated `.luarc.json`.
 Shared Quarto extensions, e.g. from a brand flake, go in `nullkomma.quarto.extensions.<name>`,
 generated into `_extensions/<name>`.

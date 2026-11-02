@@ -22,6 +22,6 @@ Available recipes:
     flake-update *args   # Update flake inputs, then write-files and generate-files; args go to `nix flake update`
 
     [quarto]
-    quarto-preview *args # Serve the site on localhost, re-rendering and reloading on changes
+    quarto-preview       # Serve the site on localhost, re-rendering and reloading on changes
     quarto-render *args  # Render the Quarto site
 ```
