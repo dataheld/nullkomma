@@ -756,6 +756,7 @@ nullkomma.r.shiny = {
 Its runtime is R, Shiny and your package's `Depends`/`Imports` closure: no `Suggests`, `Config/Needs/*`, `extraPackages` or pkgload.
 The `r-run-app` service (`nk r-run-app`) instead loads the working-tree package with pkgload, without installing it,
 and restarts when `r-document-namespace` reruns.
+It opens the app once with R's `browseURL()`; set `R_BROWSER=true` to not open it.
 Ship assets in `inst/` (find them with `system.file()`) and write data outside the installed package.
 
 Test it by passing the function to

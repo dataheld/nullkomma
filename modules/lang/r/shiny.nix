@@ -94,6 +94,7 @@
               pkgload::load_all(${dir}, export_all = FALSE)
               package <- pkgload::pkg_name(${dir})
             '';
+            localHost = if cfg.shiny.host == "0.0.0.0" then "127.0.0.1" else cfg.shiny.host;
             launcher = pkgs.writeShellScriptBin "shiny" ''
               exec ${pkgsR.R}/bin/Rscript --vanilla ${script ''
                 .libPaths(c("${installed}/library", "${dependencies}/library"), include.site = FALSE)
@@ -107,12 +108,35 @@
               program = lib.getExe launcher;
               meta.description = "Run the project's exported Shiny app";
             };
+            # Runs once, so that restarts on R changes don't open more tabs.
+            process-compose.dev.settings.processes.r-run-app-browser = {
+              namespace = "r";
+              disabled = true;
+              command = pkgs.writeShellApplication {
+                name = "r-run-app-browser";
+                runtimeInputs = [
+                  config.process-compose.dev.package
+                  config.nullkomma.r.package
+                ];
+                text = ''
+                  for _ in {1..120}; do
+                    if ports=$(process-compose process ports r-run-app 2>&1) && [[ "$ports" =~ \[([0-9]+) ]]; then
+                      exec Rscript --vanilla -e "utils::browseURL('http://${localHost}:''${BASH_REMATCH[1]}')"
+                    fi
+                    sleep 1
+                  done
+                  echo "$ports" >&2
+                  exit 1
+                '';
+              };
+            };
             process-compose.dev.settings.processes.r-run-app = {
               namespace = "r";
-              description = "Serve the working-tree Shiny app with pkgload";
+              description = "Serve the working-tree Shiny app with pkgload, and open it in the browser";
               working_dir = "./${cfg.prefix}";
               # r-document-namespace's watch restarts the server on R changes.
               depends_on.r-document-namespace.condition = "process_completed_successfully";
+              depends_on.r-run-app-browser.condition = "process_started";
               command = pkgs.writeShellApplication {
                 name = "r-run-app";
                 runtimeInputs = [ config.nullkomma.r.package ];
@@ -120,7 +144,7 @@
               };
               readiness_probe = lib.mkIf (cfg.shiny.port != null) {
                 http_get = {
-                  host = if cfg.shiny.host == "0.0.0.0" then "127.0.0.1" else cfg.shiny.host;
+                  host = localHost;
                   inherit (cfg.shiny) port;
                 };
               };

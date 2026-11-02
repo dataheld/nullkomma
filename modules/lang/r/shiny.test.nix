@@ -61,7 +61,10 @@
           expected = {
             app = false;
             task = false;
-            taskAfter = [ "r-document-namespace" ];
+            taskAfter = [
+              "r-document-namespace"
+              "r-run-app-browser"
+            ];
             dependency = false;
           };
         };
@@ -85,9 +88,11 @@
         r-shiny =
           pkgs.runCommand "r-shiny"
             {
+              # process-compose finds ports with lsof on macOS, which has it outside the sandbox.
               nativeBuildInputs = [
                 pkgs.curl
                 pkgs.git
+                pkgs.lsof
               ];
               __darwinAllowLocalNetworking = true;
             }
@@ -104,6 +109,9 @@
               mkdir sub
               cd sub
               export R_LIBS_SITE="${pkgs.rPackages.pkgload}/library:${pkgs.rPackages.testthat}/library"
+              export R_BROWSER="$TMPDIR/browser"
+              printf '#!/bin/sh\necho "$1" >> "%s"\n' "$TMPDIR/opened" > "$R_BROWSER"
+              chmod +x "$R_BROWSER"
               # A stopped `process-compose run` signals its whole process group, so the builder needs its own.
               set -m
               for mode in installed working-tree; do
@@ -128,6 +136,11 @@
                     if [[ "$mode" == working-tree ]]; then
                       test -z "$(find man -type f -name '*.Rd' -print -quit)"
                       grep -qx keep man/sentinel
+                      for attempt in {1..30}; do
+                        grep -qxF "$url" "$TMPDIR/opened" 2>/dev/null && break
+                        sleep 1
+                      done
+                      grep -qxF "$url" "$TMPDIR/opened" || { cat server.log >&2; exit 1; }
                     fi
                     ready=true
                     break
