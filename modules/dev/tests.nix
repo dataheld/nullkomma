@@ -62,6 +62,7 @@
         "quarto-branded"
         "r"
         "r-remotes"
+        "r-shiny"
         "shell"
       ] (name: callFlake (root + "/tests/fixtures/${name}"));
       # One invalid file per formatter, checked by both the derivation and the real CLI.

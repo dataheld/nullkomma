@@ -24,7 +24,7 @@
           port = null;
         };
       } fixture;
-      plain = callFlakeWith { } fixture;
+      plain = callFlakeWith { nullkomma.r.shiny.enable = lib.mkForce false; } fixture;
       local = callFlakeWith {
         nullkomma.r.shiny = {
           enable = true;
