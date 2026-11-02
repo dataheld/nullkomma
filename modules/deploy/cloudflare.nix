@@ -88,7 +88,7 @@
                 {
                   cloudflare-deploy = {
                     description = "Publish the site to Cloudflare";
-                    text = ''exec nix run .#deploy -- "$@"'';
+                    text = "exec nix run .#deploy";
                   };
                   cloudflare-plan = {
                     description = "Show the changes cloudflare-deploy would make; args go to `tofu plan`";
