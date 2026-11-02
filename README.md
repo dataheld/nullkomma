@@ -23,6 +23,11 @@ Unfortunately, these criteria sometimes conflict.
 In fact, you can only maximize two ouf three, forming a kind of ["impossible trinity"](https://en.wikipedia.org/wiki/Impossible_trinity).
 But if you *can* relax one of the criteria, there is already great tooling out there for you.
 
+![A triangle comparing DRY, quality gates and transparency across development environments.](assets/development-environment-triangle.svg)
+
+Positions illustrate relative emphasis in representative configurations,
+not measured scores or limits on how these tools can be configured.
+
 nullkomma cannot overcome these tradeoffs, but it is an attempt in achieving a higher [pareto frontier](https://en.wikipedia.org/wiki/Pareto_frontier) of these competing objectives.
 
 nix itself is a good example of how the frontier has been pushed outwards in the past, especially for development environments.
