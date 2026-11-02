@@ -84,7 +84,7 @@ Check your work locally, from fastest to strictest:
    e.g. `nk r-test`.
 1. Before you report a change as done, run `nk all`, then `nix flake check`,
    and fix what fails.
-   `nk all` formats and runs the checks that are tasks, in the working tree.
+   `nk all` formats and runs `nk check`, plus checks that need network or Docker, in the working tree.
    `nix flake check` runs all checks sandboxed, as CI does,
    and sees only files that Git tracks: `git add` new files first.
 

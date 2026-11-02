@@ -245,6 +245,9 @@ perSystem = { pkgs, ... }: {
 To pass sandbox-only arguments, override the check, as R does for its tests:
 `checks.r-test = config.nullkomma.sandbox { process = "r-test"; args = [ "--installed" ]; };`.
 
+A task that cannot run sandboxed, e.g. because it needs network or Docker,
+can join `all` instead: `all.depends_on.<name>`.
+
 ### `tests`
 
 With the `nix` plugin, the [nix-unit] tests in `perSystem.nullkomma.nix.unit.tests`,
@@ -373,7 +376,7 @@ your own tasks leave it unset and form the `custom` group.
 nk                     # list tasks
 nk r-test              # run one task, after its prerequisites
 nk r-build-site --preview # arguments go to the task
-nk all                 # format and run check
+nk all                 # format and run check, plus checks that need network or Docker
 ```
 
 A task is a process with a `description` in the [`dev` tree](#processtrees);

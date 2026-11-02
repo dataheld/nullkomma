@@ -212,6 +212,8 @@
                 touch $out
               '';
         };
+        process-compose.dev.settings.processes.all.depends_on.test-r-non-nix.condition =
+          "process_completed_successfully";
         process-compose.dev.settings.processes.test-r-non-nix = {
           description = "Test Ubuntu R workflows without Nix; args go to docker build (requires a running Docker daemon and network)";
           disabled = true;

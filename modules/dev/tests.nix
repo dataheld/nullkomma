@@ -248,6 +248,8 @@
               '') (lib.attrNames snapshots);
             };
           };
+          process-compose.dev.settings.processes.all.depends_on.check-fixtures.condition =
+            "process_completed_successfully";
           process-compose.dev.settings.processes.check-fixtures = {
             description = "Check a real consumer flake accepts valid input and rejects formatting drift";
             disabled = true;

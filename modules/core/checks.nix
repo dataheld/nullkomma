@@ -1,6 +1,6 @@
 # `check` runs the checks, the processes it depends on;
 # each also runs sandboxed as `checks.<system>.<name>`.
-# `all` also formats; plugins add to either with `depends_on`.
+# `all` also formats and runs checks that cannot be sandboxed; add to either with `depends_on`.
 {
   framework.perSystem =
     { config, lib, ... }:
@@ -16,7 +16,7 @@
     {
       process-compose.dev.settings.processes = {
         check = task "Run the checks that are tasks, in the working tree";
-        all = task "Format and run check" // {
+        all = task "Format and run check, plus checks that need network or Docker" // {
           depends_on.check.condition = "process_completed_successfully";
         };
       };
