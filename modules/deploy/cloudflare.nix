@@ -5,10 +5,9 @@
     let
       cfg = config.nullkomma.cloudflare;
       label = "[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?";
-      worker = if cfg.worker == null then cfg.name else cfg.worker;
-      inferName = cfg.name == null && (cfg.domain != null || worker == null);
+      inferName = cfg.name == null && (cfg.domain != null || cfg.worker == null);
       siteName = if cfg.name == null then "\${var.site_name}" else cfg.name;
-      workerName = if worker == null then siteName else worker;
+      workerName = if cfg.worker == null then siteName else cfg.worker;
       missing = "is required to plan or deploy; see https://github.com/dataheld/nullkomma#cloudflare";
     in
     {

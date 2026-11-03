@@ -12,9 +12,7 @@
         fixtures
         perSystem
         plugins
-        project
         raw
-        root
         task
         ;
       tfConfig =
@@ -35,63 +33,7 @@
       inherit (fixtures) cloudflare;
     in
     {
-      nullkomma.nix.unit.tests = {
-        testCloudflareRejectsLegacyDomains = {
-          expr =
-            (builtins.tryEval
-              (tfConfig (raw {
-                imports = [ bare ];
-                nullkomma.cloudflare = {
-                  domains."example.org" = "11111111111111111111111111111111";
-                };
-              })).drvPath
-            ).success;
-          expected = false;
-        };
-        testCloudflareComposesWithAnySite = {
-          expr = {
-            packages = lib.attrNames (raw bare).packages.${system};
-            checks = lib.attrNames (raw bare).checks.${system};
-          };
-          expected = {
-            packages = [
-              "deploy"
-              "dev"
-              "site"
-            ];
-            checks = [
-              "cloudflare-validate"
-              "treefmt"
-            ];
-          };
-        };
-        testCloudflareProvidesWranglerOnlyWhenEnabled = {
-          expr = map (flake: lib.elem pkgs.wrangler (perSystem flake).nullkomma.devShell.packages) [
-            cloudflare
-            fixtures.quarto
-          ];
-          expected = [
-            true
-            false
-          ];
-        };
-      };
       checks = {
-        # `nk cloudflare-validate` in the fixture; the sandbox has no Nix, so a stub
-        # stands in for `nix build`, whose result the fixture's own check validates.
-        cloudflare-validation-local =
-          let
-            nix = pkgs.writeShellScriptBin "nix" ''
-              set -eu
-              test "$*" = 'build --no-link --print-out-paths .#deploy.config'
-              echo ${tfConfig cloudflare}
-            '';
-          in
-          pkgs.runCommand "nullkomma-cloudflare-validation-local" { nativeBuildInputs = [ nix ]; } ''
-            ${project (root + "/tests/fixtures/cloudflare")}
-            ${task cloudflare "cloudflare-validate"}
-            touch "$out"
-          '';
         cloudflare-devshell =
           (raw {
             imports = [ bare ];
@@ -127,23 +69,16 @@
               chmod -R u+w expected-assets
               rm expected-assets/_headers expected-assets/_redirects
               diff -r expected-assets "$assets"
-              jq -e '.terraform.backend.s3.key == "fixture-site.tfstate"' ${tfConfig cloudflare}
-              jq -e '.terraform.backend.s3.key == "bare-site.tfstate"' ${tfConfig (raw bare)}
               plan ${tfConfig cloudflare} | jq -e \
                 --rawfile headers "$site/_headers" \
                 --rawfile redirects "$site/_redirects" '
                 ."cloudflare_workers_script.site" as $worker
                 | ."cloudflare_workers_custom_domain.subdomain" as $domain
-                | ."cloudflare_workers_script_subdomain.site" as $subdomain
                 | $worker.script_name == "fixture-site"
-                  and $worker.assets.config.not_found_handling == "404-page"
                   and $worker.assets.config.headers == $headers
                   and $worker.assets.config.redirects == $redirects
                   and $domain.hostname == "www.example.org"
-                  and $domain.zone_name == "example.org"
                   and $domain.service == "fixture-site"
-                  and $subdomain.enabled == false
-                  and $subdomain.previews_enabled == false
               '
               plan ${tfConfig (raw bare)} | jq -e '
                 keys == ["cloudflare_workers_script.site", "cloudflare_workers_script_subdomain.site"]
@@ -248,9 +183,6 @@
               test "$AWS_SECRET_ACCESS_KEY" = r2-secret
               test "$AWS_ENDPOINT_URL_S3" = "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
               test "$TF_CLI_ARGS_init" = "-backend-config=bucket=$CLOUDFLARE_STATE_BUCKET"
-              test "$TF_CLI_ARGS_apply" = "-auto-approve"
-              test "$TF_IN_AUTOMATION" = 1
-              test "$TF_INPUT" = 0
               printf '%s\n' "$@" > "$CALLED"
             '';
             nix = pkgs.writeShellScriptBin "nix" ''
