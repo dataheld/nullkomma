@@ -509,6 +509,18 @@
                 ${harness.project md}
                 ${lib.getExe pkgs.git} init -q
                 export HOME="$TMPDIR" PC_LOG_FILE="$TMPDIR/pc.log"
+                # Waits for a condition while the background server runs.
+                awaiting() {
+                  until "$@"; do
+                    kill -0 "$server" || {
+                      tail -n 40 mcp.out preview.out "$PC_LOG_FILE" >&2
+                      exit 1
+                    }
+                    sleep 0.2
+                  done
+                }
+                rewatched() { [ "$(wc -l < watched)" -eq 2 ]; }
+                answered() { [ "$(grep -cE '"id":[0-9]+,' mcp.out)" -eq 5 ]; }
                 ${tasks} > menu
                 grep -qF '[demo]' menu
                 ${tasks} b 'local value'
@@ -532,10 +544,8 @@
                   '{"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":"process://inspect"}}' \
                   '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"pc_process_start","arguments":{"name":"preview"}}}'
                 # Servers start with their prerequisites.
-                until [ -e watched ]; do
-                  kill -0 "$server"
-                  sleep 0.2
-                done
+                awaiting test -e watched
+                awaiting answered
                 kill "$server"
                 rm watched
                 # The server outlives `nix store gc` only with its closure rooted.
@@ -553,15 +563,9 @@
                 # Servers run with their prerequisites' watches.
                 PC_DISABLE_TUI=1 ${tasks} preview > preview.out 2>&1 &
                 server=$!
-                until [ -e watched ]; do
-                  kill -0 "$server"
-                  sleep 0.2
-                done
+                awaiting test -e watched
                 echo >> trigger
-                until [ "$(wc -l < watched)" -eq 2 ]; do
-                  kill -0 "$server"
-                  sleep 0.2
-                done
+                awaiting rewatched
                 kill "$server"
                 touch $out
               '';
