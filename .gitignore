@@ -12,6 +12,7 @@ result-*
 /.agents/skills/update-integration-matrix
 /.mcp.json
 /.nullkomma/cloudflare/
+/.nullkomma/gcroots/
 /.nvim.lua
 /.vscode/mcp.json
 /_brand

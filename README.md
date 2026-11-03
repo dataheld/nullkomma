@@ -416,6 +416,8 @@ along with process-compose's tools to start, stop and inspect [services](#proces
 A task with its own `mcp` block keeps it,
 e.g. `mcp.type = "resource"` to serve its output as `process://<name>`.
 Calls time out after an hour.
+It roots its build in `.nullkomma/gcroots/`, so a running server survives `nix store gc`;
+it serves the tasks of the build it started with, until the agent restarts it.
 The [`agents`](#agents) plugin lists it in `.mcp.json` so that agents find it.
 `nk graph` prints the dependency graph of all processes as Mermaid;
 other arguments go to `process-compose graph`.

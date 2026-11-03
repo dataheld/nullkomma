@@ -399,6 +399,7 @@
                   "result"
                   "result-*"
                   ".direnv/"
+                  "/.nullkomma/gcroots/"
                   "/.agents/skills/nk-audit-output"
                   "/.agents/skills/nk-resolve-file-conflicts"
                   "/.agents/skills/nk-upgrade"
@@ -412,6 +413,7 @@
                   "result"
                   "result-*"
                   ".direnv/"
+                  "/.nullkomma/gcroots/"
                   "/.agents/skills/nk-audit-output"
                   "/.agents/skills/nk-resolve-file-conflicts"
                   "/.agents/skills/nk-upgrade"
@@ -593,8 +595,11 @@
                 printf 'a\nb sandboxed value\n' | diff - ${sandboxed}
                 ${tasks} graph | grep -qF 'b --> a'
                 # MCP clients stop a stdio server with SIGTERM.
+                mkdir bin
+                printf '#!/bin/sh\necho "$@" > %s\n' "$PWD/gcroot" > bin/nix-store
+                chmod +x bin/nix-store
                 mkfifo requests
-                timeout -k 5 60 ${tasks} mcp < requests > mcp.out &
+                PATH="$PWD/bin:$PATH" timeout -k 5 60 ${tasks} mcp < requests > mcp.out &
                 server=$!
                 exec 3> requests
                 printf '%s\n' >&3 \
@@ -611,6 +616,8 @@
                 done
                 kill "$server"
                 rm watched
+                # The server outlives `nix store gc` only with its closure rooted.
+                grep -qE '^--add-root \.nullkomma/gcroots/nk-mcp --realise /nix/store/[^ ]+-nk-mcp$' gcroot
                 grep -qF '"name":"b"' mcp.out
                 grep -qF '"name":"pc_process_start"' mcp.out
                 if grep -qF '"name":"serve"' mcp.out; then exit 1; fi

@@ -32,6 +32,7 @@
           '';
         };
       };
+      config.nullkomma.gitignore = [ "/.nullkomma/gcroots/" ];
       config.perSystem =
         {
           config,
@@ -118,7 +119,12 @@
                 ++ files
               );
             };
+          # Agents keep the server for a whole session, across `nix store gc`.
           mcpServer = serve "nk-mcp" [ mcp ] ''
+            if command -v nix-store >/dev/null; then
+              mkdir -p .nullkomma/gcroots
+              nix-store --add-root .nullkomma/gcroots/nk-mcp --realise "$(dirname "$(dirname "$0")")" >/dev/null
+            fi
             PC_NO_SERVER=1 exec process-compose up -t=false
           '';
           graph = serve "nk-graph" [ ] ''
