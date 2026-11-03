@@ -784,6 +784,8 @@ nullkomma.r.shiny = {
 Its runtime is R, Shiny and your package's `Depends`/`Imports` closure: no `Suggests`, `Config/Needs/*`, `extraPackages` or pkgload.
 `process-compose up`, or `nk r-run-app` for the apps alone, instead serves the app of each of `devFunctions` side by side,
 the n-th on `port` + n (from 0), as process `r-shiny-<function>`.
+If another program holds that port, an app steps up by the number of apps to the next free one;
+`nix run .#shiny` steps up by one.
 These load the working-tree package with pkgload, without installing it,
 restart when `r-document-namespace` reruns,
 and open pages reload once a new app process serves them, even if they were in a background tab.

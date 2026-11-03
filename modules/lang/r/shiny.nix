@@ -21,13 +21,13 @@
         port = lib.mkOption {
           type = lib.types.nullOr lib.types.port;
           default = 3838;
-          description = "Port on which the Shiny server listens; null lets Shiny choose an available port.";
+          description = "Preferred port of the Shiny server; if taken, the next free one. null lets Shiny choose an available port.";
         };
         devFunctions = lib.mkOption {
           type = lib.types.nonEmptyListOf lib.types.nonEmptyStr;
           default = [ cfg.shiny.function ];
           defaultText = lib.literalExpression "[ config.nullkomma.r.shiny.function ]";
-          description = "Exported functions whose apps `r-run-app` serves side by side, the n-th on `port` + n.";
+          description = "Exported functions whose apps `r-run-app` serves side by side, the n-th on `port` + n, or a free one above it.";
         };
       };
       config = lib.mkIf (cfg.enable && cfg.shiny.enable) {
@@ -82,6 +82,7 @@
                 setup,
                 function,
                 port,
+                stride ? 1,
                 dev ? false,
               }:
               pkgs.writeText "shiny.R" ''
@@ -114,10 +115,18 @@
                     response
                   }
                 ''}
+                host <- ${builtins.toJSON cfg.shiny.host}
+                ${lib.optionalString (port != null) ''
+                  # Other projects may hold the port; fixed steps find the same free one again after restarts.
+                  port <- ${toString port}L
+                  while (inherits(try(httpuv::randomPort(port, port, host), silent = TRUE), "try-error")) {
+                    port <- port + ${toString stride}L
+                  }
+                ''}
                 shiny::runApp(
                   app,
-                  host = ${builtins.toJSON cfg.shiny.host},
-                  port = ${if port == null then "NULL" else toString port},
+                  host = host,
+                  port = ${if port == null then "NULL" else "port"},
                   launch.browser = FALSE
                 )
               '';
@@ -153,6 +162,7 @@
                       setup = pkgload ''"."'';
                       inherit function;
                       port = if cfg.shiny.port == null then null else cfg.shiny.port + i;
+                      stride = lib.length cfg.shiny.devFunctions;
                       dev = true;
                     }
                   }";

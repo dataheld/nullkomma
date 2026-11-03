@@ -25,7 +25,8 @@
         };
       } fixture;
       plain = callFlakeWith { nullkomma.r.shiny.enable = lib.mkForce false; } fixture;
-      local = callFlakeWith { nullkomma.r.shiny.port = 38381; } fixture;
+      # Shares its first port with `enabled`, whose app holds it while the dev apps start.
+      local = callFlakeWith { nullkomma.r.shiny.port = 38380; } fixture;
       mcpServer = (perSystem local).nullkomma.agents.mcpServers.r;
       heavy = [
         "shiny"
@@ -125,16 +126,17 @@
               chmod +x "$R_BROWSER"
               # A stopped `process-compose run` signals its whole process group, so the builder needs its own.
               set -m
+              pids=()
+              trap 'kill "''${pids[@]}" 2>/dev/null; wait || true' EXIT
               serve() {
                 "$@" > server.log 2>&1 &
                 pid=$!
-                trap 'kill "$pid"; wait "$pid" || true' EXIT
+                pids+=("$pid")
               }
               # Polls until $1 serves a page containing $2, which stays in response.html.
               await() {
-                for attempt in {1..60}; do
-                  if curl --noproxy '*' --fail --silent "$1" > response.html; then
-                    grep -qF "$2" response.html
+                for attempt in {1..90}; do
+                  if curl --noproxy '*' --fail --silent "$1" > response.html && grep -qF "$2" response.html; then
                     return
                   fi
                   kill -0 "$pid" 2>/dev/null || break
@@ -147,7 +149,6 @@
               stop() {
                 kill "$pid"
                 wait "$pid" || true
-                trap - EXIT
               }
 
               serve ${enabled.apps.${system}.shiny.program}
@@ -156,20 +157,20 @@
                 echo 'The installed app must run without development features' >&2
                 exit 1
               fi
-              stop
 
               mkdir -p man
               printf 'keep\n' > man/sentinel
               serve env PC_DISABLE_TUI=1 ${task local "r-run-app"}
-              await http://127.0.0.1:38381 'working-tree Shiny fixture'
+              # The installed app holds 38380, so the first dev app steps past its sibling's 38381.
+              await http://127.0.0.1:38382 'working-tree Shiny fixture'
               grep -qF shiny:disconnected response.html
-              grep -qE '<script data-server="[0-9]+">' response.html
+              server=$(grep -oE '<script data-server="[0-9]+">' response.html)
               grep -qF __SHINY_DEV_MODE__ response.html
               if grep -qF shiny-autoreload.js response.html; then
                 echo "Shiny's autoreload must stay off; restarts reload the apps" >&2
                 exit 1
               fi
-              await http://127.0.0.1:38382 'nullkomma greeting'
+              await http://127.0.0.1:38381 'nullkomma greeting'
               grep -qE 'Warning.*greeting requested' server.log
               test -z "$(find man -type f -name '*.Rd' -print -quit)"
               grep -qx keep man/sentinel
@@ -178,6 +179,19 @@
                 sleep 1
               done
               diff <(printf '%s\n' http://127.0.0.1:38381 http://127.0.0.1:38382) <(sort "$TMPDIR/opened")
+
+              # Edits restart the apps on their ports, so that open pages can reload.
+              substituteInPlace ../R/app.R --replace-fail 'working-tree Shiny fixture' 'edited Shiny fixture'
+              await http://127.0.0.1:38382 'edited Shiny fixture'
+              if grep -qF "$server" response.html; then
+                echo 'The edit did not restart the app' >&2
+                exit 1
+              fi
+              await http://127.0.0.1:38381 'nullkomma greeting'
+              if grep -qi 'address already in use' server.log; then
+                cat server.log >&2
+                exit 1
+              fi
 
               call() {
                 jq -nc --argjson id "$1" --arg name "$2" --argjson arguments "$3" \
