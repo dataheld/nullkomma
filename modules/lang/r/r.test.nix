@@ -121,6 +121,7 @@
           }
           ''
             ${project fixture}
+            ${task fixtures.r "write-files"}
             ${script}
             touch $out
           '';
@@ -513,6 +514,62 @@
           # Tests check the working tree, not the flake's source.
           echo 'stop("local-r-source-marker")' >> R/hello.R
           fails local-r-source-marker ${task fixtures.r "r-check"}
+        '';
+        r-check-runtime-files = check "r-check-runtime-files" ''
+          printf 'project-specific exclusion\n' > project-only.txt
+          cp .Rbuildignore "$TMPDIR/Rbuildignore"
+          cp .gitignore "$TMPDIR/gitignore"
+          mkdir inst
+          printf 'package file controlled by .Rbuildignore\n' > inst/local.nix
+          substituteInPlace R/hello.R --replace-fail "#' @export" "#' @export
+          #' @examples
+          #' if (nzchar(system.file('local.nix', package = 'nullkommafixture'))) {
+          #'   stop('local-buildignore-marker')
+          #' }
+          #' hello()"
+          git worktree add --orphan -b runtime-check "$TMPDIR/worktree"
+          cp -R ${fixture}/. "$TMPDIR/worktree"
+          chmod -R u+w "$TMPDIR/worktree"
+          (cd "$TMPDIR/worktree"; ${task fixtures.r "write-files"})
+          mkdir -p .git/worktrees/linked .nullkomma "$TMPDIR/worktree/.nullkomma"
+          mkfifo .git/runtime.fifo
+          ${lib.getExe pkgs.python3} - "$TMPDIR/worktree" <<'PY'
+          import contextlib
+          import os
+          from pathlib import Path
+          import socket
+          import subprocess
+          import sys
+
+          for directory in [str(Path.cwd()), sys.argv[1]]:
+              os.chdir(directory)
+              paths = [".nullkomma/runtime.sock"]
+              if Path(".git").is_dir():
+                  paths += [
+                      ".git/fsmonitor--daemon.ipc",
+                      ".git/worktrees/linked/fsmonitor--daemon.ipc",
+                  ]
+              with contextlib.ExitStack() as stack:
+                  for path in paths:
+                      endpoint = stack.enter_context(socket.socket(socket.AF_UNIX))
+                      endpoint.bind(path)
+                  subprocess.run(
+                      ["${lib.getExe (perSystem fixtures.r).taskRunners.default}", "r-check"],
+                      check=True,
+                  )
+          PY
+          cmp .Rbuildignore "$TMPDIR/Rbuildignore"
+          cmp .gitignore "$TMPDIR/gitignore"
+          grep -vxF '[.]nix$' .Rbuildignore > "$TMPDIR/edited-Rbuildignore"
+          cp "$TMPDIR/edited-Rbuildignore" .Rbuildignore
+          fails local-buildignore-marker ${task fixtures.r "r-check"}
+          cmp .Rbuildignore "$TMPDIR/edited-Rbuildignore"
+          cp "$TMPDIR/Rbuildignore" .Rbuildignore
+          printf 'R/hello.R\n' >> .gitignore
+          git check-ignore -q R/hello.R
+          substituteInPlace R/hello.R \
+            --replace-fail '  paste0("Hello, ", name, "!")' '  stop("ignored-local-source-marker")'
+          fails ignored-local-source-marker ${task fixtures.r "r-check"}
         '';
         r-files = check "r-files" ''
           git init -q

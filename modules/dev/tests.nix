@@ -25,7 +25,35 @@
                     consumer
                     module
                   ];
-                  debug = true;
+                  config.debug = true;
+                  options.perSystem = inputs.flake-parts.lib.mkPerSystemOption (
+                    { config, pkgs, ... }:
+                    {
+                      # Fixture builds start with the current generated R exclusions.
+                      options.nullkomma.src = lib.mkOption {
+                        apply =
+                          source:
+                          let
+                            ignores = lib.filterAttrs (
+                              path: file: file.enable && baseNameOf path == ".Rbuildignore"
+                            ) config.nullkomma.files;
+                          in
+                          if ignores == { } then
+                            source
+                          else
+                            pkgs.runCommand "fixture-source" { } ''
+                              cp -R ${source} "$out"
+                              chmod -R u+w "$out"
+                              ${lib.concatStrings (
+                                lib.mapAttrsToList (path: file: ''
+                                  mkdir -p "$out"/${lib.escapeShellArg (dirOf path)}
+                                  install -m 644 ${file.source} "$out"/${lib.escapeShellArg path}
+                                '') ignores
+                              )}
+                            '';
+                      };
+                    }
+                  );
                 };
             };
           };

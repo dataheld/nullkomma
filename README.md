@@ -536,6 +536,10 @@ OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is invo
 
 Enable it, then run `nix run .#r-lock`: the development shell needs the `pkg.lock` it writes.
 
+`r-check` uses pkgbuild's filtered copy, applying the working tree's
+`.Rbuildignore` before copying package files.
+It does not update that file or add exclusions during the check.
+
 <!-- nullkomma:r:start -->
 ```nix
 {

@@ -45,22 +45,13 @@
                 name = "r-check";
                 runtimeInputs = [ config.nullkomma.r.package ];
                 text = ''
-                  scratch="$(mktemp -d)"
-                  trap 'rm -rf "$scratch"' EXIT
-                  cp -r . "$scratch/pkg"
-                  chmod -R u+w "$scratch/pkg"
-                  cd "$scratch/pkg"
-                  # Share write-files' exclusions without discarding working-tree rules.
-                  printf '\n' >> .Rbuildignore
-                  cat ${pkgs.writeText "Rbuildignore" cfg.buildIgnore} >> .Rbuildignore
                   export _R_CHECK_CRAN_INCOMING_=false _R_CHECK_FORCE_SUGGESTS_=false _R_CHECK_SYSTEM_CLOCK_=false
                   Rscript --vanilla - "$@" <<'EOF'
+                  options(pkg.build_copy_method = "copy")
                   rcmdcheck::rcmdcheck(
-                    path = ".",
                     build_args = c("--no-build-vignettes", "--no-manual"),
                     args = c(${rVector cfg.check.args}, commandArgs(TRUE)),
-                    error_on = ${builtins.toJSON cfg.check.errorOn},
-                    check_dir = "../check"
+                    error_on = ${builtins.toJSON cfg.check.errorOn}
                   )
                   EOF
                 '';
