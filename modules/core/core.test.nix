@@ -513,7 +513,7 @@
                 awaiting() {
                   until "$@"; do
                     kill -0 "$server" || {
-                      tail -n 40 mcp.out preview.out "$PC_LOG_FILE" >&2
+                      tail -n 40 mcp.out preview.out "$PC_LOG_FILE" mcp.log >&2
                       exit 1
                     }
                     sleep 0.2
@@ -533,9 +533,12 @@
                 printf '#!/bin/sh\necho "$@" > %s\n' "$PWD/gcroot" > bin/nix-store
                 chmod +x bin/nix-store
                 mkfifo requests
-                PATH="$PWD/bin:$PATH" timeout -k 5 60 ${tasks} mcp < requests > mcp.out &
+                PATH="$PWD/bin:$PATH" PC_LOG_FILE="$PWD/mcp.log" timeout -k 5 60 ${tasks} mcp < requests > mcp.out &
                 server=$!
                 exec 3> requests
+                # shortcut: process-compose 1.124.0 deadlocks on MCP calls before its runner
+                # starts, which logs this; drop the wait once upstream serves MCP only after.
+                awaiting grep -qsF 'Scheduler started' mcp.log
                 printf '%s\n' >&3 \
                   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}' \
                   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
