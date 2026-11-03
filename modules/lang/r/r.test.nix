@@ -267,6 +267,8 @@
               coverage = after "r-test-coverage";
               check = after "r-check";
               pkgdown = after "r-build-site";
+              # Cascades restart dependents, which would close the preview's open pages.
+              preview = after "r-preview-site";
               nkCheck = after "check";
               nkAll = after "all";
               sandboxed = fixtures.r.checks.${system} ? r-build-site;
@@ -279,6 +281,7 @@
             coverage = [ "r-document" ];
             check = [ "r-document" ];
             pkgdown = [ "r-document" ];
+            preview = [ ];
             nkCheck = [
               "jscpd"
               "r-check"
@@ -612,6 +615,44 @@
           grep -qF "$PWD/public/index.html" "$TMPDIR/opened"
           test ! -e yaml-destination
         '';
+        r-pkgdown-live =
+          (check "r-pkgdown-live" ''
+            export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
+            git init -q
+            # A stopped `process-compose run` signals its whole process group, so the builder needs its own.
+            set -m
+            PC_DISABLE_TUI=1 ${task customDestination "r-preview-site"} > preview.log 2>&1 &
+            preview=$!
+            trap 'kill "$preview" 2>/dev/null; wait || true' EXIT
+            sleep 3
+            if test -e "$TMPDIR/opened"; then
+              echo 'The preview must wait for the first build, or it opens a page without reloads' >&2
+              exit 1
+            fi
+            ${task customDestination "r-build-site"}
+            for _ in {1..60}; do test -s "$TMPDIR/opened" && break; sleep 1; done
+            curl --noproxy '*' --fail --silent "$(cat "$TMPDIR/opened")" > index.html || { cat preview.log >&2; exit 1; }
+            grep -qF servr:reload index.html
+            grep -qF nullkommafixture index.html
+            # Asks servr, as its pages do, whether they must reload.
+            reload() {
+              node -e 'const ws = new WebSocket(process.argv[1]); ws.onopen = () => ws.send("/"); ws.onmessage = (e) => { console.log(e.data); process.exit(0); };' \
+                "$(sed 's|^http|ws|; s|/*$|/websocket/|' "$TMPDIR/opened")"
+            }
+            # The preview starts once index.html exists, while the first build may still write pages.
+            reload > /dev/null
+            test "$(reload)" = false
+            printf '\nEdited.\n' >> README.md
+            ${task customDestination "r-build-site"}
+            test "$(reload)" = true
+          '').overrideAttrs
+            (old: {
+              nativeBuildInputs = old.nativeBuildInputs ++ [
+                pkgs.curl
+                pkgs.nodejs
+              ];
+              __darwinAllowLocalNetworking = true;
+            });
         r-test-coverage =
           let
             flake = callFlakeWith { nullkomma.r.coverage.enable = true; } fixture;

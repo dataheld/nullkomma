@@ -56,7 +56,7 @@
         pkgdown.enable = lib.mkOption {
           type = lib.types.bool;
           default = true;
-          description = "Build a pkgdown website with r-build-site (`--preview` opens it in a browser) and packages.site, both built by `all`.";
+          description = "Build a pkgdown website with r-build-site (`--preview` opens it in a browser) and packages.site, both built by `all`, and serve it with live reload with r-preview-site.";
         };
         pkgdown.privacy.page = lib.mkOption {
           type = lib.types.nullOr (lib.types.strMatching "[^/\n]+[.]html");
@@ -93,7 +93,10 @@
         ]
         ++ lib.optional cfg.check.enable "rcmdcheck"
         ++ lib.optional cfg.testthat.enable "testthat"
-        ++ lib.optional cfg.pkgdown.enable "pkgdown"
+        ++ lib.optionals cfg.pkgdown.enable [
+          "pkgdown"
+          "servr"
+        ]
         ++ lib.optional (
           cfg.pkgdown.enable && cfg.pkgdown.config.template.bslib.brand or null != null
         ) "brand.yml"
@@ -284,6 +287,18 @@
                   command = pkgdown;
                   disabled = false;
                   watch = packageWatch;
+                };
+                # No dependency on r-build-site: its cascade restarts would close open pages.
+                r-preview-site = r // {
+                  description = "Serve the pkgdown website on localhost, reloading pages when r-build-site rewrites them";
+                  command = "${rscript} -e ${lib.escapeShellArg ''
+                    index <- file.path("${destination}", "index.html")
+                    if (!file.exists(index)) message("Waiting for r-build-site to write ", index)
+                    while (!file.exists(index)) Sys.sleep(1)
+                    servr::httw("${destination}", browser = TRUE)
+                  ''}";
+                  disabled = false;
+                  ready_log_line = "Serving the directory";
                 };
                 all.depends_on = after "r-build-site";
               })

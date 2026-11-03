@@ -28,5 +28,6 @@ Available recipes:
     r-document *args           # Generate R manuals and NAMESPACE with roxygen2
     r-document-namespace *args # Generate NAMESPACE with roxygen2; --check fails if it was stale
     r-lock *args               # Resolve DESCRIPTION into the R lockfile (pkg.lock) with pak
+    r-preview-site             # Serve the pkgdown website on localhost, reloading pages when r-build-site rewrites them
     r-test *args               # Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package
 ```
