@@ -1,5 +1,5 @@
-# Thin GitHub Actions stubs that call nullkomma's reusable workflows, so CI logic
-# is upgraded centrally (.github/workflows/{ci,maintenance}.yml in this repo).
+# A thin GitHub Actions stub calling nullkomma's reusable CI workflow, so CI logic
+# is upgraded centrally (.github/workflows/ci.yml in this repo).
 {
   plugins.github =
     { config, lib, ... }:
@@ -24,11 +24,7 @@
             permissions:
               contents: read
               id-token: write
-      ''
-      + lib.optionalString (cfg.ci.secrets != [ ]) (
-        "    secrets:\n"
-        + lib.concatMapStrings (s: "      ${s}: \${{ secrets.${s} }}\n") (lib.unique cfg.ci.secrets)
-      );
+      '';
     in
     {
       options.nullkomma.github = {
@@ -42,13 +38,6 @@
             type = lib.types.nullOr lib.types.str;
             default = "main";
             description = "Git ref of the reusable workflows; null for local workflows.";
-          };
-        };
-        ci = {
-          secrets = lib.mkOption {
-            type = lib.types.listOf lib.types.str;
-            default = [ ];
-            description = "Repository secrets passed to the reusable `ci.yml`.";
           };
         };
       };

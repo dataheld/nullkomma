@@ -1,5 +1,2 @@
 project:
   type: website
-  resources:
-    - _headers
-    - _redirects

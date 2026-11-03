@@ -1,14 +1,43 @@
 # Coding agents get always-on rules from a section of the committed AGENTS.md,
-# and version-specific workflows as Agent Skills (https://agentskills.io) generated from Nix.
+# version-specific workflows as Agent Skills (https://agentskills.io) generated from Nix,
+# and MCP servers from a generated `.mcp.json`.
 {
   framework =
-    { lib, ... }:
     {
+      config,
+      flake-parts-lib,
+      lib,
+      ...
+    }:
+    {
+      options.nullkomma.agents.browser.enable =
+        lib.mkEnableOption "a headless browser for agents, to open and operate the project's web previews, through Playwright's MCP server";
       options.nullkomma.agents.skills = lib.mkOption {
         type = lib.types.attrsOf lib.types.path;
         default = { };
         description = "Agent Skill directories by name, each with a `SKILL.md` whose `name` matches; plugins add here. The `agents` plugin generates them into `.agents/skills/<name>`.";
       };
+      options.perSystem = flake-parts-lib.mkPerSystemOption (
+        { pkgs, ... }:
+        {
+          config.nullkomma.agents.mcpServers.playwright = lib.mkIf config.nullkomma.agents.browser.enable {
+            type = "stdio";
+            command = lib.getExe pkgs.playwright-mcp;
+            # The default browser profile would be in the read-only Nix store.
+            args = [
+              "--headless"
+              "--isolated"
+            ];
+          };
+          options.nullkomma.agents.mcpServers = lib.mkOption {
+            # Unlike JSON's type, `anything` merges identical definitions from several plugins.
+            type = lib.types.attrsOf lib.types.anything;
+            default = { };
+            description = "MCP servers by name, each with a `type` (`stdio` with `command` and `args`, or `http` with `url`); plugins add here. The `agents` plugin writes them to `.mcp.json`, the `vscode` plugin to `.vscode/mcp.json`.";
+          };
+        }
+      );
+      config.nullkomma.gitignore = lib.mkIf config.nullkomma.agents.browser.enable [ ".playwright-mcp/" ];
     };
   plugins.agents =
     { config, lib, ... }:
@@ -17,22 +46,33 @@
     in
     {
       config = lib.mkIf cfg.enable {
-        nullkomma.agents.skills.nullkomma-resolve-file-conflicts = ./_agents/nullkomma-resolve-file-conflicts;
-        perSystem.nullkomma.files = {
-          "AGENTS.md" = {
-            commentPrefix = "<!--";
-            commentSuffix = " -->";
-            sections.agents = builtins.readFile ./_agents/AGENTS.md;
+        nullkomma.agents.skills = {
+          nk-audit-output = ./_agents/nk-audit-output;
+          nk-resolve-file-conflicts = ./_agents/nk-resolve-file-conflicts;
+        };
+        perSystem =
+          { config, ... }:
+          {
+            nullkomma.files = {
+              "AGENTS.md" = {
+                commentPrefix = "<!--";
+                commentSuffix = " -->";
+                sections.agents = builtins.readFile ./_agents/AGENTS.md;
+              };
+              ".mcp.json" = {
+                mode = lib.mkDefault "generated";
+                text = builtins.toJSON { mcpServers = config.nullkomma.agents.mcpServers; };
+              };
+            }
+            // lib.mapAttrs' (
+              name: source:
+              lib.nameValuePair ".agents/skills/${name}" {
+                inherit source;
+                mode = "generated";
+                directory = true;
+              }
+            ) cfg.skills;
           };
-        }
-        // lib.mapAttrs' (
-          name: source:
-          lib.nameValuePair ".agents/skills/${name}" {
-            inherit source;
-            mode = "generated";
-            directory = true;
-          }
-        ) cfg.skills;
       };
     };
 }

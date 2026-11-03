@@ -5,10 +5,10 @@
     let
       cfg = config.nullkomma.cloudflare;
       label = "[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?";
-      worker = if cfg.worker == null then cfg.name else cfg.worker;
-      inferName = cfg.name == null && (cfg.domain != null || worker == null);
+      inferName = cfg.name == null && (cfg.domain != null || cfg.worker == null);
       siteName = if cfg.name == null then "\${var.site_name}" else cfg.name;
-      workerName = if worker == null then siteName else worker;
+      workerName = if cfg.worker == null then siteName else cfg.worker;
+      missing = "is required to plan or deploy; see https://github.com/dataheld/nullkomma#cloudflare";
     in
     {
       imports = [ inputs.terranix.flakeModule ];
@@ -66,30 +66,66 @@
           in
           {
             nullkomma.devShell.packages = [ pkgs.wrangler ];
+            nullkomma.agents.mcpServers = {
+              cloudflare-api = {
+                type = "http";
+                url = "https://mcp.cloudflare.com/mcp";
+              };
+              cloudflare-docs = {
+                type = "http";
+                url = "https://docs.mcp.cloudflare.com/mcp";
+              };
+              opentofu = {
+                type = "http";
+                url = "https://mcp.opentofu.org/mcp";
+              };
+            };
             # terranix also exports packages.deploy, whose .init, .plan, ... `nix run` falls back to.
             apps.deploy = {
               type = "app";
               program = lib.getExe config.packages.deploy;
               meta.description = "Publish the site to Cloudflare";
             };
-            nullkomma.tasks = {
-              deploy = {
-                skip = true;
-                description = "Publish the site to Cloudflare";
-                packages = [ pkgs.nix ];
-                command = ''exec nix run .#deploy -- "$@"'';
+            # These use the caller's `nix` to evaluate the working tree, not the dev shell's build of it.
+            process-compose.dev.settings.processes =
+              lib.mapAttrs
+                (name: p: {
+                  namespace = "cloudflare";
+                  inherit (p) description;
+                  command = pkgs.writeShellApplication {
+                    inherit name;
+                    inherit (p) text;
+                  };
+                  disabled = true;
+                })
+                {
+                  cloudflare-deploy = {
+                    description = "Publish the site to Cloudflare";
+                    text = "exec nix run .#deploy";
+                  };
+                  cloudflare-plan = {
+                    description = "Show the changes cloudflare-deploy would make; args go to `tofu plan`";
+                    text = ''
+                      nix run .#deploy.init
+                      exec nix run .#deploy.terraform -- plan "$@"
+                    '';
+                  };
+                  cloudflare-validate = {
+                    description = "Validate the Cloudflare Terraform configuration";
+                    text = ''
+                      configuration="$(nix build --no-link --print-out-paths .#deploy.config)"
+                      ${validate ''"$configuration"''}
+                    '';
+                  };
+                }
+              // {
+                check.depends_on.cloudflare-validate.condition = "process_completed_successfully";
               };
-              terraform = {
-                skip = true;
-                description = "Plan Cloudflare changes, or run terraform <command> [args]";
-                packages = [ pkgs.nix ];
-                command = ''
-                  nix run .#deploy.init
-                  if [[ $# == 0 ]]; then set -- plan; fi
-                  exec nix run .#deploy.terraform -- "$@"
-                '';
-              };
-            };
+            checks.cloudflare-validate = pkgs.runCommand "cloudflare-validate" { } ''
+              export HOME="$TMPDIR"
+              ${validate tf.result.terraformConfiguration}
+              touch "$out"
+            '';
             terranix = {
               exportDevShells = false;
               terranixConfigurations.deploy = {
@@ -101,10 +137,6 @@
                     export TF_IN_AUTOMATION=1 TF_INPUT=0 TF_CLI_ARGS_apply=-auto-approve
                     ${lib.optionalString inferName ''
                       if [[ -n "''${GITHUB_REPOSITORY:-}" ]]; then
-                        if [[ ! "$GITHUB_REPOSITORY" =~ ^[^/]+/[^/]+$ ]]; then
-                          echo "GITHUB_REPOSITORY must be owner/repository; set nullkomma.cloudflare.name to override." >&2
-                          exit 1
-                        fi
                         name="''${GITHUB_REPOSITORY#*/}"
                       else
                         if ! repository="$(git remote get-url origin)"; then
@@ -120,11 +152,11 @@
                       fi
                       export TF_VAR_site_name="$name"
                     ''}
-                    export TF_VAR_account_id="''${CLOUDFLARE_ACCOUNT_ID:?}"
-                    export AWS_ACCESS_KEY_ID="''${CLOUDFLARE_R2_ACCESS_KEY_ID:?}"
-                    export AWS_SECRET_ACCESS_KEY="''${CLOUDFLARE_R2_SECRET_ACCESS_KEY:?}"
+                    export TF_VAR_account_id="''${CLOUDFLARE_ACCOUNT_ID:?${missing}}"
+                    export AWS_ACCESS_KEY_ID="''${CLOUDFLARE_R2_ACCESS_KEY_ID:?${missing}}"
+                    export AWS_SECRET_ACCESS_KEY="''${CLOUDFLARE_R2_SECRET_ACCESS_KEY:?${missing}}"
                     export AWS_ENDPOINT_URL_S3="https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
-                    export TF_CLI_ARGS_init="-backend-config=bucket=''${CLOUDFLARE_STATE_BUCKET:?}"
+                    export TF_CLI_ARGS_init="-backend-config=bucket=''${CLOUDFLARE_STATE_BUCKET:?${missing}}"
                   '';
                 };
                 modules = lib.singleton {
@@ -185,18 +217,6 @@
                   };
                 };
               };
-            };
-            nullkomma.checks.cloudflare = {
-              packages = [ pkgs.nix ];
-              command = ''
-                configuration="$(nix build --no-link --print-out-paths .#deploy.config)"
-                ${validate ''"$configuration"''}
-              '';
-              sandboxed = pkgs.runCommand "check-cloudflare" { } ''
-                export HOME="$TMPDIR"
-                ${validate tf.result.terraformConfiguration}
-                touch "$out"
-              '';
             };
           };
       };

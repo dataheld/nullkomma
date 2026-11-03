@@ -53,14 +53,14 @@
         };
         allowOffNixpkgs = lib.mkOption {
           type = lib.types.bool;
-          default = false;
+          default = true;
           description = ''
             Whether to allow R packages that nixpkgs does not provide: pinned `Remotes:`
             (`owner/repo@commit`, `git::`, `url::`, `pkg@version`, `cran::pkg@version`) and CRAN
             packages not (yet) in nixpkgs. They are built from the sources pinned in the lockfile
             (commits, or `nullkomma.r.hashes`), against nixpkgs' versions of their dependencies.
-            Disabled by default, so that every R package is pinned by `flake.lock` and built and
-            tested by nixpkgs.
+            Enabled by default, extending builds beyond `nixpkgs-r`; set to `false` to require
+            every R package to come from `nixpkgs-r`.
           '';
         };
         hashes = lib.mkOption {

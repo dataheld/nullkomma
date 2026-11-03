@@ -16,6 +16,7 @@
       url = "https://flakehub.com/f/numtide/treefmt-nix/0.1.*";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    process-compose-flake.url = "github:Platonic-Systems/process-compose-flake";
     up = {
       url = "https://flakehub.com/f/DeterminateSystems/up/0.1.*";
       inputs.nixpkgs.follows = "nixpkgs";

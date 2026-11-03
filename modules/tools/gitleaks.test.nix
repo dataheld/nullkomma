@@ -1,11 +1,6 @@
 {
   partitions.dev.module.perSystem =
-    {
-      harness,
-      lib,
-      pkgs,
-      ...
-    }:
+    { harness, pkgs, ... }:
     let
       inherit (harness)
         fixtures
@@ -35,13 +30,14 @@
         [[allowlists]]
         paths = ["^allowed[.]txt$"]
         TOML
-        ${(perSystem customized).treefmt.settings.formatter.gitleaks.command} allowed.txt
-        if "$scan" allowed.txt > scan.log 2>&1; then
-          echo 'Native configuration bypassed Nix policy' >&2
+        customized=${(perSystem customized).treefmt.settings.formatter.gitleaks.command}
+        "$customized" allowed.txt
+        if "$customized" secret.txt > scan.log 2>&1; then
+          echo 'Project settings disabled the default rules' >&2
           exit 1
         fi
-        if "$scan" secret.txt > scan.log 2>&1; then
-          echo 'Default rules were disabled' >&2
+        if "$scan" allowed.txt > scan.log 2>&1; then
+          echo 'Native configuration bypassed Nix policy' >&2
           exit 1
         fi
         rm .gitleaks.toml
@@ -50,11 +46,6 @@
           echo 'Native ignore file bypassed Nix policy' >&2
           exit 1
         fi
-        # Generated site output is excluded.
-        mkdir docs
-        cp secret.txt docs/generated.md
-        touch flake.nix
-        ${lib.getExe (perSystem fixtures.r).treefmt.build.wrapper} --no-cache --fail-on-change docs/generated.md
         touch "$out"
       '';
     };

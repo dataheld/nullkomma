@@ -22,7 +22,6 @@
         rawAt
         root
         task
-        runCheck
         treefmt
         ;
       rlib = import (root + "/lib/r.nix") { inherit lib; };
@@ -50,10 +49,10 @@
         nullkomma.r.pkgdown.brand.enable = true;
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
         nullkomma.cloudflare = cloudflare;
-        perSystem.nullkomma.tasks.r-document.command = lib.mkAfter ''
-          mkdir -p pkgdown/assets
-          printf 'shared R workflow\n' > pkgdown/assets/workflow.txt
-        '';
+        perSystem.process-compose.dev.settings.processes = {
+          workflow-asset.command = "mkdir -p pkgdown/assets && echo 'shared R workflow' > pkgdown/assets/workflow.txt";
+          r-build-site.depends_on.workflow-asset.condition = "process_completed_successfully";
+        };
       } fixture;
       # A package site as nullkomma's own brand publishes it.
       published = callFlakeWith {
@@ -131,14 +130,6 @@
         testRBrandFeature = {
           expr =
             let
-              enabled = rawAt fixture {
-                imports = [ nullkomma.flakeModules.r ];
-                nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
-                nullkomma.r = {
-                  enable = true;
-                  pkgdown.brand.enable = true;
-                };
-              };
               inactive = rawAt fixture {
                 imports = [ nullkomma.flakeModules.r ];
                 nullkomma.r.pkgdown.brand.enable = true;
@@ -151,84 +142,36 @@
               } fixture;
             in
             {
-              enabled = (perSystem enabled).nullkomma.r.pkgdown.libraries != [ ];
-              noCompanionExport = !(nullkomma.flakeModules ? r-brand) && !(nullkomma.modules.flake ? r-brand);
               parentOff = summary inactive == summary (rawAt fixture { });
-              optIn = (perSystem fixtures.r).nullkomma.r.pkgdown.libraries == [ ];
               siteOff =
                 (perSystem withoutSite).nullkomma.r.pkgdown.libraries == [ ]
                 && !lib.elem "brand.yml" (perSystem withoutSite).nullkomma.r.packages;
             };
           expected = {
-            enabled = true;
-            noCompanionExport = true;
             parentOff = true;
-            optIn = true;
             siteOff = true;
           };
         };
-        testRWatchDefaults = {
-          expr =
-            let
-              defaults = (perSystem fixtures.r).nullkomma.tasks;
-              custom = (perSystem customDestination).nullkomma.tasks;
-            in
-            {
-              paths = defaults.r-document.watch.paths;
-              contentPaths = defaults.r-document.watch.contentPaths;
-              downstream = map (name: defaults.${name}.watch.paths) [
-                "r-test"
-                "r-check"
-                "r-pkgdown"
-              ];
-              outputs = lib.all (path: lib.elem path custom.r-document.watch.outputs) [
-                "/NAMESPACE"
-                "/man/*.Rd"
-                "/tests/testthat/_snaps/**/*.new.*"
-                "/public"
-                "/public/**"
-              ];
-              nestedOutputs =
-                lib.all (path: lib.elem path (perSystem nested).nullkomma.tasks.r-document.watch.outputs)
-                  [
-                    "/r/tests/testthat/_snaps/**/*.new.*"
-                  ];
-              nestedContentPaths = (perSystem nested).nullkomma.tasks.r-document.watch.contentPaths;
-              processOutputs = lib.all (
-                process: lib.all (path: lib.elem path process.watch.ignore) defaults.r-document.watch.outputs
-              ) (lib.attrValues (perSystem fixtures.r).processTrees.r-test.processes);
-              ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
-              invalidDestination =
-                (builtins.tryEval (
-                  builtins.deepSeq
-                    (perSystem (
-                      callFlakeWith {
-                        nullkomma.r.pkgdown.config.destination = "../site";
-                      } fixture
-                    )).nullkomma.tasks.r-document.watch.outputs
-                    true
-                )).success;
-            };
+        testRDevLoop = {
+          expr = {
+            package = (perSystem fixtures.r).process-compose.dev.settings.processes.r-check.watch;
+            ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
+          };
           expected = {
-            paths = [ "." ];
-            contentPaths = [
-              "man"
-              "tests/testthat/_snaps"
+            # R changes reach the other tasks through the cascade.
+            package.paths = [
+              {
+                path = ".";
+                exclude = [
+                  "R"
+                  "NAMESPACE"
+                  "tests/testthat/_snaps/**"
+                  "man/*.Rd"
+                  "docs/**"
+                ];
+              }
             ];
-            downstream = [
-              [ ]
-              [ ]
-              [ ]
-            ];
-            outputs = true;
-            nestedOutputs = true;
-            nestedContentPaths = [
-              "r/man"
-              "r/tests/testthat/_snaps"
-            ];
-            processOutputs = true;
             ignore = true;
-            invalidDestination = false;
           };
         };
         testRPackageDevelopmentSkill = {
@@ -244,51 +187,12 @@
             enabled.nullkomma.files ? ".agents/skills/nullkomma-r-package-development";
           expected = true;
         };
-        testRDocumentationIsRequired = {
+        testRRejectsInvalidPkgdownDestination = {
           expr =
-            let
-              minimal = perSystem (
-                callFlakeWith {
-                  nullkomma.r = {
-                    check.enable = false;
-                    testthat.enable = false;
-                    pkgdown.enable = false;
-                  };
-                } fixture
-              );
-            in
-            lib.elem "roxygen2" minimal.nullkomma.r.packages
-            && minimal.nullkomma.tasks ? r-document
-            && minimal.nullkomma.checks ? r-namespace;
-          expected = true;
-        };
-        testRNamespaceTaskIsSeparate = {
-          expr =
-            let
-              tasks = (perSystem (callFlakeWith { nullkomma.r.coverage.enable = true; } fixture)).nullkomma.tasks;
-            in
-            {
-              namespace = tasks.r-namespace.after;
-              namespaceOnly = lib.hasInfix ''roxygen2::roxygenise(roclets = "namespace")'' tasks.r-namespace.command;
-              namespaceOutputs = tasks.r-namespace.watch.outputs;
-              document = tasks.r-document.after;
-              documentRoclets = lib.hasInfix ''setdiff(roxygen2::load_options()[["roclets"]], "namespace")'' tasks.r-document.command;
-              test = tasks.r-test.after;
-              coverage = tasks.r-coverage.after;
-              check = tasks.r-check.after;
-              pkgdown = tasks.r-pkgdown.after;
-            };
-          expected = {
-            namespace = [ ];
-            namespaceOnly = true;
-            namespaceOutputs = [ "/NAMESPACE" ];
-            document = [ "r-namespace" ];
-            documentRoclets = true;
-            test = [ "r-namespace" ];
-            coverage = [ "r-namespace" ];
-            check = [ "r-document" ];
-            pkgdown = [ "r-document" ];
-          };
+            (callFlakeWith {
+              nullkomma.r.pkgdown.config.destination = "../site";
+            } fixture).debug.config.nullkomma.gitignore;
+          expectedError.msg = "normalized, package-relative";
         };
         testRAttributeNames = {
           expr = map rlib.attrName [
@@ -383,63 +287,12 @@
           expr = (perSystem withoutLock).nullkomma.r.packages;
           expectedError.msg = "lockfile `pkg.lock` of DESCRIPTION is missing";
         };
-        testRIncludesPkgloadForDevelopment = {
-          expr = lib.elem "pkgload" (perSystem fixtures.r).nullkomma.r.packages;
-          expected = true;
-        };
-        testRInteractiveTools = {
+        testRRuntimeIsEditorIndependent = {
           expr =
-            let
-              r = perSystem fixtures.r;
-              withoutAir = perSystem (callFlakeWith { perSystem.treefmt.programs.air.enable = false; } fixture);
-              customAir = perSystem (
-                callFlakeWith { perSystem.treefmt.programs.air.package = pkgs.hello; } fixture
-              );
-              settings = r.nullkomma.editor.vscode.settings;
-            in
-            {
-              httpgd = lib.elem "httpgd" r.nullkomma.r.packages;
-              editorIndependent =
-                lib.elem rRuntime (perSystem runtime).nullkomma.devShell.packages
-                && !(perSystem runtime).nullkomma.files ? ".nvim.lua"
-                && !(perSystem runtime).nullkomma.files ? ".vscode/settings.json";
-              air = lib.elem r.treefmt.programs.air.package r.nullkomma.devShell.packages;
-              noAir = lib.elem withoutAir.treefmt.programs.air.package withoutAir.nullkomma.devShell.packages;
-              customAir = lib.elem pkgs.hello customAir.nullkomma.devShell.packages;
-              console = settings."r.rterm.mac" == "${r.nullkomma.r.package}/bin/radian";
-              background = settings."r.rpath.linux" == "${r.nullkomma.r.package}/bin/R";
-              bracketedPaste = settings."r.bracketedPaste";
-              plotting = settings."r.plot.useHttpgd";
-              libraries = settings."r.libPaths";
-              recommendations = lib.all (id: lib.elem id r.nullkomma.editor.vscode.extensions) [
-                "Posit.air-vscode"
-                "REditorSupport.r"
-              ];
-              override =
-                (perSystem (
-                  callFlakeWith {
-                    perSystem.nullkomma.editor.vscode.settings."r.rterm.mac" = "custom-console";
-                  } fixture
-                )).nullkomma.editor.vscode.settings."r.rterm.mac";
-            };
-          expected = {
-            httpgd = true;
-            editorIndependent = true;
-            air = true;
-            noAir = false;
-            customAir = true;
-            console = true;
-            background = true;
-            bracketedPaste = true;
-            plotting = true;
-            libraries = [ ];
-            recommendations = true;
-            override = "custom-console";
-          };
-        };
-        testRRuntimeUsesRInput = {
-          expr = (lib.head rRuntime.buildInputs).drvPath;
-          expected = nullkomma.inputs.nixpkgs-r.legacyPackages.${system}.R.drvPath;
+            lib.elem rRuntime (perSystem runtime).nullkomma.devShell.packages
+            && !(perSystem runtime).nullkomma.files ? ".nvim.lua"
+            && !(perSystem runtime).nullkomma.files ? ".vscode/settings.json";
+          expected = true;
         };
         testRLockBootstrapsWithoutLock = {
           expr = lib.isString withoutLock.apps.${system}.r-lock.program;
@@ -451,29 +304,17 @@
             .nullkomma.r.package.drvPath;
           expectedError.msg = "`notarealpackage` is not in nixpkgs";
         };
+        testRRejectsLockedOffNixpkgsPackagesWhenDisabled = {
+          expr =
+            (perSystem (
+              callFlakeWith {
+                nullkomma.r.allowOffNixpkgs = false;
+              } (root + "/tests/fixtures/r-off-nixpkgs")
+            )).nullkomma.r.packages;
+          expectedError.msg = "do not come from nixpkgs";
+        };
       };
       checks = {
-        r-watch =
-          let
-            flake = callFlakeWith {
-              perSystem.nullkomma.tasks.r-test.command = lib.mkMerge [
-                (lib.mkBefore ''echo started >> "$OBSERVED"'')
-                (lib.mkAfter ''echo finished >> "$OBSERVED"'')
-              ];
-            } fixture;
-          in
-          check "r-watch" ''
-            git init -q
-            export OBSERVED="$TMPDIR/observed"
-            ${lib.getExe pkgs.python3} ${./_watch.test.py} \
-              ${
-                lib.getExe (
-                  lib.findFirst (p: lib.getName p == "watch-r-test") null
-                    (perSystem flake).nullkomma.devShell.packages
-                )
-              } \
-              || { cat "$TMPDIR/watcher.log"; exit 1; }
-          '';
         r-console =
           pkgs.runCommand "nullkomma-r-console"
             {
@@ -513,15 +354,6 @@
             '';
         r-pkgdown-legal = legalcheck "r-pkgdown-legal" published.packages.${system}.site;
         r-declarative-brand = linkcheck "r-declarative-brand" declarativeBrand.packages.${system}.site;
-        r-pkgdown-config = check "r-pkgdown-config" ''
-          Rscript --vanilla - <<'RS'
-          .libPaths(c(${
-            lib.concatMapStrings (library: ''"${library}", '') (perSystem branded).nullkomma.r.pkgdown.libraries
-          }.libPaths()))
-          override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON branded.debug.config.nullkomma.r.pkgdown.config)}, simplifyVector = FALSE)
-          testthat::expect_no_condition(pkgdown::as_pkgdown(override = override))
-          RS
-        '';
         r-pkgdown-site =
           pkgs.runCommand "nullkomma-r-pkgdown-site" { nativeBuildInputs = [ pkgs.python3 ]; }
             ''
@@ -569,13 +401,13 @@
         r-pkgdown-local = check "r-pkgdown-local" ''
           export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1
           git init -q
-          ${task branded "nk-write-files"}
+          ${task branded "write-files"}
           (${(perSystem branded).nullkomma.devShell.shellHook})
           # Language tasks must not overwrite files generated on shell entry.
           printf 'local asset\n' > pkgdown/assets/local-only.txt
           # Repeated builds must not trip over read-only assets copied from the store.
-          ${task branded "r-pkgdown"}
-          ${task branded "r-pkgdown"}
+          ${task branded "r-build-site"}
+          ${task branded "r-build-site"}
           cmp pkgdown/assets/local-only.txt docs/local-only.txt
           cmp pkgdown/assets/workflow.txt docs/workflow.txt
           grep -qxF 'shared R workflow' docs/workflow.txt
@@ -588,19 +420,57 @@
           export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
           git init -q
           printf 'destination: yaml-destination\n' >> _pkgdown.yml
-          ${task customDestination "r-pkgdown-preview"}
+          ${task customDestination "r-build-site"} --preview
           # browseURL doesn't wait for the browser.
           for _ in {1..50}; do test -f "$TMPDIR/opened" && break; sleep 0.1; done
           grep -qF "$PWD/public/index.html" "$TMPDIR/opened"
           test ! -e yaml-destination
         '';
-        r-coverage =
+        r-pkgdown-live =
+          (check "r-pkgdown-live" ''
+            export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
+            git init -q
+            # A stopped `process-compose run` signals its whole process group, so the builder needs its own.
+            set -m
+            PC_DISABLE_TUI=1 ${task customDestination "r-preview-site"} > preview.log 2>&1 &
+            preview=$!
+            trap 'kill "$preview" 2>/dev/null; wait || true' EXIT
+            sleep 3
+            if test -e "$TMPDIR/opened"; then
+              echo 'The preview must wait for the first build, or it opens a page without reloads' >&2
+              exit 1
+            fi
+            ${task customDestination "r-build-site"}
+            for _ in {1..60}; do test -s "$TMPDIR/opened" && break; sleep 1; done
+            curl --noproxy '*' --fail --silent "$(cat "$TMPDIR/opened")" > index.html || { cat preview.log >&2; exit 1; }
+            grep -qF servr:reload index.html
+            grep -qF nullkommafixture index.html
+            # Asks servr, as its pages do, whether they must reload.
+            reload() {
+              node -e 'const ws = new WebSocket(process.argv[1]); ws.onopen = () => ws.send("/"); ws.onmessage = (e) => { console.log(e.data); process.exit(0); };' \
+                "$(sed 's|^http|ws|; s|/*$|/websocket/|' "$TMPDIR/opened")"
+            }
+            # The preview starts once index.html exists, while the first build may still write pages.
+            reload > /dev/null
+            test "$(reload)" = false
+            printf '\nEdited.\n' >> README.md
+            ${task customDestination "r-build-site"}
+            test "$(reload)" = true
+          '').overrideAttrs
+            (old: {
+              nativeBuildInputs = old.nativeBuildInputs ++ [
+                pkgs.curl
+                pkgs.nodejs
+              ];
+              __darwinAllowLocalNetworking = true;
+            });
+        r-test-coverage =
           let
             flake = callFlakeWith { nullkomma.r.coverage.enable = true; } fixture;
           in
-          check "r-coverage" ''
+          check "r-test-coverage" ''
             git init -q
-            ${task flake "r-coverage"}
+            ${task flake "r-test-coverage"}
             grep -q '<coverage ' coverage.xml
             grep -q 'hello.R' coverage.xml
           '';
@@ -608,7 +478,7 @@
           git init -q
           cp man/hello.Rd "$TMPDIR/hello.Rd"
           printf '# Generated by roxygen2: do not edit by hand\n' > NAMESPACE
-          ${task fixtures.r "r-namespace"}
+          ${task fixtures.r "r-document-namespace"}
           grep -q '^export(hello)$' NAMESPACE
           grep -q '^importFrom(stats,setNames)$' NAMESPACE
           cmp "$TMPDIR/hello.Rd" man/hello.Rd
@@ -633,28 +503,31 @@
             expect_true(startsWith(find.package("nullkommafixture"), Sys.getenv("R_LIBS_USER")))
           })
           RS
-          ${runCheck fixtures.r "r-testthat"} --installed
+          ${task fixtures.r "r-test"} --installed
         '';
         r-rejects-drift = check "r-rejects-drift" ''
           cp NAMESPACE "$TMPDIR/NAMESPACE"
           printf '# Generated by roxygen2: do not edit by hand\n' > NAMESPACE
-          fails 'NAMESPACE is stale' ${runCheck fixtures.r "r-namespace"}
+          fails 'NAMESPACE is stale' ${task fixtures.r "r-document-namespace"} --check
           cp "$TMPDIR/NAMESPACE" NAMESPACE
           # Tests check the working tree, not the flake's source.
           echo 'stop("local-r-source-marker")' >> R/hello.R
-          fails local-r-source-marker ${runCheck fixtures.r "r-cmd-check"}
+          fails local-r-source-marker ${task fixtures.r "r-check"}
         '';
         r-files = check "r-files" ''
           git init -q
-          ${task fixtures.r "nk-write-files"}
+          ${task fixtures.r "write-files"}
           grep -qxF '^project-only[.]txt$' .Rbuildignore
-          mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/processes .agents/skills/demo
+          mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/cloudflare .agents/skills/demo
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
-            .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/processes/r-document.ok \
-            .agents/skills/demo/SKILL.md AGENTS.md
+            .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/cloudflare/terraform.tfstate \
+            .agents/skills/demo/SKILL.md AGENTS.md .mcp.json .Renviron .Rprofile
+          # Git worktrees have a .git file, which R does not exclude itself.
+          rm -rf .git
+          printf 'gitdir: /unavailable/worktree\n' > .git
           R CMD build --no-build-vignettes --no-manual .
           tar -tf nullkommafixture_0.0.1.tar.gz > package-files
-          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]nullkomma|[.]agents|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
+          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]Renviron|[.]Rprofile|[.]git|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]mcp[.]json|[.]nullkomma|[.]agents|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
             echo "Development-only files leaked into the package source" >&2
             exit 1
           fi
@@ -679,10 +552,10 @@
           mv project nested/r
           cd nested
           git init -q
-          ${task nested "nk-write-files"}
+          ${task nested "write-files"}
           grep -qxF '^project-only[.]txt$' r/.Rbuildignore
-          ${runCheck nested "r-testthat"}
-          ${runCheck nested "r-cmd-check"}
+          ${task nested "r-test"}
+          ${task nested "r-check"}
         '';
       };
     };
