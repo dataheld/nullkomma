@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="690"
+     viewBox="0 0 780 690" role="img" aria-labelledby="title description">
+  <title id="title">Development environment trade-offs</title>
+  <desc id="description">
+    A triangle with DRY, quality gates and transparency at its corners.
+    devenv favors DRY and quality gates; a short vanilla flake favors DRY
+    and transparency; a long vanilla flake favors quality gates and transparency.
+    devshell and flake-parts with treefmt occupy intermediate positions.
+    Positions illustrate relative emphasis, not measured scores.
+  </desc>
+  <style>
+    /* Edit these nonnegative weights; each point's total must be positive.
+       Weights are normalized, so 9/9/2 and 45/45/10 place a point identically. */
+    #devenv { --dry: 9; --quality: 9; --transparency: 2; }
+    #devshell { --dry: 6; --quality: 2; --transparency: 7; }
+    #flake-parts { --dry: 7; --quality: 7; --transparency: 7; }
+    #short-flake { --dry: 9; --quality: 1; --transparency: 9; }
+    #long-flake { --dry: 1; --quality: 9; --transparency: 9; }
+
+    svg {
+      --background: #fff;
+      --plot: #ececff;
+      --border: #9370db;
+      --grid: #d1cee8;
+      --text: #333;
+      font: 17px "Trebuchet MS", Verdana, Arial, sans-serif;
+      text-anchor: middle;
+    }
+    @media (prefers-color-scheme: dark) {
+      svg {
+        --background: #1b1b1f;
+        --plot: #28283d;
+        --border: #aaa0d5;
+        --grid: #48435f;
+        --text: #eee;
+      }
+    }
+    .background { fill: var(--background); }
+    .area { fill: var(--plot); stroke: var(--border); stroke-width: 2; }
+    .grid { fill: none; stroke: var(--grid); stroke-width: 1; }
+    text { fill: var(--text); }
+    .title { font-size: 22px; font-weight: bold; }
+    .criterion { font-size: 20px; font-weight: bold; }
+    .point {
+      --total: calc(var(--dry) + var(--quality) + var(--transparency));
+      transform: translate(
+        calc((390px * var(--dry) + 80px * var(--quality)
+          + 700px * var(--transparency)) / var(--total)),
+        calc((90px * var(--dry)
+          + 627px * (var(--quality) + var(--transparency))) / var(--total))
+      );
+    }
+    .point circle { fill: var(--text); }
+    .point text {
+      paint-order: stroke;
+      stroke: var(--plot);
+      stroke-width: 5px;
+      stroke-linejoin: round;
+    }
+  </style>
+  <rect class="background" width="780" height="690" rx="8"/>
+  <text class="title" x="390" y="32">Development environment trade-offs</text>
+  <polygon class="area" points="390,90 80,627 700,627"/>
+  <g class="grid">
+    <path d="M157.5 492.75H622.5 M235 358.5H545 M312.5 224.25H467.5"/>
+    <path d="M312.5 224.25L545 627 M235 358.5L390 627 M157.5 492.75L235 627"/>
+    <path d="M467.5 224.25L235 627 M545 358.5L390 627 M622.5 492.75L545 627"/>
+  </g>
+  <text class="criterion" x="390" y="72">DRY</text>
+  <text class="criterion" x="90" y="666">Quality gates</text>
+  <text class="criterion" x="690" y="666">Transparency</text>
+  <g class="point" id="devenv">
+    <circle r="5"/>
+    <text y="28">devenv</text>
+  </g>
+  <g class="point" id="devshell">
+    <circle r="5"/>
+    <text x="12" y="24" text-anchor="start">devshell</text>
+  </g>
+  <g class="point" id="flake-parts">
+    <circle r="5"/>
+    <text y="28">flake-parts + treefmt</text>
+  </g>
+  <g class="point" id="short-flake">
+    <circle r="5"/>
+    <text x="-12" y="-25" text-anchor="end">Short vanilla flake.nix</text>
+  </g>
+  <g class="point" id="long-flake">
+    <circle r="5"/>
+    <text y="-20">Long vanilla flake.nix</text>
+  </g>
+</svg>
