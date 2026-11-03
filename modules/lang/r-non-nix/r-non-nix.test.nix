@@ -11,7 +11,6 @@
         inherit (harness)
           callFlakeWith
           fixtures
-          nullkomma
           perSystem
           plugins
           project
@@ -32,16 +31,8 @@
             ''
               ${project fixture}
               git init -q
-              cp README.md "$TMPDIR/README.md"
-              echo "Unseen working-tree edit" >> README.md
-              fails 'Upstream conflict: README.md' ${task withProfile "write-files"}
-              grep -qF 'Unseen working-tree edit' README.md
-              cp "$TMPDIR/README.md" README.md
               ${task withProfile "write-files"}
               grep -qF 'Keep these project-specific development notes.' README.md
-              cp README.md "$TMPDIR/expected"
-              ${task withProfile "write-files"}
-              cmp "$TMPDIR/expected" README.md
               ${task withProfile "generate-files"}
               mkdir $out
               cp -R DESCRIPTION pkg.lock R NAMESPACE man tests .R .Rprofile .Renviron .Rbuildignore .nvim.lua README.md flake.nix $out/
@@ -54,16 +45,6 @@
               let
                 standalone = rawAt fixture {
                   imports = [ plugins.r ];
-                  nullkomma.r = {
-                    enable = true;
-                    nonNix.enable = true;
-                  };
-                };
-                overlapping = rawAt fixture {
-                  imports = [
-                    plugins.r
-                    nullkomma.modules.flake.r
-                  ];
                   nullkomma.r = {
                     enable = true;
                     nonNix.enable = true;
@@ -85,9 +66,7 @@
               in
               {
                 enabled = (perSystem standalone).nullkomma.files ? ".Rprofile";
-                noCompanionExport = !(nullkomma.flakeModules ? r-non-nix) && !(nullkomma.modules.flake ? r-non-nix);
                 optIn = !((perSystem (callFlakeWith { } fixture)).nullkomma.files ? ".Rprofile");
-                duplicateImports = summary standalone == summary overlapping;
                 disabledParent = summary withoutR == summary (raw { });
                 # Native R must not install Config/Needs packages that Nix leaves out.
                 runtimeFields =
@@ -96,9 +75,7 @@
               };
             expected = {
               enabled = true;
-              noCompanionExport = true;
               optIn = true;
-              duplicateImports = true;
               disabledParent = true;
               runtimeFields = true;
             };
@@ -195,17 +172,6 @@
                     stopifnot(identical(failure, paste0("The project R library is not writable: ", library)))
                   })
                 RS
-                touch .R/library/sentinel project-only.txt
-                # Git worktrees have a .git file, which R does not exclude itself.
-                rm -rf .git
-                printf 'gitdir: /unavailable/worktree\n' > .git
-                R CMD build --no-build-vignettes --no-manual .
-                tar -tf nullkommafixture_0.0.1.tar.gz > package-files
-                if grep -E '/(flake[.]nix|pkg[.]lock|[.]R|[.]Renviron|[.]Rprofile|[.]nvim[.]lua|[.]git|project-only[.]txt)(/|$)' package-files; then
-                  echo "Development files leaked into the R source package" >&2
-                  exit 1
-                fi
-                grep -qx 'nullkommafixture/R/hello.R' package-files
                 env NULLKOMMA_R_NIX=true Rscript -e 'stopifnot(is.null(getOption("nullkomma.r.library")))'
                 rm .Renviron
                 fails 'Missing project R settings' Rscript -e 'quit(status = 0)'

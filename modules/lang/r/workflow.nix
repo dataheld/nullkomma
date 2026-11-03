@@ -118,6 +118,11 @@
         };
         nullkomma.generatedPaths = map (path: prefix + path) generated;
         nullkomma.gitignore = [
+          "*.Rcheck/"
+          ".RData"
+          ".Rhistory"
+          ".Rproj.user/"
+          ".Ruserdata"
           "/${prefix}man/*.Rd"
         ]
         ++ lib.optional cfg.pkgdown.enable "/${prefix}${destinationGlob}/"
@@ -136,7 +141,6 @@
             r = {
               namespace = "r";
               working_dir = "./${prefix}";
-              disabled = true;
             };
             after = name: { ${name}.condition = "process_completed_successfully"; };
             # For tasks that read the whole package; R changes reach them through the cascade.
@@ -250,7 +254,6 @@
                   description = "Generate NAMESPACE with roxygen2; --check fails if it was stale";
                   command = namespace;
                   # The dev loop: R changes regenerate NAMESPACE, then restart its dependents.
-                  disabled = false;
                   watch = {
                     paths = [ { path = "R"; } ];
                     cascade = true;
@@ -260,7 +263,6 @@
                   description = "Generate R manuals and NAMESPACE with roxygen2";
                   depends_on = after "r-document-namespace";
                   command = "${rscript} -e 'roxygen2::roxygenise(roclets = setdiff(roxygen2::load_options()[[\"roclets\"]], \"namespace\"))'";
-                  disabled = false;
                 };
                 check.depends_on = after "r-document-namespace";
               }
@@ -269,7 +271,6 @@
                   description = "Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package";
                   depends_on = after "r-document-namespace";
                   command = test;
-                  disabled = false;
                   # testthat writes `_snaps/*.new.*` when snapshots fail.
                   watch.paths = [
                     {
@@ -285,7 +286,6 @@
                   description = "Build the pkgdown website; --preview opens it in a browser";
                   depends_on = after "r-document";
                   command = pkgdown;
-                  disabled = false;
                   watch = packageWatch;
                 };
                 # No dependency on r-build-site: its cascade restarts would close open pages.
@@ -297,7 +297,6 @@
                     while (!file.exists(index)) Sys.sleep(1)
                     servr::httw("${destination}", browser = TRUE)
                   ''}";
-                  disabled = false;
                   ready_log_line = "Serving the directory";
                 };
                 all.depends_on = after "r-build-site";
@@ -308,7 +307,6 @@
                   # Installs the package, so it must not run while r-document writes man/.
                   depends_on = after "r-document";
                   command = "${rscript} -e 'covr::to_cobertura(covr::package_coverage(), filename = \"coverage.xml\")'";
-                  disabled = false;
                   watch = packageWatch;
                 };
               })

@@ -130,10 +130,6 @@
                   launch.browser = FALSE
                 )
               '';
-            pkgload = dir: ''
-              pkgload::load_all(${dir}, export_all = FALSE)
-              package <- pkgload::pkg_name(${dir})
-            '';
             localHost = if cfg.shiny.host == "0.0.0.0" then "127.0.0.1" else cfg.shiny.host;
             launcher = pkgs.writeShellScriptBin "shiny" ''
               exec ${pkgsR.R}/bin/Rscript --vanilla ${
@@ -159,7 +155,10 @@
                   runtimeInputs = [ config.nullkomma.r.package ];
                   text = "exec Rscript --vanilla ${
                     script {
-                      setup = pkgload ''"."'';
+                      setup = ''
+                        pkgload::load_all(".", export_all = FALSE)
+                        package <- pkgload::pkg_name(".")
+                      '';
                       inherit function;
                       port = if cfg.shiny.port == null then null else cfg.shiny.port + i;
                       stride = lib.length cfg.shiny.devFunctions;

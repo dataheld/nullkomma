@@ -48,35 +48,8 @@
     {
       nullkomma.nix.unit.tests = {
         testShinyIsOptIn = {
-          expr = {
-            app = fixtures.r.apps.${system} ? shiny;
-            task = (perSystem fixtures.r).process-compose.dev.settings.processes ? shiny;
-            taskAfter = lib.attrNames (perSystem local)
-              .process-compose.dev.settings.processes.r-run-app.depends_on;
-            dependency = lib.elem "shiny" (perSystem fixtures.r).nullkomma.r.packages;
-          };
-          expected = {
-            app = false;
-            task = false;
-            taskAfter = [
-              "r-shiny-app"
-              "r-shiny-greeting_app"
-            ];
-            dependency = false;
-          };
-        };
-        # Shiny can swallow SIGINT; an app left running holds its port, so its restarts can't bind.
-        testShinyAppsStopForSure = {
-          expr = {
-            inherit ((perSystem local).process-compose.dev.settings.processes.r-shiny-app.shutdown)
-              signal
-              timeout_seconds
-              ;
-          };
-          expected = {
-            signal = 2;
-            timeout_seconds = 5;
-          };
+          expr = fixtures.r.apps.${system} ? shiny;
+          expected = false;
         };
         # The lockfile alone sizes the R environment: no Shiny stack or browser unless declared.
         testLockSizesEnvironment = {

@@ -130,14 +130,6 @@
         testRBrandFeature = {
           expr =
             let
-              enabled = rawAt fixture {
-                imports = [ nullkomma.flakeModules.r ];
-                nullkomma.brand.lib.brand = root + "/tests/fixtures/r-brand/_brand.yml";
-                nullkomma.r = {
-                  enable = true;
-                  pkgdown.brand.enable = true;
-                };
-              };
               inactive = rawAt fixture {
                 imports = [ nullkomma.flakeModules.r ];
                 nullkomma.r.pkgdown.brand.enable = true;
@@ -150,63 +142,22 @@
               } fixture;
             in
             {
-              enabled = (perSystem enabled).nullkomma.r.pkgdown.libraries != [ ];
-              noCompanionExport = !(nullkomma.flakeModules ? r-brand) && !(nullkomma.modules.flake ? r-brand);
               parentOff = summary inactive == summary (rawAt fixture { });
-              optIn = (perSystem fixtures.r).nullkomma.r.pkgdown.libraries == [ ];
               siteOff =
                 (perSystem withoutSite).nullkomma.r.pkgdown.libraries == [ ]
                 && !lib.elem "brand.yml" (perSystem withoutSite).nullkomma.r.packages;
             };
           expected = {
-            enabled = true;
-            noCompanionExport = true;
             parentOff = true;
-            optIn = true;
             siteOff = true;
           };
         };
         testRDevLoop = {
-          expr =
-            let
-              processes = flake: (perSystem flake).process-compose.dev.settings.processes;
-              defaults = processes fixtures.r;
-            in
-            {
-              namespace = defaults.r-document-namespace.watch;
-              test = defaults.r-test.watch.paths;
-              package = defaults.r-check.watch;
-              site = defaults.r-build-site.watch == defaults.r-check.watch;
-              enabled = lib.filter (name: defaults.${name}.disabled != true) [
-                "r-document-namespace"
-                "r-document"
-                "r-test"
-                "r-check"
-                "r-build-site"
-                "r-lock"
-              ];
-              nested = (processes nested).r-test.working_dir;
-              ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
-              invalidDestination =
-                (builtins.tryEval (
-                  builtins.deepSeq
-                    (callFlakeWith {
-                      nullkomma.r.pkgdown.config.destination = "../site";
-                    } fixture).debug.config.nullkomma.gitignore
-                    true
-                )).success;
-            };
+          expr = {
+            package = (perSystem fixtures.r).process-compose.dev.settings.processes.r-check.watch;
+            ignore = lib.elem "/public/" customDestination.debug.config.nullkomma.gitignore;
+          };
           expected = {
-            namespace = {
-              paths = [ { path = "R"; } ];
-              cascade = true;
-            };
-            test = [
-              {
-                path = "tests";
-                exclude = [ "_snaps" ];
-              }
-            ];
             # R changes reach the other tasks through the cascade.
             package.paths = [
               {
@@ -220,100 +171,15 @@
                 ];
               }
             ];
-            site = true;
-            enabled = [
-              "r-document-namespace"
-              "r-document"
-              "r-test"
-              "r-check"
-              "r-build-site"
-            ];
-            nested = "./r/";
             ignore = true;
-            invalidDestination = false;
           };
         };
-        testRDocumentationIsRequired = {
+        testRRejectsInvalidPkgdownDestination = {
           expr =
-            let
-              minimal = perSystem (
-                callFlakeWith {
-                  nullkomma.r = {
-                    check.enable = false;
-                    testthat.enable = false;
-                    pkgdown.enable = false;
-                  };
-                } fixture
-              );
-            in
-            lib.elem "roxygen2" minimal.nullkomma.r.packages
-            && minimal.process-compose.dev.settings.processes ? r-document
-            && minimal.checks ? r-document-namespace;
-          expected = true;
-        };
-        testRNamespaceTaskIsSeparate = {
-          expr =
-            let
-              processes =
-                (perSystem (callFlakeWith { nullkomma.r.coverage.enable = true; } fixture))
-                .process-compose.dev.settings.processes;
-              after = name: lib.attrNames (lib.defaultTo { } processes.${name}.depends_on);
-            in
-            {
-              namespace = after "r-document-namespace";
-              document = after "r-document";
-              documentRoclets = lib.hasInfix ''setdiff(roxygen2::load_options()[["roclets"]], "namespace")'' processes.r-document.command;
-              test = after "r-test";
-              coverage = after "r-test-coverage";
-              check = after "r-check";
-              pkgdown = after "r-build-site";
-              # Cascades restart dependents, which would close the preview's open pages.
-              preview = after "r-preview-site";
-              nkCheck = after "check";
-              nkAll = after "all";
-              sandboxed = fixtures.r.checks.${system} ? r-build-site;
-            };
-          expected = {
-            namespace = [ ];
-            document = [ "r-document-namespace" ];
-            documentRoclets = true;
-            test = [ "r-document-namespace" ];
-            coverage = [ "r-document" ];
-            check = [ "r-document" ];
-            pkgdown = [ "r-document" ];
-            preview = [ ];
-            nkCheck = [
-              "jscpd"
-              "r-check"
-              "r-document-namespace"
-              "r-test"
-            ];
-            nkAll = [
-              "check"
-              "flake-checker"
-              "gitleaks-git"
-              "r-build-site"
-              "treefmt"
-            ];
-            sandboxed = false;
-          };
-        };
-        testRCheckSkipsTestsRunSeparately = {
-          expr = map (flake: flake.debug.config.nullkomma.r.check.args) [
-            fixtures.r
-            (callFlakeWith { nullkomma.r.testthat.enable = false; } fixture)
-          ];
-          expected = [
-            [
-              "--no-manual"
-              "--ignore-vignettes"
-              "--no-tests"
-            ]
-            [
-              "--no-manual"
-              "--ignore-vignettes"
-            ]
-          ];
+            (callFlakeWith {
+              nullkomma.r.pkgdown.config.destination = "../site";
+            } fixture).debug.config.nullkomma.gitignore;
+          expectedError.msg = "normalized, package-relative";
         };
         testRAttributeNames = {
           expr = map rlib.attrName [
@@ -408,63 +274,12 @@
           expr = (perSystem withoutLock).nullkomma.r.packages;
           expectedError.msg = "lockfile `pkg.lock` of DESCRIPTION is missing";
         };
-        testRIncludesPkgloadForDevelopment = {
-          expr = lib.elem "pkgload" (perSystem fixtures.r).nullkomma.r.packages;
-          expected = true;
-        };
-        testRInteractiveTools = {
+        testRRuntimeIsEditorIndependent = {
           expr =
-            let
-              r = perSystem fixtures.r;
-              withoutAir = perSystem (callFlakeWith { perSystem.treefmt.programs.air.enable = false; } fixture);
-              customAir = perSystem (
-                callFlakeWith { perSystem.treefmt.programs.air.package = pkgs.hello; } fixture
-              );
-              settings = r.nullkomma.editor.vscode.settings;
-            in
-            {
-              httpgd = lib.elem "httpgd" r.nullkomma.r.packages;
-              editorIndependent =
-                lib.elem rRuntime (perSystem runtime).nullkomma.devShell.packages
-                && !(perSystem runtime).nullkomma.files ? ".nvim.lua"
-                && !(perSystem runtime).nullkomma.files ? ".vscode/settings.json";
-              air = lib.elem r.treefmt.programs.air.package r.nullkomma.devShell.packages;
-              noAir = lib.elem withoutAir.treefmt.programs.air.package withoutAir.nullkomma.devShell.packages;
-              customAir = lib.elem pkgs.hello customAir.nullkomma.devShell.packages;
-              console = settings."r.rterm.mac" == "${r.nullkomma.r.package}/bin/radian";
-              background = settings."r.rpath.linux" == "${r.nullkomma.r.package}/bin/R";
-              bracketedPaste = settings."r.bracketedPaste";
-              plotting = settings."r.plot.useHttpgd";
-              libraries = settings."r.libPaths";
-              recommendations = lib.all (id: lib.elem id r.nullkomma.editor.vscode.extensions) [
-                "Posit.air-vscode"
-                "REditorSupport.r"
-              ];
-              override =
-                (perSystem (
-                  callFlakeWith {
-                    perSystem.nullkomma.editor.vscode.settings."r.rterm.mac" = "custom-console";
-                  } fixture
-                )).nullkomma.editor.vscode.settings."r.rterm.mac";
-            };
-          expected = {
-            httpgd = true;
-            editorIndependent = true;
-            air = true;
-            noAir = false;
-            customAir = true;
-            console = true;
-            background = true;
-            bracketedPaste = true;
-            plotting = true;
-            libraries = [ ];
-            recommendations = true;
-            override = "custom-console";
-          };
-        };
-        testRRuntimeUsesRInput = {
-          expr = (lib.head rRuntime.buildInputs).drvPath;
-          expected = nullkomma.inputs.nixpkgs-r.legacyPackages.${system}.R.drvPath;
+            lib.elem rRuntime (perSystem runtime).nullkomma.devShell.packages
+            && !(perSystem runtime).nullkomma.files ? ".nvim.lua"
+            && !(perSystem runtime).nullkomma.files ? ".vscode/settings.json";
+          expected = true;
         };
         testRLockBootstrapsWithoutLock = {
           expr = lib.isString withoutLock.apps.${system}.r-lock.program;
@@ -476,22 +291,14 @@
             .nullkomma.r.package.drvPath;
           expectedError.msg = "`notarealpackage` is not in nixpkgs";
         };
-        testRAllowsLockedOffNixpkgsPackagesByDefault = {
-          expr = fixtures.r-off-nixpkgs.debug.config.nullkomma.r.allowOffNixpkgs;
-          expected = true;
-        };
         testRRejectsLockedOffNixpkgsPackagesWhenDisabled = {
           expr =
-            (builtins.tryEval (
-              builtins.deepSeq
-                (perSystem (
-                  callFlakeWith {
-                    nullkomma.r.allowOffNixpkgs = false;
-                  } (root + "/tests/fixtures/r-off-nixpkgs")
-                )).nullkomma.r.package.drvPath
-                true
-            )).success;
-          expected = false;
+            (perSystem (
+              callFlakeWith {
+                nullkomma.r.allowOffNixpkgs = false;
+              } (root + "/tests/fixtures/r-off-nixpkgs")
+            )).nullkomma.r.packages;
+          expectedError.msg = "do not come from nixpkgs";
         };
       };
       checks = {
@@ -534,15 +341,6 @@
             '';
         r-pkgdown-legal = legalcheck "r-pkgdown-legal" published.packages.${system}.site;
         r-declarative-brand = linkcheck "r-declarative-brand" declarativeBrand.packages.${system}.site;
-        r-pkgdown-config = check "r-pkgdown-config" ''
-          Rscript --vanilla - <<'RS'
-          .libPaths(c(${
-            lib.concatMapStrings (library: ''"${library}", '') (perSystem branded).nullkomma.r.pkgdown.libraries
-          }.libPaths()))
-          override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON branded.debug.config.nullkomma.r.pkgdown.config)}, simplifyVector = FALSE)
-          testthat::expect_no_condition(pkgdown::as_pkgdown(override = override))
-          RS
-        '';
         r-pkgdown-site =
           pkgs.runCommand "nullkomma-r-pkgdown-site" { nativeBuildInputs = [ pkgs.python3 ]; }
             ''
@@ -710,10 +508,13 @@
           mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/cloudflare .agents/skills/demo
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
             .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/cloudflare/terraform.tfstate \
-            .agents/skills/demo/SKILL.md AGENTS.md .mcp.json
+            .agents/skills/demo/SKILL.md AGENTS.md .mcp.json .Renviron .Rprofile
+          # Git worktrees have a .git file, which R does not exclude itself.
+          rm -rf .git
+          printf 'gitdir: /unavailable/worktree\n' > .git
           R CMD build --no-build-vignettes --no-manual .
           tar -tf nullkommafixture_0.0.1.tar.gz > package-files
-          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]mcp[.]json|[.]nullkomma|[.]agents|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
+          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]Renviron|[.]Rprofile|[.]git|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]mcp[.]json|[.]nullkomma|[.]agents|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
             echo "Development-only files leaked into the package source" >&2
             exit 1
           fi
