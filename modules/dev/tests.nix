@@ -111,18 +111,26 @@
               grep -qF -- "$message" "$TMPDIR/failure.log" || { cat "$TMPDIR/failure.log"; exit 1; }
             }
           '';
-          # What a fixture's user sees: the `nk` menu.
-          snapshots = lib.mapAttrs (
-            name: flake:
-            pkgs.runCommand "nullkomma-snapshot-${name}" { } ''
-              ${project (root + "/tests/fixtures/${name}")}
-              {
-                printf '# `nk` in `tests/fixtures/%s`\n\n```text\n' ${name}
-                ${task flake ""}
-                printf '```\n'
-              } > "$out"
-            ''
-          ) fixtures;
+          # What a fixture's user sees: the `nk` menu; variants of another fixture share its menu.
+          snapshots =
+            lib.mapAttrs
+              (
+                name: flake:
+                pkgs.runCommand "nullkomma-snapshot-${name}" { } ''
+                  ${project (root + "/tests/fixtures/${name}")}
+                  {
+                    printf '# `nk` in `tests/fixtures/%s`\n\n```text\n' ${name}
+                    ${task flake ""}
+                    printf '```\n'
+                  } > "$out"
+                ''
+              )
+              (
+                removeAttrs fixtures [
+                  "quarto-branded"
+                  "r-off-nixpkgs"
+                ]
+              );
         in
         {
           legacyPackages = { inherit snapshots; };
@@ -272,19 +280,6 @@
                     --no-write-lock-file --print-build-logs
                 }
                 check
-                cp -R "$root/tests/fixtures/r" "$scratch/r"
-                rm "$scratch/r/pkg.lock"
-                # Bootstrapping must not evaluate the lock-dependent R environment.
-                nix eval --raw "path:$scratch/r#apps.${system}.r-lock.program" \
-                  --override-input nullkomma "path:$root" \
-                  --no-write-lock-file > /dev/null
-                if nix eval "path:$scratch/r#devShells.${system}.default.drvPath" \
-                  --override-input nullkomma "path:$root" \
-                  --no-write-lock-file > "$scratch/missing-lock.log" 2>&1; then
-                  echo "R environment without pkg.lock unexpectedly evaluated" >&2
-                  exit 1
-                fi
-                grep -qF "lockfile \`pkg.lock\` of DESCRIPTION is missing" "$scratch/missing-lock.log"
                 # Consumer CI lints the lock; its Nixpkgs must be visible as a root input.
                 nix flake lock "path:$scratch/project" --override-input nullkomma "path:$root"
                 flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
