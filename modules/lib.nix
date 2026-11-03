@@ -35,6 +35,8 @@ in
       "vscode"
       "yaml"
     ];
+    # Modules below a directory, e.g. `imports = importTree ./nix;` in a project's flake.
+    importTree = import ../lib/import-tree.nix lib;
     mkFlake =
       args: module:
       inputs.flake-parts.lib.mkFlake args {

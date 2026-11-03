@@ -428,13 +428,17 @@
                 tree = root + "/tests/fixtures/import-tree";
               in
               {
-                expr = map (p: lib.removePrefix (toString tree) (toString p)) (
-                  import (root + "/lib/import-tree.nix") lib tree
-                );
-                expected = [
-                  "/a.nix"
-                  "/sub/b.nix"
-                ];
+                expr = {
+                  found = map (p: lib.removePrefix (toString tree) (toString p)) (nullkomma.lib.importTree tree);
+                  missing = nullkomma.lib.importTree (tree + "/missing");
+                };
+                expected = {
+                  found = [
+                    "/a.nix"
+                    "/sub/b.nix"
+                  ];
+                  missing = [ ];
+                };
               };
             testImportingModulesTwiceIsHarmless =
               let
