@@ -90,15 +90,15 @@ process_file() {
     echo "accepted upstream baseline for $path; project content preserved"
   elif [ ! -e "$path" ] || cmp -s "$path" "$source" || { [ -f "$base" ] && cmp -s "$path" "$base"; } ||
     { [ -n "$initial" ] && cmp -s "$path" "$initial"; }; then
-    mkdir -p "$(dirname "$path")"
-    cp "$source" "$path"
-    chmod u+w "$path"
+    if ! cmp -s "$path" "$source"; then
+      mkdir -p "$(dirname "$path")"
+      cp "$source" "$path"
+      chmod u+w "$path"
+      echo "initialized/updated $path"
+    fi
     cp --remove-destination "$source" "$base"
     rm -f "$incoming"
-    echo "initialized/updated $path"
-  elif [ -f "$base" ] && cmp -s "$base" "$source"; then
-    echo "kept project edits: $path"
-  else
+  elif [ ! -f "$base" ] || ! cmp -s "$base" "$source"; then
     cp --remove-destination "$source" "$incoming"
     echo "Upstream conflict: $path (project file preserved)." >&2
     echo "Baseline: $base (may be absent); incoming: $incoming" >&2
