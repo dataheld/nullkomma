@@ -148,6 +148,9 @@
               }
             ];
             rscript = "${pcfg.package}/bin/Rscript --vanilla";
+            # shinytest2 skips tests whose Chrome fails to start, and testthat then deletes their file snapshots:
+            # start Chrome first, so that this fails r-test instead, and give it time under the dev loop's start-up load.
+            chromote = lib.optionalString (lib.elem "chromote" pcfg.packages) "options(chromote.timeout = 60); invisible(chromote::default_chromote_object()$new_session()$close()); ";
             pkgdown = pkgs.writeShellApplication {
               name = "r-build-site";
               runtimeInputs = [
@@ -202,6 +205,8 @@
             test = pkgs.writeShellApplication {
               name = "r-test";
               runtimeInputs = [ pcfg.package ];
+              # `$` in the R code is R's, not the shell's.
+              excludeShellChecks = [ "SC2016" ];
               text = ''
                 load=source
                 if [[ "''${1-}" == --installed ]]; then
@@ -214,7 +219,7 @@
                   # Like R CMD check: shinytest2 then runs apps from the installed package, not pkgload.
                   export TESTTHAT_IS_CHECKING=true
                 fi
-                Rscript --vanilla -e 'testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = commandArgs(TRUE)[[1]])' "$load"
+                Rscript --vanilla -e '${chromote}testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = commandArgs(TRUE)[[1]])' "$load"
               '';
             };
             namespace = pkgs.writeShellApplication {

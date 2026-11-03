@@ -203,6 +203,12 @@
               mkdir "$TMPDIR/library"
               R CMD INSTALL --library="$TMPDIR/library" "$TMPDIR/stale"
               R_LIBS_USER="$TMPDIR/library" ${task plain "r-test"}
+              # shinytest2 skips tests when Chrome fails to start, and testthat then deletes their snapshots.
+              if CHROMOTE_CHROME="$(command -v false)" ${task plain "r-test"}; then
+                echo "r-test passed although Chrome failed to start" >&2
+                exit 1
+              fi
+              test -e tests/testthat/_snaps/app/app-001.json
               # Installed tests must run apps from the installed package, not the source.
               cat > tests/testthat/test-installed.R <<'RS'
               test_that("apps come from the installed package", {

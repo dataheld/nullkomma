@@ -744,6 +744,7 @@ list the installed packages and their versions, inspect R objects, and run R cod
 
 Locking chromote (e.g. via [shinytest2](https://rstudio.github.io/shinytest2/)) adds Chromium on Linux
 (`perSystem.nullkomma.r.browser`); on macOS, which Nixpkgs' Chromium doesn't support, chromote finds your Chrome.
+`r-test` then fails if Chrome doesn't start, where shinytest2 would skip the tests and testthat would delete their snapshots.
 
 #### pkgdown website
 
