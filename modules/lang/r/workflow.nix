@@ -150,7 +150,8 @@
             rscript = "${pcfg.package}/bin/Rscript --vanilla";
             # shinytest2 skips tests whose Chrome fails to start, and testthat then deletes their file snapshots:
             # start Chrome first, so that this fails r-test instead, and give it time under the dev loop's start-up load.
-            chromote = lib.optionalString (lib.elem "chromote" pcfg.packages) "options(chromote.timeout = 60); invisible(chromote::default_chromote_object()$new_session()$close()); ";
+            # Nix builds without a Nix browser (macOS) have no Chrome and work on a copy, so they still skip.
+            chromote = lib.optionalString (lib.elem "chromote" pcfg.packages) ''options(chromote.timeout = 60); if (nzchar(Sys.getenv("CHROMOTE_CHROME")) || !nzchar(Sys.getenv("NIX_BUILD_TOP"))) invisible(chromote::default_chromote_object()$new_session()$close()); '';
             pkgdown = pkgs.writeShellApplication {
               name = "r-build-site";
               runtimeInputs = [
