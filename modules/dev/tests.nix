@@ -55,36 +55,66 @@
           ];
           debug = true;
         };
-      fixtures = lib.genAttrs [ "md" "quarto" "quarto-branded" "r" "r-remotes" "shell" ] (
-        name: callFlake (root + "/tests/fixtures/${name}")
-      );
-      # One invalid file per formatter, checked by both the derivation and the real CLI.
-      rejects = {
-        nix = {
-          file = "unformatted.nix";
-          content = "{foo=1;}\n";
-          expect = [
-            "diff --git a/unformatted.nix b/unformatted.nix"
-            "+{ foo = 1; }"
-          ];
-        };
-        markdown = {
-          file = "unformatted.md";
-          content = "# Title\n* item\n";
-          expect = [
-            "diff --git a/unformatted.md b/unformatted.md"
-            "+- item"
-          ];
-        };
-      };
+      fixtures = lib.genAttrs [
+        "cloudflare"
+        "md"
+        "quarto"
+        "quarto-branded"
+        "r"
+        "r-off-nixpkgs"
+        "r-shiny"
+        "shell"
+      ] (name: callFlake (root + "/tests/fixtures/${name}"));
     in
     {
       perSystem =
         { pkgs, system, ... }:
         let
           perSystem = flake: flake.allSystems.${system};
+          # Command running a flake's task, from inside a Git repository.
+          task = flake: name: "${lib.getExe (perSystem flake).taskRunners.default} ${name}";
+          # Shell prelude: a writable copy of `src` as the working Git repository, and
+          # `fails <message> <command...>`, expecting the command to fail with message.
+          project = src: ''
+            cp -R ${src} project
+            chmod -R u+w project
+            cd project
+            ${lib.getExe pkgs.git} init -q
+            export HOME="$TMPDIR/home"
+            mkdir -p "$HOME"
+            fails() {
+              message="$1"
+              shift
+              if "$@" > "$TMPDIR/failure.log" 2>&1; then
+                echo "Expected failure: $message" >&2
+                exit 1
+              fi
+              grep -qF -- "$message" "$TMPDIR/failure.log" || { cat "$TMPDIR/failure.log"; exit 1; }
+            }
+          '';
+          # What a fixture's user sees: the `nk` menu; variants of another fixture share its menu.
+          snapshots =
+            lib.mapAttrs
+              (
+                name: flake:
+                pkgs.runCommand "nullkomma-snapshot-${name}" { } ''
+                  ${project (root + "/tests/fixtures/${name}")}
+                  {
+                    printf '# `nk` in `tests/fixtures/%s`\n\n```text\n' ${name}
+                    ${task flake ""}
+                    printf '```\n'
+                  } > "$out"
+                ''
+              )
+              (
+                removeAttrs fixtures [
+                  "quarto-branded"
+                  "r-off-nixpkgs"
+                ]
+              );
         in
         {
+          legacyPackages = { inherit snapshots; };
           _module.args.harness = {
             inherit
               nullkomma
@@ -95,10 +125,10 @@
               rawAt
               fixtures
               perSystem
+              task
+              project
               ;
             raw = rawAt (root + "/tests/fixtures/md");
-            # Executables of a flake's nullkomma tasks and checks.
-            task = flake: name: lib.getExe (perSystem flake).nullkomma.tasks.${name}.package;
             # A built site's local links and fragments resolve.
             linkcheck =
               name: site:
@@ -119,13 +149,12 @@
                 pandoc lua ${./_legal.lua} "$PWD" $(find . -name '*.html' -printf '%P\n')
                 touch $out
               '';
-            runCheck = flake: name: lib.getExe (perSystem flake).nullkomma.checks.${name}.package;
             # What plugins can contribute to a consumer flake.
             summary = flake: {
               files = lib.attrNames (perSystem flake).nullkomma.files;
               tools = map lib.getName (perSystem flake).nullkomma.devShell.packages;
               formatters = lib.attrNames (perSystem flake).treefmt.build.programs;
-              tasks = lib.attrNames (perSystem flake).nullkomma.tasks;
+              tasks = lib.attrNames (perSystem flake).taskRunners.default.tasks;
               checks = lib.attrNames flake.checks.${system};
               shells = lib.attrNames flake.devShells.${system};
               editor =
@@ -138,24 +167,6 @@
                   inherit (editor) vscode;
                 };
             };
-            # Shell prelude: a writable copy of `src` as the working directory, and
-            # `fails <message> <command...>`, expecting the command to fail with message.
-            project = src: ''
-              cp -R ${src} project
-              chmod -R u+w project
-              cd project
-              export HOME="$TMPDIR/home"
-              mkdir -p "$HOME"
-              fails() {
-                message="$1"
-                shift
-                if "$@" > "$TMPDIR/failure.log" 2>&1; then
-                  echo "Expected failure: $message" >&2
-                  exit 1
-                fi
-                grep -qF -- "$message" "$TMPDIR/failure.log" || { cat "$TMPDIR/failure.log"; exit 1; }
-              }
-            '';
             # After `project`: shell functions `format [files]` and `rejects <message> [files]` with `flake`'s treefmt.
             treefmt = flake: ''
               format() {
@@ -182,57 +193,117 @@
               "terranix/import-tree" = inputs.terranix.inputs.import-tree.outPath;
               "terranix/systems" = inputs.terranix.inputs.systems.outPath;
             };
-          nullkomma.tasks.check-fixtures = {
-            description = "Check a real consumer flake accepts valid input and rejects formatting drift";
-            packages = [
-              pkgs.coreutils
-              pkgs.flake-checker
-              pkgs.git
-              pkgs.gnugrep
-            ];
-            command = ''
-              root="$(git rev-parse --show-toplevel)"
-              scratch="$(mktemp -d)"
-              trap 'rm -rf "$scratch"' EXIT
-              mkdir "$scratch/project"
-              cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
-              check() {
-                nix flake check "path:$scratch/project" \
-                  --override-input nullkomma "path:$root" \
-                  --no-write-lock-file --print-build-logs
-              }
-              check
-              cp -R "$root/tests/fixtures/r" "$scratch/r"
-              rm "$scratch/r/pkg.lock"
-              # Bootstrapping must not evaluate the lock-dependent R environment.
-              nix eval --raw "path:$scratch/r#apps.${system}.r-lock.program" \
-                --override-input nullkomma "path:$root" \
-                --no-write-lock-file > /dev/null
-              if nix eval "path:$scratch/r#devShells.${system}.default.drvPath" \
-                --override-input nullkomma "path:$root" \
-                --no-write-lock-file > "$scratch/missing-lock.log" 2>&1; then
-                echo "R environment without pkg.lock unexpectedly evaluated" >&2
-                exit 1
-              fi
-              grep -qF "lockfile \`pkg.lock\` of DESCRIPTION is missing" "$scratch/missing-lock.log"
-              # Consumer CI lints the lock; its Nixpkgs must be visible as a root input.
-              nix flake lock "path:$scratch/project" --override-input nullkomma "path:$root"
-              flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
-              rm "$scratch/project/flake.lock"
-            ''
-            + lib.concatMapStrings (case: ''
+          process-compose.dev.settings.processes.build-fixture-interactive = {
+            description = "Build a fixture for interactive use: a new Git repository using this checkout, set up as README's Getting started does";
+            disabled = true;
+            command = pkgs.writeShellApplication {
+              name = "build-fixture-interactive";
+              runtimeInputs = [
+                pkgs.direnv
+                pkgs.git
+                pkgs.gnused
+              ];
+              text = ''
+                root="$(git rev-parse --show-toplevel)"
+                case "''${1-}" in
+                  ${lib.concatStringsSep "|" (lib.attrNames fixtures)}) ;;
+                  *)
+                    echo "Usage: nk build-fixture-interactive <${lib.concatStringsSep "|" (lib.attrNames fixtures)}>" >&2
+                    exit 1
+                    ;;
+                esac
+                # Not $TMPDIR: `nix develop` deletes its own when it exits.
+                scratch="$(mktemp -d "/tmp/nk-$1.XXXXXX")"
+                cp -R "$root/tests/fixtures/$1/." "$scratch"
+                sed -i "s|nullkomma.url = .*|nullkomma.url = \"git+file://$root\";|" "$scratch/flake.nix"
+                cd "$scratch"
+                git init -q
+                git add -A
+                nix develop --command nk write-files
+                nix develop --command nk generate-files
+                git add -A
+                git commit -qm "add nullkomma"
+                direnv allow
+                echo "cd $scratch"
+              '';
+            };
+          };
+          process-compose.dev.settings.processes.update-snapshots = {
+            description = "Rewrite tests/snapshots from the fixtures; review the snapshot checks' diffs first";
+            disabled = true;
+            command = pkgs.writeShellApplication {
+              name = "update-snapshots";
+              text = lib.concatMapStrings (name: ''
+                install -m 644 "$(nix build --no-link --print-out-paths .#legacyPackages.${system}.snapshots.${name})" tests/snapshots/${name}.md
+              '') (lib.attrNames snapshots);
+            };
+          };
+          process-compose.dev.settings.processes.all.depends_on.check-fixtures.condition =
+            "process_completed_successfully";
+          process-compose.dev.settings.processes.check-fixtures = {
+            description = "Run nix flake check and flake-checker on fixture projects, including invalid ones";
+            disabled = true;
+            command = pkgs.writeShellApplication {
+              name = "check-fixtures";
+              runtimeInputs = [
+                pkgs.flake-checker
+                pkgs.git
+              ];
+              text = ''
+                root="$(git rev-parse --show-toplevel)"
+                scratch="$(mktemp -d)"
+                trap 'rm -rf "$scratch"' EXIT
+                mkdir "$scratch/project"
+                cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
+                check() {
+                  nix flake check "path:$scratch/project" \
+                    --override-input nullkomma "path:$root" \
+                    --no-write-lock-file --print-build-logs
+                }
+                check
+                # Consumer CI lints the lock; its Nixpkgs must be visible as a root input.
+                nix flake lock "path:$scratch/project" --override-input nullkomma "path:$root"
+                flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
+                rm "$scratch/project/flake.lock"
+              ''
+              +
+                lib.concatMapStrings
+                  (case: ''
 
-              printf %s ${lib.escapeShellArg case.content} > "$scratch/project/${case.file}"
-              if check > "$scratch/failure.log" 2>&1; then
-                echo "Consumer with invalid ${case.file} unexpectedly passed nix flake check" >&2
-                exit 1
-              fi
-              cat "$scratch/failure.log"
-              ${lib.concatMapStrings (entry: ''
-                grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log"
-              '') case.expect}
-              rm "$scratch/project/${case.file}"
-            '') (lib.attrValues rejects);
+                    printf %s ${lib.escapeShellArg case.content} > "$scratch/project/${case.file}"
+                    if check > "$scratch/failure.log" 2>&1; then
+                      echo "Consumer with invalid ${case.file} unexpectedly passed nix flake check" >&2
+                      exit 1
+                    fi
+                    ${lib.concatMapStrings (entry: ''
+                      grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log" || {
+                        cat "$scratch/failure.log"
+                        echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed without: ${entry}"} >&2
+                        exit 1
+                      }
+                    '') case.expect}
+                    echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed nix flake check, as expected"}
+                    rm "$scratch/project/${case.file}"
+                  '')
+                  [
+                    {
+                      file = "unformatted.nix";
+                      content = "{foo=1;}\n";
+                      expect = [
+                        "diff --git a/unformatted.nix b/unformatted.nix"
+                        "+{ foo = 1; }"
+                      ];
+                    }
+                    {
+                      file = "unformatted.md";
+                      content = "# Title\n* item\n";
+                      expect = [
+                        "diff --git a/unformatted.md b/unformatted.md"
+                        "+- item"
+                      ];
+                    }
+                  ];
+            };
           };
           checks =
             lib.concatMapAttrs (
@@ -242,22 +313,17 @@
               )
             ) fixtures
             // lib.mapAttrs' (
-              name: case:
-              lib.nameValuePair "formatting-rejects-${name}" (
-                pkgs.testers.testBuildFailure' {
-                  name = "nullkomma-formatting-rejects-${name}";
-                  drv = (perSystem fixtures.md).treefmt.build.check (
-                    pkgs.runCommandLocal "unformatted-${name}" { } ''
-                      mkdir $out
-                      printf '{ }\n' > $out/flake.nix
-                      printf %s ${lib.escapeShellArg case.content} > $out/${case.file}
-                    ''
-                  );
-                  expectedBuilderExitCode = 1;
-                  expectedBuilderLogEntries = case.expect;
-                }
+              name: snapshot:
+              lib.nameValuePair "snapshot-${name}" (
+                pkgs.runCommand "nullkomma-snapshot-${name}-check" { } ''
+                  diff -u ${root + "/tests/snapshots/${name}.md"} ${snapshot} || {
+                    echo "tests/snapshots/${name}.md is stale; review the diff, then run nk update-snapshots." >&2
+                    exit 1
+                  }
+                  touch "$out"
+                ''
               )
-            ) rejects;
+            ) snapshots;
         };
     };
 }

@@ -5,6 +5,7 @@
   partitions.dev.extraInputsFlake = ../../dev;
   # The root lacks the framework and plugins that add these outputs.
   partitionedAttrs = lib.genAttrs [
+    "legacyPackages"
     "processTrees"
     "schemas"
     "taskRunners"

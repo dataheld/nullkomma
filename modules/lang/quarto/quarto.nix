@@ -44,7 +44,7 @@
           type = lib.types.path;
           default = self.outPath;
           defaultText = lib.literalExpression "self.outPath";
-          description = "Quarto project rendered into `packages.site` and served by the `nk-preview` task.";
+          description = "Quarto project rendered into `packages.site` and served by the `quarto-preview` task.";
         };
         extensions = lib.mkOption {
           type = lib.types.attrsOf lib.types.path;
@@ -83,6 +83,7 @@
       config = lib.mkIf cfg.enable {
         # nkdocs, a Quarto extension contributing a project type: stock Quarto docs features, nothing brand-specific.
         nullkomma.quarto.extensions.nkdocs = ./_nkdocs;
+        nullkomma.agents.browser.enable = true;
         nullkomma.generatedPaths = [
           "${prefix}.quarto/**"
           "${prefix}_site/**"
@@ -95,39 +96,79 @@
           ".luarc.json"
         ];
         perSystem =
-          { config, ... }:
+          { config, pkgs, ... }:
           let
             quarto = config.nullkomma.quarto.package;
-            task = description: command: {
-              skip = true;
-              raw = true;
+            quartoProcess = description: command: {
+              namespace = "quarto";
               inherit description;
-              packages = [
-                quarto
-              ];
-              working_dir = prefix;
-              inherit command;
+              working_dir = "./${prefix}";
+              command = pkgs.writeShellApplication {
+                name = "quarto-${command}";
+                runtimeInputs = [ quarto ];
+                text = ''exec quarto ${command} "$@"'';
+              };
             };
           in
           {
             nullkomma.devShell.packages = [ quarto ];
             nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
-            nullkomma.tasks.nk-build-site =
-              task "Render the Quarto site" ''
-                if [[ -n "''${NULLKOMMA_OUTPUT-}" ]]; then
-                  set -- "$@" --output-dir "$NULLKOMMA_OUTPUT"
-                fi
-                exec quarto render "$@"
-              ''
-              // {
-                output = "site";
+            process-compose.dev.settings.processes = {
+              quarto-render = quartoProcess "Render the Quarto site" "render" // {
+                disabled = true;
               };
-            # Quarto watches the working tree and live-reloads the browser itself.
-            nullkomma.tasks.nk-preview =
-              task "Serve the site on localhost, re-rendering and reloading on changes" ''exec quarto preview "$@"''
-              // {
-                watch.native = true;
+              all.depends_on.quarto-render.condition = "process_completed_successfully";
+              # Quarto watches the working tree and live-reloads the browser itself.
+              quarto-preview =
+                quartoProcess "Serve the site on localhost, re-rendering and reloading on changes" "preview"
+                // {
+                  depends_on.quarto-preview-includes.condition = "process_started";
+                  ready_log_line = "Browse at";
+                };
+              # shortcut: `quarto preview` misses changes to included files,
+              # quarto-dev/quarto-cli#2795; ask it to re-render pages with includes
+              # through its undocumented render URL. Drop this once that is fixed,
+              # see https://github.com/dataheld/nullkomma/issues/289.
+              quarto-preview-includes = {
+                namespace = "quarto";
+                # Runs at the Git root, as includes may reach beyond the project.
+                watch.paths = [
+                  {
+                    path = ".";
+                    include = [ "*.md" ];
+                    exclude = [
+                      ".git"
+                      ".quarto"
+                      "_site"
+                    ];
+                  }
+                ];
+                command = pkgs.writeShellApplication {
+                  name = "quarto-preview-includes";
+                  runtimeInputs = [
+                    config.process-compose.dev.package
+                    pkgs.curl
+                    pkgs.gnugrep
+                  ];
+                  text = ''
+                    # Before the preview listens, it renders everything itself.
+                    port=$(process-compose process ports quarto-preview | grep -o '[0-9]\+' | head -n 1) || exit 0
+                    cd "./${prefix}"
+                    pages=$(grep -rlF --include='*.qmd' --exclude-dir=_site --exclude-dir=.quarto '{{< include' .) || [ $? -eq 1 ]
+                    for page in $pages; do
+                      echo "Re-rendering ''${page#./}"
+                      curl -fsS -o /dev/null "http://127.0.0.1:$port/90B3C9E8-0DBC-4BC0-B164-AA2D5C031B28/''${page#./}"
+                    done
+                  '';
+                };
               };
+            };
+            packages.site = lib.mkDefault (
+              config.nullkomma.sandbox {
+                process = "quarto-render";
+                output = "${prefix}_site";
+              }
+            );
             nullkomma.files =
               lib.mapAttrs' (
                 name: source:

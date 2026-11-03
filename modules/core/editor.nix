@@ -88,20 +88,22 @@
           cfg = config.nullkomma.editor.vscode;
         in
         {
-          nullkomma.files = lib.mkIf enabled {
-            ".vscode/extensions.json" = {
-              mode = lib.mkDefault "generated";
-              commentPrefix = "//";
-              source = json.generate "vscode-extensions.json" {
-                recommendations = lib.sort lib.lessThan (lib.unique cfg.extensions);
-              };
-            };
-            ".vscode/settings.json" = {
-              mode = lib.mkDefault "generated";
-              commentPrefix = "//";
-              source = json.generate "vscode-settings.json" cfg.settings;
-            };
-          };
+          nullkomma.files = lib.mkIf enabled (
+            lib.mapAttrs'
+              (
+                name: content:
+                lib.nameValuePair ".vscode/${name}.json" {
+                  mode = lib.mkDefault "generated";
+                  commentPrefix = "//";
+                  source = json.generate "vscode-${name}.json" content;
+                }
+              )
+              {
+                extensions.recommendations = lib.sort lib.lessThan (lib.unique cfg.extensions);
+                mcp.servers = config.nullkomma.agents.mcpServers;
+                settings = cfg.settings;
+              }
+          );
         };
     };
   plugins.neovim =

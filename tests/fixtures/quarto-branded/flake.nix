@@ -11,7 +11,6 @@
       nullkomma.quarto.enable = true;
       nullkomma.quarto.brand.enable = true;
       nullkomma.quarto.extensions.greeting = ./_greeting;
-      nullkomma.lint.markdown.MD041 = false;
       nullkomma.privacy.sections.local.markdown = {
         en = ./_privacy/local.en.md;
         de = ./_privacy/local.de.md;

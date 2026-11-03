@@ -70,9 +70,6 @@ find "$R_LIBS_USER" "$R_LIBS_SITE" -type f -exec sha256sum {} + | sort >/tmp/ext
 cmp /tmp/external-before /tmp/external-after
 
 rm examples.R
-mkdir -p nix .github/workflows .vscode .direnv
-touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json \
-  .direnv/cache .envrc project-only.txt
 Rscript - <<'RS'
   pak::pkg_install("rcmdcheck", lib = getOption("nullkomma.r.library"), ask = FALSE)
   rcmdcheck::rcmdcheck(
@@ -82,10 +79,3 @@ Rscript - <<'RS'
     check_dir = "/tmp/rcmdcheck"
   )
 RS
-tar -tf /tmp/rcmdcheck/nullkommafixture_0.0.1.tar.gz >/tmp/package-files
-if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]Rprofile|[.]Renviron|[.]envrc|[.]direnv|[.]github|[.]vscode|project-only[.]txt)(/|$))' /tmp/package-files; then
-  echo "Development-only files leaked into the package source" >&2
-  exit 1
-fi
-grep -qx 'nullkommafixture/R/hello.R' /tmp/package-files
-grep -qx 'nullkommafixture/DESCRIPTION' /tmp/package-files

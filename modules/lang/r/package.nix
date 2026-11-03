@@ -47,7 +47,7 @@
           options.nullkomma.r.packages = lib.mkOption {
             type = lib.types.listOf lib.types.str;
             readOnly = true;
-            description = "Names of the R packages in `nullkomma.r.package`: those of the lockfile and `nullkomma.r.extraPackages`, pak, pkgload, languageserver, httpgd, later and rstudioapi.";
+            description = "Names of the R packages in `nullkomma.r.package`: those of the lockfile and `nullkomma.r.extraPackages`, pak, pkgload, languageserver, httpgd, later, rstudioapi, btw and mcptools.";
           };
           options.nullkomma.r.buildInputs = lib.mkOption {
             type = lib.types.attrsOf (lib.types.listOf lib.types.package);
@@ -80,7 +80,7 @@
           '';
           pkgsR = inputs.nixpkgs-r.legacyPackages.${system};
           base = pkgsR.rPackages;
-          # Backport nixpkgs' current console fixes without changing the project's R.
+          # shortcut: backports radian 0.7.1 and rchitect 0.5.2 to Nixpkgs 26.05; drop with 26.11 (#302).
           python = pkgsR.python3Packages.overrideScope (
             _: prev: {
               rchitect =
@@ -150,8 +150,12 @@
               deps = map lookup s.dependencies;
             in
             lib.nameValuePair attr (
-              if base ? ${attr} then
-                base.${attr}.overrideAttrs (old: {
+              (base.${attr} or (base.buildRPackage {
+                pname = name;
+                inherit (s) version;
+              })
+              ).overrideAttrs
+                (old: {
                   pname = name;
                   name = "r-${name}-${s.version}";
                   inherit src;
@@ -161,16 +165,6 @@
                   propagatedBuildInputs = deps ++ withoutRPackages (old.propagatedBuildInputs or [ ]);
                   nativeBuildInputs = deps ++ withoutRPackages (old.nativeBuildInputs or [ ]);
                 })
-              else
-                base.buildRPackage {
-                  pname = name;
-                  inherit src;
-                  inherit (s) version;
-                  R_PROFILE_USER = "/dev/null";
-                  R_ENVIRON_USER = "/dev/null";
-                  propagatedBuildInputs = deps;
-                  nativeBuildInputs = deps;
-                }
             )
           ) lock.sources;
           systemLibraries = lib.mapAttrs' (
@@ -198,15 +192,27 @@
           };
         in
         {
+          config.nullkomma.agents.mcpServers.r = {
+            type = "stdio";
+            command = lib.getExe' pcfg.package "Rscript";
+            # Before 1.0.1, mcptools let other local users' R sessions receive tool calls.
+            args = [
+              "--vanilla"
+              "-e"
+              ''invisible(mcptools::mcp_server(btw::btw_tools(c("docs", "env", "run", "sessioninfo")), session_tools = packageVersion("mcptools") >= "1.0.1"))''
+            ];
+          };
           config.nullkomma.r = {
             packages = lib.unique (
               lock.nixpkgs
               ++ lib.attrNames lock.sources
               ++ cfg.extraPackages
               ++ [
+                "btw"
                 "httpgd"
                 "languageserver"
                 "later"
+                "mcptools"
                 "pak"
                 "pkgload"
                 "rstudioapi"
@@ -231,7 +237,17 @@
                         "LOCALE_ARCHIVE"
                         "${pkgs.glibcLocales}/lib/locale/locale-archive"
                       ]
+                      # mcptools locates its sockets with TMPDIR on macOS, which dev shells set per shell.
+                      ++ lib.optionals pkgs.stdenv.isDarwin [
+                        "--run"
+                        ''export MCPTOOLS_SOCKET_DIR="''${MCPTOOLS_SOCKET_DIR:-$(/usr/bin/getconf DARWIN_USER_TEMP_DIR)mcptools}"''
+                      ]
                       ++ [
+                        # rmarkdown, which btw renders help pages with, needs pandoc.
+                        "--suffix"
+                        "PATH"
+                        ":"
+                        "${pkgs.pandoc}/bin"
                         "--set-default"
                         "R_BROWSER"
                         (if pkgs.stdenv.isDarwin then "/usr/bin/open" else "${pkgs.xdg-utils}/bin/xdg-open")

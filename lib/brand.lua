@@ -2,13 +2,6 @@
 -- Runs under `pandoc lua`: Quarto and pkgdown already ship that pandoc, so this adds no dependency.
 local M = {}
 
-local function read(path)
-  local file = assert(io.open(path))
-  local content = file:read("a")
-  file:close()
-  return content
-end
-
 local function write(path, content)
   local file = assert(io.open(path, "w"))
   file:write(content)
@@ -124,7 +117,7 @@ end
 -- Arguments: brand.yml, privacy href, Quarto metadata JSON, output directory.
 -- quarto.yml is JSON, which is valid YAML.
 function M.main(brand_path, privacy_href, metadata, output)
-  local brand = brand_path ~= "" and M.parse(read(brand_path)) or {}
+  local brand = M.parse(assert(io.open(brand_path)):read("a"))
   local footer, html = M.render(brand, privacy_href ~= "" and privacy_href or nil)
   metadata = pandoc.json.decode(metadata, false)
   if footer ~= nil then

@@ -35,6 +35,17 @@ in
       "vscode"
       "yaml"
     ];
+    # Write one to `nix/<plugin>.nix` with
+    # `nix eval --raw --inputs-from . nullkomma#lib.configs.<plugin> > nix/<plugin>.nix`.
+    configs = import ./_configs.nix lib (lib.attrNames config.plugins) (
+      import ./_options.nix {
+        inherit lib;
+        inherit (inputs) flake-parts nixpkgs;
+        module = flakeModules.default;
+      }
+    );
+    # Modules below a directory, e.g. `imports = importTree ./nix;` in a project's flake.
+    importTree = import ../lib/import-tree.nix lib;
     mkFlake =
       args: module:
       inputs.flake-parts.lib.mkFlake args {

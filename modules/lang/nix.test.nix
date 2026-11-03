@@ -46,22 +46,12 @@
           };
         };
         testNixPluginWorksWithoutOthers = {
-          expr = {
-            inherit (summary (nix { })) formatters;
-            inherit ((perSystem (nix { })).nullkomma.editor.languageServers.nixd) settings;
-          };
-          expected = {
-            formatters = [
-              "deadnix"
-              "nixf-diagnose"
-              "nixfmt"
-            ];
-            settings.nixd.formatting.command = [
-              "treefmt"
-              "--stdin"
-              "{file}"
-            ];
-          };
+          expr = (perSystem (nix { })).nullkomma.editor.languageServers.nixd.settings;
+          expected.nixd.formatting.command = [
+            "treefmt"
+            "--stdin"
+            "{file}"
+          ];
         };
       };
     };

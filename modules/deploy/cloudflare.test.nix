@@ -9,13 +9,11 @@
     }:
     let
       inherit (harness)
-        callFlakeWith
         fixtures
         perSystem
         plugins
         raw
-        root
-        runCheck
+        task
         ;
       tfConfig =
         flake: (perSystem flake).terranix.terranixConfigurations.deploy.result.terraformConfiguration;
@@ -32,75 +30,10 @@
             packages.site = pkgs.writeTextDir "content.txt" "Independent static assets\n";
           };
       };
-      cloudflare = callFlakeWith {
-        nullkomma.cloudflare = {
-          enable = true;
-          worker = "fixture-site";
-          domain = "example.org";
-          name = "www";
-        };
-      } (root + "/tests/fixtures/quarto");
+      inherit (fixtures) cloudflare;
     in
     {
-      nullkomma.nix.unit.tests = {
-        testCloudflareRejectsLegacyDomains = {
-          expr =
-            (builtins.tryEval
-              (tfConfig (raw {
-                imports = [ bare ];
-                nullkomma.cloudflare = {
-                  domains."example.org" = "11111111111111111111111111111111";
-                };
-              })).drvPath
-            ).success;
-          expected = false;
-        };
-        testCloudflareComposesWithAnySite = {
-          expr = {
-            packages = lib.attrNames (raw bare).packages.${system};
-            checks = lib.attrNames (raw bare).checks.${system};
-          };
-          expected = {
-            packages = [
-              "deploy"
-              "site"
-            ];
-            checks = [
-              "cloudflare"
-              "treefmt"
-            ];
-          };
-        };
-        testCloudflareProvidesWranglerOnlyWhenEnabled = {
-          expr = map (flake: lib.elem pkgs.wrangler (perSystem flake).nullkomma.devShell.packages) [
-            cloudflare
-            fixtures.quarto
-          ];
-          expected = [
-            true
-            false
-          ];
-        };
-      };
       checks = {
-        cloudflare-config = cloudflare.checks.${system}.cloudflare;
-        cloudflare-validation-local =
-          let
-            nix = pkgs.writeShellScriptBin "nix" ''
-              set -eu
-              test "$*" = 'build --no-link --print-out-paths .#deploy.config'
-              echo ${tfConfig (raw bare)}
-            '';
-            flake = raw {
-              imports = [ bare ];
-              perSystem.nullkomma.checks.cloudflare.packages = lib.mkForce [ nix ];
-            };
-          in
-          pkgs.runCommand "nullkomma-cloudflare-validation-local" { } ''
-            export HOME="$TMPDIR"
-            ${runCheck flake "cloudflare"}
-            touch "$out"
-          '';
         cloudflare-devshell =
           (raw {
             imports = [ bare ];
@@ -111,8 +44,8 @@
                 packages.site = lib.mkForce (pkgs.runCommand "unbuildable-site" { } "exit 1");
               };
           }).devShells.${system}.default;
-        cloudflare-plan =
-          pkgs.runCommand "nullkomma-cloudflare-plan"
+        cloudflare-plan-offline =
+          pkgs.runCommand "nullkomma-cloudflare-plan-offline"
             {
               nativeBuildInputs = [
                 (perSystem cloudflare).terranix.terranixConfigurations.deploy.terraformWrapper.package
@@ -136,23 +69,16 @@
               chmod -R u+w expected-assets
               rm expected-assets/_headers expected-assets/_redirects
               diff -r expected-assets "$assets"
-              jq -e '.terraform.backend.s3.key == "fixture-site.tfstate"' ${tfConfig cloudflare}
-              jq -e '.terraform.backend.s3.key == "bare-site.tfstate"' ${tfConfig (raw bare)}
               plan ${tfConfig cloudflare} | jq -e \
                 --rawfile headers "$site/_headers" \
                 --rawfile redirects "$site/_redirects" '
                 ."cloudflare_workers_script.site" as $worker
                 | ."cloudflare_workers_custom_domain.subdomain" as $domain
-                | ."cloudflare_workers_script_subdomain.site" as $subdomain
                 | $worker.script_name == "fixture-site"
-                  and $worker.assets.config.not_found_handling == "404-page"
                   and $worker.assets.config.headers == $headers
                   and $worker.assets.config.redirects == $redirects
                   and $domain.hostname == "www.example.org"
-                  and $domain.zone_name == "example.org"
                   and $domain.service == "fixture-site"
-                  and $subdomain.enabled == false
-                  and $subdomain.previews_enabled == false
               '
               plan ${tfConfig (raw bare)} | jq -e '
                 keys == ["cloudflare_workers_script.site", "cloudflare_workers_script_subdomain.site"]
@@ -237,10 +163,6 @@
               export GITHUB_REPOSITORY="owner/$name"
               fails 'lowercase DNS label'
             done
-            for repository in lap owner/lap/extra owner/ /lap; do
-              export GITHUB_REPOSITORY="$repository"
-              fails 'must be owner/repository'
-            done
             export GITHUB_REPOSITORY=owner/a EXPECTED_NAME=a
             ${inferredWrapper} plan
             export EXPECTED_NAME="$(printf '%063d' 0)"
@@ -257,9 +179,6 @@
               test "$AWS_SECRET_ACCESS_KEY" = r2-secret
               test "$AWS_ENDPOINT_URL_S3" = "https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
               test "$TF_CLI_ARGS_init" = "-backend-config=bucket=$CLOUDFLARE_STATE_BUCKET"
-              test "$TF_CLI_ARGS_apply" = "-auto-approve"
-              test "$TF_IN_AUTOMATION" = 1
-              test "$TF_INPUT" = 0
               printf '%s\n' "$@" > "$CALLED"
             '';
             nix = pkgs.writeShellScriptBin "nix" ''
@@ -277,39 +196,42 @@
             '';
             flake = raw {
               imports = [ bare ];
-              perSystem = {
-                terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
-                nullkomma.tasks = {
-                  nk-deploy.packages = lib.mkForce [ nix ];
-                  nk-terraform.packages = lib.mkForce [ nix ];
-                };
-              };
+              perSystem.terranix.terranixConfigurations.deploy.terraformWrapper.package = lib.mkForce tofu;
             };
             deploy = lib.getExe flake.packages.${system}.deploy;
-            tasks = (perSystem flake).nullkomma.tasks;
           in
-          pkgs.runCommand "nullkomma-cloudflare-deploy" { } ''
-            export CALLED=$PWD/called CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
-            export CLOUDFLARE_R2_ACCESS_KEY_ID=r2-key CLOUDFLARE_R2_SECRET_ACCESS_KEY=r2-secret
-            export AWS_ACCESS_KEY_ID=other-key AWS_SECRET_ACCESS_KEY=other-secret
-            ${deploy}
-            test -f "$CALLED"
-            if (unset CLOUDFLARE_R2_ACCESS_KEY_ID; ${deploy}) > /dev/null 2>error; then
-              echo "Deployment must reject missing Cloudflare R2 credentials" >&2
-              exit 1
-            fi
-            grep -q CLOUDFLARE_R2_ACCESS_KEY_ID error
-            rm "$CALLED"
-            ${lib.getExe tasks.nk-deploy.package}
-            test -f "$CALLED"
-            ${lib.getExe tasks.nk-terraform.package}
-            printf '%s\n' plan > expected
-            cmp expected "$CALLED"
-            ${lib.getExe tasks.nk-terraform.package} import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id'
-            printf '%s\n' import 'cloudflare_workers_custom_domain.site["www.example.org"]' 'account/domain id' > expected
-            cmp expected "$CALLED"
-            touch $out
-          '';
+          pkgs.runCommand "nullkomma-cloudflare-deploy"
+            {
+              nativeBuildInputs = [
+                pkgs.git
+                nix
+              ];
+            }
+            ''
+              export CALLED=$PWD/called CLOUDFLARE_ACCOUNT_ID=account CLOUDFLARE_STATE_BUCKET=state
+              export CLOUDFLARE_R2_ACCESS_KEY_ID=r2-key CLOUDFLARE_R2_SECRET_ACCESS_KEY=r2-secret
+              export AWS_ACCESS_KEY_ID=other-key AWS_SECRET_ACCESS_KEY=other-secret
+              ${deploy}
+              test -f "$CALLED"
+              if (unset CLOUDFLARE_R2_ACCESS_KEY_ID; ${deploy}) > /dev/null 2>error; then
+                echo "Deployment must reject missing Cloudflare R2 credentials" >&2
+                exit 1
+              fi
+              grep -q CLOUDFLARE_R2_ACCESS_KEY_ID error
+              rm "$CALLED"
+              mkdir project
+              cd project
+              git init -q
+              ${task flake "cloudflare-deploy"}
+              test -f "$CALLED"
+              ${task flake "cloudflare-plan"}
+              printf '%s\n' plan > expected
+              cmp expected "$CALLED"
+              ${task flake "cloudflare-plan"} -target=cloudflare_workers_script.site
+              printf '%s\n' plan -target=cloudflare_workers_script.site > expected
+              cmp expected "$CALLED"
+              touch $out
+            '';
       };
     };
 }

@@ -13,7 +13,7 @@ test_that("Chromium renders text with the configured font", {
         "Counter 0"
       )
     ),
-    function(input, output, session) { }
+    function(input, output, session) {}
   )
   driver <- shinytest2::AppDriver$new(
     font_app,
@@ -24,7 +24,8 @@ test_that("Chromium renders text with the configured font", {
   )
   on.exit(driver$stop(), add = TRUE)
 
-  rendering <- driver$get_js("
+  rendering <- driver$get_js(
+    "
     (() => {
       const element = document.querySelector('#font-fixture');
       const bounds = element.getBoundingClientRect();
@@ -48,7 +49,8 @@ test_that("Chromium renders text with the configured font", {
         ).length
       };
     })()
-  ")
+  "
+  )
 
   expect_equal(rendering$width, 240)
   expect_equal(rendering$height, 56)

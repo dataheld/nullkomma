@@ -8,7 +8,7 @@ metadata-files:
 website:
   title: "nullkomma"
   site-url: https://nullkomma.maxheld.de
-  description: "Opinionated 🤓, batteries-included 🔋, extra-DRY 🤌 Nix boilerplate."
+  description: "Extra-DRY 🤌, maximally transparent 🫥, batteries-included 🔋 Nix ❄️ boilerplate experiment 🧪."
   repo-url: https://github.com/dataheld/nullkomma
   navbar:
     right:

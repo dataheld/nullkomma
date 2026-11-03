@@ -15,6 +15,17 @@ app <- function() {
   )
 }
 
+#' Create a second fixture app, served next to the first
+#'
+#' @return A Shiny app object.
+#' @export
+greeting_app <- function() {
+  shiny::shinyApp(
+    ui = shiny::fluidPage(shiny::h1("nullkomma greeting")),
+    server = function(input, output, session) {}
+  )
+}
+
 #' Create the fixture app, failing if development packages are visible
 #'
 #' @return A Shiny app object.

@@ -71,9 +71,24 @@
               };
             }
             (lib.mkIf hasTests {
-              nullkomma.checks.bats = {
-                packages = [ bats ] ++ cfg.packages;
-                command = ''bats "$@" ${lib.escapeShellArg testDir}'';
+              process-compose.dev.settings.processes = {
+                bats = {
+                  namespace = "shell";
+                  description = "Run the Bats tests";
+                  # Tests may cover any script.
+                  watch.paths = [
+                    {
+                      path = ".";
+                      exclude = config.treefmt.settings.excludes;
+                    }
+                  ];
+                  command = pkgs.writeShellApplication {
+                    name = "bats";
+                    runtimeInputs = [ bats ] ++ cfg.packages;
+                    text = ''exec bats "$@" ${lib.escapeShellArg testDir}'';
+                  };
+                };
+                check.depends_on.bats.condition = "process_completed_successfully";
               };
             })
           ];

@@ -97,13 +97,6 @@
               });
           in
           {
-            nullkomma.checks = lib.mkIf (unit.tests != { }) {
-              nix-unit = {
-                packages = [ pkgs.nix-unit ];
-                command = ''exec nix-unit --extra-experimental-features flakes --flake ".#${attr}" "$@"'';
-                sandboxed = if unit.allowNetwork then networked else run;
-              };
-            };
             nullkomma.editor.languageServers.nixd = {
               package = pkgs.nixd;
               command = [ "nixd" ];
@@ -126,24 +119,53 @@
               deadnix.enable = lib.mkDefault true;
               nixf-diagnose.enable = lib.mkDefault true;
             };
-            nullkomma.tasks = {
+            process-compose.dev.settings.processes = {
               flake-checker = {
-                description = "Check flake.lock for outdated or non-upstream Nixpkgs";
-                packages = [ pkgs.flake-checker ];
-                command = ''exec flake-checker "$@"'';
+                namespace = "nix";
+                description = "Check that flake.lock pins a recent, upstream Nixpkgs";
+                command = "${lib.getExe pkgs.flake-checker} --fail-mode --no-telemetry";
+                watch.paths = [ { path = "flake.lock"; } ];
               };
-              nk-update = {
-                skip = true;
-                raw = true;
-                description = "Update flake.lock, then refresh written and generated files using the updated flake";
-                command = ''
-                  nix flake update "$@"
-                  status=0
-                  nix develop --command nk-write-files || status=1
-                  nix develop --command nk-generate-files || status=1
-                  exit "$status"
-                '';
+              flake-update = {
+                namespace = "nix";
+                description = "Update flake inputs, then write-files and generate-files; args go to `nix flake update`";
+                disabled = true;
+                # Uses the project's own `nix`, which may differ from Nixpkgs'.
+                command = pkgs.writeShellApplication {
+                  name = "flake-update";
+                  text = ''
+                    nix flake update "$@"
+                    if [[ $# == 0 && -f dev/flake.nix ]]; then
+                      nix flake update --flake ./dev
+                    fi
+                    status=0
+                    nix develop --command nk write-files || status=1
+                    nix develop --command nk generate-files || status=1
+                    exit "$status"
+                  '';
+                };
               };
+              all.depends_on.flake-checker.condition = "process_completed_successfully";
+              nix-unit = lib.mkIf (unit.tests != { }) {
+                namespace = "nix";
+                description = "Run the nix-unit tests";
+                command = ''${lib.getExe pkgs.nix-unit} --extra-experimental-features flakes --flake ".#${attr}"'';
+                watch.paths = [
+                  {
+                    path = ".";
+                    include = [
+                      "*.nix"
+                      "flake.lock"
+                    ];
+                  }
+                ];
+              };
+              check.depends_on.nix-unit = lib.mkIf (unit.tests != { }) {
+                condition = "process_completed_successfully";
+              };
+            };
+            checks = lib.mkIf (unit.tests != { }) {
+              nix-unit = if unit.allowNetwork then networked else run;
             };
           };
       };
