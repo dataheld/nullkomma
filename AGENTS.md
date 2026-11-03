@@ -60,6 +60,13 @@ shared values are framework options any plugin may set or read.
 Templates only select plugins and options.
 After changing what a plugin adds, use the update-integration-matrix skill.
 
+## Tests
+
+A plugin's tests sit next to it in `*.test.nix`, using the `harness` from
+[`modules/dev/tests.nix`](modules/dev/tests.nix), which evaluates the projects
+in `tests/fixtures` as consumers would.
+Test what nullkomma does (its wiring and configuration), not upstream tools.
+
 ## Patching upstream tools
 
 Keep behavior patches as `patches/<tool>.patch`, applied through `overrideAttrs`

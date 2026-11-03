@@ -28,7 +28,6 @@
         lint.markdown = {
           MD013 = false;
           MD028 = false;
-          MD041 = false;
         };
         lint.typos = {
           default.extend-words.fnd = "fnd";
@@ -48,15 +47,10 @@
         "README.md" = {
           commentPrefix = "<!--";
           commentSuffix = " -->";
-          sections = lib.genAttrs [
-            "agents"
-            "cloudflare"
-            "github"
-            "nix"
-            "quarto"
-            "r"
-            "shell"
-          ] (plugin: "```nix\n${inputs.self.lib.configs.${plugin}}```\n");
+          # Plugins with options beyond `enable`: only their configs have blank lines.
+          sections = lib.mapAttrs (_: text: "```nix\n${text}```\n") (
+            lib.filterAttrs (_: lib.hasInfix "\n\n") inputs.self.lib.configs
+          );
         };
       };
     };

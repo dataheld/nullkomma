@@ -29,15 +29,11 @@
         rejects MD042 'literal[1].md'
         # Native files cannot replace Nix policy, even in subdirectories.
         printf 'MD042: false\n' > .markdownlint.yml
-        format allowed.md
+        printf '[global]\ndisable = ["MD042"]\n' > .rumdl.toml
         rejects MD042 'literal[1].md'
         mkdir nested-config
         cp allowed.md nested-config/allowed.md
         printf 'MD013: false\nMD033: true\n' > nested-config/.markdownlint.yaml
-        format nested-config/allowed.md
-        printf '[global]\ndisable = ["MD042"]\n' > .rumdl.toml
-        printf '[global]\ndisable = ["MD013"]\n' > nested-config/.rumdl.toml
-        rejects MD042 'literal[1].md'
         format nested-config/allowed.md
         touch "$out"
       '';

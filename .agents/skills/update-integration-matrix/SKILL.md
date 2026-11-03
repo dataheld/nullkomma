@@ -19,6 +19,5 @@ proposals or assumptions about upstream tools.
    there. Never list unimplemented plugins.
 1. Files the plugin writes go in a sentence or two in its section below the
    table. Its options belong in their descriptions, not the README: the
-   section's config block is generated from them. For a plugin with new
-   options, add it to `README.md`'s sections in `modules/dev/dogfood.nix`.
+   section's config block is generated from them.
 1. Run `nk write-files` and `nix fmt`, and review the diff.

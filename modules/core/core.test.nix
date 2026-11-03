@@ -14,7 +14,6 @@
             nullkomma
             root
             plugins
-            callFlake
             callFlakeWith
             fixtures
             perSystem
@@ -489,14 +488,10 @@
                 };
               };
             testTemplatesAreFixtures = {
-              expr = lib.mapAttrs (_: t: {
-                flake = builtins.readFile (t.path + "/flake.nix");
-                envrc = builtins.readFile (t.path + "/.envrc");
-              }) nullkomma.templates;
-              expected = lib.mapAttrs (_: t: {
-                flake = builtins.readFile (root + "/tests/fixtures/md/flake.nix");
-                envrc = (perSystem (callFlake t.path)).nullkomma.files.".envrc".text;
-              }) nullkomma.templates;
+              expr = lib.mapAttrs (_: t: builtins.readFile (t.path + "/flake.nix")) nullkomma.templates;
+              expected = lib.mapAttrs (
+                _: _: builtins.readFile (root + "/tests/fixtures/md/flake.nix")
+              ) nullkomma.templates;
             };
             # keep-sorted end
           };

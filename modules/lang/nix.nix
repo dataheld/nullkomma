@@ -119,61 +119,51 @@
               deadnix.enable = lib.mkDefault true;
               nixf-diagnose.enable = lib.mkDefault true;
             };
-            process-compose.dev.settings.processes = lib.mkMerge [
-              (lib.mapAttrs
-                (
-                  _: p:
-                  {
-                    namespace = "nix";
-                    disabled = true;
-                  }
-                  // p
-                )
-                {
-                  flake-checker = {
-                    description = "Check that flake.lock pins a recent, upstream Nixpkgs";
-                    command = "${lib.getExe pkgs.flake-checker} --fail-mode --no-telemetry";
-                    disabled = false;
-                    watch.paths = [ { path = "flake.lock"; } ];
-                  };
-                  flake-update = {
-                    description = "Update flake inputs, then write-files and generate-files; args go to `nix flake update`";
-                    # Uses the project's own `nix`, which may differ from Nixpkgs'.
-                    command = pkgs.writeShellApplication {
-                      name = "flake-update";
-                      text = ''
-                        nix flake update "$@"
-                        if [[ $# == 0 && -f dev/flake.nix ]]; then
-                          nix flake update --flake ./dev
-                        fi
-                        status=0
-                        nix develop --command nk write-files || status=1
-                        nix develop --command nk generate-files || status=1
-                        exit "$status"
-                      '';
-                    };
-                  };
-                }
-              )
-              { all.depends_on.flake-checker.condition = "process_completed_successfully"; }
-              (lib.mkIf (unit.tests != { }) {
-                nix-unit = {
-                  namespace = "nix";
-                  description = "Run the nix-unit tests";
-                  command = ''${lib.getExe pkgs.nix-unit} --extra-experimental-features flakes --flake ".#${attr}"'';
-                  watch.paths = [
-                    {
-                      path = ".";
-                      include = [
-                        "*.nix"
-                        "flake.lock"
-                      ];
-                    }
-                  ];
+            process-compose.dev.settings.processes = {
+              flake-checker = {
+                namespace = "nix";
+                description = "Check that flake.lock pins a recent, upstream Nixpkgs";
+                command = "${lib.getExe pkgs.flake-checker} --fail-mode --no-telemetry";
+                watch.paths = [ { path = "flake.lock"; } ];
+              };
+              flake-update = {
+                namespace = "nix";
+                description = "Update flake inputs, then write-files and generate-files; args go to `nix flake update`";
+                disabled = true;
+                # Uses the project's own `nix`, which may differ from Nixpkgs'.
+                command = pkgs.writeShellApplication {
+                  name = "flake-update";
+                  text = ''
+                    nix flake update "$@"
+                    if [[ $# == 0 && -f dev/flake.nix ]]; then
+                      nix flake update --flake ./dev
+                    fi
+                    status=0
+                    nix develop --command nk write-files || status=1
+                    nix develop --command nk generate-files || status=1
+                    exit "$status"
+                  '';
                 };
-                check.depends_on.nix-unit.condition = "process_completed_successfully";
-              })
-            ];
+              };
+              all.depends_on.flake-checker.condition = "process_completed_successfully";
+              nix-unit = lib.mkIf (unit.tests != { }) {
+                namespace = "nix";
+                description = "Run the nix-unit tests";
+                command = ''${lib.getExe pkgs.nix-unit} --extra-experimental-features flakes --flake ".#${attr}"'';
+                watch.paths = [
+                  {
+                    path = ".";
+                    include = [
+                      "*.nix"
+                      "flake.lock"
+                    ];
+                  }
+                ];
+              };
+              check.depends_on.nix-unit = lib.mkIf (unit.tests != { }) {
+                condition = "process_completed_successfully";
+              };
+            };
             checks = lib.mkIf (unit.tests != { }) {
               nix-unit = if unit.allowNetwork then networked else run;
             };

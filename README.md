@@ -20,7 +20,7 @@ An ideal development environment has these criteria:
 | 📋 Comprehensive quality gates                                                            | Enforce as many checks as possible, from linting to integration tests.                                                  | Expose all project checks and their feedback programmatically, including to agents. | Missing or poorly discoverable quality gates.                                                                                                                      |
 
 Unfortunately, these criteria sometimes conflict.
-In fact, you can only maximize two ouf three, forming a kind of ["impossible trinity"](https://en.wikipedia.org/wiki/Impossible_trinity).
+In fact, you can only maximize two out of three, forming a kind of ["impossible trinity"](https://en.wikipedia.org/wiki/Impossible_trinity).
 But if you *can* relax one of the criteria, there is already great tooling out there for you.
 
 ![A triangle comparing DRY, quality gates and transparency across development environments.](assets/development-environment-triangle.svg)
@@ -35,18 +35,6 @@ Positions illustrate relative emphasis in representative configurations,
 not measured scores or limits on how these tools can be configured.
 
 nullkomma cannot overcome these tradeoffs, but it is an attempt in achieving a higher [pareto frontier](https://en.wikipedia.org/wiki/Pareto_frontier) of these competing objectives.
-
-nix itself is a good example of how the frontier has been pushed outwards in the past, especially for development environments.
-Thanks to it, some criteria for good development environments are now table stakes, including:
-
-- Hermetic reproducibility of the environment.
-- Speed of iteration.
-- IDE integration.
-
-In the past, technologies such as Docker and [Development Containers](https://containers.dev) still offered fairly steep tradeoffs between these goals.
-Sure, you could get some level of reproducibility by dockerising your development, but there could be a pretty big performance penalty, and getting everyone's favorite tooling to work was a pain.
-Technically, there is still a tradeoff between these goals today, but it has gotten much more benign.
-Nix has made high levels of reproducibility so cheap, that there is usually so much budget left to blow on speed and niceties, that the trilemma has been effectively resolved.
 
 ## Entrypoints
 
@@ -136,7 +124,7 @@ In your project, with a clean working tree, run:
 
 ```sh
 nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
-git add flake.nix .envrc
+git add flake.nix
 nix develop --command nk write-files
 nix develop --command nk generate-files
 git add -A
@@ -144,7 +132,7 @@ git commit -m "add nullkomma"
 direnv allow
 ```
 
-The template adds `flake.nix` and an `.envrc`, keeping existing files;
+The template adds `flake.nix`, keeping existing files;
 `write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
 The template's `nixpkgs.follows = "nullkomma/nixpkgs"` uses nullkomma's tested Nixpkgs.
 To use your own, declare `nixpkgs.url` and set `nullkomma.inputs.nixpkgs.follows = "nixpkgs"`.
@@ -169,8 +157,6 @@ into a file of their own:
 nix eval --raw --inputs-from . nullkomma#lib.configs.r > nix/r.nix
 ```
 
-The same blocks are under [Plugins](#plugins).
-
 ### Development-only inputs
 
 Flakes that consume yours lock your inputs, and may fetch them.
@@ -193,15 +179,12 @@ Configure linters in Nix, not in config files.
 Native config files are ignored (Jarl, which can't ignore them, fails instead);
 suppression comments such as `# shellcheck disable=SC2086` still work.
 Your settings override plugins' `lib.mkDefault` values, and lists concatenate.
+typos, rumdl (`markdown`), actionlint, gitleaks and jscpd take their settings
+from `nullkomma.lint.<tool>`; the others from treefmt-nix:
 
 | Linter        | Nix configuration                                   | Settings                                                 |
 | ------------- | --------------------------------------------------- | -------------------------------------------------------- |
 | yamllint      | `perSystem.treefmt.programs.yamllint.settings`      | yamllint's YAML config                                   |
-| typos         | `nullkomma.lint.typos`                              | typos' TOML config                                       |
-| rumdl         | `nullkomma.lint.markdown`                           | Markdownlint rule IDs: `MD013 = false;` or rule settings |
-| actionlint    | `nullkomma.lint.actionlint`                         | actionlint's YAML config                                 |
-| gitleaks      | `nullkomma.lint.gitleaks`                           | its TOML config; upstream rules are kept                 |
-| jscpd         | `nullkomma.lint.jscpd`                              | its JSON config; threshold defaults to zero              |
 | ShellCheck    | `perSystem.treefmt.programs.shellcheck`             | treefmt-nix options, e.g. `severity`                     |
 | deadnix       | `perSystem.treefmt.programs.deadnix`                | treefmt-nix switches, e.g. `no-lambda-arg`               |
 | nixf-diagnose | `perSystem.treefmt.programs.nixf-diagnose`          | treefmt-nix options, e.g. `ignore`                       |
@@ -307,8 +290,8 @@ Features live in Nix; nullkomma writes files only where tools need them:
 
 |                             | **Source of truth** (committed, yours to edit)       | **Generated from Nix** (Git-ignored, don't edit)                                            |
 | --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `nix flake init --template` | `flake.nix`, `.envrc`                                |                                                                                             |
-| `write-files`               | `.gitignore`, GitHub workflows, `AGENTS.md` sections |                                                                                             |
+| `nix flake init --template` | `flake.nix`                                          |                                                                                             |
+| `write-files`               | `.envrc`, `.gitignore`, GitHub workflows, `AGENTS.md` sections |                                                                                             |
 | `generate-files`            |                                                      | `.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
 
 `write-files` writes source-of-truth files once (`nullkomma.files."<path>".mode = "source"`),
@@ -447,9 +430,6 @@ Forks don't publish; private flakes need a [FlakeHub paid plan](https://flakehub
 {
   # Whether to enable the github plugin.
   nullkomma.github.enable = true;
-
-  # Repository secrets passed to the reusable `ci.yml`.
-  # nullkomma.github.ci.secrets = [ ];
 
   # Git ref of the reusable workflows; null for local workflows.
   # nullkomma.github.workflows.ref = "main";
@@ -737,23 +717,10 @@ The startup profile installs from the same PPM snapshot in native R sessions onl
 ## Development
 
 nullkomma uses itself; `nk` lists its own tasks.
-Before building something, check [flake.parts](https://flake.parts) for an existing module; see [AGENTS.md](https://github.com/dataheld/nullkomma/blob/main/AGENTS.md).
-Inputs only nullkomma's own development needs go in [`dev/flake.nix`](https://github.com/dataheld/nullkomma/blob/main/dev/flake.nix).
+[AGENTS.md](https://github.com/dataheld/nullkomma/blob/main/AGENTS.md)
+holds the rules for changing it.
 This README is also nullkomma's website, a branded nkdocs site,
 deployed to Cloudflare after CI succeeds on `main`.
-
-nullkomma is tested against small example projects in `tests/fixtures`:
-
-- **Unit tests** ([nix-unit]) check the fixtures' evaluated configuration.
-- **Build tests** run the real tools on the fixtures in `nix flake check`; fixtures listed in `rejects` must fail.
-  New plugins add a valid and a broken fixture, which must fail with the tool's own error.
-- **Docs and legal tests:** `options-doc` needs a description for every option;
-  `site-legal` and `r-pkgdown-legal` check that every page links an imprint and the privacy policy.
-- **End-to-end:** `check-fixtures` runs `nix flake check` on a copy of each fixture against this checkout;
-  `test-r-non-nix` builds the `r-non-nix` fixture in Docker without Nix.
-- **Snapshots:** `tests/snapshots/<fixture>.md` records each fixture's `nk` menu; update them with `nk update-snapshots`.
-
-`nk build-fixture-interactive <fixture>` sets a fixture up in a new Git repository under `/tmp`, using this checkout.
 
 ## Scope
 
@@ -794,7 +761,6 @@ It is **not**:
 [mcptools]: https://posit-dev.github.io/mcptools/
 [md]: https://commonmark.org
 [nix-direnv]: https://github.com/nix-community/nix-direnv
-[nix-unit]: https://github.com/nix-community/nix-unit
 [nixd]: https://github.com/nix-community/nixd
 [opentofu]: https://opentofu.org
 [pak]: https://pak.r-lib.org

@@ -65,25 +65,6 @@
         "r-shiny"
         "shell"
       ] (name: callFlake (root + "/tests/fixtures/${name}"));
-      # One invalid file per formatter, checked by both the derivation and the real CLI.
-      rejects = {
-        nix = {
-          file = "unformatted.nix";
-          content = "{foo=1;}\n";
-          expect = [
-            "diff --git a/unformatted.nix b/unformatted.nix"
-            "+{ foo = 1; }"
-          ];
-        };
-        markdown = {
-          file = "unformatted.md";
-          content = "# Title\n* item\n";
-          expect = [
-            "diff --git a/unformatted.md b/unformatted.md"
-            "+- item"
-          ];
-        };
-      };
     in
     {
       perSystem =
@@ -285,23 +266,43 @@
                 flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
                 rm "$scratch/project/flake.lock"
               ''
-              + lib.concatMapStrings (case: ''
+              +
+                lib.concatMapStrings
+                  (case: ''
 
-                printf %s ${lib.escapeShellArg case.content} > "$scratch/project/${case.file}"
-                if check > "$scratch/failure.log" 2>&1; then
-                  echo "Consumer with invalid ${case.file} unexpectedly passed nix flake check" >&2
-                  exit 1
-                fi
-                ${lib.concatMapStrings (entry: ''
-                  grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log" || {
-                    cat "$scratch/failure.log"
-                    echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed without: ${entry}"} >&2
-                    exit 1
-                  }
-                '') case.expect}
-                echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed nix flake check, as expected"}
-                rm "$scratch/project/${case.file}"
-              '') (lib.attrValues rejects);
+                    printf %s ${lib.escapeShellArg case.content} > "$scratch/project/${case.file}"
+                    if check > "$scratch/failure.log" 2>&1; then
+                      echo "Consumer with invalid ${case.file} unexpectedly passed nix flake check" >&2
+                      exit 1
+                    fi
+                    ${lib.concatMapStrings (entry: ''
+                      grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log" || {
+                        cat "$scratch/failure.log"
+                        echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed without: ${entry}"} >&2
+                        exit 1
+                      }
+                    '') case.expect}
+                    echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed nix flake check, as expected"}
+                    rm "$scratch/project/${case.file}"
+                  '')
+                  [
+                    {
+                      file = "unformatted.nix";
+                      content = "{foo=1;}\n";
+                      expect = [
+                        "diff --git a/unformatted.nix b/unformatted.nix"
+                        "+{ foo = 1; }"
+                      ];
+                    }
+                    {
+                      file = "unformatted.md";
+                      content = "# Title\n* item\n";
+                      expect = [
+                        "diff --git a/unformatted.md b/unformatted.md"
+                        "+- item"
+                      ];
+                    }
+                  ];
             };
           };
           checks =
@@ -322,24 +323,7 @@
                   touch "$out"
                 ''
               )
-            ) snapshots
-            // lib.mapAttrs' (
-              name: case:
-              lib.nameValuePair "formatting-rejects-${name}" (
-                pkgs.testers.testBuildFailure' {
-                  name = "nullkomma-formatting-rejects-${name}";
-                  drv = (perSystem fixtures.md).treefmt.build.check (
-                    pkgs.runCommandLocal "unformatted-${name}" { } ''
-                      mkdir $out
-                      printf '{ }\n' > $out/flake.nix
-                      printf %s ${lib.escapeShellArg case.content} > $out/${case.file}
-                    ''
-                  );
-                  expectedBuilderExitCode = 1;
-                  expectedBuilderLogEntries = case.expect;
-                }
-              )
-            ) rejects;
+            ) snapshots;
         };
     };
 }

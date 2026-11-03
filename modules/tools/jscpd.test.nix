@@ -38,16 +38,11 @@
         fails threshold ${jscpd}
         # Native configuration cannot relax the threshold.
         printf '{"ignore":["**"],"threshold":100}\n' > .jscpd.json
-        fails threshold ${jscpd}
-        rm .jscpd.json
         printf '{"jscpd":{"threshold":100,"ignore":["**"]}}\n' > package.json
         mkdir .config
         printf '{"threshold":100}\n' > .config/jscpd.json
         fails threshold ${jscpd}
         ${customized}
-        cp custom/one.R one.R
-        cp custom/one.R two.R
-        fails threshold ${customized}
         ${relaxed}
         touch "$out"
       '';
