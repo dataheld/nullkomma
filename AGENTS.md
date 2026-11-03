@@ -53,6 +53,13 @@ Candidates for upstreaming instead of keeping here:
   [mightyiam/files](https://github.com/mightyiam/files);
 - editor-neutral language servers (`nullkomma.editor`) as a standalone module.
 
+## Plugins
+
+Plugins never read each other's options or import each other;
+shared values are framework options any plugin may set or read.
+Templates only select plugins and options.
+After changing what a plugin adds, use the update-integration-matrix skill.
+
 ## Patching upstream tools
 
 Keep behavior patches as `patches/<tool>.patch`, applied through `overrideAttrs`

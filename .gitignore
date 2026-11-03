@@ -9,7 +9,6 @@ result-*
 /.agents/skills/nk-audit-output
 /.agents/skills/nk-resolve-file-conflicts
 /.agents/skills/nk-upgrade
-/.agents/skills/update-integration-matrix
 /.mcp.json
 /.nullkomma/cloudflare/
 /.nullkomma/gcroots/
