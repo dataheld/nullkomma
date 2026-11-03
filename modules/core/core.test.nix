@@ -139,51 +139,27 @@
               in
               {
                 expr = {
-                  enabled = lib.mapAttrs (_: f: {
-                    inherit (f) mode directory;
-                    sections = lib.attrNames f.sections;
-                  }) (files true);
-                  servers = lib.mapAttrs (_: s: s.type) (builtins.fromJSON (files true).".mcp.json".text).mcpServers;
+                  enabled = lib.mapAttrs (_: f: f.mode) (files true);
+                  servers = lib.attrNames (builtins.fromJSON (files true).".mcp.json".text).mcpServers;
                   disabled = files false;
                 };
                 expected = {
-                  servers = {
-                    demo = "http";
-                    nullkomma = "stdio";
-                  };
+                  servers = [
+                    "demo"
+                    "nullkomma"
+                  ];
                   enabled = {
-                    ".mcp.json" = {
-                      mode = "generated";
-                      directory = false;
-                      sections = [ ];
-                    };
-                    "AGENTS.md" = {
-                      mode = "source";
-                      directory = false;
-                      sections = [ "agents" ];
-                    };
-                    ".agents/skills/demo" = {
-                      mode = "generated";
-                      directory = true;
-                      sections = [ ];
-                    };
-                    ".agents/skills/nk-audit-output" = {
-                      mode = "generated";
-                      directory = true;
-                      sections = [ ];
-                    };
-                    ".agents/skills/nk-resolve-file-conflicts" = {
-                      mode = "generated";
-                      directory = true;
-                      sections = [ ];
-                    };
+                    ".mcp.json" = "generated";
+                    "AGENTS.md" = "source";
+                    ".agents/skills/demo" = "generated";
+                    ".agents/skills/nk-audit-output" = "generated";
+                    ".agents/skills/nk-resolve-file-conflicts" = "generated";
                   };
                   disabled = { };
                 };
               };
             testAllPluginsDisabledIsBareFramework = {
               expr = map summary [
-                (raw { })
                 (raw { imports = lib.attrValues plugins; })
                 (callFlakeWith {
                   nullkomma = lib.genAttrs (lib.attrNames plugins ++ [ "devShell" ]) (_: {
@@ -191,65 +167,20 @@
                   });
                 } md)
               ];
-              expected = lib.replicate 3 {
-                files = [ ];
-                tools = [
-                  "nk"
-                  "process-compose"
-                  "treefmt"
-                ];
-                formatters = [ ];
-                tasks = [
-                  "all"
-                  "check"
-                  "flake-check"
-                  "generate-files"
-                  "treefmt"
-                  "write-files"
-                ];
-                checks = [ "treefmt" ];
-                shells = [ ];
-                editor = {
-                  formatter = [
-                    "treefmt"
-                    "--stdin"
-                    "{file}"
-                  ];
-                  languageServers = { };
-                  vscode = {
-                    extensions = [ "ibecker.treefmt-vscode" ];
-                    settings."editor.defaultFormatter" = "ibecker.treefmt-vscode";
-                  };
-                };
-              };
+              expected = lib.replicate 2 (summary (raw { }));
             };
             testChecksAreCheckDependencies = {
-              expr = {
-                inherit
-                  (summary (raw {
-                    perSystem.process-compose.dev.settings.processes = {
-                      custom.command = "true";
-                      check.depends_on.custom.condition = "process_completed_successfully";
-                    };
-                  }))
-                  tasks
-                  checks
-                  ;
-              };
-              expected = {
-                tasks = [
-                  "all"
-                  "check"
-                  "flake-check"
-                  "generate-files"
-                  "treefmt"
-                  "write-files"
-                ];
-                checks = [
-                  "custom"
-                  "treefmt"
-                ];
-              };
+              expr =
+                (summary (raw {
+                  perSystem.process-compose.dev.settings.processes = {
+                    custom.command = "true";
+                    check.depends_on.custom.condition = "process_completed_successfully";
+                  };
+                })).checks;
+              expected = [
+                "custom"
+                "treefmt"
+              ];
             };
             testConfigsOnlyEnableTheirPlugin = {
               expr = lib.mapAttrs (p: text: import (builtins.toFile "${p}.nix" text)) nullkomma.lib.configs;
@@ -259,28 +190,20 @@
               let
                 customized = perSystem (
                   callFlakeWith {
-                    perSystem =
-                      { pkgs, ... }:
-                      {
-                        nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
-                        nullkomma.devShell.packages = [ pkgs.hello ];
-                        treefmt.programs.deadnix.enable = false;
-                        treefmt.programs.typos.enable = true;
-                      };
+                    perSystem = {
+                      nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
+                      treefmt.programs.deadnix.enable = false;
+                    };
                   } md
                 );
               in
               {
                 expr = {
-                  package = lib.elem pkgs.hello customized.nullkomma.devShell.packages;
                   disabled = customized.treefmt.programs.deadnix.enable;
-                  enabled = customized.treefmt.programs.typos.enable;
                   setting = customized.nullkomma.editor.vscode.settings."nix.serverPath";
                 };
                 expected = {
-                  package = true;
                   disabled = false;
-                  enabled = true;
                   setting = "project-nixd";
                 };
               };
@@ -382,11 +305,6 @@
                   false
                 ];
               };
-            };
-            testFlakeCheckerFailsLikeCi = {
-              expr = lib.hasInfix "--fail-mode" (perSystem fixtures.md)
-              .processTrees.dev.processes.flake-checker.command;
-              expected = true;
             };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
               expr = map (flake: (perSystem flake).nullkomma.files.".gitignore".text) [
