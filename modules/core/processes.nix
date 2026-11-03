@@ -52,6 +52,8 @@ in
                           leaveDotGit = true;
                           postFetch = old.src.postFetch or "";
                         };
+                        # MCP calls arriving before the project runs no longer deadlock it.
+                        patches = (old.patches or [ ]) ++ [ ../../patches/process-compose.patch ];
                         vendorHash = "sha256-Je5L5/Yrss/mfwMty0PdWZChTIue24u447zGConInAA=";
                       })
                     );
