@@ -163,10 +163,6 @@
               export GITHUB_REPOSITORY="owner/$name"
               fails 'lowercase DNS label'
             done
-            for repository in lap owner/lap/extra owner/ /lap; do
-              export GITHUB_REPOSITORY="$repository"
-              fails 'must be owner/repository'
-            done
             export GITHUB_REPOSITORY=owner/a EXPECTED_NAME=a
             ${inferredWrapper} plan
             export EXPECTED_NAME="$(printf '%063d' 0)"

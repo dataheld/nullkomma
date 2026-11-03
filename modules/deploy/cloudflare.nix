@@ -137,10 +137,6 @@
                     export TF_IN_AUTOMATION=1 TF_INPUT=0 TF_CLI_ARGS_apply=-auto-approve
                     ${lib.optionalString inferName ''
                       if [[ -n "''${GITHUB_REPOSITORY:-}" ]]; then
-                        if [[ ! "$GITHUB_REPOSITORY" =~ ^[^/]+/[^/]+$ ]]; then
-                          echo "GITHUB_REPOSITORY must be owner/repository; set nullkomma.cloudflare.name to override." >&2
-                          exit 1
-                        fi
                         name="''${GITHUB_REPOSITORY#*/}"
                       else
                         if ! repository="$(git remote get-url origin)"; then
