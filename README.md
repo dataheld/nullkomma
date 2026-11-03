@@ -657,18 +657,6 @@ deployment; no Zone ID or separate DNS setup is needed.
 If Cloudflare reports an existing CNAME DNS record at an address you want to use,
 remove that record only if it no longer serves another site, then deploy again.
 
-The old `domains` option is no longer accepted because it also allowed deploying
-to the parent domain. Existing users must review their Terraform state migration
-before switching to `domain` and `name`; do not simply remove the old setting and
-apply, as the custom-domain resource address has changed.
-
-Terraform state remains keyed as `<worker>.tfstate` in the shared R2 bucket.
-Existing explicit Worker names and state keys are unchanged. Pin `name` before
-renaming a repository to keep its inferred hostname and Worker/state identity;
-pin `worker` separately if it differs. Worker names must be unique within the
-account, and state keys within the bucket, including across repositories with
-the same name. Changing these settings does not automatically migrate state.
-
 Locally, run `nk cloudflare-plan` to preview changes and `nk cloudflare-deploy` to publish;
 for other OpenTofu commands, run `nix run .#deploy.init`, then `nix run .#deploy.terraform -- <command>`;
 in CI, run `nix run .#deploy`.
@@ -737,34 +725,6 @@ and system libraries come with the packages that need them.
 > `nix store prefetch-file <url>`.
 > Add missing system libraries with `perSystem.nullkomma.r.buildInputs.<package>`.
 > GitLab and local references are unsupported; use `git::` for GitLab.
-
-#### Workflows
-
-`nk` describes the available workflows; `nk check` runs the checks.
-Disable optional checks and site builds with `nullkomma.r.{check,testthat,pkgdown}.enable`.
-`r-test` and `r-run-app` regenerate `NAMESPACE` first.
-`r-build-site`, `r-check` and `r-test-coverage` regenerate documentation and `NAMESPACE` first.
-`process-compose up` keeps all of them current while you work:
-`r-document-namespace` reruns when `R/` changes, and then restarts the tasks and Shiny apps after it;
-`r-test` also reruns when `tests/` changes,
-and `r-check`, `r-build-site` and `r-test-coverage` when other package files change.
-Generated `man/*.Rd` files are Git-ignored, but not `man/` itself; commit `NAMESPACE`.
-`nullkomma.r.check.errorOn` sets the failing severity (default `"note"`).
-The `r` plugin keeps its package-build exclusions in a marked section of `.Rbuildignore`,
-and ignores R build outputs in `.gitignore`.
-
-`nk r-test` is quick: it loads the source with pkgload instead of installing it.
-`nix flake check` and CI run it with `--installed`, which tests an installed copy, as `R CMD check` does.
-`checks.r-document-namespace` fails if the committed `NAMESPACE` is stale.
-`Config/testthat/parallel: true` in `DESCRIPTION` runs tests [in parallel](https://testthat.r-lib.org/articles/parallel.html).
-
-Agents get the [MCP](#agents) server `r`: [mcptools](https://posit-dev.github.io/mcptools/) serving
-[btw](https://posit-dev.github.io/btw/)'s tools to read help pages and vignettes,
-list the installed packages and their versions, inspect R objects, and run R code.
-
-Locking [chromote] (e.g. via [shinytest2](https://rstudio.github.io/shinytest2/)) adds Chromium on Linux
-(`perSystem.nullkomma.r.browser`); on macOS, which Nixpkgs' Chromium doesn't support, chromote finds your Chrome.
-`r-test` then fails if Chrome doesn't start, where shinytest2 would skip the tests and testthat would delete their snapshots.
 
 #### pkgdown website
 
@@ -1019,7 +979,6 @@ When making changes, adhere to [aoshima's charter](https://github.com/dataheld/a
 [bats]: https://bats-core.readthedocs.io
 [brand.yml]: https://posit-dev.github.io/brand-yml/
 [btw]: https://posit-dev.github.io/btw/
-[chromote]: https://rstudio.github.io/chromote/
 [cloudflare]: https://developers.cloudflare.com/workers/static-assets/
 [direnv]: https://direnv.net
 [flakehub]: https://flakehub.com
