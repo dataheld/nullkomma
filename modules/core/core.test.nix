@@ -537,7 +537,7 @@
                 server=$!
                 exec 3> requests
                 # shortcut: process-compose 1.124.0 deadlocks on MCP calls before its runner
-                # starts, which logs this; drop the wait once upstream serves MCP only after.
+                # starts, which logs this; drop the wait once upstream serves MCP only after (#285).
                 awaiting grep -qsF 'Scheduler started' mcp.log
                 printf '%s\n' >&3 \
                   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}' \
