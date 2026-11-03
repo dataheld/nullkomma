@@ -71,6 +71,9 @@
               postPatch = (old.postPatch or "") + ''
                 substituteInPlace bin/quarto.js --replace-fail syntax-highlighting highlight-style
               '';
+              # shortcut: add Quarto's missing runtime dependency;
+              # drop once Nixpkgs supplies it, see
+              # https://github.com/dataheld/nullkomma/issues/107.
               postFixup = (old.postFixup or "") + ''
                 wrapProgram $out/bin/quarto --prefix PATH : ${lib.makeBinPath [ pkgs.which ]}
               '';

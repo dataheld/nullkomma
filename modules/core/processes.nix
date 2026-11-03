@@ -39,8 +39,9 @@ in
                     # MCP tools (`mcp`) and file watches (`watch`) are newer than
                     # process-compose-flake's typed options.
                     defaults.processSettings.freeformType = (pkgs.formats.json { }).type;
-                    # shortcut: Nixpkgs 26.05 has 1.110; pin the current release,
-                    # drop this once Nixpkgs catches up.
+                    # shortcut: pin process-compose for MCP and watches;
+                    # drop once Nixpkgs catches up, see
+                    # https://github.com/dataheld/nullkomma/issues/306.
                     package = lib.mkDefault (
                       (pkgs.process-compose.override { buildGoModule = pkgs.buildGo127Module; }).overrideAttrs (old: {
                         version = "1.124.0";

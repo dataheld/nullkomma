@@ -30,7 +30,9 @@
                   done
                   exec ${
                     lib.getExe (
-                      # shortcut: nixpkgs' jarl tests fail on Darwin; drop once Hydra builds it.
+                      # shortcut: Jarl's tests fail on Darwin;
+                      # restore once its Nixpkgs build passes, see
+                      # https://github.com/dataheld/nullkomma/issues/305.
                       if pkgs.stdenv.hostPlatform.isDarwin then
                         pkgs.jarl.overrideAttrs { doCheck = false; }
                       else

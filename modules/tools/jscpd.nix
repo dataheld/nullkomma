@@ -29,8 +29,8 @@
                 hash = "sha256-CrzW5kgf9/d7wuQHwfT2dK3zYLi9w3t0zxDTj7sfePw=";
               };
             };
-            # shortcut: upstream's release binaries, since jscpd 5 needs a newer rustc than our
-            # Nixpkgs; build from source (or use nixpkgs' package) once Nixpkgs catches up.
+            # shortcut: release binaries until Nixpkgs can build jscpd 5;
+            # https://github.com/dataheld/nullkomma/issues/304.
             jscpd = pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
               pname = "jscpd";
               version = "5.4.1";
