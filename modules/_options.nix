@@ -8,7 +8,8 @@
 }:
 let
   pkgs = nixpkgs.legacyPackages.x86_64-linux;
-  unavailable = what: throw "${what} is not available when rendering option docs; add a `defaultText`.";
+  unavailable =
+    what: throw "${what} is not available when rendering option docs; add a `defaultText`.";
 in
 (flake-parts.lib.evalFlakeModule
   {

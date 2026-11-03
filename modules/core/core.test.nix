@@ -251,6 +251,10 @@
                 ];
               };
             };
+            testConfigsOnlyEnableTheirPlugin = {
+              expr = lib.mapAttrs (p: text: import (builtins.toFile "${p}.nix" text)) nullkomma.lib.configs;
+              expected = lib.mapAttrs (p: _: { nullkomma.${p}.enable = true; }) plugins;
+            };
             testConsumersCustomizeDefaults =
               let
                 customized = perSystem (
@@ -422,10 +426,6 @@
                   "/.vscode/mcp.json"
                 ])
               ];
-            };
-            testConfigsOnlyEnableTheirPlugin = {
-              expr = lib.mapAttrs (p: text: import (builtins.toFile "${p}.nix" text)) nullkomma.lib.configs;
-              expected = lib.mapAttrs (p: _: { nullkomma.${p}.enable = true; }) plugins;
             };
             testImportTreeSkipsUnderscoresAndNonNix =
               let

@@ -1,7 +1,7 @@
 # nullkomma uses nullkomma for its own development environment.
 {
   partitions.dev.module =
-    { inputs, ... }:
+    { inputs, lib, ... }:
     {
       imports = [
         inputs.self.flakeModules.default
@@ -41,10 +41,23 @@
           };
         };
       };
-      # The workspace editor settings are tracked and hand-edited.
       perSystem.nullkomma.files = {
+        # The workspace editor settings are tracked and hand-edited.
         ".vscode/settings.json".mode = "source";
         ".vscode/extensions.json".mode = "source";
+        "README.md" = {
+          commentPrefix = "<!--";
+          commentSuffix = " -->";
+          sections = lib.genAttrs [
+            "agents"
+            "cloudflare"
+            "github"
+            "nix"
+            "quarto"
+            "r"
+            "shell"
+          ] (plugin: "```nix\n${inputs.self.lib.configs.${plugin}}```\n");
+        };
       };
     };
 }

@@ -50,5 +50,7 @@ lib.genAttrs plugins (
   let
     opts = byPlugin.${p};
   in
-  "{\n${lib.concatMapStringsSep "\n" render (lib.filter isEnable opts ++ lib.filter (o: !isEnable o) opts)}}\n"
+  "{\n${
+    lib.concatMapStringsSep "\n" render (lib.filter isEnable opts ++ lib.filter (o: !isEnable o) opts)
+  }}\n"
 )
