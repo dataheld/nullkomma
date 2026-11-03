@@ -64,6 +64,19 @@
             dependency = false;
           };
         };
+        # Shiny can swallow SIGINT; an app left running holds its port, so its restarts can't bind.
+        testShinyAppsStopForSure = {
+          expr = {
+            inherit ((perSystem local).process-compose.dev.settings.processes.r-shiny-app.shutdown)
+              signal
+              timeout_seconds
+              ;
+          };
+          expected = {
+            signal = 2;
+            timeout_seconds = 5;
+          };
+        };
         # The lockfile alone sizes the R environment: no Shiny stack or browser unless declared.
         testLockSizesEnvironment = {
           expr = {
@@ -150,6 +163,7 @@
               serve env PC_DISABLE_TUI=1 ${task local "r-run-app"}
               await http://127.0.0.1:38381 'working-tree Shiny fixture'
               grep -qF shiny:disconnected response.html
+              grep -qE '<script data-server="[0-9]+">' response.html
               grep -qF __SHINY_DEV_MODE__ response.html
               if grep -qF shiny-autoreload.js response.html; then
                 echo "Shiny's autoreload must stay off; restarts reload the apps" >&2

@@ -785,9 +785,11 @@ Its runtime is R, Shiny and your package's `Depends`/`Imports` closure: no `Sugg
 `process-compose up`, or `nk r-run-app` for the apps alone, instead serves the app of each of `devFunctions` side by side,
 the n-th on `port` + n (from 0), as process `r-shiny-<function>`.
 These load the working-tree package with pkgload, without installing it,
-restart when `r-document-namespace` reruns, and the open pages then reload.
+restart when `r-document-namespace` reruns,
+and open pages reload once a new app process serves them, even if they were in a background tab.
 Each app is ready when Shiny logs that it listens, restarts when it fails,
-and stops with SIGINT, so `shiny::onStop()` callbacks run.
+and stops with SIGINT, so `shiny::onStop()` callbacks run,
+or with SIGKILL after 5 seconds, so it frees its port.
 They run in [Shiny's developer mode](https://shiny.posit.co/r/reference/shiny/latest/devmode.html),
 without its autoreload, and print warnings as they occur (`options(warn = 1)`).
 `r-shiny-browser` opens each app once with R's `browseURL()`; set `R_BROWSER=true` to not open them.

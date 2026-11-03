@@ -105,7 +105,7 @@
                 }
                 ${lib.optionalString dev ''
                   handler <- app$httpHandler
-                  script <- paste(c("<script>", readLines("${./live-reload.js}"), "</script></head>"), collapse = "\n")
+                  script <- paste(c(sprintf('<script data-server="%d">', Sys.getpid()), readLines("${./live-reload.js}"), "</script></head>"), collapse = "\n")
                   app$httpHandler <- function(req) {
                     response <- handler(req)
                     if (is.character(response$content)) {
@@ -162,7 +162,11 @@
                 # The watch restarts only running apps, so a failed one retries until it starts.
                 availability.restart = "on_failure";
                 # Unlike SIGTERM, SIGINT lets Shiny run `onStop()` callbacks.
-                shutdown.signal = 2;
+                # But Shiny can swallow SIGINT, which would leave the app holding its port.
+                shutdown = {
+                  signal = 2;
+                  timeout_seconds = 5;
+                };
               };
             }) cfg.shiny.devFunctions;
           in
