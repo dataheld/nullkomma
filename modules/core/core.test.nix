@@ -486,6 +486,7 @@
                 expected = [
                   [ "nullkomma" ]
                   [
+                    "cloudflare-api"
                     "cloudflare-docs"
                     "nullkomma"
                     "opentofu"
