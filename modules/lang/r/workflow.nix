@@ -90,8 +90,6 @@
       config = lib.mkIf cfg.enable {
         nullkomma.agents.skills.nullkomma-r-package-development = ./_agents/nullkomma-r-package-development;
         nullkomma.r.extraPackages = [
-          "processx"
-          "ps"
           "roxygen2"
         ]
         ++ lib.optional cfg.check.enable "rcmdcheck"
@@ -151,8 +149,6 @@
             rInterrupted = r // {
               shutdown.signal = 2;
             };
-            # For when R ends without unwinding: SIGKILL, or SIGTERM and SIGHUP sent to R directly.
-            cleanup = ''source("${./_cleanup-subprocesses.R}"); '';
             after = name: { ${name}.condition = "process_completed_successfully"; };
             # Compiled code, so that scratch copies don't rebuild it on every run.
             compiled = [
@@ -202,7 +198,6 @@
                 } "$R_USER_CACHE_DIR/R/pkgdown"
                 chmod -R u+w "$R_USER_CACHE_DIR"
                 Rscript --vanilla - "$preview" <<'RS'
-                ${cleanup}
                 # Cached Sass paths make repeated Bootstrap copies overwrite read-only Nix assets.
                 options(sass.cache = FALSE)
                 override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
@@ -216,7 +211,7 @@
                   body <- paste(readLines("${privacyBody}", encoding = "UTF-8"), collapse = "\n")
                   pkgdown::render_page(pkg, "title-body", list(pagetitle = ${builtins.toJSON privacy.title}, body = body), "${cfg.pkgdown.privacy.page}")
                 ''}
-                pkgdown::build_site(override = override, preview = FALSE, new_process = FALSE)
+                pkgdown::build_site(override = override, preview = identical(commandArgs(TRUE)[[1]], "TRUE"), new_process = FALSE)
                 if (nzchar(Sys.getenv("SOURCE_DATE_EPOCH"))) {
                   # pkgdown records wall-clock time even in otherwise reproducible builds.
                   metadata_path <- file.path(override$destination, "pkgdown.yml")
@@ -224,11 +219,6 @@
                   epoch <- as.POSIXct(as.numeric(Sys.getenv("SOURCE_DATE_EPOCH", "1")), origin = "1970-01-01", tz = "UTC")
                   metadata$last_built <- format(epoch, "%Y-%m-%dT%H:%MZ", tz = "UTC")
                   yaml::write_yaml(metadata, metadata_path)
-                }
-                if (identical(commandArgs(TRUE)[[1]], "TRUE")) {
-                  # A browser started here must outlive r-build-site.
-                  Sys.unsetenv(getOption("nullkomma.subprocesses")$marker)
-                  pkgdown::preview_site(pkgdown::as_pkgdown(override = override))
                 }
                 RS
               '';
@@ -250,7 +240,7 @@
                   # Like R CMD check: shinytest2 then runs apps from the installed package, not pkgload.
                   export TESTTHAT_IS_CHECKING=true
                 fi
-                Rscript --vanilla -e '${cleanup}${chromote}testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = commandArgs(TRUE)[[1]])' "$load"
+                Rscript --vanilla -e '${chromote}testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = commandArgs(TRUE)[[1]])' "$load"
               '';
             };
             namespace = pkgs.writeShellApplication {
@@ -333,7 +323,7 @@
                   description = "Write a Cobertura test coverage report to coverage.xml";
                   # Installs the package, so it must not run while r-document writes man/.
                   depends_on = after "r-document";
-                  command = "${rscript} -e '${cleanup}covr::to_cobertura(covr::package_coverage(), filename = \"coverage.xml\")'";
+                  command = "${rscript} -e 'covr::to_cobertura(covr::package_coverage(), filename = \"coverage.xml\")'";
                   watch = packageWatch;
                 };
               })
