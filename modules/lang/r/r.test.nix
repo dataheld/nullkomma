@@ -23,6 +23,7 @@
         root
         task
         treefmt
+        watching
         ;
       rlib = import (root + "/lib/r.nix") { inherit lib; };
       fixture = root + "/tests/fixtures/r";
@@ -353,6 +354,28 @@
               PY
               touch $out
             '';
+        r-test-watch = check "r-test-watch" ''
+          cat > tests/testthat/test-side-effect.R <<'RS'
+          test_that("files written by tests don't restart r-test", {
+            writeLines("side effect", "side-effect.txt")
+            Sys.sleep(1)
+            unlink("side-effect.txt")
+            succeed()
+          })
+          RS
+          snapshot=tests/testthat/_snaps/snapshot.md
+          touch -d @0 "$snapshot"
+          ${watching fixtures.r "r-test"}
+          settled r-test 1
+          test ! -e tests/testthat/side-effect.txt
+          test "$(stat -c %Y "$snapshot")" -eq 0
+          printf '\n' >> tests/testthat/test-hello.R
+          settled r-test 2
+          # A diverging snapshot fails r-test and reruns it once for its `.new` file.
+          sed -i 's/      hello/      goodbye/' "$snapshot"
+          settled r-test 4
+          test -e tests/testthat/_snaps/snapshot.new.md
+        '';
         r-pkgdown-legal = legalcheck "r-pkgdown-legal" published.packages.${system}.site;
         r-declarative-brand = linkcheck "r-declarative-brand" declarativeBrand.packages.${system}.site;
         r-pkgdown-site =

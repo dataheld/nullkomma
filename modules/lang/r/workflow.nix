@@ -150,6 +150,12 @@
               shutdown.signal = 2;
             };
             after = name: { ${name}.condition = "process_completed_successfully"; };
+            # Compiled code, so that scratch copies don't rebuild it on every run.
+            compiled = [
+              "/src/*.o"
+              "/src/*.so"
+              "/src/*.dll"
+            ];
             # For tasks that read the whole package; R changes reach them through the cascade.
             packageWatch.paths = [
               {
@@ -277,14 +283,13 @@
                 r-test = rInterrupted // {
                   description = "Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package";
                   depends_on = after "r-document-namespace";
-                  command = test;
-                  # testthat writes `_snaps/*.new.*` when snapshots fail.
-                  watch.paths = [
-                    {
-                      path = "tests";
-                      exclude = [ "_snaps" ];
-                    }
-                  ];
+                  command = config.nullkomma.scratch {
+                    name = "r-test";
+                    command = test;
+                    outputs = [ "tests/testthat/_snaps" ];
+                    keep = compiled;
+                  };
+                  watch.paths = [ { path = "tests"; } ];
                 };
                 check.depends_on = after "r-test";
               })
@@ -292,7 +297,12 @@
                 r-build-site = rInterrupted // {
                   description = "Build the pkgdown website; --preview opens it in a browser";
                   depends_on = after "r-document";
-                  command = pkgdown;
+                  command = config.nullkomma.scratch {
+                    name = "r-build-site";
+                    command = pkgdown;
+                    outputs = [ destination ];
+                    keep = compiled;
+                  };
                   watch = packageWatch;
                 };
                 # No dependency on r-build-site: its cascade restarts would close open pages.
