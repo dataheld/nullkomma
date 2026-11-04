@@ -4,21 +4,11 @@
     let
       cfg = config.nullkomma.r;
       rules = [
+        # R CMD check accepts no other top-level hidden files.
+        "^[.](?!aspell(/|$)|Rinstignore$)"
         "[.]nix$"
         "^flake[.]lock$"
-        "^[.]agents$"
         "^AGENTS[.]md$"
-        "^[.]envrc$"
-        "^[.]Renviron$"
-        "^[.]Rprofile$"
-        "^[.]R$"
-        "^[.]direnv$"
-        "^[.]git$"
-        "^[.]github$"
-        "^[.]vscode$"
-        "^[.]nvim[.]lua$"
-        "^[.]mcp[.]json$"
-        "^[.]nullkomma$"
         "^result(-.*)?$"
         "^docs$"
         "^pkgdown$"
