@@ -536,6 +536,12 @@ OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is invo
 
 Enable it, then run `nix run .#r-lock`: the development shell needs the `pkg.lock` it writes.
 
+Interactive R sessions started in the package directory load it with `pkgload::load_all()`,
+after running `~/.Rprofile`, from a generated, Git-ignored `.Rprofile`.
+If loading fails, R still starts.
+To keep a committed `.Rprofile` of your own, set
+`perSystem.nullkomma.files.".Rprofile".enable = false`.
+
 <!-- nullkomma:r:start -->
 ```nix
 {
