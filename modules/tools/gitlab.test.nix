@@ -72,9 +72,9 @@
         testGitlabNeedsLinuxChecks = {
           expr =
             (builtins.tryEval (
-              pipeline (consumer {
+              (consumer {
                 systems = lib.mkForce [ "aarch64-darwin" ];
-              })
+              }).allSystems.aarch64-darwin.nullkomma.files.".gitlab-ci.yml".source
             )).success;
           expected = false;
         };
