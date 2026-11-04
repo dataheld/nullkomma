@@ -515,6 +515,11 @@
           echo 'stop("local-r-source-marker")' >> R/hello.R
           fails local-r-source-marker ${task fixtures.r "r-check"}
         '';
+        r-check-fails-on-notes = check "r-check-fails-on-notes" ''
+          git init -q
+          printf 'note <- function() undefined_global_marker\n' > R/note.R
+          fails undefined_global_marker ${task fixtures.r "r-check"}
+        '';
         r-check-runtime-files = check "r-check-runtime-files" ''
           printf 'project-specific exclusion\n' > project-only.txt
           cp .Rbuildignore "$TMPDIR/Rbuildignore"
