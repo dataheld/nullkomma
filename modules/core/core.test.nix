@@ -53,6 +53,11 @@
                 command = "sleep 60";
                 ready_log_line = "serving";
               };
+              # Records its own and process-compose's PID.
+              hold = {
+                command = ''echo "$$ $PPID" > held; exec sleep 600'';
+                disabled = true;
+              };
               watched = {
                 command = "echo w >> watched";
                 disabled = true;
@@ -605,6 +610,35 @@
                 kill "$server"
                 touch $out
               '';
+            # An MCP client that quits closes the server's stdin, then may SIGKILL it; a crashed client only closes stdin.
+            mcp-without-client = pkgs.runCommand "nullkomma-mcp-without-client" { } ''
+              ${harness.project md}
+              ${lib.getExe pkgs.git} init -q
+              export HOME="$TMPDIR"
+              within() {
+                for _ in {1..300}; do eval "$1" && return; sleep 0.2; done
+                echo "timed out: $1" >&2
+                tail -n 40 mcp.out mcp.log >&2
+                exit 1
+              }
+              mkfifo requests
+              PC_LOG_FILE="$PWD/mcp.log" ${lib.getExe (perSystem contract).taskRunners.default} mcp < requests > mcp.out &
+              client=$!
+              exec 3> requests
+              within "grep -qsF 'Scheduler started' mcp.log"
+              printf '%s\n' >&3 \
+                '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}' \
+                '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+                '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"pc_process_start","arguments":{"name":"hold"}}}'
+              within 'test -s held'
+              read -r held server < held
+              trap 'kill -KILL "$held" "$server" 2>/dev/null || true' EXIT
+              exec 3>&-
+              kill -KILL "$client"
+              within "! kill -0 $server 2>/dev/null"
+              within "! kill -0 $held 2>/dev/null"
+              touch $out
+            '';
             scratch = pkgs.runCommand "nullkomma-scratch" { } ''
               ${harness.project md}
               export KEPT="$TMPDIR/kept" XDG_CACHE_HOME="$TMPDIR/cache"
