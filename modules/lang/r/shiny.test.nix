@@ -170,11 +170,19 @@
                 jq -nc --argjson id "$1" --arg name "$2" --argjson arguments "$3" \
                   '{jsonrpc: "2.0", $id, method: "tools/call", params: {$name, $arguments}}'
               }
+              answered() {
+                [ "$(jq -n '[inputs | select(has("id"))] | length' mcp.jsonl 2>/dev/null)" = "$1" ]
+              }
+              # Keeps the server's input open until it answers the initialization and every call.
               mcp() {
+                rm -f mcp.jsonl
                 {
                   echo '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"check","version":"0"}}}'
                   printf '%s\n' "$@"
-                  sleep 10
+                  for attempt in {1..300}; do
+                    answered $(($# + 1)) && break
+                    sleep 1
+                  done
                 } | ${lib.escapeShellArgs ([ mcpServer.command ] ++ mcpServer.args)} > mcp.jsonl
               }
               mcp "$(call 1 btw_tool_run_r '{"_intent":"check","code":"1 + 1"}')" \
