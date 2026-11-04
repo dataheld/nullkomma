@@ -590,6 +590,23 @@
           fi
           grep -qx 'nullkommafixture/R/hello.R' package-files
         '';
+        # Interactive R loads the working tree above the default packages, after the user's profile.
+        r-profile = check "r-profile" ''
+          ${task fixtures.r "generate-files"}
+          git check-ignore -q .Rprofile
+          printf 'options(nullkomma.test.user = TRUE)\n' > "$HOME/.Rprofile"
+          R --interactive --no-save <<'RS' 2>&1 | tee session.log
+          if (isTRUE(getOption("nullkomma.test.user")) && match("package:nullkommafixture", search()) < match("package:stats", search())) cat(paste("PACKAGE", "LOADED", sep = "_"), "\n")
+          RS
+          grep -qF PACKAGE_LOADED session.log
+          Rscript -e 'stopifnot(isTRUE(getOption("nullkomma.test.user")), !"package:nullkommafixture" %in% search())'
+          printf 'broken <- function(\n' > R/broken.R
+          R --interactive --no-save <<'RS' 2>&1 | tee session.log
+          cat(paste("R", "STARTED", sep = "_"), "\n")
+          RS
+          grep -qF 'Could not load the package' session.log
+          grep -qF R_STARTED session.log
+        '';
         r-formatting = check "r-formatting" ''
           ${treefmt fixtures.r}
           printf 'x <- any(is.na(y))\n' > R/lint.R

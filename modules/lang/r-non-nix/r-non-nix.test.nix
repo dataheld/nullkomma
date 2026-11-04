@@ -65,8 +65,8 @@
                 } fixture;
               in
               {
-                enabled = (perSystem standalone).nullkomma.files ? ".Rprofile";
-                optIn = !((perSystem (callFlakeWith { } fixture)).nullkomma.files ? ".Rprofile");
+                enabled = (perSystem standalone).nullkomma.files.".Rprofile".mode == "source";
+                optIn = (perSystem (callFlakeWith { } fixture)).nullkomma.files.".Rprofile".mode == "generated";
                 disabledParent = summary withoutR == summary (raw { });
                 # Native R must not install Config/Needs packages that Nix leaves out.
                 runtimeFields =
@@ -173,6 +173,15 @@
                   })
                 RS
                 env NULLKOMMA_R_NIX=true Rscript -e 'stopifnot(is.null(getOption("nullkomma.r.library")))'
+                printf 'options(nullkomma.test.user = TRUE)\n.libPaths(tempdir())\n' > "$HOME/.Rprofile"
+                Rscript -e 'stopifnot(isTRUE(getOption("nullkomma.test.user")), identical(.libPaths()[1], getOption("nullkomma.r.library")))'
+                # Without pkgload in the project library, R still starts.
+                R --interactive --no-save <<'RS' 2>&1 | tee session.log
+                cat(paste("R", "STARTED", sep = "_"), "\n")
+                RS
+                grep -qF 'Could not load the package' session.log
+                grep -qF R_STARTED session.log
+                rm "$HOME/.Rprofile"
                 rm .Renviron
                 fails 'Missing project R settings' Rscript -e 'quit(status = 0)'
                 touch $out

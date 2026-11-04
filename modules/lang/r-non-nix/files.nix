@@ -25,7 +25,10 @@
           { config, ... }:
           {
             nullkomma.files = {
-              "${prefix}.Rprofile".text = builtins.readFile ./_assets/profile.R;
+              "${prefix}.Rprofile" = {
+                mode = "source";
+                text = builtins.readFile ./_assets/profile.R;
+              };
               "${prefix}.R/install.R".text = builtins.readFile ./_assets/install.R;
               "${prefix}.Renviron".text = ''
                 NULLKOMMA_R_VERSION=${builtins.toJSON config.nullkomma.r.package.version}
