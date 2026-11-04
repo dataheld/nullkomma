@@ -296,7 +296,7 @@ Features live in Nix; nullkomma writes files only where tools need them:
 |                             | **Source of truth** (committed, yours to edit)       | **Generated from Nix** (Git-ignored, don't edit)                                            |
 | --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `nix flake init --template` | `flake.nix`                                          |                                                                                             |
-| `write-files`               | `.envrc`, `.gitignore`, GitHub workflows, `AGENTS.md` sections |                                                                                             |
+| `write-files`               | `.envrc`, `.gitignore`, GitHub workflows, `.gitlab-ci.yml`, `AGENTS.md` sections |                                                                                             |
 | `generate-files`            |                                                      | `.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
 
 `write-files` writes source-of-truth files once (`nullkomma.files."<path>".mode = "source"`),
@@ -326,6 +326,7 @@ Those marked under Default are enabled unless you opt out.
 | [`toml`][toml]                                                                                    | ✅       |                                                                                                                | [`toml-sort`]                              |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`shell`](#shell)                                                                                 | ✅       | [bash-language-server]                                                                                         | [`shfmt`], [`shellcheck`]                  | [bats]                                                    |                    |                            | `bats`                                                                                                                                         | `bats`                                                                                                                                        |                                                 |
 | [`github`](#github)                                                                               | ✅       |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
+| [`gitlab`](#gitlab)                                                                               |         |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`agents`](#agents)                                                                               | ✅       |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `playwright` (opt-in)                           |
 | [`keepSorted`][keep-sorted]                                                                       | ✅       |                                                                                                                | `keep-sorted`                              |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`gitleaks`][gitleaks]                                                                            | ✅       |                                                                                                                | `gitleaks`                                 |                                                           |                    |                            | `gitleaks-git`                                                                                                                                 |                                                                                                                                               |                                                 |
@@ -444,6 +445,30 @@ Forks don't publish; private flakes need a [FlakeHub paid plan](https://flakehub
 }
 ```
 <!-- nullkomma:github:end -->
+
+### `gitlab`
+
+In `nix/local.nix`:
+
+<!-- nullkomma:gitlab:start -->
+```nix
+{
+  # Whether to enable the gitlab plugin.
+  nullkomma.gitlab.enable = true;
+
+  # Cache check and site build dependencies in `.gitlab-nix-cache/`, per ref and
+  # keyed by `flake.lock`. Restores unsigned local build output with sudo: keep
+  # GitLab's protected-branch cache separation enabled. Transfers can cost more
+  # than they save on persistent runners.
+  # nullkomma.gitlab.cache.enable = false;
+
+  # Publish `packages.x86_64-linux.site` to GitLab Pages after checks pass on
+  # default-branch pushes. Requires a site provider, such as `quarto` or R's
+  # pkgdown, and GitLab 17.10 or newer.
+  # nullkomma.gitlab.pages.enable = false;
+}
+```
+<!-- nullkomma:gitlab:end -->
 
 ### Editors
 
