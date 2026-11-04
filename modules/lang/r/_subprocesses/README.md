@@ -44,9 +44,12 @@ R must get SIGINT, or the kernel must contain its children.
   so a closed terminal (SIGHUP) or a timeout (SIGTERM, SIGKILL) signals R directly:
   - Linux ([`linux.sh`](linux.sh)): a PID namespace of its own;
     when its init ends, however it ends, the kernel kills every process in it.
-  - macOS ([`darwin.sh`](darwin.sh)): R runs in a process group of its own,
-    and the first SIGHUP, SIGINT or SIGTERM reaches it as SIGINT.
-    Delete this file, and the `isDarwin` branch in [`default.nix`](default.nix), once macOS is no longer supported.
+    This needs unprivileged user namespaces, which Ubuntu's AppArmor blocks by default since 23.10;
+    CI (`.github/workflows/ci.yml`) turns that off.
+  - Elsewhere ([`signals.sh`](signals.sh)): macOS, and Linux without user namespaces.
+    R runs in a process group of its own, and the first SIGHUP, SIGINT or SIGTERM reaches it as SIGINT.
+    Delete it, and its uses in [`default.nix`](default.nix) and `linux.sh`,
+    once no supported host lacks user namespaces.
 - `nk mcp` stops process-compose when its stdin ends ([#330](https://github.com/dataheld/nullkomma/issues/330), `modules/core/tasks.nix`).
   process-compose ignores the end of stdin, which is all an MCP client that quits or crashes leaves behind.
 
@@ -63,7 +66,7 @@ Two parallel testthat workers, each keeping a CPU busy; one way of stopping `r-t
 | `process-compose up r-test` in a terminal, window closed       | stopped                                                                   | stopped               | not measured |
 | `nk mcp` running `r-test` for an agent, client killed          | everything left, workers at 100% CPU                                      | stopped               | not measured |
 
-The SIGKILL row on macOS remains open: nothing in macOS contains processes that left their session.
+The SIGKILL row on macOS, and on Linux without user namespaces, remains open: nothing there contains processes that left their session.
 Measured with the scripts described in [#331](https://github.com/dataheld/nullkomma/pull/331) and with these checks:
 `r-test-stopped-by-{hup,term,kill}` (`kill` on Linux only) and `r-test-stops-workers` in
 [`../r.test.nix`](../r.test.nix), `mcp-without-client` in [`../../../core/core.test.nix`](../../../core/core.test.nix).

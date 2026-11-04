@@ -5,7 +5,7 @@
 # bash, not R, is the init: an init ignores the signals it has no handler for.
 namespace=(--user --map-current-user --pid --fork --kill-child --mount-proc)
 if ! unshare "${namespace[@]}" true 2>/dev/null; then
-  echo "r-contain: cannot create a PID namespace; R subprocesses may outlive $1." >&2
-  exec "$@"
+  echo "r-contain: no unprivileged user namespaces; a SIGKILL to R leaves its subprocesses running." >&2
+  exec r-contain-signals "$@"
 fi
 exec unshare "${namespace[@]}" -- "$BASH" -c '"$@"; exit "$?"' init "$@"

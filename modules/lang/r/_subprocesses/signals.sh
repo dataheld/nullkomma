@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # Runs the command in a process group of its own, and passes the first SIGHUP, SIGINT or SIGTERM on to it as SIGINT.
 # Only an interrupt makes R unwind and stop the subprocesses that processx started in sessions of their own.
-# macOS has nothing that contains them, so a SIGKILL to R still leaves them running.
+# The fallback where the kernel cannot contain them (macOS, Linux without user namespaces): a SIGKILL to R still leaves them running.
 set -m
 "$@" &
 command=$!

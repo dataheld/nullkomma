@@ -1,12 +1,25 @@
 # `r-contain <command>` runs R so that the subprocesses processx starts stop with it; see README.md.
 {
-  lib,
   stdenv,
   util-linux,
   writeShellApplication,
 }:
-writeShellApplication {
-  name = "r-contain";
-  runtimeInputs = lib.optional stdenv.hostPlatform.isLinux util-linux;
-  text = builtins.readFile (if stdenv.hostPlatform.isDarwin then ./darwin.sh else ./linux.sh);
-}
+let
+  signals =
+    name:
+    writeShellApplication {
+      inherit name;
+      text = builtins.readFile ./signals.sh;
+    };
+in
+if stdenv.hostPlatform.isLinux then
+  writeShellApplication {
+    name = "r-contain";
+    runtimeInputs = [
+      util-linux
+      (signals "r-contain-signals")
+    ];
+    text = builtins.readFile ./linux.sh;
+  }
+else
+  signals "r-contain"
