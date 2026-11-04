@@ -143,12 +143,11 @@
               namespace = "r";
               working_dir = "./${prefix}";
             };
-            # processx starts R subprocesses (testthat workers, callr renders) in new sessions,
-            # out of reach of process-compose's group signal.
-            # R stops them only when it unwinds, which it does on SIGINT but not on SIGTERM.
+            # R stops its processx subprocesses only when an interrupt unwinds it; see _subprocesses/README.md.
             rInterrupted = r // {
               shutdown.signal = 2;
             };
+            contain = pkgs.callPackage ./_subprocesses { };
             after = name: { ${name}.condition = "process_completed_successfully"; };
             # Compiled code, so that scratch copies don't rebuild it on every run.
             compiled = [
@@ -175,6 +174,7 @@
             pkgdown = pkgs.writeShellApplication {
               name = "r-build-site";
               runtimeInputs = [
+                contain
                 pcfg.package
                 pkgs.pandoc
               ];
@@ -197,7 +197,7 @@
                   )
                 } "$R_USER_CACHE_DIR/R/pkgdown"
                 chmod -R u+w "$R_USER_CACHE_DIR"
-                Rscript --vanilla - "$preview" <<'RS'
+                r-contain Rscript --vanilla - "$preview" <<'RS'
                 # Cached Sass paths make repeated Bootstrap copies overwrite read-only Nix assets.
                 options(sass.cache = FALSE)
                 override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
@@ -225,7 +225,10 @@
             };
             test = pkgs.writeShellApplication {
               name = "r-test";
-              runtimeInputs = [ pcfg.package ];
+              runtimeInputs = [
+                contain
+                pcfg.package
+              ];
               # `$` in the R code is R's, not the shell's.
               excludeShellChecks = [ "SC2016" ];
               text = ''
@@ -240,7 +243,7 @@
                   # Like R CMD check: shinytest2 then runs apps from the installed package, not pkgload.
                   export TESTTHAT_IS_CHECKING=true
                 fi
-                Rscript --vanilla -e '${chromote}testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = commandArgs(TRUE)[[1]])' "$load"
+                r-contain Rscript --vanilla -e '${chromote}testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = commandArgs(TRUE)[[1]])' "$load"
               '';
             };
             namespace = pkgs.writeShellApplication {
@@ -323,7 +326,7 @@
                   description = "Write a Cobertura test coverage report to coverage.xml";
                   # Installs the package, so it must not run while r-document writes man/.
                   depends_on = after "r-document";
-                  command = "${rscript} -e 'covr::to_cobertura(covr::package_coverage(), filename = \"coverage.xml\")'";
+                  command = "${lib.getExe contain} ${rscript} -e 'covr::to_cobertura(covr::package_coverage(), filename = \"coverage.xml\")'";
                   watch = packageWatch;
                 };
               })
