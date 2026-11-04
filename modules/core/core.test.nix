@@ -80,6 +80,7 @@
                 process-compose.dev.settings.processes.isolated = {
                   description = "Isolated";
                   watch.paths = [ { path = "."; } ];
+                  shutdown.signal = 2;
                   command = config.nullkomma.scratch {
                     name = "isolated";
                     outputs = [ "out" ];
@@ -87,11 +88,17 @@
                     command = pkgs.writeShellApplication {
                       name = "isolated";
                       text = ''
+                        # Handles SIGINT and exits, as R does.
+                        trap 'exit 1' INT
                         touch side-effect
                         if [ -e cache/kept ]; then echo kept >> "$KEPT"; fi
                         mkdir -p cache out
                         touch cache/kept
                         cp input out/copy
+                        if grep -qx slow input; then
+                          touch out/slow
+                          sleep 600
+                        fi
                       '';
                     };
                   };
@@ -610,13 +617,21 @@
               # Its own writes stay in its copy; unchanged outputs are not rewritten.
               test ! -e side-effect
               test "$(stat -c %Y out/copy)" -eq 0
-              test -e "$XDG_CACHE_HOME"/nullkomma/scratch/*/isolated/side-effect
-              grep -qF 'Running in scratch copy' "$TMPDIR/up.log"
+              copy="$(sed -n 's/.*Running in scratch copy //p' "$TMPDIR/up.log" | head -n 1)"
+              [[ "$copy" == "$XDG_CACHE_HOME"/nullkomma/scratch/* ]]
+              test -e "$copy/side-effect"
               # An edit reruns it, and its changed output once more.
               echo v2 > input
               settled isolated 3
               grep -qx v2 out/copy
               [ "$(wc -l < "$KEPT")" -eq 2 ]
+              # A stopped run copies nothing back.
+              echo slow > input
+              awaiting test -e "$copy/out/slow"
+              echo v3 > input
+              settled isolated 6
+              grep -qx v3 out/copy
+              test ! -e out/slow
               kill "$server"
               wait "$server" || true
               # Without watches, it runs in place.

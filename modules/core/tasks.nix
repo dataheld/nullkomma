@@ -269,6 +269,9 @@
                   exec ${lib.getExe command} "$@"
                 fi
                 scratch="''${XDG_CACHE_HOME:-$HOME/.cache}/nullkomma/scratch/$(pwd | cksum | cut -d' ' -f1)/${name}"
+                # A stopped run copies nothing back, even if its command handled the signal, as R does.
+                trap 'exit 130' INT
+                trap 'exit 143' TERM
                 mkdir -p "$scratch"
                 rsync --archive --delete --exclude=/.git ${
                   lib.escapeShellArgs (map (pattern: "--exclude=${pattern}") keep)
@@ -276,7 +279,6 @@
                 echo "Running in scratch copy $scratch"
                 status=0
                 (cd "$scratch" && ${lib.getExe command} "$@") || status=$?
-                # Only a completed run gets here: process-compose stops the whole script.
                 ${lib.concatMapStrings (output: ''
                   if [[ -e "$scratch"/${lib.escapeShellArg output} ]]; then
                     mkdir -p "$(dirname ${lib.escapeShellArg output})"
