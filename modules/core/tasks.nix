@@ -31,6 +31,18 @@
             once in a copy of `nullkomma.src`; `output`, a project path, becomes `$out`.
           '';
         };
+        options.nullkomma.scratch = lib.mkOption {
+          type = lib.types.functionTo lib.types.package;
+          readOnly = true;
+          description = ''
+            `scratch { name, command, outputs ? [ ], keep ? [ ] }` wraps the command of a watched
+            process that runs project code, so its own writes cannot restart it.
+            With watching on, it runs in a private copy of its working directory,
+            kept for inspection until its next run, and copies back only `outputs` whose content changed;
+            `keep`, rsync patterns such as build caches, persist in the copy between runs.
+            With watching off, as in `nk` and builds, it runs in place.
+          '';
+        };
       };
       config.nullkomma.gitignore = [ "/.nullkomma/gcroots/" ];
       config.perSystem =
@@ -242,6 +254,40 @@
               ${lib.getExe run} ${lib.escapeShellArgs ([ process ] ++ args)}
               ${if output == null then ''touch "$out"'' else ''cp -R ${lib.escapeShellArg output} "$out"''}
             '';
+          nullkomma.scratch =
+            {
+              name,
+              command,
+              outputs ? [ ],
+              keep ? [ ],
+            }:
+            pkgs.writeShellApplication {
+              name = "${name}-scratch";
+              runtimeInputs = [ pkgs.rsync ];
+              text = ''
+                if [[ -v PC_NO_WATCH ]]; then
+                  exec ${lib.getExe command} "$@"
+                fi
+                scratch="''${XDG_CACHE_HOME:-$HOME/.cache}/nullkomma/scratch/$(pwd | cksum | cut -d' ' -f1)/${name}"
+                mkdir -p "$scratch"
+                rsync --archive --delete --exclude=/.git ${
+                  lib.escapeShellArgs (map (pattern: "--exclude=${pattern}") keep)
+                } ./ "$scratch/"
+                echo "Running in scratch copy $scratch"
+                status=0
+                (cd "$scratch" && ${lib.getExe command} "$@") || status=$?
+                # Only a completed run gets here: process-compose stops the whole script.
+                ${lib.concatMapStrings (output: ''
+                  if [[ -e "$scratch"/${lib.escapeShellArg output} ]]; then
+                    mkdir -p "$(dirname ${lib.escapeShellArg output})"
+                    rsync --recursive --links --checksum --delete "$scratch"/${lib.escapeShellArg output} "$(dirname ${lib.escapeShellArg output})/"
+                  else
+                    rm -rf ${lib.escapeShellArg output}
+                  fi
+                '') outputs}
+                exit "$status"
+              '';
+            };
         };
     };
 }

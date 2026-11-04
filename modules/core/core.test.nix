@@ -72,6 +72,32 @@
               };
             };
           };
+          # A watched process writing into its own watched tree.
+          isolated = raw {
+            perSystem =
+              { config, pkgs, ... }:
+              {
+                process-compose.dev.settings.processes.isolated = {
+                  description = "Isolated";
+                  watch.paths = [ { path = "."; } ];
+                  command = config.nullkomma.scratch {
+                    name = "isolated";
+                    outputs = [ "out" ];
+                    keep = [ "/cache" ];
+                    command = pkgs.writeShellApplication {
+                      name = "isolated";
+                      text = ''
+                        touch side-effect
+                        if [ -e cache/kept ]; then echo kept >> "$KEPT"; fi
+                        mkdir -p cache out
+                        touch cache/kept
+                        cp input out/copy
+                      '';
+                    };
+                  };
+                };
+              };
+          };
           privacy =
             sections:
             (raw { nullkomma.privacy = { inherit sections; }; }).debug.config.nullkomma.privacy.policy;
@@ -572,6 +598,32 @@
                 kill "$server"
                 touch $out
               '';
+            scratch = pkgs.runCommand "nullkomma-scratch" { } ''
+              ${harness.project md}
+              export KEPT="$TMPDIR/kept" XDG_CACHE_HOME="$TMPDIR/cache"
+              echo v1 > input
+              mkdir out
+              echo v1 > out/copy
+              touch -d @0 out/copy
+              ${harness.watching isolated "isolated"}
+              settled isolated 1
+              # Its own writes stay in its copy; unchanged outputs are not rewritten.
+              test ! -e side-effect
+              test "$(stat -c %Y out/copy)" -eq 0
+              test -e "$XDG_CACHE_HOME"/nullkomma/scratch/*/isolated/side-effect
+              grep -qF 'Running in scratch copy' "$TMPDIR/up.log"
+              # An edit reruns it, and its changed output once more.
+              echo v2 > input
+              settled isolated 3
+              grep -qx v2 out/copy
+              [ "$(wc -l < "$KEPT")" -eq 2 ]
+              kill "$server"
+              wait "$server" || true
+              # Without watches, it runs in place.
+              ${task isolated "isolated"}
+              test -e side-effect
+              touch $out
+            '';
             neovim-config =
               pkgs.runCommandLocal "nullkomma-neovim-config"
                 {
