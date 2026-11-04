@@ -41,11 +41,11 @@ RS
 
 Rscript - <<'RS'
   source("examples.R")
-  for (package in c("pak", "testthat", "assertthat", "rematch")) {
+  for (package in c("pak", "pkgload", "testthat", "assertthat", "rematch")) {
     stopifnot(startsWith(find.package(package), .libPaths()[1]))
   }
   status <- pak::lib_status(lib = getOption("nullkomma.r.library"))
-  stopifnot(all(c("pak", "testthat", "assertthat", "rematch") %in% status$package))
+  stopifnot(all(c("pak", "pkgload", "testthat", "assertthat", "rematch") %in% status$package))
   stopifnot(all(status$library == getOption("nullkomma.r.library")))
   binary_library <- tempfile()
   dir.create(binary_library)
@@ -53,6 +53,11 @@ Rscript - <<'RS'
   stopifnot(sum(plan$package == "brio") == 1L)
   stopifnot(isTRUE(plan$binary[plan$package == "brio"]))
 RS
+
+R --interactive --no-save <<'RS' 2>&1 | tee /tmp/session.log
+if ("package:nullkommafixture" %in% search()) cat(paste("PACKAGE", "LOADED", sep = "_"), "\n")
+RS
+grep -qF PACKAGE_LOADED /tmp/session.log
 
 # A new Config/Needs field is discovered without a Nix regeneration.
 printf 'Config/Needs/extra: RColorBrewer\n' >>DESCRIPTION

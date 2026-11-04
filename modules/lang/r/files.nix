@@ -36,10 +36,21 @@
       };
       config = lib.mkIf cfg.enable {
         nullkomma.r.buildIgnore = lib.concatLines rules;
-        # R reads every line as a pattern; the markers match no file.
-        perSystem.nullkomma.files."${cfg.prefix}.Rbuildignore" = {
-          commentPrefix = "#";
-          sections.r = cfg.buildIgnore;
+        perSystem.nullkomma.files = {
+          # R reads every line as a pattern; the markers match no file.
+          "${cfg.prefix}.Rbuildignore" = {
+            commentPrefix = "#";
+            sections.r = cfg.buildIgnore;
+          };
+          "${cfg.prefix}.Rprofile" = {
+            mode = lib.mkDefault "generated";
+            commentPrefix = "#";
+            text = lib.mkMerge [
+              # R skips the user's profile when a project has one.
+              (lib.mkBefore ''if (file.exists("~/.Rprofile")) source("~/.Rprofile")'')
+              (lib.mkAfter (builtins.readFile ./_load-all.R))
+            ];
+          };
         };
       };
     };
