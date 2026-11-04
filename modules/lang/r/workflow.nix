@@ -143,6 +143,12 @@
               namespace = "r";
               working_dir = "./${prefix}";
             };
+            # processx starts R subprocesses (testthat workers, callr renders) in new sessions,
+            # out of reach of process-compose's group signal.
+            # R stops them only when it unwinds, which it does on SIGINT but not on SIGTERM.
+            rInterrupted = r // {
+              shutdown.signal = 2;
+            };
             after = name: { ${name}.condition = "process_completed_successfully"; };
             # Compiled code, so that scratch copies don't rebuild it on every run.
             compiled = [
@@ -274,7 +280,7 @@
                 check.depends_on = after "r-document-namespace";
               }
               (lib.mkIf cfg.testthat.enable {
-                r-test = r // {
+                r-test = rInterrupted // {
                   description = "Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package";
                   depends_on = after "r-document-namespace";
                   command = config.nullkomma.scratch {
@@ -288,7 +294,7 @@
                 check.depends_on = after "r-test";
               })
               (lib.mkIf cfg.pkgdown.enable {
-                r-build-site = r // {
+                r-build-site = rInterrupted // {
                   description = "Build the pkgdown website; --preview opens it in a browser";
                   depends_on = after "r-document";
                   command = config.nullkomma.scratch {
@@ -313,7 +319,7 @@
                 all.depends_on = after "r-build-site";
               })
               (lib.mkIf cfg.coverage.enable {
-                r-test-coverage = r // {
+                r-test-coverage = rInterrupted // {
                   description = "Write a Cobertura test coverage report to coverage.xml";
                   # Installs the package, so it must not run while r-document writes man/.
                   depends_on = after "r-document";
