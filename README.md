@@ -326,7 +326,7 @@ Those marked under Default are enabled unless you opt out.
 | [`toml`][toml]                                                                                    | ✅       |                                                                                                                | [`toml-sort`]                              |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`shell`](#shell)                                                                                 | ✅       | [bash-language-server]                                                                                         | [`shfmt`], [`shellcheck`]                  | [bats]                                                    |                    |                            | `bats`                                                                                                                                         | `bats`                                                                                                                                        |                                                 |
 | [`github`](#github)                                                                               | ✅       |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`gitlab`](#gitlab) | | | | | | | | | |
+| [`gitlab`](#gitlab)                                                                               |         |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`agents`](#agents)                                                                               | ✅       |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `playwright` (opt-in)                           |
 | [`keepSorted`][keep-sorted]                                                                       | ✅       |                                                                                                                | `keep-sorted`                              |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`gitleaks`][gitleaks]                                                                            | ✅       |                                                                                                                | `gitleaks`                                 |                                                           |                    |                            | `gitleaks-git`                                                                                                                                 |                                                                                                                                               |                                                 |
@@ -448,21 +448,7 @@ Forks don't publish; private flakes need a [FlakeHub paid plan](https://flakehub
 
 ### `gitlab`
 
-Writes `.gitlab-ci.yml` for an x86_64 Ubuntu **shell executor** with Bash,
-curl, systemd and passwordless sudo.
-It installs Nix if absent and runs `nix flake check`;
-unlike GitHub CI, it does not build every package or development shell,
-run flake-checker, or publish to FlakeHub.
-Branches, tags and merge requests run checks, without duplicate push pipelines
-for branches with open merge requests.
-
-Configure it in an imported module, such as `nix/local.nix`;
-disable `nullkomma.github.enable` if you do not also use GitHub Actions.
-GitLab.com's hosted Docker runners are not shell executors.
-Use a dedicated runner for trusted code only:
-shell jobs and their optional restored cache can modify the host.
-The runner keeps its Nix installation between jobs;
-native GitLab caching is mainly useful across fresh runners.
+In `nix/local.nix`:
 
 <!-- nullkomma:gitlab:start -->
 ```nix
