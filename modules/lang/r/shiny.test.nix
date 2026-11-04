@@ -27,6 +27,7 @@
       plain = callFlakeWith { nullkomma.r.shiny.enable = lib.mkForce false; } fixture;
       # Shares its first port with `enabled`, whose app holds it while the dev apps start.
       local = callFlakeWith { nullkomma.r.shiny.port = 38380; } fixture;
+      single = callFlakeWith { nullkomma.r.shiny.devFunctions = lib.mkForce [ "app" ]; } fixture;
       mcpServer = (perSystem local).nullkomma.agents.mcpServers.r;
       heavy = [
         "shiny"
@@ -68,6 +69,9 @@
         };
       };
       checks = {
+        # Building the launcher runs ShellCheck on it.
+        r-shiny-single-app = pkgs.writeText "r-shiny-single-app" (perSystem single)
+        .process-compose.dev.settings.processes.r-shiny-browser.command;
         r-shiny =
           pkgs.runCommand "r-shiny"
             {

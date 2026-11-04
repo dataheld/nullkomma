@@ -196,7 +196,8 @@
                     config.nullkomma.r.package
                   ];
                   text = ''
-                    for app in ${lib.escapeShellArgs (map (a: a.name) devApps)}; do
+                    apps=(${lib.escapeShellArgs (map (a: a.name) devApps)})
+                    for app in "''${apps[@]}"; do
                       for _ in {1..120}; do
                         if ports=$(process-compose process ports "$app" 2>&1) && [[ "$ports" =~ \[([0-9]+) ]]; then
                           Rscript --vanilla -e "utils::browseURL('http://${localHost}:''${BASH_REMATCH[1]}')"
