@@ -579,16 +579,21 @@
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
             .direnv/cache .R/library/sentinel .envrc project-only.txt docs/index.html coverage.xml .nullkomma/cloudflare/terraform.tfstate \
             .agents/skills/demo/SKILL.md AGENTS.md .mcp.json .Renviron .Rprofile
+          mkdir -p .worktrees/branch .claude .aspell
+          touch .worktrees/branch/DESCRIPTION .claude/settings.json .radian_history .aspell/defaults.R .Rinstignore
           # Git worktrees have a .git file, which R does not exclude itself.
           rm -rf .git
           printf 'gitdir: /unavailable/worktree\n' > .git
           R CMD build --no-build-vignettes --no-manual .
           tar -tf nullkommafixture_0.0.1.tar.gz > package-files
-          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|[.]R|[.]Renviron|[.]Rprofile|[.]git|[.]envrc|[.]direnv|[.]github|[.]vscode|[.]nvim[.]lua|[.]mcp[.]json|[.]nullkomma|[.]agents|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files; then
+          if grep -E '([.]nix$|/(flake[.]lock|pkg[.]lock|AGENTS[.]md|docs|coverage[.]xml|project-only[.]txt)(/|$))' package-files ||
+            grep '^nullkommafixture/[.]' package-files | grep -vE '^nullkommafixture/([.]aspell/|[.]Rinstignore$)'; then
             echo "Development-only files leaked into the package source" >&2
             exit 1
           fi
           grep -qx 'nullkommafixture/R/hello.R' package-files
+          grep -qx 'nullkommafixture/[.]aspell/defaults[.]R' package-files
+          grep -qx 'nullkommafixture/[.]Rinstignore' package-files
         '';
         # Interactive R loads the working tree above the default packages, after the user's profile.
         r-profile = check "r-profile" ''
