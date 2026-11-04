@@ -49,6 +49,7 @@
                 text = ''
                   export _R_CHECK_CRAN_INCOMING_=false _R_CHECK_FORCE_SUGGESTS_=false _R_CHECK_SYSTEM_CLOCK_=false
                   Rscript --vanilla - "$@" <<'EOF'
+                  source("${./_cleanup-subprocesses.R}")
                   options(pkg.build_copy_method = "copy")
                   rcmdcheck::rcmdcheck(
                     build_args = c("--no-build-vignettes", "--no-manual"),

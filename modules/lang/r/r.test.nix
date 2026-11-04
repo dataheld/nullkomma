@@ -518,6 +518,32 @@
           wait "$pc" || true
           within stopped 2
         '';
+        # SIGKILL leaves R no chance to stop its workers; nothing else may outlive it either.
+        r-test-killed-stops-workers = check "r-test-killed-stops-workers" ''
+          git init -q
+          export WORKERS="$TMPDIR/workers"
+          cat > tests/testthat/test-wait.R <<'RS'
+          test_that("the worker runs until r-test is killed", {
+            cat(Sys.getpid(), "\n", sep = "", file = Sys.getenv("WORKERS"))
+            Sys.sleep(600)
+          })
+          RS
+          within() {
+            for _ in {1..300}; do "$@" && return; sleep 0.2; done
+            echo "timed out: $*" >&2
+            cat nk.log >&2
+            exit 1
+          }
+          set -m
+          ${task fixtures.r "r-test"} > nk.log 2>&1 &
+          group=$!
+          set +m
+          within test -s "$WORKERS"
+          worker="$(cat "$WORKERS")"
+          trap 'kill -KILL "$worker" 2>/dev/null || true' EXIT
+          kill -KILL -- -"$group"
+          within eval '! kill -0 "$worker" 2>/dev/null'
+        '';
         r-document = check "r-document" ''
           git init -q
           rm -r man
