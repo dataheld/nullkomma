@@ -169,6 +169,38 @@
                 '';
             # The brand nullkomma publishes with, for fixtures checking real content.
             brand = inputs.brand;
+            # After `project`: runs `process-compose up <process>` of `flake` with watches, as `$server`,
+            # with shell functions `awaiting <command...>`, polling until it succeeds,
+            # and `settled <process> <runs>`, waiting for that many runs to exit, and no further start.
+            watching = flake: process: ''
+              export PC_LOG_FILE="$TMPDIR/process-compose.log"
+              count() { grep -E "process=$1\$" "$PC_LOG_FILE" 2>/dev/null | grep -cF " $2 " || true; }
+              awaiting() {
+                for _ in {1..1500}; do
+                  "$@" && return
+                  kill -0 "$server" || break
+                  sleep 0.2
+                done
+                cat "$TMPDIR/up.log" "$PC_LOG_FILE" >&2
+                echo "Timed out waiting for: $*" >&2
+                exit 1
+              }
+              exited() { [ "$(count "$1" Exited)" -ge "$2" ]; }
+              settled() {
+                awaiting exited "$1" "$2"
+                sleep 3
+                [ "$(count "$1" Started)" -eq "$2" ] || {
+                  cat "$TMPDIR/up.log" "$PC_LOG_FILE" >&2
+                  echo "Expected $2 runs of $1, got $(count "$1" Started)" >&2
+                  exit 1
+                }
+              }
+              # A stopped process signals its whole process group, so the builder needs its own.
+              set -m
+              NO_COLOR=1 ${lib.getExe (perSystem flake).process-compose.dev.outputs.package} up ${process} -t=false > "$TMPDIR/up.log" 2>&1 &
+              server=$!
+              trap 'kill "$server" 2>/dev/null || true; wait || true' EXIT
+            '';
             # Every page of a built site meets German legal requirements.
             legalcheck =
               name: site:

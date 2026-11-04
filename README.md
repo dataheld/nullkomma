@@ -60,6 +60,11 @@ In the development shell, `process-compose up` starts every process of the `dev`
 that is not `disabled`, in a terminal UI:
 the tasks that work in the working tree, rerun when their files change,
 and services such as previews, which reload open pages.
+Tasks that run your code on every change, such as `r-test` and `r-build-site`,
+run here in their own copy of the working tree, so that files they write can't restart them.
+Each logs where its copy is, keeps it until its next run,
+and copies back only the outputs whose content changed, such as snapshots or the site.
+`nk <task>` runs them in the working tree.
 It does not run `nix flake check`:
 actions such as `write-files`, tasks that need a sandbox,
 and the `all` and `check` groups are disabled.
