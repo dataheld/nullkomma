@@ -41,6 +41,8 @@
               description = "Build the package and run R CMD check";
               depends_on.r-document.condition = "process_completed_successfully";
               working_dir = "./${cfg.prefix}";
+              # R stops the R CMD check that rcmdcheck starts in its own session only when SIGINT interrupts it.
+              shutdown.signal = 2;
               command = pkgs.writeShellApplication {
                 name = "r-check";
                 runtimeInputs = [ config.nullkomma.r.package ];

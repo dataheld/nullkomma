@@ -490,6 +490,34 @@
           ${task fixtures.r "r-test"}
           test ! -e man/hello.Rd
         '';
+        r-test-stops-workers = check "r-test-stops-workers" ''
+          git init -q
+          export WORKERS="$TMPDIR/workers" PC_NO_SERVER=1 PC_DISABLE_TUI=1
+          cat > tests/testthat/test-wait.R <<'RS'
+          test_that("the worker runs until r-test stops", {
+            cat(Sys.getpid(), "\n", sep = "", file = Sys.getenv("WORKERS"), append = TRUE)
+            Sys.sleep(600)
+          })
+          RS
+          workers() { [ -f "$WORKERS" ] && [ "$(wc -l < "$WORKERS")" -ge "$1" ]; }
+          stopped() { ! kill -0 "$(sed -n "$1p" "$WORKERS")" 2>/dev/null; }
+          within() {
+            for _ in {1..300}; do "$@" && return; sleep 0.2; done
+            echo "timed out: $*" >&2
+            cat pc.log >&2
+            exit 1
+          }
+          ${lib.getExe (perSystem fixtures.r).process-compose.dev.outputs.package} up r-test > pc.log 2>&1 &
+          pc=$!
+          trap 'kill "$pc" 2>/dev/null || true' EXIT
+          within workers 1
+          echo >> tests/testthat/test-wait.R
+          within workers 2
+          within stopped 1
+          kill "$pc"
+          wait "$pc" || true
+          within stopped 2
+        '';
         r-document = check "r-document" ''
           git init -q
           rm -r man
