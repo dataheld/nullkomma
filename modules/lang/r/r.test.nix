@@ -574,8 +574,6 @@
         '';
         r-test-stopped-by-hup = stoppedBy "HUP";
         r-test-stopped-by-term = stoppedBy "TERM";
-        # Nothing on macOS can stop R's processx subprocesses after a SIGKILL to R.
-        r-test-stopped-by-kill = lib.mkIf pkgs.stdenv.hostPlatform.isLinux (stoppedBy "KILL");
         r-document = check "r-document" ''
           git init -q
           rm -r man
@@ -722,6 +720,10 @@
           ${task nested "r-test"}
           ${task nested "r-check"}
         '';
+      }
+      # Nothing on macOS can stop R's processx subprocesses after a SIGKILL to R.
+      // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+        r-test-stopped-by-kill = stoppedBy "KILL";
       };
     };
 }
