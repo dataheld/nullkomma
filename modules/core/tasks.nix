@@ -132,12 +132,27 @@
               );
             };
           # Agents keep the server for a whole session, across `nix store gc`.
+          # process-compose ignores the end of its stdin, where MCP clients that quit or crash leave it (#330):
+          # relay stdin, and stop process-compose at its end or on a signal.
           mcpServer = serve "nk-mcp" [ mcp ] ''
             if command -v nix-store >/dev/null; then
               mkdir -p .nullkomma/gcroots
               nix-store --add-root .nullkomma/gcroots/nk-mcp --realise "$(dirname "$(dirname "$0")")" >/dev/null
             fi
-            PC_NO_SERVER=1 exec process-compose up -t=false
+            exec 3<&0
+            fifo="$(mktemp -d)/stdin"
+            mkfifo "$fifo"
+            trap 'rm -r "$(dirname "$fifo")"' EXIT
+            PC_NO_SERVER=1 process-compose up -t=false < "$fifo" &
+            server=$!
+            cat <&3 > "$fifo" &
+            relay=$!
+            exec 3<&-
+            stop() { kill -TERM "$server" 2>/dev/null || true; }
+            trap stop HUP INT TERM
+            wait "$relay" || true
+            stop
+            wait "$server"
           '';
           graph = serve "nk-graph" [ ] ''
             [ $# -gt 0 ] || set -- -f mermaid

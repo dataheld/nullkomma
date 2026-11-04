@@ -41,14 +41,17 @@
               description = "Build the package and run R CMD check";
               depends_on.r-document.condition = "process_completed_successfully";
               working_dir = "./${cfg.prefix}";
-              # R stops the R CMD check that rcmdcheck starts in its own session only when SIGINT interrupts it.
+              # See _subprocesses/README.md.
               shutdown.signal = 2;
               command = pkgs.writeShellApplication {
                 name = "r-check";
-                runtimeInputs = [ config.nullkomma.r.package ];
+                runtimeInputs = [
+                  (pkgs.callPackage ./_subprocesses { })
+                  config.nullkomma.r.package
+                ];
                 text = ''
                   export _R_CHECK_CRAN_INCOMING_=false _R_CHECK_FORCE_SUGGESTS_=false _R_CHECK_SYSTEM_CLOCK_=false
-                  Rscript --vanilla - "$@" <<'EOF'
+                  r-contain Rscript --vanilla - "$@" <<'EOF'
                   options(pkg.build_copy_method = "copy")
                   rcmdcheck::rcmdcheck(
                     build_args = c("--no-build-vignettes", "--no-manual"),

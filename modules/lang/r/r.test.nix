@@ -126,6 +126,37 @@
             ${script}
             touch $out
           '';
+      # `nk <task>` leaves the task in the caller's process group, so a closed terminal (SIGHUP)
+      # or a timeout (SIGTERM, SIGKILL) signals R directly, not through process-compose.
+      stoppedBy =
+        signal:
+        check "r-test-stopped-by-${lib.toLower signal}" ''
+          git init -q
+          export WORKERS="$TMPDIR/workers"
+          cat > tests/testthat/test-wait-a.R <<'RS'
+          test_that("the worker runs until r-test stops", {
+            cat(Sys.getpid(), "\n", sep = "", file = Sys.getenv("WORKERS"), append = TRUE)
+            Sys.sleep(600)
+          })
+          RS
+          cp tests/testthat/test-wait-a.R tests/testthat/test-wait-b.R
+          within() {
+            for _ in {1..300}; do eval "$1" && return; sleep 0.2; done
+            echo "timed out: $1" >&2
+            cat nk.log >&2
+            exit 1
+          }
+          set -m
+          ${task fixtures.r "r-test"} > nk.log 2>&1 &
+          group=$!
+          set +m
+          within '[ -f "$WORKERS" ] && [ "$(wc -l < "$WORKERS")" -ge 2 ]'
+          trap 'kill -KILL $(cat "$WORKERS") 2>/dev/null || true' EXIT
+          kill -${signal} -- -"$group"
+          for worker in $(cat "$WORKERS"); do
+            within "! kill -0 $worker 2>/dev/null"
+          done
+        '';
     in
     {
       nullkomma.nix.unit.tests = {
@@ -541,6 +572,8 @@
           wait "$pc" || true
           within stopped 2
         '';
+        r-test-stopped-by-hup = stoppedBy "HUP";
+        r-test-stopped-by-term = stoppedBy "TERM";
         r-document = check "r-document" ''
           git init -q
           rm -r man
@@ -687,6 +720,10 @@
           ${task nested "r-test"}
           ${task nested "r-check"}
         '';
+      }
+      # Nothing on macOS can stop R's processx subprocesses after a SIGKILL to R.
+      // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+        r-test-stopped-by-kill = stoppedBy "KILL";
       };
     };
 }
