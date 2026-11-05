@@ -459,15 +459,30 @@ In `nix/local.nix`:
   nullkomma.gitlab.enable = true;
 
   # Cache check and site build dependencies in `.gitlab-nix-cache/`, per ref and
-  # keyed by `flake.lock`. Restores unsigned local build output with sudo: keep
-  # GitLab's protected-branch cache separation enabled. Transfers can cost more
-  # than they save on persistent runners.
+  # keyed by `flake.lock`. Restoring imports unsigned paths, so the job user
+  # must be root or a trusted Nix user: keep GitLab's protected-branch cache
+  # separation enabled. Transfers can cost more than they save on persistent
+  # runners.
   # nullkomma.gitlab.cache.enable = false;
 
-  # Publish `packages.x86_64-linux.site` to GitLab Pages after checks pass on
-  # default-branch pushes. Requires a site provider, such as `quarto` or R's
-  # pkgdown, and GitLab 17.10 or newer.
+  # Image with Nix for Docker and Kubernetes executors. Shell executors ignore
+  # it and use the runner's Nix.
+  # nullkomma.gitlab.image = "nixos/nix:2.35.4";
+
+  # Nix settings added to `NIX_CONFIG`. The defaults build in parallel
+  # (`max-jobs = auto`) and fail instead of building unsandboxed when `sandbox =
+  # true` is not possible (`sandbox-fallback = false`). The job log shows the
+  # effective `max-jobs`, `cores` and `sandbox`. A Nix daemon ignores most
+  # settings from users it does not trust.
+  # nullkomma.gitlab.nixConfig = "";
+
+  # Build `packages.x86_64-linux.site` after the checks in every pipeline, and
+  # publish it to GitLab Pages on default-branch pushes. Requires a site
+  # provider, such as `quarto` or R's pkgdown, and GitLab 17.10 or newer.
   # nullkomma.gitlab.pages.enable = false;
+
+  # Tags that select the runners for all jobs.
+  # nullkomma.gitlab.tags = [ ];
 }
 ```
 <!-- nullkomma:gitlab:end -->
@@ -677,6 +692,12 @@ To keep a committed `.Rprofile` of your own, set
   # Provide r-test-coverage, writing a local Cobertura coverage.xml report; no
   # uploads or coverage threshold. Default: whether covr is in pkg.lock.
   # nullkomma.r.coverage.enable = …;
+
+  # Whether the package is meant for CRAN. If not, `r-check` skips what only
+  # CRAN needs: CRAN and Bioconductor index lookups, for dependency cycles and
+  # for links to packages that are not installed, and CRAN's limits on installed
+  # size and data compression.
+  # nullkomma.r.cranBound = true;
 
   # Extra R packages from nixpkgs (e.g. dev tooling not in DESCRIPTION); pak,
   # languageserver, pkgload, httpgd, later and rstudioapi are always included.
