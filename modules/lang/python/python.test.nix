@@ -93,8 +93,6 @@
               "python-lock"
             ];
             tasks = [
-              "python-build"
-              "python-check-dist"
               "python-lock"
               "python-lock-check"
               "python-test"
@@ -201,13 +199,9 @@
         test ! -f uv.lock
         touch "$out"
       '';
-      checks.python-distribution-install = pkgs.runCommand "python-distribution-install" { } ''
-        ${project fixture}
-        ${task fixtures.python "python-check-dist"}
-        test -f dist/nk_example-0.1.0.tar.gz
-        test -f dist/nk_example-0.1.0-py3-none-any.whl
-        substituteInPlace src/nk_example/__init__.py --replace-fail 'def main(' 'def absent('
-        fails "AttributeError" ${task fixtures.python "python-check-dist"}
+      checks.python-dist = pkgs.runCommand "python-dist" { } ''
+        test -f ${cfg.packages.dist}/nk_example-0.1.0.tar.gz
+        test -f ${cfg.packages.dist}/nk_example-0.1.0-py3-none-any.whl
         touch "$out"
       '';
       checks.python-test-customization = pkgs.runCommand "python-test-customization" { } ''

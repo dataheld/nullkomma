@@ -26,8 +26,7 @@
       inputs.pyproject-nix.follows = "pyproject-nix";
     };
     pyproject-build-systems = {
-      # Keep build-backend metadata compatible with Nixpkgs' Twine.
-      url = "github:pyproject-nix/build-system-pkgs/bd84af0909818f2c1d61f8d0271fd508b280d969";
+      url = "github:pyproject-nix/build-system-pkgs";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.pyproject-nix.follows = "pyproject-nix";
       inputs.uv2nix.follows = "uv2nix";

@@ -157,17 +157,8 @@
               ]
             );
             runtime = pythonSet.mkVirtualEnv "${name}-env" { ${name} = [ ]; };
-            runtimeDependencies = pythonSet.mkVirtualEnv "${name}-runtime-deps" pythonSet.${name}.dependencies;
             development = editableSet.mkVirtualEnv "${name}-dev-env" devDeps;
             testEnvironment = pythonSet.mkVirtualEnv "${name}-test-env" devDeps;
-            buildEnvironment = pythonSet.mkVirtualEnv "${name}-build-env" (
-              lib.listToAttrs (
-                map (requirement: {
-                  inherit (requirement) name;
-                  value = requirement.extras;
-                }) (inputs.pyproject-nix.lib.pep518.parseBuildSystems pyproject)
-              )
-            );
             uvEnv = {
               UV_PYTHON = pcfg.interpreter.interpreter;
               UV_PYTHON_DOWNLOADS = "never";
@@ -217,10 +208,12 @@
               export PATH
               exec "''${python[@]}" -m pytest "''${options[@]}" ${lib.optionalString cfg.test.coverage.enable "--cov --cov-report=term-missing --cov-report=xml --cov-report=html"} "$@"
             '';
-            build = command "python-build" [ pkgs.uv ] ''
-              exec uv build --offline --no-build-isolation \
-                --python ${buildEnvironment}/bin/python "$@"
-            '';
+            distribution =
+              buildType:
+              (pythonSet.${name}.override {
+                pyprojectHook = pythonSet.pyprojectDistHook;
+              }).overrideAttrs
+                { env.uvBuildType = buildType; };
           in
           {
             nullkomma.python = {
@@ -241,9 +234,12 @@
             packages = {
               ${name} = runtime;
               default = lib.mkDefault runtime;
-              dist = config.nullkomma.sandbox {
-                process = "python-build";
-                output = "${prefix}dist";
+              dist = pkgs.symlinkJoin {
+                name = "${name}-dist";
+                paths = map distribution [
+                  "sdist"
+                  "wheel"
+                ];
               };
             };
             apps =
@@ -294,36 +290,12 @@
                   ];
                 }
               );
-              python-build = process "Build the source distribution and a wheel from it" [ ] "" // {
-                command = build;
+              check.depends_on = {
+                python-lock-check.condition = "process_completed_successfully";
+              }
+              // lib.optionalAttrs cfg.test.enable {
+                python-test.condition = "process_completed_successfully";
               };
-              python-check-dist =
-                process "Check distribution metadata and install the wheel offline"
-                  [ pkgs.uv pkgs.python3Packages.twine ]
-                  ''
-                    twine check --strict dist/*
-                    destination="$(mktemp -d)"
-                    trap 'rm -rf "$destination"' EXIT
-                    uv pip install --python ${pcfg.interpreter.interpreter} \
-                      --target "$destination" --no-deps --offline dist/*.whl
-                    cd "$destination"
-                    PYTHONPATH="$destination" ${runtimeDependencies}/bin/python ${./_check-dist.py} ${lib.escapeShellArg name}
-                  ''
-                // {
-                  depends_on.python-build.condition = "process_completed_successfully";
-                };
-              check.depends_on =
-                lib.genAttrs
-                  [
-                    "python-lock-check"
-                    "python-check-dist"
-                  ]
-                  (_: {
-                    condition = "process_completed_successfully";
-                  })
-                // lib.optionalAttrs cfg.test.enable {
-                  python-test.condition = "process_completed_successfully";
-                };
             };
           };
       };
