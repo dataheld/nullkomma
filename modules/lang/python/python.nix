@@ -45,23 +45,10 @@
           defaultText = lib.literalExpression "self.outPath";
           description = "Python package directory containing project-owned `pyproject.toml` and `uv.lock`.";
         };
-        dependencyGroups = lib.mkOption {
-          type = lib.types.listOf lib.types.str;
-          default = lib.optional (pyproject.dependency-groups or { } ? dev) "dev";
-          defaultText = lib.literalMD "`[ \"dev\" ]` when that dependency group exists, otherwise `[]`";
-          description = "Dependency groups from uv.lock included in development and tests, never the runtime package.";
-        };
-        test = {
-          enable = lib.mkOption {
-            type = lib.types.bool;
-            default = true;
-            description = "Run pytest from the selected dependency groups.";
-          };
-          coverage.enable = lib.mkOption {
-            type = lib.types.bool;
-            default = true;
-            description = "Use pytest-cov from the selected groups to report terminal, XML and HTML coverage; configure coverage sources in pyproject.toml. No threshold or upload.";
-          };
+        test.enable = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Run pytest, which a dependency group must provide, with `python-test`: on the editable working tree in the dev loop and `check`, on the installed package in nix flake check (or with `nk python-test --installed`).";
         };
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption (
@@ -90,17 +77,10 @@
               readOnly = true;
               description = "Editable development virtual environment with the selected dependency groups.";
             };
-            test = {
-              packages = lib.mkOption {
-                type = lib.types.listOf lib.types.package;
-                default = [ ];
-                description = "Extra commands available to pytest, for example pkgs.git.";
-              };
-              environment = lib.mkOption {
-                type = lib.types.attrsOf lib.types.str;
-                default = { };
-                description = "Environment variables for pytest; sandbox checks also provide a writable private HOME.";
-              };
+            test.packages = lib.mkOption {
+              type = lib.types.listOf lib.types.package;
+              default = [ ];
+              description = "Extra commands available to pytest, for example pkgs.git.";
             };
           };
         }
@@ -137,28 +117,20 @@
                     pcfg.overlay
                   ]
                 );
-            devDeps = {
-              ${name} = cfg.dependencyGroups;
-            };
             editableSet = pythonSet.overrideScope (
               lib.composeManyExtensions [
-                (workspace.mkEditablePyprojectOverlay {
-                  root = "$NULLKOMMA_PYTHON_ROOT";
-                  members = [ name ];
+                (workspace.mkEditablePyprojectOverlay { root = "$NULLKOMMA_PYTHON_ROOT"; })
+                # Hatchling requests editables dynamically (PEP 660), which Nix builds cannot.
+                (final: prev: {
+                  ${name} = prev.${name}.overrideAttrs (old: {
+                    nativeBuildInputs = old.nativeBuildInputs ++ final.resolveBuildSystem { editables = [ ]; };
+                  });
                 })
-                (
-                  final: prev:
-                  lib.optionalAttrs (pyproject.build-system.build-backend or "" == "hatchling.build") {
-                    ${name} = prev.${name}.overrideAttrs (old: {
-                      nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ final.resolveBuildSystem { editables = [ ]; };
-                    });
-                  }
-                )
               ]
             );
-            runtime = pythonSet.mkVirtualEnv "${name}-env" { ${name} = [ ]; };
-            development = editableSet.mkVirtualEnv "${name}-dev-env" devDeps;
-            testEnvironment = pythonSet.mkVirtualEnv "${name}-test-env" devDeps;
+            runtime = pythonSet.mkVirtualEnv "${name}-env" workspace.deps.default;
+            development = editableSet.mkVirtualEnv "${name}-dev-env" workspace.deps.all;
+            testEnvironment = pythonSet.mkVirtualEnv "${name}-test-env" workspace.deps.all;
             uvEnv = {
               UV_PYTHON = pcfg.interpreter.interpreter;
               UV_PYTHON_DOWNLOADS = "never";
@@ -195,18 +167,13 @@
               meta.description = project.description or "Run ${script}";
             }) scripts;
             test = command "python-test" pcfg.test.packages ''
-              if [[ "''${1:-}" == "--installed" ]]; then
+              if [[ "''${1-}" == --installed ]]; then
                 shift
-                python=(${testEnvironment}/bin/python -I)
                 PATH="${testEnvironment}/bin:$PATH"
-                options=(--import-mode=importlib -o pythonpath=)
-              else
-                python=(${development}/bin/python)
-                PATH="${development}/bin:$PATH"
-                options=()
+                exec python -I -m pytest --import-mode=importlib -o pythonpath= "$@"
               fi
-              export PATH
-              exec "''${python[@]}" -m pytest "''${options[@]}" ${lib.optionalString cfg.test.coverage.enable "--cov --cov-report=term-missing --cov-report=xml --cov-report=html"} "$@"
+              PATH="${development}/bin:$PATH"
+              exec python -m pytest "$@"
             '';
             distribution =
               buildType:
@@ -255,12 +222,10 @@
                 };
               };
             checks.python-test = lib.mkIf cfg.test.enable (
-              lib.mkForce (
-                config.nullkomma.sandbox {
-                  process = "python-test";
-                  args = [ "--installed" ];
-                }
-              )
+              config.nullkomma.sandbox {
+                process = "python-test";
+                args = [ "--installed" ];
+              }
             );
             process-compose.dev.settings.processes = {
               python-lock = process "Resolve pyproject.toml into uv.lock" [ ] "" // {
@@ -270,17 +235,12 @@
                 pkgs.uv
               ] ''exec uv lock --check --offline "$@"'';
               python-test = lib.mkIf cfg.test.enable (
-                process "Run pytest on source locally and the installed package in sandbox checks" [ ] ""
+                process "Run pytest on the editable working tree; --installed tests the installed package" [ ] ""
                 // {
                   command = config.nullkomma.scratch {
                     name = "python-test";
                     command = test;
-                    outputs = [
-                      "coverage.xml"
-                      "htmlcov"
-                    ];
                   };
-                  environment = pcfg.test.environment;
                   disabled = false;
                   watch.paths = [
                     {
@@ -288,6 +248,12 @@
                       exclude = generated;
                     }
                   ];
+                }
+              );
+              python-test-coverage = lib.mkIf cfg.test.enable (
+                process "Write test coverage to the terminal, coverage.xml and htmlcov with pytest-cov" [ ] ""
+                // {
+                  command = ''${lib.getExe test} --cov --cov-report=term-missing --cov-report=xml --cov-report=html "$@"'';
                 }
               );
               check.depends_on = {

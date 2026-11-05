@@ -27,6 +27,7 @@ Available recipes:
     python-check-dist *args # Check distribution metadata and install the wheel offline
     python-lock *args       # Resolve pyproject.toml into uv.lock
     python-lock-check *args # Check uv.lock without changing it or accessing the network
-    python-test *args       # Run pytest on source locally and the installed package in sandbox checks
+    python-test *args       # Run pytest on the editable working tree; --installed tests the installed package
+    python-test-coverage *args # Write test coverage to the terminal, coverage.xml and htmlcov with pytest-cov
     python-typecheck *args  # Check Python types with ty
 ```

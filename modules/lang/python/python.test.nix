@@ -43,10 +43,7 @@
       );
       customized = harness.callFlakeWith {
         perSystem = { pkgs, ... }: {
-          nullkomma.python.test = {
-            packages = [ pkgs.git ];
-            environment.NULLKOMMA_PYTHON_TEST = "configured";
-          };
+          nullkomma.python.test.packages = [ pkgs.git ];
         };
       } fixture;
       nested = rawAt root {
@@ -96,6 +93,7 @@
               "python-lock"
               "python-lock-check"
               "python-test"
+              "python-test-coverage"
               "python-typecheck"
             ];
             lsp = [
@@ -164,13 +162,14 @@
         ${project root}
         ${task nested "python-test"}
         ${task nested "python-typecheck"}
-        test -f tests/fixtures/python/coverage.xml
         touch "$out"
       '';
       checks.python-working-tree = pkgs.runCommand "python-working-tree" { } ''
         ${project fixture}
         export PYTHONPATH=/nonexistent-inherited-pythonpath
         ${task fixtures.python "python-test"}
+        test ! -e coverage.xml
+        ${task fixtures.python "python-test-coverage"}
         test -f coverage.xml
         test -f htmlcov/index.html
         mv src src-hidden
@@ -207,14 +206,10 @@
       checks.python-test-customization = pkgs.runCommand "python-test-customization" { } ''
         ${project fixture}
         cat > tests/test_environment.py <<'PY'
-        import os
-        import pathlib
         import subprocess
 
         def test_environment():
-            assert os.environ["NULLKOMMA_PYTHON_TEST"] == "configured"
             subprocess.run(["git", "--version"], check=True)
-            (pathlib.Path.home() / "writable-home").touch()
         PY
         ${task customized "python-test"}
         touch "$out"
