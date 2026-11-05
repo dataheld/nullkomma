@@ -4,6 +4,11 @@ title: Branded home
 
 {{< greeting >}}
 
+```console
+$ example show
+Plain console output
+```
+
 ```{mermaid}
 flowchart LR
   subgraph group[Related steps]

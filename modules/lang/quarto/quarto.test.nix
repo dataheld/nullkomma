@@ -39,9 +39,31 @@
           de = root + "/tests/fixtures/quarto-branded/_privacy/local.de.md";
         };
       };
+      linked = callFlakeWith {
+        perSystem.nullkomma.quarto.package = pkgs.writeShellScriptBin "quarto" ''
+          mkdir -p _site source-assets
+          printf '%s\n' 'linked site resource' > source-assets/logo.svg
+          ln -s ../source-assets _site/assets
+          ln -s ../source-assets/logo.svg _site/logo.svg
+        '';
+      } (root + "/tests/fixtures/quarto");
     in
     {
       checks = {
+        quarto-site-resources = pkgs.runCommand "quarto-site-resources" { } ''
+          site=${linked.packages.${system}.site}
+          test ! -L "$site/logo.svg"
+          test ! -L "$site/assets"
+          grep -Fx 'linked site resource' "$site/logo.svg"
+          cmp "$site/logo.svg" "$site/assets/logo.svg"
+          test -L ${
+            (perSystem linked).nullkomma.sandbox {
+              process = "quarto-render";
+              output = "_site";
+            }
+          }/logo.svg
+          touch "$out"
+        '';
         quarto-nkdocs = linkcheck "quarto-nkdocs" nkdocs.packages.${system}.site;
         quarto-site = pkgs.runCommand "nullkomma-quarto-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           test ! -e ${fixtures.quarto.packages.${system}.site}/privacy.html
@@ -54,6 +76,7 @@
           } ${themed.packages.${system}.site} <<'PY'
           from html.parser import HTMLParser
           from pathlib import Path
+          import re
           import sys
 
           class Document(HTMLParser):
@@ -81,6 +104,7 @@
           assert "Fixture home" in text(f"{plain}/index.html")
           assert "{ answer = 42; }" in text(f"{plain}/index.html")
           html = Path(f"{branded}/index.html").read_text()
+          assert 'class="console"' in html and "Plain console output" in html
           assert "Related steps" in html and "mermaid" in html
           assert 'name="mermaid-theme"' not in html
           assert 'name="mermaid-theme" content="forest"' in Path(f"{branded}/forest.html").read_text()
@@ -91,6 +115,9 @@
               assert "--bs-primary: #6f42c1" in css, mode
               assert "--mermaid-edge-color: var(--bs-secondary-color)" in css, mode
               assert 'html:not(:has(meta[name=mermaid-theme])) svg.mermaid-js .labelBkg' in css, mode
+              if mode.endswith("quarto-color-alternate"):
+                  pre = re.search(r"(?:^|})pre\{([^}]*)\}", css).group(1)
+                  assert re.search(r"(?:^|;)color:#dee2e6(?:;|$)", pre), pre
           left, right = html.split('<div class="nav-footer-right">')
           assert "Shared fixture footer" in left
           assert "Imprint" not in left

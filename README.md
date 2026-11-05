@@ -481,6 +481,8 @@ Installing editors belongs to your user environment, e.g. [lap](https://github.c
 ### `quarto`
 
 Renders the project into `packages.site`; `quarto-preview` serves it and reloads on edits.
+Site resources are copied as files,
+including those linked from outside the output directory.
 For a documentation site, select nkdocs, a Quarto extension nullkomma generates, in `_quarto.yml`:
 
 ```yaml
