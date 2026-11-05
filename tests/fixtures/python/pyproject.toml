@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest", "pytest-cov"]
+
+[project]
+name = "nk-example"
+version = "0.1.0"
+description = "Python consumer contract fixture"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["click>=8"]
+
+[project.scripts]
+nk-example = "nk_example:main"
+
+[tool.coverage.run]
+source = ["nk_example"]
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]

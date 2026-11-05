@@ -28,6 +28,8 @@
             actionlint = "Actionlint YAML settings.";
             gitleaks = "Gitleaks TOML settings for working-tree and history scans; upstream rules are kept.";
             jscpd = "Jscpd JSON settings; `ignore` extends treefmt's exclusions, `threshold` defaults to zero.";
+            ruff = "Ruff TOML settings, shared by its treefmt check and formatter; native configuration files are ignored.";
+            ty = "ty TOML settings, shared by type checking and its language server; native configuration files are ignored.";
           };
       config.perSystem =
         let

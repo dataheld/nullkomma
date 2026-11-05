@@ -184,7 +184,7 @@ Configure linters in Nix, not in config files.
 Native config files are ignored (Jarl, which can't ignore them, fails instead);
 suppression comments such as `# shellcheck disable=SC2086` still work.
 Your settings override plugins' `lib.mkDefault` values, and lists concatenate.
-typos, rumdl (`markdown`), actionlint, gitleaks and jscpd take their settings
+typos, rumdl (`markdown`), actionlint, gitleaks, jscpd, Ruff and ty take their settings
 from `nullkomma.lint.<tool>`; the others from treefmt-nix:
 
 | Linter        | Nix configuration                                   | Settings                                                 |
@@ -339,6 +339,7 @@ Those marked under Default are enabled unless you opt out.
 | [`flakehub`][flakehub]                                                                            | ✅       | [`fh`]                                                                                                         |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`quarto`](#quarto) (includes nkdocs; optional [brand](#brand))                                   |         | [`quarto`]                                                                                                     |                                            |                                                           | `site`             |                            | `quarto-render`, `quarto-preview`                                                                                                              | `quarto-preview`                                                                                                                              | `playwright`                                    |
 | [`cloudflare`](#cloudflare)                                                                       |         | [`wrangler`]                                                                                                   |                                            | `cloudflare-validate` ([OpenTofu] validation)             |                    | `deploy`[^deploy]          | `cloudflare-validate`, `cloudflare-plan`, `cloudflare-deploy`                                                                                  |                                                                                                                                               | `cloudflare-api`, `cloudflare-docs`, `opentofu` |
+| [`python`](#python) | | [Python], [uv], [Ruff], [ty], editable package and development groups | `ruff-check`, `ruff-format` | `python-lock-check`, `python-test`, `python-typecheck`, `python-check-dist` | package name, `default`, `dist` | console scripts, `default` for one script, `python-lock` | `python-lock`, `python-lock-check`, `python-test`, `python-typecheck`, `python-build`, `python-check-dist` | `python-test`, `python-typecheck` | |
 | [`r`](#r) (optional [non-Nix collaboration](#r-development-without-nix), [pkgdown brand](#brand)) |         | [R], [radian], [Air]; [languageserver], [`pkgload`], [pak], [httpgd], [later], [rstudioapi], [btw], [mcptools] | `air`, [`jarl`][jarl]                      | `r-document-namespace`, `r-test`, `r-check`               | `site` ([pkgdown]) | `r-lock`, `shiny` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-lock`, `r-run-app` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-shiny-<function>` (opt-in) | `r` ([btw], [mcptools]); `playwright` (Shiny)   |
 
 Plugins meet only through framework options, so one could live in a flake of its own,
@@ -561,6 +562,77 @@ OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is invo
 }
 ```
 <!-- nullkomma:cloudflare:end -->
+
+### `python`
+
+Enable `nullkomma.python.enable` for a Python package with `[project]`
+metadata, a PEP 517 build backend, and a committed `uv.lock`.
+The package can use a flat or `src/` layout.
+For a nested package, set `nullkomma.python.root = ./path/to/package`.
+Development dependencies belong in `pyproject.toml` dependency groups;
+the plugin selects `dev` when present.
+Include `pytest` and `pytest-cov` there, or disable tests or coverage through
+`nullkomma.python.test`.
+Set `[tool.coverage.run].source` to your import package names to scope
+coverage reports.
+
+[uv2nix] resolves the lock for Nix, preferring dependency wheels;
+[pyproject.nix] builds the local package from source.
+`pyproject.toml` owns Python metadata and requirements,
+`uv.lock` owns resolved dependencies,
+and `flake.lock` pins the interpreter, tools and build backends.
+The package remains usable with ordinary uv and Python packaging tools
+outside Nix.
+The plugin does not publish to PyPI or create a documentation framework;
+use [`quarto`](#quarto) for a branded site.
+
+The named/default package is a runtime-only virtual environment.
+Console scripts become named apps, with a default app for a sole script.
+The development shell uses an editable environment with the selected groups:
+source edits take effect without rebuilding it.
+Nix owns that environment; shell entry does not run `uv sync`, update the
+lock, download Python, or contact a Python package index.
+Use `nix run .#python-lock` to create a missing lock,
+then `git add uv.lock`.
+Later lock changes are explicit through that app or `nk python-lock`.
+`python-lock-check` checks freshness offline without rewriting it.
+
+`nk python-test` runs pytest against editable source.
+The sandbox check uses the installed package, isolated from the checkout's
+import path and pytest's `pythonpath` setting.
+Both produce terminal, XML and HTML coverage without a threshold or upload.
+`nk python-build` builds an sdist and a wheel from it, offline;
+`nix build .#dist` exposes these artifacts.
+`python-check-dist` checks metadata with Twine and installs the wheel into
+a temporary directory, checking console entry points outside the source.
+It does not upload anything.
+
+Ruff uses its stable default rules plus import sorting and safe fixes.
+ty provides type checking and editor services.
+Both target the declared Python minimum, independently of the interpreter.
+Configure them through `nullkomma.lint.ruff` and `nullkomma.lint.ty`;
+native Ruff/ty config files are ignored.
+VS Code and Neovim use the same ty configuration and editable environment,
+and the framework's treefmt formatter.
+
+Per-system overrides compose with the existing framework:
+
+```nix
+perSystem = { pkgs, ... }: {
+  nullkomma.python = {
+    interpreter = pkgs.python313;
+    test.packages = [ pkgs.git ];
+    test.environment.MY_TEST_SETTING = "value";
+  };
+};
+```
+
+Use ordinary `process-compose.dev.settings.processes` overrides for
+task commands, dependencies and environment.
+Use `perSystem.nullkomma.python.overlay` for scoped build-backend or
+native-library fixes.
+Python dependencies still belong in `pyproject.toml` and `uv.lock`,
+not in that overlay.
 
 ### `r`
 
@@ -812,13 +884,19 @@ It is **not**:
 [ppm]: https://packagemanager.posit.co
 [process-compose]: https://f1bonacc1.github.io/process-compose/
 [process-compose-flake]: https://github.com/Platonic-Systems/process-compose-flake
+[pyproject.nix]: https://pyproject-nix.github.io/pyproject.nix/
+[python]: https://www.python.org
 [r]: https://www.r-project.org
 [radian]: https://github.com/randy3k/radian
 [rstudioapi]: https://rstudio.github.io/rstudioapi/
+[ruff]: https://docs.astral.sh/ruff/
 [terranix]: https://terranix.org/flake-parts.html
 [toml]: https://toml.io
 [treefmt]: https://treefmt.com
 [typos]: https://github.com/crate-ci/typos
+[ty]: https://docs.astral.sh/ty/
+[uv]: https://docs.astral.sh/uv/
+[uv2nix]: https://pyproject-nix.github.io/uv2nix/
 [yaml]: https://yaml.org
 [yaml-language-server]: https://github.com/redhat-developer/yaml-language-server
 [`actionlint`]: https://github.com/rhysd/actionlint
@@ -838,3 +916,43 @@ It is **not**:
 [`wrangler`]: https://developers.cloudflare.com/workers/wrangler/
 [`yamlfmt`]: https://github.com/google/yamlfmt
 [`yamllint`]: https://github.com/adrienverge/yamllint
+
+<!-- nullkomma:python:start -->
+```nix
+{
+  # Whether to enable the python plugin.
+  nullkomma.python.enable = true;
+
+  # Dependency groups from uv.lock included in development and tests, never the
+  # runtime package. Default: `[ "dev" ]` when that dependency group exists,
+  # otherwise `[]`.
+  # nullkomma.python.dependencyGroups = …;
+
+  # Python package directory containing project-owned `pyproject.toml` and
+  # `uv.lock`.
+  # nullkomma.python.root = self.outPath;
+
+  # Use pytest-cov from the selected groups to report terminal, XML and HTML
+  # coverage; configure coverage sources in pyproject.toml. No threshold or
+  # upload.
+  # nullkomma.python.test.coverage.enable = true;
+
+  # Run pytest from the selected dependency groups.
+  # nullkomma.python.test.enable = true;
+
+  # Nix Python interpreter; must satisfy the project's requires-python.
+  # perSystem.nullkomma.python.interpreter = pkgs.python3;
+
+  # Scoped pyproject.nix overlay for native libraries and package build fixes,
+  # applied after uv.lock.
+  # perSystem.nullkomma.python.overlay = final: prev: {};
+
+  # Environment variables for pytest; sandbox checks also provide a writable
+  # private HOME.
+  # perSystem.nullkomma.python.test.environment = { };
+
+  # Extra commands available to pytest, for example pkgs.git.
+  # perSystem.nullkomma.python.test.packages = [ ];
+}
+```
+<!-- nullkomma:python:end -->
