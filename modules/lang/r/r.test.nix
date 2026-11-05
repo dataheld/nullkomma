@@ -599,6 +599,21 @@
           echo 'stop("local-r-source-marker")' >> R/hello.R
           fails local-r-source-marker ${task fixtures.r "r-check"}
         '';
+        r-check-not-cran-bound =
+          let
+            flake = callFlakeWith { nullkomma.r.cranBound = false; } fixture;
+          in
+          check "r-check-not-cran-bound" ''
+            # Data that CRAN would want compressed.
+            Rscript --vanilla -e 'x <- numeric(1e5); save(x, file = "R/sysdata.rda", compress = FALSE)'
+            # Every request fails, so that a repository lookup leaves a warning.
+            export http_proxy=http://127.0.0.1:9 https_proxy=http://127.0.0.1:9
+            ${task flake "r-check"} 2>&1 | tee r-check.log
+            if grep -F 'unable to access index' r-check.log; then
+              echo "r-check looked up package repositories" >&2
+              exit 1
+            fi
+          '';
         r-check-runtime-files = check "r-check-runtime-files" ''
           printf 'project-specific exclusion\n' > project-only.txt
           cp .Rbuildignore "$TMPDIR/Rbuildignore"
