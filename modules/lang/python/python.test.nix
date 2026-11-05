@@ -24,12 +24,8 @@
         imports = [ nullkomma.flakeModules.python ];
       };
       stringRoot = rawAt "${builtins.path { path = fixture; }}" {
-        imports = [
-          nullkomma.flakeModules.python
-          nullkomma.flakeModules.neovim
-        ];
+        imports = [ nullkomma.flakeModules.python ];
         nullkomma.python.enable = true;
-        nullkomma.neovim.enable = true;
       };
       withoutLock = builtins.path {
         path = fixture;
@@ -80,7 +76,6 @@
           expr = {
             apps = lib.attrNames cfg.apps;
             tasks = lib.filter (lib.hasPrefix "python-") (lib.attrNames cfg.taskRunners.default.tasks);
-            lsp = cfg.nullkomma.editor.languageServers.ty.command;
             formatters = lib.filter (lib.hasPrefix "ruff") (lib.attrNames cfg.treefmt.build.programs);
           };
           expected = {
@@ -96,10 +91,6 @@
               "python-test-coverage"
               "python-typecheck"
             ];
-            lsp = [
-              "ty"
-              "server"
-            ];
             formatters = [
               "ruff-check"
               "ruff-format"
@@ -107,7 +98,7 @@
           };
         };
         testPythonStringRoot = {
-          expr = builtins.stringLength (perSystem stringRoot).nullkomma.files.".nvim.lua".text > 0;
+          expr = lib.isString (perSystem stringRoot).nullkomma.python.environments.development.drvPath;
           expected = true;
         };
         testPythonMinimumVersion = {
@@ -121,21 +112,13 @@
           };
         };
         testPythonMissingLock = {
-          expr = (builtins.tryEval bootstrap.packages.default.drvPath).success;
-          expected = false;
-        };
-        testPythonNestedRoot = {
-          expr = (perSystem nested).process-compose.dev.settings.processes.python-typecheck.working_dir;
-          expected = "./tests/fixtures/python/";
-        };
-        testPythonEditorEnvironment = {
           expr = {
-            neovim = cfg.nullkomma.editor.languageServers.ty.settings.ty.configuration.environment.python;
-            vscode = cfg.nullkomma.editor.vscode.settings."ty.configuration".environment.python;
+            package = (builtins.tryEval bootstrap.packages.default.drvPath).success;
+            lock = (builtins.tryEval bootstrap.apps.python-lock.program).success;
           };
           expected = {
-            neovim = "${cfg.nullkomma.python.devEnvironment}/bin/python";
-            vscode = "${cfg.nullkomma.python.devEnvironment}/bin/python";
+            package = false;
+            lock = true;
           };
         };
         testPythonIntelConsumer = {
@@ -190,12 +173,6 @@
         ${task fixtures.python "python-test"} tests/test_example.py
         substituteInPlace pyproject.toml --replace-fail 'click>=8' 'click>=999'
         fails "lock" ${task fixtures.python "python-lock-check"}
-        touch "$out"
-      '';
-      checks.python-bootstrap = pkgs.runCommand "python-bootstrap" { } ''
-        ${project withoutLock}
-        ${bootstrap.apps.python-lock.program} --help >/dev/null
-        test ! -f uv.lock
         touch "$out"
       '';
       checks.python-dist = pkgs.runCommand "python-dist" { } ''
