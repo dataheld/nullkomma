@@ -43,6 +43,17 @@
               working_dir = "./${cfg.prefix}";
               # See _subprocesses/README.md.
               shutdown.signal = 2;
+              environment = {
+                _R_CHECK_CRAN_INCOMING_ = "false";
+                _R_CHECK_FORCE_SUGGESTS_ = "false";
+                _R_CHECK_SYSTEM_CLOCK_ = "false";
+              }
+              // lib.optionalAttrs (!cfg.cranBound) {
+                _R_CHECK_PKG_SIZES_ = "false";
+                _R_CHECK_COMPACT_DATA_ = "false";
+                # The packages known to R CMD check besides installed ones.
+                _R_CHECK_XREFS_REPOSITORIES_ = "file://${pkgs.writeTextDir "src/contrib/PACKAGES" ""}";
+              };
               command = pkgs.writeShellApplication {
                 name = "r-check";
                 runtimeInputs = [
@@ -50,12 +61,12 @@
                   config.nullkomma.r.package
                 ];
                 text = ''
-                  export _R_CHECK_CRAN_INCOMING_=false _R_CHECK_FORCE_SUGGESTS_=false _R_CHECK_SYSTEM_CLOCK_=false
                   r-contain Rscript --vanilla - "$@" <<'EOF'
                   options(pkg.build_copy_method = "copy")
                   rcmdcheck::rcmdcheck(
                     build_args = c("--no-build-vignettes", "--no-manual"),
                     args = c(${rVector cfg.check.args}, commandArgs(TRUE)),
+                    ${lib.optionalString (!cfg.cranBound) "repos = character(),"}
                     error_on = ${builtins.toJSON cfg.check.errorOn}
                   )
                   EOF

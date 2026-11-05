@@ -618,6 +618,12 @@ To keep a committed `.Rprofile` of your own, set
   # uploads or coverage threshold. Default: whether covr is in pkg.lock.
   # nullkomma.r.coverage.enable = …;
 
+  # Whether the package is meant for CRAN. If not, `r-check` skips what only
+  # CRAN needs: CRAN and Bioconductor index lookups, for dependency cycles and
+  # for links to packages that are not installed, and CRAN's limits on installed
+  # size and data compression.
+  # nullkomma.r.cranBound = true;
+
   # Extra R packages from nixpkgs (e.g. dev tooling not in DESCRIPTION); pak,
   # languageserver, pkgload, httpgd, later and rstudioapi are always included.
   # nullkomma.r.extraPackages = [ ];

@@ -63,6 +63,15 @@
             every R package to come from `nixpkgs-r`.
           '';
         };
+        cranBound = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = ''
+            Whether the package is meant for CRAN. If not, `r-check` skips what only CRAN needs:
+            CRAN and Bioconductor index lookups, for dependency cycles and for links to packages
+            that are not installed, and CRAN's limits on installed size and data compression.
+          '';
+        };
         hashes = lib.mkOption {
           type = lib.types.attrsOf lib.types.str;
           default = { };
