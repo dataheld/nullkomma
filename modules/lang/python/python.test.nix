@@ -56,6 +56,22 @@
           root = fixture;
         };
       };
+      overridden = perSystem (
+        harness.callFlakeWith {
+          perSystem = { pkgs, ... }: {
+            nullkomma.python = {
+              interpreter = pkgs.python312;
+              overlay = final: prev: {
+                nk-example = prev.nk-example.overrideAttrs (old: {
+                  postInstall = (old.postInstall or "") + ''
+                    echo 'VALUE = 42' > "$out/${final.python.sitePackages}/nk_example/override.py"
+                  '';
+                });
+              };
+            };
+          };
+        } fixture
+      );
     in
     {
       nullkomma.nix.unit.tests = {
@@ -139,6 +155,18 @@
       checks.python-runtime = pkgs.runCommand "python-runtime" { } ''
         ${cfg.packages.default}/bin/nk-example | grep -Fx 'Hello from Python'
         ${cfg.packages.default}/bin/python -c 'import click; import importlib.util; assert importlib.util.find_spec("pytest") is None'
+        touch "$out"
+      '';
+      checks.python-overrides = pkgs.runCommand "python-overrides" { } ''
+        ${overridden.packages.default}/bin/python -c 'import sys; from nk_example.override import VALUE; assert sys.version_info[:2] == (3, 12); assert VALUE == 42'
+        ${overridden.packages.default}/bin/nk-example | grep -Fx 'Hello from Python'
+        touch "$out"
+      '';
+      checks.python-nested-root = pkgs.runCommand "python-nested-root" { } ''
+        ${project root}
+        ${task nested "python-test"}
+        ${task nested "python-typecheck"}
+        test -f tests/fixtures/python/coverage.xml
         touch "$out"
       '';
       checks.python-working-tree = pkgs.runCommand "python-working-tree" { } ''
