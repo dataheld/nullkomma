@@ -170,7 +170,6 @@
               config.nullkomma.sandbox {
                 process = "quarto-render";
                 output = "${prefix}_site";
-                dereference = true;
               }
             );
             nullkomma.files =

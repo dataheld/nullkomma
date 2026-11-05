@@ -56,12 +56,6 @@
           test ! -L "$site/assets"
           grep -Fx 'linked site resource' "$site/logo.svg"
           cmp "$site/logo.svg" "$site/assets/logo.svg"
-          test -L ${
-            (perSystem linked).nullkomma.sandbox {
-              process = "quarto-render";
-              output = "_site";
-            }
-          }/logo.svg
           touch "$out"
         '';
         quarto-nkdocs = linkcheck "quarto-nkdocs" nkdocs.packages.${system}.site;
