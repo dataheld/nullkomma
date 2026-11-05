@@ -339,7 +339,7 @@ Those marked under Default are enabled unless you opt out.
 | [`flakehub`][flakehub]                                                                            | ✅       | [`fh`]                                                                                                         |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`quarto`](#quarto) (includes nkdocs; optional [brand](#brand))                                   |         | [`quarto`]                                                                                                     |                                            |                                                           | `site`             |                            | `quarto-render`, `quarto-preview`                                                                                                              | `quarto-preview`                                                                                                                              | `playwright`                                    |
 | [`cloudflare`](#cloudflare)                                                                       |         | [`wrangler`]                                                                                                   |                                            | `cloudflare-validate` ([OpenTofu] validation)             |                    | `deploy`[^deploy]          | `cloudflare-validate`, `cloudflare-plan`, `cloudflare-deploy`                                                                                  |                                                                                                                                               | `cloudflare-api`, `cloudflare-docs`, `opentofu` |
-| [`python`](#python) | | [Python], [uv], [Ruff], [ty], editable package and development groups | `ruff-check`, `ruff-format` | `python-lock-check`, `python-test`, `python-typecheck`, `python-check-dist` | package name, `default`, `dist` | console scripts, `default` for one script, `python-lock` | `python-lock`, `python-lock-check`, `python-test`, `python-typecheck`, `python-build`, `python-check-dist` | `python-test`, `python-typecheck` | |
+| [`python`](#python) | | [Python], [uv], [ty], editable package with its dependency groups | `ruff-check`, `ruff-format` | `python-lock-check`, `python-test`, `python-typecheck` | package name, `default`, `dist` | console scripts, `default` for one script, `python-lock` | `python-lock`, `python-lock-check`, `python-test`, `python-test-coverage`, `python-typecheck` | `python-lock-check`, `python-test`, `python-typecheck` | |
 | [`r`](#r) (optional [non-Nix collaboration](#r-development-without-nix), [pkgdown brand](#brand)) |         | [R], [radian], [Air]; [languageserver], [`pkgload`], [pak], [httpgd], [later], [rstudioapi], [btw], [mcptools] | `air`, [`jarl`][jarl]                      | `r-document-namespace`, `r-test`, `r-check`               | `site` ([pkgdown]) | `r-lock`, `shiny` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-lock`, `r-run-app` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-shiny-<function>` (opt-in) | `r` ([btw], [mcptools]); `playwright` (Shiny)   |
 
 Plugins meet only through framework options, so one could live in a flake of its own,
@@ -568,74 +568,26 @@ OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is invo
 
 ### `python`
 
-Enable `nullkomma.python.enable` for a Python package with `[project]`
-metadata, a PEP 517 build backend, and a committed `uv.lock`.
-The package can use a flat or `src/` layout.
-For a nested package, set `nullkomma.python.root = ./path/to/package`.
-Development dependencies belong in `pyproject.toml` dependency groups;
-the plugin selects `dev` when present.
-Include `pytest` and `pytest-cov` there, or disable tests or coverage through
-`nullkomma.python.test`.
-Set `[tool.coverage.run].source` to your import package names to scope
-coverage reports.
+Enable it for a package with `[project]` metadata, a build backend and a committed `uv.lock`:
+create that with `nix run .#python-lock`, then `git add uv.lock`.
+`pyproject.toml` owns metadata and requirements, `uv.lock` the resolved dependencies,
+and `flake.lock` the interpreter, tools and build backends.
+[uv2nix] and [pyproject.nix] build from these, preferring dependency wheels;
+the package stays usable with uv alone.
 
-[uv2nix] resolves the lock for Nix, preferring dependency wheels;
-[pyproject.nix] builds the local package from source.
-`pyproject.toml` owns Python metadata and requirements,
-`uv.lock` owns resolved dependencies,
-and `flake.lock` pins the interpreter, tools and build backends.
-The package remains usable with ordinary uv and Python packaging tools
-outside Nix.
-The plugin does not publish to PyPI or create a documentation framework;
-use [`quarto`](#quarto) for a branded site.
+The package is a runtime-only virtual environment, and its console scripts are apps.
+`nix build .#dist` builds an sdist and a wheel; nothing is published.
+The dev shell has an editable environment with all dependency groups and extras:
+source edits apply without a rebuild,
+and entering it neither runs `uv sync` nor contacts a package index.
 
-The named/default package is a runtime-only virtual environment.
-Console scripts become named apps, with a default app for a sole script.
-The development shell uses an editable environment with the selected groups:
-source edits take effect without rebuilding it.
-Nix owns that environment; shell entry does not run `uv sync`, update the
-lock, download Python, or contact a Python package index.
-Use `nix run .#python-lock` to create a missing lock,
-then `git add uv.lock`.
-Later lock changes are explicit through that app or `nk python-lock`.
-`python-lock-check` checks freshness offline without rewriting it.
+`python-test` runs pytest, which a dependency group must provide, on the editable working tree;
+the sandboxed check tests the installed package, isolated from the checkout.
+`python-test-coverage` adds pytest-cov's reports.
+Configure both in `pyproject.toml`.
 
-`nk python-test` runs pytest against editable source.
-The sandbox check uses the installed package, isolated from the checkout's
-import path and pytest's `pythonpath` setting.
-Both produce terminal, XML and HTML coverage without a threshold or upload.
-`nk python-build` builds an sdist and a wheel from it, offline;
-`nix build .#dist` exposes these artifacts.
-`python-check-dist` checks metadata with Twine and installs the wheel into
-a temporary directory, checking console entry points outside the source.
-It does not upload anything.
-
-Ruff uses its stable default rules plus import sorting and safe fixes.
-ty provides type checking and editor services.
-Both target the declared Python minimum, independently of the interpreter.
-Configure them through `nullkomma.lint.ruff` and `nullkomma.lint.ty`;
-native Ruff/ty config files are ignored.
-VS Code and Neovim use the same ty configuration and editable environment,
-and the framework's treefmt formatter.
-
-Per-system overrides compose with the existing framework:
-
-```nix
-perSystem = { pkgs, ... }: {
-  nullkomma.python = {
-    interpreter = pkgs.python313;
-    test.packages = [ pkgs.git ];
-    test.environment.MY_TEST_SETTING = "value";
-  };
-};
-```
-
-Use ordinary `process-compose.dev.settings.processes` overrides for
-task commands, dependencies and environment.
-Use `perSystem.nullkomma.python.overlay` for scoped build-backend or
-native-library fixes.
-Python dependencies still belong in `pyproject.toml` and `uv.lock`,
-not in that overlay.
+[Ruff] and ty target the lower bound of `requires-python`, and ty also serves editors.
+Configure them through `nullkomma.lint`; their native config files are ignored.
 
 ### `r`
 
@@ -932,33 +884,22 @@ It is **not**:
   # Whether to enable the python plugin.
   nullkomma.python.enable = true;
 
-  # Dependency groups from uv.lock included in development and tests, never the
-  # runtime package. Default: `[ "dev" ]` when that dependency group exists,
-  # otherwise `[]`.
-  # nullkomma.python.dependencyGroups = …;
-
-  # Python package directory containing project-owned `pyproject.toml` and
-  # `uv.lock`.
+  # Python package directory, with its `pyproject.toml` and `uv.lock` (written
+  # by `nix run .#python-lock`); a path literal inside the flake if not its
+  # root.
   # nullkomma.python.root = self.outPath;
 
-  # Use pytest-cov from the selected groups to report terminal, XML and HTML
-  # coverage; configure coverage sources in pyproject.toml. No threshold or
-  # upload.
-  # nullkomma.python.test.coverage.enable = true;
-
-  # Run pytest from the selected dependency groups.
+  # Run pytest, which a dependency group must provide, with `python-test`: on
+  # the editable working tree in the dev loop and `check`, on the installed
+  # package in nix flake check (or with `nk python-test --installed`).
   # nullkomma.python.test.enable = true;
 
   # Nix Python interpreter; must satisfy the project's requires-python.
   # perSystem.nullkomma.python.interpreter = pkgs.python3;
 
-  # Scoped pyproject.nix overlay for native libraries and package build fixes,
-  # applied after uv.lock.
+  # pyproject.nix overlay for native libraries and package build fixes, applied
+  # after uv.lock.
   # perSystem.nullkomma.python.overlay = final: prev: {};
-
-  # Environment variables for pytest; sandbox checks also provide a writable
-  # private HOME.
-  # perSystem.nullkomma.python.test.environment = { };
 
   # Extra commands available to pytest, for example pkgs.git.
   # perSystem.nullkomma.python.test.packages = [ ];

@@ -9,12 +9,14 @@
     }:
     let
       cfg = config.nullkomma.python;
-      internal = description: default: lib.mkOption {
-        type = lib.types.raw;
-        internal = true;
-        readOnly = true;
-        inherit default description;
-      };
+      internal =
+        description: default:
+        lib.mkOption {
+          type = lib.types.raw;
+          internal = true;
+          readOnly = true;
+          inherit default description;
+        };
     in
     {
       options.nullkomma.python = {
@@ -28,9 +30,9 @@
         prefix = internal "`root` relative to the flake, with a trailing slash (empty at the top)." (
           import ../../../lib/prefix.nix lib self cfg.root
         );
-        project = internal "The `[project]` table of `pyproject.toml`." (
-          lib.importTOML (cfg.root + "/pyproject.toml")
-        ).project;
+        project =
+          internal "The `[project]` table of `pyproject.toml`."
+            (lib.importTOML (cfg.root + "/pyproject.toml")).project;
         minimum = internal "Lower bound of `requires-python` as `major.minor`; null without one." (
           lib.mapNullable lib.head (
             builtins.match ".*>= *([0-9]+\\.[0-9]+).*" (cfg.project.requires-python or "")
