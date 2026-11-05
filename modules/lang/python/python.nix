@@ -157,6 +157,7 @@
               ]
             );
             runtime = pythonSet.mkVirtualEnv "${name}-env" { ${name} = [ ]; };
+            runtimeDependencies = pythonSet.mkVirtualEnv "${name}-runtime-deps" pythonSet.${name}.dependencies;
             development = editableSet.mkVirtualEnv "${name}-dev-env" devDeps;
             testEnvironment = pythonSet.mkVirtualEnv "${name}-test-env" devDeps;
             buildEnvironment = pythonSet.mkVirtualEnv "${name}-build-env" (
@@ -206,11 +207,14 @@
               if [[ "''${1:-}" == "--installed" ]]; then
                 shift
                 python=(${testEnvironment}/bin/python -I)
+                PATH="${testEnvironment}/bin:$PATH"
                 options=(--import-mode=importlib -o pythonpath=)
               else
                 python=(${development}/bin/python)
+                PATH="${development}/bin:$PATH"
                 options=()
               fi
+              export PATH
               exec "''${python[@]}" -m pytest "''${options[@]}" ${lib.optionalString cfg.test.coverage.enable "--cov --cov-report=term-missing --cov-report=xml --cov-report=html"} "$@"
             '';
             build = command "python-build" [ pkgs.uv ] ''
@@ -303,7 +307,7 @@
                     uv pip install --python ${pcfg.interpreter.interpreter} \
                       --target "$destination" --no-deps --offline dist/*.whl
                     cd "$destination"
-                    PYTHONPATH="$destination" ${runtime}/bin/python ${./_check-dist.py} ${lib.escapeShellArg name}
+                    PYTHONPATH="$destination" ${runtimeDependencies}/bin/python ${./_check-dist.py} ${lib.escapeShellArg name}
                   ''
                 // {
                   depends_on.python-build.condition = "process_completed_successfully";

@@ -126,6 +126,15 @@
             vscode = "${cfg.nullkomma.python.devEnvironment}/bin/python";
           };
         };
+        testPythonIntelConsumer = {
+          expr =
+            (builtins.tryEval (
+              (harness.callFlakeWith {
+                systems = lib.mkForce [ "x86_64-darwin" ];
+              } fixture).checks.x86_64-darwin.python-test.drvPath
+            )).success;
+          expected = true;
+        };
       };
       checks.python-runtime = pkgs.runCommand "python-runtime" { } ''
         ${cfg.packages.default}/bin/nk-example | grep -Fx 'Hello from Python'
