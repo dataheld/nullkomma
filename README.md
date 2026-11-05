@@ -430,6 +430,7 @@ agents operate the previews in [Playwright's](https://github.com/microsoft/playw
 Writes `.github/workflows/push.yml`, which calls nullkomma's reusable CI workflow:
 it runs `nix flake check` on each supported system,
 then publishes pushes to the default branch and tags to FlakeHub, with the repository's visibility.
+Intel macOS checks, packages and shells build on Apple Silicon with Rosetta.
 Forks don't publish; private flakes need a [FlakeHub paid plan](https://flakehub.com/signup).
 
 <!-- nullkomma:github:start -->
