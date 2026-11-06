@@ -24,9 +24,7 @@
           lib.importTOML (self.outPath + "/pyproject.toml")
         );
         minimum = internal "Lower bound of `requires-python` as `major.minor`; null without one." (
-          lib.mapNullable lib.head (
-            builtins.match ".*>= *([0-9]+\\.[0-9]+).*" (cfg.pyproject.project.requires-python or "")
-          )
+          import ../../../lib/python-minimum.nix lib (cfg.pyproject.project.requires-python or "")
         );
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption (

@@ -43,11 +43,15 @@
               python-typecheck = {
                 namespace = "python";
                 description = "Check Python types with ty";
-                # ty merges the user's ty.toml even with --config-file.
-                command = ''
-                  unset PYTHONPATH
-                  XDG_CONFIG_HOME=/var/empty ${lib.getExe pkgs.ty} check --config-file ${settings} "$@"
-                '';
+                command = pkgs.writeShellApplication {
+                  name = "python-typecheck";
+                  # ty merges the user's ty.toml even with --config-file.
+                  runtimeEnv.XDG_CONFIG_HOME = "/var/empty";
+                  text = ''
+                    unset PYTHONPATH
+                    exec ${lib.getExe pkgs.ty} check --config-file ${settings} "$@"
+                  '';
+                };
                 watch.paths = [
                   {
                     path = ".";

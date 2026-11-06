@@ -15,8 +15,12 @@
           );
         };
         perSystem =
-          { pkgs, ... }:
+          { config, pkgs, ... }:
           let
+            programs = [
+              "ruff-check"
+              "ruff-format"
+            ];
             options = [
               "--config"
               (toString ((pkgs.formats.toml { }).generate "ruff.toml" ruff))
@@ -24,12 +28,12 @@
           in
           {
             treefmt = {
-              programs.ruff-check.enable = lib.mkDefault true;
-              programs.ruff-format.enable = lib.mkDefault true;
-              settings.formatter = {
-                ruff-check = { inherit options; };
-                ruff-format = { inherit options; };
-              };
+              programs = lib.genAttrs programs (_: {
+                enable = lib.mkDefault true;
+              });
+              settings.formatter = lib.genAttrs programs (
+                name: lib.mkIf config.treefmt.programs.${name}.enable { inherit options; }
+              );
             };
           };
       };

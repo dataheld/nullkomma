@@ -37,7 +37,19 @@
             python-lock-check = {
               namespace = "python";
               description = "Check uv.lock without changing it or accessing the network";
-              command = ''${lib.getExe lock} --check --offline "$@"'';
+              command = pkgs.writeShellApplication {
+                name = "python-lock-check";
+                text = ''
+                  ${lib.getExe lock} --check --offline "$@" || {
+                    echo "uv.lock does not match pyproject.toml, or uv cannot read it; run nk python-lock." >&2
+                    exit 1
+                  }
+                '';
+              };
+              watch.paths = map (path: { inherit path; }) [
+                "pyproject.toml"
+                "uv.lock"
+              ];
             };
             check.depends_on.python-lock-check.condition = "process_completed_successfully";
           };

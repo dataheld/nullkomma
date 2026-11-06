@@ -17,26 +17,26 @@
         task
         project
         treefmt
+        watching
         ;
       fixture = root + "/tests/fixtures/python";
       cfg = perSystem fixtures.python;
-      disabled = rawAt (root + "/tests/fixtures/md") {
-        imports = [ nullkomma.flakeModules.python ];
-      };
-      stringRoot = rawAt "${builtins.path { path = fixture; }}" {
-        imports = [ nullkomma.flakeModules.python ];
-        nullkomma.python.enable = true;
-      };
-      withoutLock = builtins.path {
-        path = fixture;
-        filter = path: _: baseNameOf path != "uv.lock";
-      };
-      bootstrap = perSystem (
-        rawAt withoutLock {
+      enabled =
+        src:
+        rawAt src {
           imports = [ nullkomma.flakeModules.python ];
           nullkomma.python.enable = true;
-        }
+        };
+      stringRoot = enabled "${builtins.path { path = fixture; }}";
+      withoutLock = perSystem (
+        enabled (
+          builtins.path {
+            path = fixture;
+            filter = path: _: baseNameOf path != "uv.lock";
+          }
+        )
       );
+      scripts = enabled (root + "/tests/fixtures/python-scripts");
       linted = harness.callFlakeWith {
         nullkomma.lint = {
           ruff.lint.ignore = [ "F401" ];
@@ -45,7 +45,7 @@
       } fixture;
       customized = harness.callFlakeWith {
         perSystem = { pkgs, ... }: {
-          nullkomma.python.test.packages = [ pkgs.git ];
+          nullkomma.python.test.packages = [ pkgs.hello ];
         };
       } fixture;
       overridden = perSystem (
@@ -67,15 +67,12 @@
     in
     {
       nullkomma.nix.unit.tests = {
-        testPythonDisabled = {
-          expr = summary disabled == summary (rawAt (root + "/tests/fixtures/md") { });
-          expected = true;
-        };
         testPythonOutputs = {
           expr = {
             apps = lib.attrNames cfg.apps;
-            tasks = lib.filter (lib.hasPrefix "python-") (lib.attrNames cfg.taskRunners.default.tasks);
+            checks = lib.filter (lib.hasPrefix "python-") (summary fixtures.python).checks;
             formatters = lib.filter (lib.hasPrefix "ruff") (lib.attrNames cfg.treefmt.build.programs);
+            ignored = lib.elem ".venv" fixtures.python.debug.config.nullkomma.gitignore;
           };
           expected = {
             apps = [
@@ -83,8 +80,7 @@
               "nk-example"
               "python-lock"
             ];
-            tasks = [
-              "python-lock"
+            checks = [
               "python-lock-check"
               "python-test"
               "python-typecheck"
@@ -93,6 +89,7 @@
               "ruff-check"
               "ruff-format"
             ];
+            ignored = true;
           };
         };
         testPythonStringRoot = {
@@ -109,16 +106,60 @@
             ty = "3.10";
           };
         };
-        testPythonMissingLock = {
-          expr = {
-            package = (builtins.tryEval bootstrap.packages.default.drvPath).success;
-            lock = (builtins.tryEval bootstrap.apps.python-lock.program).success;
-          };
-          expected = {
-            package = false;
-            lock = true;
-          };
+        testPythonMinimumParsing = {
+          expr = map (import ../../../lib/python-minimum.nix lib) [
+            ">=3.10,<4"
+            "<4,>=3.10"
+            ">= 3.11"
+            "~=3.11.0"
+            ">3.9"
+            "==3.12.*"
+            "<=3.12"
+            ""
+          ];
+          expected = [
+            "3.10"
+            "3.10"
+            "3.11"
+            "3.11"
+            "3.9"
+            "3.12"
+            null
+            null
+          ];
         };
+        testPythonRequiresLock = {
+          expr = withoutLock.packages.default.drvPath;
+          expectedError.msg = "uv.lock is missing";
+        };
+        testPythonLockBootstrapsWithoutLock = {
+          expr = lib.isString withoutLock.apps.python-lock.program;
+          expected = true;
+        };
+        testPythonRequiresBuildSystem = {
+          expr = (perSystem scripts).packages.default.drvPath;
+          expectedError.msg = "needs a .build-system. table";
+        };
+        testPythonTwoScriptsWithoutMinimum =
+          let
+            inherit (scripts.debug.config.nullkomma.lint) ruff ty;
+          in
+          {
+            expr = {
+              apps = lib.attrNames (perSystem scripts).apps;
+              ruff = ruff ? target-version;
+              ty = ty ? environment && ty.environment ? python-version;
+            };
+            expected = {
+              apps = [
+                "first"
+                "python-lock"
+                "second"
+              ];
+              ruff = false;
+              ty = false;
+            };
+          };
         testPythonIntelConsumer = {
           expr =
             (builtins.tryEval (
@@ -164,8 +205,44 @@
         fails "FAILED" ${task fixtures.python "python-test"}
         ${task fixtures.python "python-test"} tests/test_example.py
         rm tests/test_failure.py
-        substituteInPlace pyproject.toml --replace-fail 'click>=8' 'click>=999'
-        fails "lock" ${task fixtures.python "python-lock-check"}
+        touch "$out"
+      '';
+      checks.python-lock = pkgs.runCommand "python-lock" { } ''
+        ${project fixture}
+        # Without dependencies, uv resolves the project with no network.
+        printf '[project]\nname = "nk_example"\nversion = "0.1.0"\nrequires-python = ">=3.10"\n' > pyproject.toml
+        fails "needs to be updated" ${task fixtures.python "python-lock-check"}
+        ${cfg.apps.python-lock.program} --offline
+        ${task fixtures.python "python-lock-check"}
+        touch "$out"
+      '';
+      checks.python-dev-shell =
+        let
+          inherit (cfg.nullkomma) devShell editor;
+        in
+        pkgs.runCommand "python-dev-shell" (devShell.env // { nativeBuildInputs = devShell.packages; }) ''
+          ${project fixture}
+          mkdir "$TMPDIR/inherited"
+          echo 'raise ImportError("PYTHONPATH reached Python")' > "$TMPDIR/inherited/nk_example.py"
+          export PYTHONPATH="$TMPDIR/inherited"
+          ${devShell.shellHook}
+          substituteInPlace src/nk_example/__init__.py --replace-fail 'Hello from Python' 'Edited source'
+          test "$(python -c 'from nk_example import greeting; print(greeting())')" = 'Edited source'
+          ${editor.vscode.settings."python.defaultInterpreterPath"} -c 'import pytest'
+          ${lib.head editor.vscode.settings."ty.path"} check --config-file ${editor.languageServers.ty.settings.ty.configurationFile}
+          uv run --offline python -c pass
+          touch "$out"
+        '';
+      checks.python-dev-loop = pkgs.runCommand "python-dev-loop" { } ''
+        ${project fixture}
+        ${watching fixtures.python "python-test"}
+        settled python-test 1
+        test ! -e .pytest_cache
+        mkdir .ruff_cache
+        touch .ruff_cache/generated
+        settled python-test 1
+        printf '\n' >> src/nk_example/__init__.py
+        settled python-test 2
         touch "$out"
       '';
       checks.python-dist = pkgs.runCommand "python-dist" { } ''
