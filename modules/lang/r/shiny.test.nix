@@ -72,6 +72,15 @@
         # Building the launcher runs ShellCheck on it.
         r-shiny-single-app = pkgs.writeText "r-shiny-single-app" (perSystem single)
         .process-compose.dev.settings.processes.r-shiny-browser.command;
+        r-shinytest2-timeouts = pkgs.runCommand "r-shinytest2-timeouts" { } ''
+          timeouts() {
+            "$1/bin/Rscript" --vanilla -e 'cat(Sys.getenv(c("SHINYTEST2_LOAD_TIMEOUT", "SHINYTEST2_TIMEOUT")))'
+          }
+          test "$(timeouts ${(perSystem plain).nullkomma.r.package})" = "60000 30000"
+          test "$(SHINYTEST2_TIMEOUT=1 timeouts ${(perSystem plain).nullkomma.r.package})" = "60000 1"
+          test "$(timeouts ${(perSystem fixtures.r).nullkomma.r.package})" = " "
+          touch $out
+        '';
         r-shiny =
           pkgs.runCommand "r-shiny"
             {

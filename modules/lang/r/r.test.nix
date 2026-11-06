@@ -468,8 +468,9 @@
           grep -qxF 'shared R workflow' docs/workflow.txt
           grep -qF 'Lokaler Abschnitt auf Deutsch' docs/privacy.html
           cmp ${root + "/tests/fixtures/r-brand/assets/brand.svg"} docs/brand.svg
+          test ! -e docs/.gitignore
           test ! -e .github/privacy.md -a ! -e privacy.md
-          git check-ignore -q pkgdown/assets
+          git check-ignore -q pkgdown/assets/brand.svg
         '';
         r-pkgdown-preview = check "r-pkgdown-preview" ''
           export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}

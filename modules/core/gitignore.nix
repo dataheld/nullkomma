@@ -5,7 +5,7 @@
       options.nullkomma.gitignore = lib.mkOption {
         type = lib.types.listOf lib.types.str;
         default = [ ];
-        description = "Lines of the initial `.gitignore`; plugins append here. Generated files are added automatically.";
+        description = "Lines of nullkomma's section of `.gitignore`; plugins append here. Generated files are added automatically; generated directories ignore themselves.";
       };
     };
   plugins.git =
@@ -19,12 +19,16 @@
           { config, pkgs, ... }:
           let
             generated = lib.attrNames (
-              lib.filterAttrs (_: f: f.enable && f.mode == "generated") config.nullkomma.files
+              lib.filterAttrs (_: f: f.enable && f.mode == "generated" && !f.directory) config.nullkomma.files
             );
           in
           {
             nullkomma.devShell.packages = [ pkgs.git ];
-            nullkomma.files.".gitignore".text = lib.concatLines (ignores ++ map (path: "/${path}") generated);
+            # Sections, as the project and tools such as Quarto also add lines here.
+            nullkomma.files.".gitignore" = {
+              commentPrefix = "#";
+              sections.git = lib.concatLines (ignores ++ map (path: "/${path}") generated);
+            };
           };
       };
     };

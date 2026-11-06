@@ -58,7 +58,7 @@
           options.nullkomma.r.package = lib.mkOption {
             type = lib.types.package;
             readOnly = true;
-            description = "R, Rscript and radian with every package of `nullkomma.r.packages`, and the locale, testthat and browser environment of nullkomma's R workflows.";
+            description = "R, Rscript and radian with every package of `nullkomma.r.packages`, and the locale, testthat, browser and shinytest2 timeout environment of nullkomma's R workflows.";
           };
         }
       );
@@ -272,6 +272,16 @@
                         "--set-default"
                         "CHROMOTE_CHROME"
                         "${browser}"
+                      ]
+                      # Upper limits for loaded machines, in milliseconds.
+                      # Not R options, which child R processes of callr would not inherit.
+                      ++ lib.optionals (lib.elem "shinytest2" pcfg.packages) [
+                        "--set-default"
+                        "SHINYTEST2_LOAD_TIMEOUT"
+                        "60000"
+                        "--set-default"
+                        "SHINYTEST2_TIMEOUT"
+                        "30000"
                       ]
                     )
                   }

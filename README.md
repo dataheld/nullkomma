@@ -296,7 +296,7 @@ Features live in Nix; nullkomma writes files only where tools need them:
 |                             | **Source of truth** (committed, yours to edit)       | **Generated from Nix** (Git-ignored, don't edit)                                            |
 | --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `nix flake init --template` | `flake.nix`                                          |                                                                                             |
-| `write-files`               | `.envrc`, `.gitignore`, GitHub workflows, `.gitlab-ci.yml`, `AGENTS.md` sections |                                                                                             |
+| `write-files`               | `.envrc`, `.gitignore` and `AGENTS.md` sections, GitHub workflows, `.gitlab-ci.yml` |                                                                                             |
 | `generate-files`            |                                                      | `.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
 
 `write-files` writes source-of-truth files once (`nullkomma.files."<path>".mode = "source"`),
@@ -308,6 +308,8 @@ Once nullkomma no longer declares a file, `write-files` strips its sections, or 
 
 `generate-files` overwrites generated files (`mode = "generated"`) when they differ from Nix,
 and removes ones no longer declared; it refuses to overwrite files Git tracks.
+A generated directory holds its own `.gitignore`;
+a generated file must be ignored already, usually by nullkomma's `.gitignore` section, or `generate-files` does not write it and fails.
 Entering the dev shell runs it; tasks never do.
 To change a generated file, change the Nix options.
 

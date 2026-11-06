@@ -30,7 +30,7 @@
                     "generated"
                   ];
                   default = "source";
-                  description = "`source`: written by `write-files`, then a committed source of truth, updated only while unedited. `generated`: written from Nix by `generate-files` (also on entering the dev shell), overwritten when changed and Git-ignored.";
+                  description = "`source`: written by `write-files`, then a committed source of truth, updated only while unedited. `generated`: written from Nix by `generate-files` (also on entering the dev shell), overwritten when changed, and only if Git ignores it.";
                 };
                 commentPrefix = lib.mkOption {
                   type = lib.types.nullOr lib.types.str;
@@ -45,7 +45,7 @@
                 directory = lib.mkOption {
                   type = lib.types.bool;
                   default = false;
-                  description = "Whether `source` is a directory, copied whole and without a header. Generated files only.";
+                  description = "Whether `source` is a directory, copied whole and without a header, with its own `.gitignore`. Generated files only.";
                 };
                 text = lib.mkOption {
                   type = lib.types.nullOr lib.types.lines;
@@ -105,7 +105,14 @@
           files = lib.filterAttrs (_: f: f.enable) config.nullkomma.files;
           generated = lib.mapAttrs (
             path: f:
-            if f.directory || f.commentPrefix == null then
+            if f.directory then
+              # Stays ignored whatever the root `.gitignore` says, as `python -m venv` does.
+              pkgs.runCommandLocal "nullkomma-generated-${baseNameOf path}" { } ''
+                cp -R ${f.source} "$out"
+                chmod -R u+w "$out"
+                echo '*' > "$out/.gitignore"
+              ''
+            else if f.commentPrefix == null then
               f.source
             else
               pkgs.concatText "nullkomma-generated-${baseNameOf path}" [
