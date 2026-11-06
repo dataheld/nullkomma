@@ -19,11 +19,20 @@
                 environment.python = toString config.nullkomma.python.environments.development;
               } ty
             );
+            # ty merges the user's ty.toml even with --config-file.
+            isolated = pkgs.writeShellApplication {
+              name = "ty";
+              runtimeEnv.XDG_CONFIG_HOME = "/var/empty";
+              text = ''
+                unset PYTHONPATH
+                exec ${lib.getExe pkgs.ty} "$@"
+              '';
+            };
           in
           {
             nullkomma.editor = {
               languageServers.ty = {
-                package = pkgs.ty;
+                package = isolated;
                 command = [
                   "ty"
                   "server"
@@ -34,7 +43,7 @@
               vscode = {
                 extensions = [ "astral-sh.ty" ];
                 settings = lib.mapAttrs (_: lib.mkDefault) {
-                  "ty.path" = [ (lib.getExe pkgs.ty) ];
+                  "ty.path" = [ (lib.getExe isolated) ];
                   "ty.configurationFile" = toString settings;
                 };
               };
@@ -43,15 +52,7 @@
               python-typecheck = {
                 namespace = "python";
                 description = "Check Python types with ty";
-                command = pkgs.writeShellApplication {
-                  name = "python-typecheck";
-                  # ty merges the user's ty.toml even with --config-file.
-                  runtimeEnv.XDG_CONFIG_HOME = "/var/empty";
-                  text = ''
-                    unset PYTHONPATH
-                    exec ${lib.getExe pkgs.ty} check --config-file ${settings} "$@"
-                  '';
-                };
+                command = "${lib.getExe isolated} check --config-file ${settings}";
                 watch.paths = [
                   {
                     path = ".";
