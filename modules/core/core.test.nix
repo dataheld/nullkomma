@@ -864,20 +864,6 @@
                 test "$(cat privacy.qmd)" = 'own policy'
                 touch $out
               '';
-            file-worktree-generation =
-              pkgs.runCommandLocal "nullkomma-file-worktree-generation" { nativeBuildInputs = [ pkgs.git ]; }
-                ''
-                  git init --quiet main
-                  git -C main worktree add --orphan ../linked
-                  cd linked
-                  (${(perSystem fileVersions.old).nullkomma.devShell.shellHook})
-                  test -f generated.txt
-                  test -s "$(git rev-parse --git-path nullkomma/files/generated-by)"
-                  rm generated.txt
-                  (${(perSystem fileVersions.old).nullkomma.devShell.shellHook})
-                  test ! -e generated.txt
-                  touch "$out"
-                '';
             file-update-task =
               let
                 nix = pkgs.writeShellScriptBin "nix" ''

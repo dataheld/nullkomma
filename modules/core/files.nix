@@ -187,9 +187,7 @@
           nullkomma.devShell.shellHook = lib.mkIf (generated != { }) ''
             if stamp="$(git rev-parse --git-path nullkomma/files/generated-by 2>/dev/null)" &&
               [ "$(cat "$stamp" 2>/dev/null)" != ${generate} ]; then
-              ${lib.getExe generate} &&
-                mkdir -p "$(dirname "$stamp")" &&
-                echo ${generate} > "$stamp"
+              ${lib.getExe generate} && echo ${generate} > "$stamp"
             fi
           '';
         };
