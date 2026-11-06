@@ -130,13 +130,15 @@
         };
       };
       checks.python-runtime = pkgs.runCommand "python-runtime" { } ''
-        ${cfg.packages.default}/bin/nk-example | grep -Fx 'Hello from Python'
-        ${cfg.packages.default}/bin/python -c 'import click; import importlib.util; assert importlib.util.find_spec("pytest") is None'
+        ${cfg.apps.default.program} | grep -Fx 'Hello from Python'
+        test ! -e ${cfg.packages.default}/bin/python
+        ${cfg.nullkomma.python.environments.runtime}/bin/python -c 'import click; import importlib.util; assert importlib.util.find_spec("pytest") is None'
         touch "$out"
       '';
       checks.python-overrides = pkgs.runCommand "python-overrides" { } ''
-        ${overridden.packages.default}/bin/python -c 'import sys; from nk_example.override import VALUE; assert sys.version_info[:2] == (3, 12); assert VALUE == 42'
-        ${overridden.packages.default}/bin/nk-example | grep -Fx 'Hello from Python'
+        ${overridden.nullkomma.python.environments.runtime}/bin/python -c 'import sys; from nk_example.override import VALUE; assert sys.version_info[:2] == (3, 12); assert VALUE == 42'
+        ${project fixture}
+        ${overridden.apps.python-lock.program} --check --offline 2>&1 | grep -F ${overridden.nullkomma.python.interpreter.interpreter}
         touch "$out"
       '';
       checks.python-working-tree = pkgs.runCommand "python-working-tree" { } ''

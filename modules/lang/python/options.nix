@@ -48,7 +48,7 @@
             environments = lib.mkOption {
               type = lib.types.lazyAttrsOf lib.types.package;
               internal = true;
-              description = "Virtual environments with every dependency group: `development`, editable, and `test`, with the installed package.";
+              description = "Virtual environments: `runtime`, without dependency groups, `development`, editable, and `test`, with the installed package; the last two have every group.";
             };
             test.packages = lib.mkOption {
               type = lib.types.listOf lib.types.package;

@@ -45,7 +45,17 @@
               })
             ]
           );
-          runtime = pythonSet.mkVirtualEnv "${name}-env" workspace.deps.default;
+          # Not workspace.deps.default, which holds `default-groups` and every workspace member.
+          venv = pythonSet.mkVirtualEnv "${name}-env" { ${name} = [ ]; };
+          # A library has no console scripts, which is all mkApplication keeps.
+          runtime =
+            if scripts == [ ] then
+              venv
+            else
+              (pkgs.callPackages inputs.pyproject-nix.build.util { }).mkApplication {
+                inherit venv;
+                package = pythonSet.${name};
+              };
           distribution =
             buildType:
             (pythonSet.${name}.override {
@@ -59,11 +69,11 @@
         in
         {
           nullkomma.python.environments = {
+            runtime = venv;
             development = editableSet.mkVirtualEnv "${name}-dev-env" workspace.deps.all;
             test = pythonSet.mkVirtualEnv "${name}-test-env" workspace.deps.all;
           };
           packages = {
-            ${name} = runtime;
             default = lib.mkDefault runtime;
             dist = pkgs.symlinkJoin {
               name = "${name}-dist";
