@@ -10,7 +10,7 @@
             UV_PYTHON_DOWNLOADS = "never";
             UV_NO_SYNC = "1";
           };
-          description = "Resolve pyproject.toml into uv.lock";
+          description = "Resolve pyproject.toml into uv.lock; then commit it and run `direnv reload`";
           lock = pkgs.writeShellApplication {
             name = "python-lock";
             runtimeInputs = [ pkgs.uv ];
@@ -36,7 +36,7 @@
             };
             python-lock-check = {
               namespace = "python";
-              description = "Check uv.lock without changing it or accessing the network";
+              description = "Check uv.lock without changing it or accessing the network; needs static dependencies";
               command = pkgs.writeShellApplication {
                 name = "python-lock-check";
                 text = ''

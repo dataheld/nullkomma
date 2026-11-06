@@ -28,8 +28,8 @@
             actionlint = "Actionlint YAML settings.";
             gitleaks = "Gitleaks TOML settings for working-tree and history scans; upstream rules are kept.";
             jscpd = "Jscpd JSON settings; `ignore` extends treefmt's exclusions, `threshold` defaults to zero.";
-            ruff = "Ruff TOML settings, shared by its treefmt check and formatter.";
-            ty = "ty TOML settings, shared by type checking and its language server.";
+            ruff = "Ruff TOML settings, shared by its treefmt check and formatter; `target-version` defaults to the lower bound of `requires-python`.";
+            ty = "ty TOML settings, shared by type checking and its language server; `environment.python-version` defaults to the lower bound of `requires-python`.";
           };
       config.perSystem =
         let

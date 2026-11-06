@@ -18,6 +18,7 @@
               fi
               export NULLKOMMA_PYTHON_ROOT="$PWD"
               PATH="$environment/bin:$PATH"
+              # Only the environment may put the package on sys.path.
               exec python -I -m pytest --import-mode=importlib -o pythonpath= "$@"
             '';
           };
@@ -30,7 +31,7 @@
           process-compose.dev.settings.processes = {
             python-test = {
               namespace = "python";
-              description = "Run pytest on the editable working tree; --installed tests the installed package";
+              description = "Run pytest from a dependency group on the editable working tree; --installed tests the installed package, other arguments go to pytest";
               command = config.nullkomma.scratch {
                 name = "python-test";
                 command = pytest;

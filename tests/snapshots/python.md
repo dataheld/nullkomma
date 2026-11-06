@@ -23,8 +23,8 @@ Available recipes:
     flake-update *args      # Update flake inputs, then write-files and generate-files; args go to `nix flake update`
 
     [python]
-    python-lock *args       # Resolve pyproject.toml into uv.lock
-    python-lock-check *args # Check uv.lock without changing it or accessing the network
-    python-test *args       # Run pytest on the editable working tree; --installed tests the installed package
+    python-lock *args       # Resolve pyproject.toml into uv.lock; then commit it and run `direnv reload`
+    python-lock-check *args # Check uv.lock without changing it or accessing the network; needs static dependencies
+    python-test *args       # Run pytest from a dependency group on the editable working tree; --installed tests the installed package, other arguments go to pytest
     python-typecheck *args  # Check Python types with ty
 ```
