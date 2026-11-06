@@ -46,18 +46,6 @@
               })
               (final: prev: {
                 ${name} = prev.${name}.overrideAttrs (old: {
-                  # Editable builds read metadata and find packages, so module edits need no rebuild.
-                  # Dynamic metadata can read any file.
-                  src = builtins.path {
-                    path = old.src;
-                    name = "source";
-                    filter =
-                      path: type:
-                      project ? dynamic
-                      || type == "directory"
-                      || dirOf path == toString old.src
-                      || baseNameOf path == "__init__.py";
-                  };
                   # Hatchling requests editables dynamically (PEP 660), which Nix builds cannot.
                   nativeBuildInputs = old.nativeBuildInputs ++ final.resolveBuildSystem { editables = [ ]; };
                 });

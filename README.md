@@ -581,9 +581,8 @@ The package holds the console scripts of a runtime-only virtual environment, wit
 they are also apps, and a package without scripts is the environment itself.
 `nix build .#dist` builds an sdist and a wheel; nothing is published.
 The dev shell has an editable environment with all dependency groups and extras:
-source edits apply without a rebuild,
-and entering it neither runs `uv sync` nor contacts a package index.
-Its build sees only top-level files and `__init__.py` files, unless `[project]` has `dynamic` fields.
+source edits apply at once, and the next shell entry rebuilds the editable package;
+entering it does not run `uv sync`.
 
 `python-test` runs pytest, which a dependency group must provide, on the editable working tree;
 with `--installed`, as in the sandboxed check, on the installed package.
