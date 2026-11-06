@@ -583,7 +583,7 @@ OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is invo
 
 ### `python`
 
-Enable it for a package at the flake root with `[project]` metadata, a `[build-system]` and a committed `uv.lock`:
+Enable it for a pure-Python package at the flake root with `[project]` metadata, a `[build-system]` and a committed `uv.lock`:
 create that with `nix run .#python-lock`, then `git add uv.lock`.
 After changing requirements, run `nk python-lock` (`uv add` also does this), commit `uv.lock` and run `direnv reload`:
 `use flake` does not watch these files, so the shell and its `nk` keep the old environment until then.
@@ -600,6 +600,7 @@ they are also apps, and a package without scripts is the environment itself.
 The dev shell has an editable environment with all dependency groups and extras:
 source edits apply at once, and the next shell entry rebuilds the editable package;
 entering it does not run `uv sync`.
+Because it holds them all at once, `[tool.uv] conflicts` between groups or extras is not supported.
 
 `python-test` runs pytest, which a dependency group must provide, on the editable working tree;
 with `--installed`, as in the sandboxed check, on the installed package.
