@@ -774,6 +774,15 @@
                 mkdir project
                 cd project
                 git init --quiet
+                # Without the git plugin, the project has to ignore generated files itself.
+                printf mine > generated.txt
+                if output="$(${at "old" "generate-files"} 2>&1)"; then
+                  echo "A file Git does not ignore was overwritten" >&2
+                  exit 1
+                fi
+                test "$(cat generated.txt)" = mine
+                grep -qF 'Add them to .gitignore' <<<"$output"
+                rm generated.txt
                 echo '*generated.txt' > .git/info/exclude
                 ${at "old" "write-files"}
                 # Runs that change nothing print nothing.

@@ -177,7 +177,7 @@ finish() {
     prune
   fi
   if [ "${#unignored[@]}" != 0 ]; then
-    echo "Not written, because Git does not ignore them: ${unignored[*]}. Run nk write-files, which updates .gitignore." >&2
+    echo "Not written, because Git does not ignore them: ${unignored[*]}. Add them to .gitignore; with the git plugin, nk write-files does that." >&2
   fi
   exit "$status"
 }
