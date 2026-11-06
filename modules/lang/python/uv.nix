@@ -41,8 +41,9 @@
                 name = "python-lock-check";
                 text = ''
                   ${lib.getExe lock} --check --offline "$@" || {
-                    echo "uv.lock does not match pyproject.toml, or uv cannot read it; run nk python-lock." >&2
-                    exit 1
+                    status=$?
+                    [[ $status != 1 ]] || echo "uv.lock does not match pyproject.toml; run nk python-lock." >&2
+                    exit "$status"
                   }
                 '';
               };

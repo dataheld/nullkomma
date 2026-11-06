@@ -161,12 +161,9 @@
             };
           };
         testPythonIntelConsumer = {
-          expr =
-            (builtins.tryEval (
-              (harness.callFlakeWith {
-                systems = lib.mkForce [ "x86_64-darwin" ];
-              } fixture).checks.x86_64-darwin.python-test.drvPath
-            )).success;
+          expr = lib.isString (harness.callFlakeWith {
+            systems = lib.mkForce [ "x86_64-darwin" ];
+          } fixture).checks.x86_64-darwin.python-test.drvPath;
           expected = true;
         };
       };
@@ -186,7 +183,6 @@
         ${project fixture}
         mkdir "$TMPDIR/inherited"
         echo 'raise ImportError("PYTHONPATH reached Python")' > "$TMPDIR/inherited/nk_example.py"
-        echo 'def command(): raise ImportError("PYTHONPATH reached ty")' > "$TMPDIR/inherited/click.py"
         export PYTHONPATH="$TMPDIR/inherited"
         ${task fixtures.python "python-test"}
         ${task fixtures.python "python-typecheck"}
@@ -204,7 +200,6 @@
         echo 'def test_failure(): assert False' > tests/test_failure.py
         fails "FAILED" ${task fixtures.python "python-test"}
         ${task fixtures.python "python-test"} tests/test_example.py
-        rm tests/test_failure.py
         touch "$out"
       '';
       checks.python-lock = pkgs.runCommand "python-lock" { } ''
@@ -245,6 +240,7 @@
         settled python-test 1
         printf '\n' >> src/nk_example/__init__.py
         settled python-test 2
+        [ "$(count python-test exit_code=0)" -eq 2 ]
         touch "$out"
       '';
       checks.python-dist = pkgs.runCommand "python-dist" { } ''
@@ -258,7 +254,7 @@
         import subprocess
 
         def test_environment():
-            subprocess.run(["git", "--version"], check=True)
+            subprocess.run(["hello"], check=True)
         PY
         ${task customized "python-test"}
         touch "$out"

@@ -574,6 +574,8 @@ After changing requirements, run `nk python-lock` (`uv add` also does this), com
 `use flake` does not watch these files, so the shell and its `nk` keep the old environment until then.
 `pyproject.toml` owns metadata and requirements, `uv.lock` the resolved dependencies,
 and `flake.lock` the interpreter, tools and build backends.
+`dependencies` and `optional-dependencies` must be static:
+`python-lock-check` runs offline, and uv would have to run the build backend to read them.
 [uv2nix] and [pyproject.nix] build from these, preferring dependency wheels;
 the package stays usable with uv alone.
 
@@ -586,7 +588,8 @@ entering it does not run `uv sync`.
 
 `python-test` runs pytest, which a dependency group must provide, on the editable working tree;
 with `--installed`, as in the sandboxed check, on the installed package.
-Both use `--import-mode=importlib`, which keeps the checkout off `sys.path`.
+In both, only the environment puts the package on `sys.path`:
+Python runs with `-I`, pytest with `--import-mode=importlib`, and a `pythonpath` in `pyproject.toml` has no effect.
 Other arguments go to pytest, as in `nk python-test --cov` with pytest-cov.
 
 [Ruff] and ty target the lower bound of `requires-python`, and ty also serves editors.
