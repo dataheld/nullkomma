@@ -3,10 +3,6 @@
     { config, lib, ... }:
     let
       cfg = config.nullkomma.python;
-      python = {
-        namespace = "python";
-        working_dir = "./${cfg.prefix}";
-      };
     in
     {
       config.perSystem = lib.mkIf (cfg.enable && cfg.test.enable) (
@@ -35,7 +31,8 @@
             args = [ "--installed" ];
           };
           process-compose.dev.settings.processes = {
-            python-test = python // {
+            python-test = {
+              namespace = "python";
               description = "Run pytest on the editable working tree; --installed tests the installed package";
               command = config.nullkomma.scratch {
                 name = "python-test";
@@ -44,7 +41,7 @@
               watch.paths = [
                 {
                   path = ".";
-                  exclude = cfg.generated;
+                  exclude = config.treefmt.settings.excludes;
                 }
               ];
             };

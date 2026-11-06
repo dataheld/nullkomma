@@ -1,11 +1,8 @@
 {
   plugins.python =
     { config, lib, ... }:
-    let
-      cfg = config.nullkomma.python;
-    in
     {
-      config.perSystem = lib.mkIf cfg.enable (
+      config.perSystem = lib.mkIf config.nullkomma.python.enable (
         { config, pkgs, ... }:
         let
           env = {
@@ -18,10 +15,7 @@
             name = "python-lock";
             runtimeInputs = [ pkgs.uv ];
             runtimeEnv = env;
-            text = ''
-              while [ ! -f flake.nix ] && [ "$PWD" != / ]; do cd ..; done
-              exec uv lock --project ./${lib.escapeShellArg cfg.prefix} "$@"
-            '';
+            text = ''exec uv lock "$@"'';
           };
         in
         {

@@ -20,19 +20,9 @@
     in
     {
       options.nullkomma.python = {
-        root = lib.mkOption {
-          type = lib.types.path;
-          default = self.outPath;
-          defaultText = lib.literalExpression "self.outPath";
-          example = lib.literalExpression "./pkg";
-          description = "Python package directory, with its `pyproject.toml` and `uv.lock` (written by `nix run .#python-lock`); a path literal inside the flake if not its root.";
-        };
-        prefix = internal "`root` relative to the flake, with a trailing slash (empty at the top)." (
-          import ../../../lib/prefix.nix lib self cfg.root
-        );
         project =
           internal "The `[project]` table of `pyproject.toml`."
-            (lib.importTOML (cfg.root + "/pyproject.toml")).project;
+            (lib.importTOML (self.outPath + "/pyproject.toml")).project;
         minimum = internal "Lower bound of `requires-python` as `major.minor`; null without one." (
           lib.mapNullable lib.head (
             builtins.match ".*>= *([0-9]+\\.[0-9]+).*" (cfg.project.requires-python or "")

@@ -1,18 +1,23 @@
 { inputs, ... }:
 {
   plugins.python =
-    { config, lib, ... }:
+    {
+      config,
+      lib,
+      self,
+      ...
+    }:
     let
       cfg = config.nullkomma.python;
       name = inputs.pyproject-nix.lib.pypa.normalizePackageName cfg.project.name;
       scripts = lib.attrNames (cfg.project.scripts or { });
       workspace =
         assert lib.assertMsg (builtins.pathExists (
-          cfg.root + "/uv.lock"
+          self.outPath + "/uv.lock"
         )) "nullkomma.python: uv.lock is missing; run `nix run .#python-lock`, then `git add uv.lock`.";
         # uv2nix's editable overlay needs a path value, which `self.outPath` is not.
         inputs.uv2nix.lib.workspace.loadWorkspace {
-          workspaceRoot = /. + builtins.unsafeDiscardStringContext (toString cfg.root);
+          workspaceRoot = /. + builtins.unsafeDiscardStringContext (toString self.outPath);
         };
     in
     {
@@ -77,7 +82,7 @@
             packages = [ environments.development ];
             shellHook = ''
               unset PYTHONPATH
-              export NULLKOMMA_PYTHON_ROOT="$(${lib.getExe pkgs.git} rev-parse --show-toplevel)/${cfg.prefix}"
+              export NULLKOMMA_PYTHON_ROOT="$(${lib.getExe pkgs.git} rev-parse --show-toplevel)"
             '';
           };
           nullkomma.editor.vscode = {

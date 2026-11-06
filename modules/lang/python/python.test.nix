@@ -42,13 +42,6 @@
           nullkomma.python.test.packages = [ pkgs.git ];
         };
       } fixture;
-      nested = rawAt root {
-        imports = [ nullkomma.flakeModules.python ];
-        nullkomma.python = {
-          enable = true;
-          root = fixture;
-        };
-      };
       overridden = perSystem (
         harness.callFlakeWith {
           perSystem = { pkgs, ... }: {
@@ -138,12 +131,6 @@
       checks.python-overrides = pkgs.runCommand "python-overrides" { } ''
         ${overridden.packages.default}/bin/python -c 'import sys; from nk_example.override import VALUE; assert sys.version_info[:2] == (3, 12); assert VALUE == 42'
         ${overridden.packages.default}/bin/nk-example | grep -Fx 'Hello from Python'
-        touch "$out"
-      '';
-      checks.python-nested-root = pkgs.runCommand "python-nested-root" { } ''
-        ${project root}
-        ${task nested "python-test"}
-        ${task nested "python-typecheck"}
         touch "$out"
       '';
       checks.python-working-tree = pkgs.runCommand "python-working-tree" { } ''

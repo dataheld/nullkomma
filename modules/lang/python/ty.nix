@@ -43,7 +43,6 @@
               python-typecheck = {
                 namespace = "python";
                 description = "Check Python types with ty";
-                working_dir = "./${cfg.prefix}";
                 command = ''${lib.getExe pkgs.ty} check --config-file ${settings} "$@"'';
                 watch.paths = [
                   {
