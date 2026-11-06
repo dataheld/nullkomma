@@ -241,6 +241,7 @@
       checks.python-dist = pkgs.runCommand "python-dist" { } ''
         test -f ${cfg.packages.dist}/nk_example-0.1.0.tar.gz
         test -f ${cfg.packages.dist}/nk_example-0.1.0-py3-none-any.whl
+        test ! -e ${cfg.packages.dist}/.gitignore
         touch "$out"
       '';
       checks.python-test-customization = pkgs.runCommand "python-test-customization" { } ''

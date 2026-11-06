@@ -68,7 +68,10 @@
             (pythonSet.${name}.override {
               pyprojectHook = pythonSet.pyprojectDistHook;
             }).overrideAttrs
-              { uvBuildType = buildType; };
+              {
+                uvBuildType = buildType;
+                uvBuildFlags = "--no-create-gitignore";
+              };
         in
         {
           nullkomma.python.environments = {
@@ -84,6 +87,7 @@
                 "sdist"
                 "wheel"
               ];
+              meta.description = "Source distribution and wheel";
             };
           };
           apps = lib.genAttrs scripts (script: {
