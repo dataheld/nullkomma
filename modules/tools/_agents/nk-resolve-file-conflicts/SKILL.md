@@ -36,3 +36,6 @@ Do not overwrite edited source-of-truth files or silently accept all baselines.
 These never conflict: `nk generate-files` overwrites them. To keep a change, make it
 in the Nix options instead. Generation refuses symlinks and non-regular targets;
 investigate rather than removing them automatically.
+It also refuses files that Git does not ignore: run `nk write-files`,
+and check that nullkomma's section of `.gitignore` is intact.
+Without the git plugin, add them to `.gitignore` yourself.

@@ -1,24 +1,20 @@
+/.quarto/
+**/*.quarto_ipynb
+
+# nullkomma:git:start
 .quarto/
 _site/
 .luarc.json
 result
 result-*
 .direnv/
-.claude/
-.playwright-mcp/
-/.agents/skills/nk-audit-output
-/.agents/skills/nk-resolve-file-conflicts
-/.agents/skills/nk-upgrade
-/.mcp.json
 /.nullkomma/cloudflare/
 /.nullkomma/gcroots/
+.playwright-mcp/
+.claude/
+/.mcp.json
 /.nvim.lua
 /.vscode/mcp.json
-/_brand
-/_extensions/nullkomma-brand
-/_extensions/nkdocs
 /_nullkomma-brand.yml
 /privacy.qmd
-
-/.quarto/
-**/*.quarto_ipynb
+# nullkomma:git:end

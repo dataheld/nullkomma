@@ -1,0 +1,4 @@
+/project-ignored
+
+/.quarto/
+**/*.quarto_ipynb
