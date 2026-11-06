@@ -48,11 +48,6 @@
                 }
               ];
             };
-            python-test-coverage = python // {
-              description = "Write test coverage to the terminal, coverage.xml and htmlcov with pytest-cov";
-              command = ''${lib.getExe pytest} --cov --cov-report=term-missing --cov-report=xml --cov-report=html "$@"'';
-              disabled = true;
-            };
             check.depends_on.python-test.condition = "process_completed_successfully";
           };
         }

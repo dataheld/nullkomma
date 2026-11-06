@@ -88,7 +88,6 @@
               "python-lock"
               "python-lock-check"
               "python-test"
-              "python-test-coverage"
               "python-typecheck"
             ];
             formatters = [
@@ -151,10 +150,6 @@
         ${project fixture}
         export PYTHONPATH=/nonexistent-inherited-pythonpath
         ${task fixtures.python "python-test"}
-        test ! -e coverage.xml
-        ${task fixtures.python "python-test-coverage"}
-        test -f coverage.xml
-        test -f htmlcov/index.html
         mv src src-hidden
         ${task fixtures.python "python-test"} --installed
         mv src-hidden src

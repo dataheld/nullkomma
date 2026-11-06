@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest", "pytest-cov"]
+dev = ["pytest"]
 
 [project]
 name = "nk-example"
@@ -15,9 +15,6 @@ dependencies = ["click>=8"]
 
 [project.scripts]
 nk-example = "nk_example:main"
-
-[tool.coverage.run]
-source = ["nk_example"]
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]

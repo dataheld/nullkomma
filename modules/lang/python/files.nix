@@ -10,7 +10,6 @@
         ".coverage"
         "coverage.xml"
         "htmlcov"
-        "dist"
       ];
       atAnyDepth = [
         "__pycache__"
