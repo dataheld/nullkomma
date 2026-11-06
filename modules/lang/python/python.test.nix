@@ -135,24 +135,31 @@
       '';
       checks.python-working-tree = pkgs.runCommand "python-working-tree" { } ''
         ${project fixture}
-        export PYTHONPATH=/nonexistent-inherited-pythonpath
+        mkdir "$TMPDIR/inherited"
+        echo 'raise ImportError("PYTHONPATH reached Python")' > "$TMPDIR/inherited/nk_example.py"
+        echo 'def command(): raise ImportError("PYTHONPATH reached ty")' > "$TMPDIR/inherited/click.py"
+        export PYTHONPATH="$TMPDIR/inherited"
         ${task fixtures.python "python-test"}
-        mv src src-hidden
-        ${task fixtures.python "python-test"} --installed
-        mv src-hidden src
+        ${task fixtures.python "python-typecheck"}
         substituteInPlace src/nk_example/__init__.py --replace-fail 'Hello from Python' 'Edited source'
         substituteInPlace tests/test_example.py --replace-fail 'Hello from Python' 'Edited source'
         ${task fixtures.python "python-test"}
-        substituteInPlace pyproject.toml --replace-fail '[tool.pytest.ini_options]' $'[tool.pytest.ini_options]\npythonpath = ["src"]'
-        fails "AssertionError" ${task fixtures.python "python-test"} --installed
+        printf '\n[tool.pytest.ini_options]\npythonpath = ["src"]\n' >> pyproject.toml
+        fails "AssertionError" ${task fixtures.python "python-test"} --installed tests/test_example.py::test_greeting
+        ${task fixtures.python "python-test"} --installed -k test_console_script
+        mv src/nk_example nk_example
+        touch tests/__init__.py
+        fails "AssertionError" ${task fixtures.python "python-test"} --installed tests/test_example.py::test_greeting
+        rm tests/__init__.py
+        mv nk_example src/nk_example
         echo 'def broken() -> int: return "wrong"' > src/nk_example/broken.py
         printf '[rules]\ninvalid-return-type = "ignore"\n' > ty.toml
         fails "invalid-return-type" ${task fixtures.python "python-typecheck"}
         rm src/nk_example/broken.py
         echo 'def test_failure(): assert False' > tests/test_failure.py
-        fails "FAILED" ${task fixtures.python "python-test"} tests/test_failure.py
-        rm tests/test_failure.py
+        fails "FAILED" ${task fixtures.python "python-test"}
         ${task fixtures.python "python-test"} tests/test_example.py
+        rm tests/test_failure.py
         substituteInPlace pyproject.toml --replace-fail 'click>=8' 'click>=999'
         fails "lock" ${task fixtures.python "python-lock-check"}
         touch "$out"

@@ -11,14 +11,14 @@
             runtimeInputs = test.packages;
             text = ''
               unset PYTHONPATH
+              environment=${environments.development}
               if [[ "''${1-}" == --installed ]]; then
                 shift
-                PATH="${environments.test}/bin:$PATH"
-                exec python -I -m pytest --import-mode=importlib -o pythonpath= "$@"
+                environment=${environments.test}
               fi
               export NULLKOMMA_PYTHON_ROOT="$PWD"
-              PATH="${environments.development}/bin:$PATH"
-              exec python -m pytest "$@"
+              PATH="$environment/bin:$PATH"
+              exec python -I -m pytest --import-mode=importlib -o pythonpath= "$@"
             '';
           };
         in
