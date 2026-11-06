@@ -24,10 +24,6 @@
                 name = "linux-arm64-musl";
                 hash = "sha256-qOblrgTSeYqT6TUHOwie4mum+qpzTOHcrp9pF2nUA4w=";
               };
-              x86_64-darwin = {
-                name = "darwin-x64";
-                hash = "sha256-9Nsk7nVeAqoIv1EDm4U6mSf2B8nYZVSiGTrGCxRog0M=";
-              };
               x86_64-linux = {
                 name = "linux-x64-musl";
                 hash = "sha256-CrzW5kgf9/d7wuQHwfT2dK3zYLi9w3t0zxDTj7sfePw=";

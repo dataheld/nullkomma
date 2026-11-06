@@ -161,14 +161,6 @@
               ty = false;
             };
           };
-        testPythonIntelConsumer = {
-          expr =
-            lib.isString
-              (harness.callFlakeWith {
-                systems = lib.mkForce [ "x86_64-darwin" ];
-              } fixture).checks.x86_64-darwin.python-test.drvPath;
-          expected = true;
-        };
       };
       checks.python-runtime = pkgs.runCommand "python-runtime" { } ''
         ${lib.getExe cfg.packages.default} | grep -Fx 'Hello from Python'
