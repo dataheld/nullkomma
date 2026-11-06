@@ -229,7 +229,9 @@
           substituteInPlace src/nk_example/__init__.py --replace-fail 'Hello from Python' 'Edited source'
           test "$(python -c 'from nk_example import greeting; print(greeting())')" = 'Edited source'
           ${editor.vscode.settings."python.defaultInterpreterPath"} -c 'import pytest'
-          ${lib.head editor.vscode.settings."ty.path"} check --config-file ${editor.languageServers.ty.settings.ty.configurationFile}
+          ${
+            lib.head editor.vscode.settings."ty.path"
+          } check --config-file ${editor.languageServers.ty.settings.ty.configurationFile}
           uv run --offline python -c pass
           touch "$out"
         '';
