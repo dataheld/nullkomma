@@ -33,7 +33,7 @@
               };
               vscode = {
                 extensions = [ "astral-sh.ty" ];
-                settings = {
+                settings = lib.mapAttrs (_: lib.mkDefault) {
                   "ty.path" = [ (lib.getExe pkgs.ty) ];
                   "ty.configurationFile" = toString settings;
                 };
@@ -43,15 +43,17 @@
               python-typecheck = {
                 namespace = "python";
                 description = "Check Python types with ty";
-                command = ''${lib.getExe pkgs.ty} check --config-file ${settings} "$@"'';
+                # ty merges the user's ty.toml even with --config-file.
+                command = ''
+                  unset PYTHONPATH
+                  XDG_CONFIG_HOME=/var/empty ${lib.getExe pkgs.ty} check --config-file ${settings} "$@"
+                '';
                 watch.paths = [
                   {
                     path = ".";
                     include = [
                       "*.py"
                       "*.pyi"
-                      "pyproject.toml"
-                      "uv.lock"
                     ];
                   }
                 ];

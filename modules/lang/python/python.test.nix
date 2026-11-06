@@ -37,6 +37,12 @@
           nullkomma.python.enable = true;
         }
       );
+      linted = harness.callFlakeWith {
+        nullkomma.lint = {
+          ruff.lint.ignore = [ "F401" ];
+          ty.rules.invalid-return-type = "ignore";
+        };
+      } fixture;
       customized = harness.callFlakeWith {
         perSystem = { pkgs, ... }: {
           nullkomma.python.test.packages = [ pkgs.git ];
@@ -152,10 +158,6 @@
         fails "AssertionError" ${task fixtures.python "python-test"} --installed tests/test_example.py::test_greeting
         rm tests/__init__.py
         mv nk_example src/nk_example
-        echo 'def broken() -> int: return "wrong"' > src/nk_example/broken.py
-        printf '[rules]\ninvalid-return-type = "ignore"\n' > ty.toml
-        fails "invalid-return-type" ${task fixtures.python "python-typecheck"}
-        rm src/nk_example/broken.py
         echo 'def test_failure(): assert False' > tests/test_failure.py
         fails "FAILED" ${task fixtures.python "python-test"}
         ${task fixtures.python "python-test"} tests/test_example.py
@@ -182,11 +184,17 @@
       '';
       checks.python-lint = pkgs.runCommand "python-lint" { } ''
         ${project fixture}
-        ${treefmt fixtures.python}
-        printf '[lint]\nignore = ["F401"]\n' > ruff.toml
-        echo 'import os' > src/nk_example/unused.py
-        format src/nk_example/unused.py
-        test ! -s src/nk_example/unused.py
+        ${treefmt linted}
+        printf '[lint]\nignore = ["I"]\n' > ruff.toml
+        printf 'import sys\nimport os\n' > src/nk_example/unsorted.py
+        format src/nk_example/unsorted.py
+        printf 'import os\nimport sys\n' | diff - src/nk_example/unsorted.py
+        mkdir -p "$HOME/.config/ty"
+        printf '[rules]\ninvalid-assignment = "ignore"\n' | tee ty.toml > "$HOME/.config/ty/ty.toml"
+        printf 'def broken() -> int:\n    return "wrong"\n\n\nvalue: int = "wrong"\n' > src/nk_example/broken.py
+        fails "invalid-assignment" ${task linted "python-typecheck"}
+        if grep -qF invalid-return-type "$TMPDIR/failure.log"; then exit 1; fi
+        ${task linted "python-typecheck"} tests
         touch "$out"
       '';
     };
