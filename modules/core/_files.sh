@@ -7,6 +7,7 @@ accept=""
 accepted=false
 status=0
 declared=()
+unignored=()
 if [ "$mode" = source ] && [ "${1:-}" = --accept ] && [ "$#" = 2 ]; then
   accept="$2"
 elif [ "$#" != 0 ]; then
@@ -68,6 +69,11 @@ process_file() {
     return
   fi
   if [ "$mode" = generated ]; then
+    if ! git check-ignore -q -- "$path"; then
+      unignored+=("$path")
+      status=1
+      return
+    fi
     cmp -s "$source" "$path" && return
     mkdir -p "$(dirname "$path")"
     cp --remove-destination "$source" "$path"
@@ -117,10 +123,12 @@ is_declared() {
 
 # Removes files an earlier run wrote that are no longer declared.
 prune() {
-  local base path stripped
+  local base manifest path stripped
   if [ "$mode" = generated ]; then
-    mkdir -p "$state"
-    touch "$state/generated"
+    manifest="$(git rev-parse --path-format=absolute --git-path nullkomma/files/generated)"
+    mkdir -p "$(dirname "$manifest")"
+    # Manifests used to be shared, so a worktree's first run may have to prune what that lists.
+    [ -e "$manifest" ] || cp "$state/generated" "$manifest" 2>/dev/null || touch "$manifest"
     while IFS= read -r path; do
       # Skip paths now written as source files.
       if [ -n "$path" ] && ! is_declared "$path" && [ ! -f "$state/base/$path" ] && safe_path "$path" &&
@@ -128,8 +136,8 @@ prune() {
         rm -rf "$path"
         echo "removed $path (no longer generated)"
       fi
-    done <"$state/generated"
-    printf '%s\n' "${declared[@]}" >"$state/generated"
+    done <"$manifest"
+    printf '%s\n' "${declared[@]}" >"$manifest"
     return
   fi
   shopt -s globstar dotglob nullglob
@@ -167,6 +175,9 @@ finish() {
     fi
   else
     prune
+  fi
+  if [ "${#unignored[@]}" != 0 ]; then
+    echo "Not written, because Git does not ignore them: ${unignored[*]}. Run nk write-files, which updates .gitignore." >&2
   fi
   exit "$status"
 }
