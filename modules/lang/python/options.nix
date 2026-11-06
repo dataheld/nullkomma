@@ -28,11 +28,6 @@
             builtins.match ".*>= *([0-9]+\\.[0-9]+).*" (cfg.project.requires-python or "")
           )
         );
-        test.enable = lib.mkOption {
-          type = lib.types.bool;
-          default = true;
-          description = "Run pytest, which a dependency group must provide, with `python-test`: on the editable working tree in the dev loop and `check`, on the installed package in nix flake check (or with `nk python-test --installed`).";
-        };
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption (
         { pkgs, ... }:

@@ -1,11 +1,8 @@
 {
   plugins.python =
     { config, lib, ... }:
-    let
-      cfg = config.nullkomma.python;
-    in
     {
-      config.perSystem = lib.mkIf (cfg.enable && cfg.test.enable) (
+      config.perSystem = lib.mkIf config.nullkomma.python.enable (
         { config, pkgs, ... }:
         let
           inherit (config.nullkomma.python) environments test;
