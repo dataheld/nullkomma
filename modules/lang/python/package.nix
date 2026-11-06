@@ -69,10 +69,6 @@
               pyprojectHook = pythonSet.pyprojectDistHook;
             }).overrideAttrs
               { uvBuildType = buildType; };
-          app = script: {
-            program = "${runtime}/bin/${script}";
-            meta.description = project.description or "Run ${script}";
-          };
         in
         {
           nullkomma.python.environments = {
@@ -90,11 +86,10 @@
               ];
             };
           };
-          apps =
-            lib.genAttrs scripts app
-            // lib.optionalAttrs (lib.length scripts == 1) {
-              default = lib.mkDefault (app (lib.head scripts));
-            };
+          apps = lib.genAttrs scripts (script: {
+            program = "${runtime}/bin/${script}";
+            meta.description = project.description or "Run ${script}";
+          });
           nullkomma.devShell = {
             packages = [ environments.development ];
             shellHook = ''

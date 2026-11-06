@@ -73,10 +73,10 @@
             checks = lib.filter (lib.hasPrefix "python-") (summary fixtures.python).checks;
             formatters = lib.filter (lib.hasPrefix "ruff") (lib.attrNames cfg.treefmt.build.programs);
             ignored = lib.elem ".venv" fixtures.python.debug.config.nullkomma.gitignore;
+            program = cfg.packages.default.meta.mainProgram;
           };
           expected = {
             apps = [
-              "default"
               "nk-example"
               "python-lock"
             ];
@@ -90,6 +90,7 @@
               "ruff-format"
             ];
             ignored = true;
+            program = "nk-example";
           };
         };
         testPythonStringRoot = {
@@ -170,7 +171,7 @@
         };
       };
       checks.python-runtime = pkgs.runCommand "python-runtime" { } ''
-        ${cfg.apps.default.program} | grep -Fx 'Hello from Python'
+        ${lib.getExe cfg.packages.default} | grep -Fx 'Hello from Python'
         test ! -e ${cfg.packages.default}/bin/python
         ${cfg.nullkomma.python.environments.runtime}/bin/python -c 'import click; import importlib.util; assert importlib.util.find_spec("pytest") is None'
         touch "$out"
