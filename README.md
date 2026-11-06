@@ -339,7 +339,7 @@ Those marked under Default are enabled unless you opt out.
 | [`flakehub`][flakehub]                                                                            | ✅       | [`fh`]                                                                                                         |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`quarto`](#quarto) (includes nkdocs; optional [brand](#brand))                                   |         | [`quarto`]                                                                                                     |                                            |                                                           | `site`             |                            | `quarto-render`, `quarto-preview`                                                                                                              | `quarto-preview`                                                                                                                              | `playwright`                                    |
 | [`cloudflare`](#cloudflare)                                                                       |         | [`wrangler`]                                                                                                   |                                            | `cloudflare-validate` ([OpenTofu] validation)             |                    | `deploy`[^deploy]          | `cloudflare-validate`, `cloudflare-plan`, `cloudflare-deploy`                                                                                  |                                                                                                                                               | `cloudflare-api`, `cloudflare-docs`, `opentofu` |
-| [`python`](#python) | | [Python], [uv], [ty], editable package with its dependency groups | `ruff-check`, `ruff-format` | `python-lock-check`, `python-test`, `python-typecheck` | package name, `default`, `dist` | console scripts, `default` for one script, `python-lock` | `python-lock`, `python-lock-check`, `python-test`, `python-typecheck` | `python-lock-check`, `python-test`, `python-typecheck` | |
+| [`python`](#python) | | [Python], [uv], [ty], editable package with its dependency groups | `ruff-check`, `ruff-format` | `python-lock-check`, `python-test`, `python-typecheck` | `default`, `dist` | console scripts, `default` for one script, `python-lock` | `python-lock`, `python-lock-check`, `python-test`, `python-typecheck` | `python-lock-check`, `python-test`, `python-typecheck` | |
 | [`r`](#r) (optional [non-Nix collaboration](#r-development-without-nix), [pkgdown brand](#brand)) |         | [R], [radian], [Air]; [languageserver], [`pkgload`], [pak], [httpgd], [later], [rstudioapi], [btw], [mcptools] | `air`, [`jarl`][jarl]                      | `r-document-namespace`, `r-test`, `r-check`               | `site` ([pkgdown]) | `r-lock`, `shiny` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-lock`, `r-run-app` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-shiny-<function>` (opt-in) | `r` ([btw], [mcptools]); `playwright` (Shiny)   |
 
 Plugins meet only through framework options, so one could live in a flake of its own,
@@ -568,26 +568,49 @@ OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is invo
 
 ### `python`
 
-Enable it for a package with `[project]` metadata, a build backend and a committed `uv.lock`:
+Enable it for a package at the flake root with `[project]` metadata, a `[build-system]` and a committed `uv.lock`:
 create that with `nix run .#python-lock`, then `git add uv.lock`.
+After changing requirements, run `nk python-lock` (`uv add` also does this), commit `uv.lock` and run `direnv reload`:
+`use flake` does not watch these files, so the shell and its `nk` keep the old environment until then.
 `pyproject.toml` owns metadata and requirements, `uv.lock` the resolved dependencies,
 and `flake.lock` the interpreter, tools and build backends.
 [uv2nix] and [pyproject.nix] build from these, preferring dependency wheels;
 the package stays usable with uv alone.
 
-The package is a runtime-only virtual environment, and its console scripts are apps.
+The package holds the console scripts of a runtime-only virtual environment, without its interpreter;
+they are also apps, and a package without scripts is the environment itself.
 `nix build .#dist` builds an sdist and a wheel; nothing is published.
 The dev shell has an editable environment with all dependency groups and extras:
 source edits apply without a rebuild,
 and entering it neither runs `uv sync` nor contacts a package index.
+Its build sees only top-level files and `__init__.py` files, unless `[project]` has `dynamic` fields.
 
 `python-test` runs pytest, which a dependency group must provide, on the editable working tree;
-the sandboxed check tests the installed package, isolated from the checkout.
-`python-test-coverage` adds pytest-cov's reports.
-Configure both in `pyproject.toml`.
+with `--installed`, as in the sandboxed check, on the installed package.
+Both use `--import-mode=importlib`, which keeps the checkout off `sys.path`.
+Other arguments go to pytest, as in `nk python-test --cov` with pytest-cov.
 
 [Ruff] and ty target the lower bound of `requires-python`, and ty also serves editors.
-Configure them through `nullkomma.lint`; their native config files are ignored.
+Configure them through [`nullkomma.lint`](#linting).
+
+<!-- nullkomma:python:start -->
+```nix
+{
+  # Whether to enable the python plugin.
+  nullkomma.python.enable = true;
+
+  # Nix Python interpreter; must satisfy the project's requires-python.
+  # perSystem.nullkomma.python.interpreter = pkgs.python3;
+
+  # pyproject.nix overlay for native libraries and package build fixes, applied
+  # after uv.lock.
+  # perSystem.nullkomma.python.overlay = final: prev: {};
+
+  # Extra commands available to pytest, for example pkgs.git.
+  # perSystem.nullkomma.python.test.packages = [ ];
+}
+```
+<!-- nullkomma:python:end -->
 
 ### `r`
 
@@ -877,32 +900,3 @@ It is **not**:
 [`wrangler`]: https://developers.cloudflare.com/workers/wrangler/
 [`yamlfmt`]: https://github.com/google/yamlfmt
 [`yamllint`]: https://github.com/adrienverge/yamllint
-
-<!-- nullkomma:python:start -->
-```nix
-{
-  # Whether to enable the python plugin.
-  nullkomma.python.enable = true;
-
-  # Python package directory, with its `pyproject.toml` and `uv.lock` (written
-  # by `nix run .#python-lock`); a path literal inside the flake if not its
-  # root.
-  # nullkomma.python.root = self.outPath;
-
-  # Run pytest, which a dependency group must provide, with `python-test`: on
-  # the editable working tree in the dev loop and `check`, on the installed
-  # package in nix flake check (or with `nk python-test --installed`).
-  # nullkomma.python.test.enable = true;
-
-  # Nix Python interpreter; must satisfy the project's requires-python.
-  # perSystem.nullkomma.python.interpreter = pkgs.python3;
-
-  # pyproject.nix overlay for native libraries and package build fixes, applied
-  # after uv.lock.
-  # perSystem.nullkomma.python.overlay = final: prev: {};
-
-  # Extra commands available to pytest, for example pkgs.git.
-  # perSystem.nullkomma.python.test.packages = [ ];
-}
-```
-<!-- nullkomma:python:end -->
