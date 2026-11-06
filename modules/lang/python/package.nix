@@ -9,9 +9,13 @@
     }:
     let
       cfg = config.nullkomma.python;
-      name = inputs.pyproject-nix.lib.pypa.normalizePackageName cfg.project.name;
-      scripts = lib.attrNames (cfg.project.scripts or { });
+      inherit (cfg.pyproject) project;
+      name = inputs.pyproject-nix.lib.pypa.normalizePackageName project.name;
+      scripts = lib.attrNames (project.scripts or { });
       workspace =
+        assert lib.assertMsg (
+          cfg.pyproject ? build-system
+        ) "nullkomma.python: pyproject.toml needs a [build-system] table, as `uv init --package` writes.";
         assert lib.assertMsg (builtins.pathExists (
           self.outPath + "/uv.lock"
         )) "nullkomma.python: uv.lock is missing; run `nix run .#python-lock`, then `git add uv.lock`.";
@@ -36,10 +40,25 @@
               );
           editableSet = pythonSet.overrideScope (
             lib.composeManyExtensions [
-              (workspace.mkEditablePyprojectOverlay { root = "$NULLKOMMA_PYTHON_ROOT"; })
-              # Hatchling requests editables dynamically (PEP 660), which Nix builds cannot.
+              (workspace.mkEditablePyprojectOverlay {
+                root = "$NULLKOMMA_PYTHON_ROOT";
+                members = [ name ];
+              })
               (final: prev: {
                 ${name} = prev.${name}.overrideAttrs (old: {
+                  # Editable builds read metadata and find packages, so module edits need no rebuild.
+                  # Dynamic metadata can read any file.
+                  src = builtins.path {
+                    path = old.src;
+                    name = "source";
+                    filter =
+                      path: type:
+                      project ? dynamic
+                      || type == "directory"
+                      || dirOf path == toString old.src
+                      || baseNameOf path == "__init__.py";
+                  };
+                  # Hatchling requests editables dynamically (PEP 660), which Nix builds cannot.
                   nativeBuildInputs = old.nativeBuildInputs ++ final.resolveBuildSystem { editables = [ ]; };
                 });
               })
@@ -61,10 +80,10 @@
             (pythonSet.${name}.override {
               pyprojectHook = pythonSet.pyprojectDistHook;
             }).overrideAttrs
-              { env.uvBuildType = buildType; };
+              { uvBuildType = buildType; };
           app = script: {
             program = "${runtime}/bin/${script}";
-            meta.description = cfg.project.description or "Run ${script}";
+            meta.description = project.description or "Run ${script}";
           };
         in
         {

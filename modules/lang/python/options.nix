@@ -20,12 +20,12 @@
     in
     {
       options.nullkomma.python = {
-        project =
-          internal "The `[project]` table of `pyproject.toml`."
-            (lib.importTOML (self.outPath + "/pyproject.toml")).project;
+        pyproject = internal "The flake's `pyproject.toml`." (
+          lib.importTOML (self.outPath + "/pyproject.toml")
+        );
         minimum = internal "Lower bound of `requires-python` as `major.minor`; null without one." (
           lib.mapNullable lib.head (
-            builtins.match ".*>= *([0-9]+\\.[0-9]+).*" (cfg.project.requires-python or "")
+            builtins.match ".*>= *([0-9]+\\.[0-9]+).*" (cfg.pyproject.project.requires-python or "")
           )
         );
       };
