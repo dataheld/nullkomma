@@ -173,7 +173,19 @@
                 echo 'The edit did not restart the app' >&2
                 exit 1
               fi
+              server=$(grep -oE '<script data-server="[0-9]+">' response.html)
               await http://127.0.0.1:38381 'nullkomma greeting'
+              # So do edits to other files that R installs, but not edits to tests.
+              echo >> ../tests/testthat/test-app.R
+              sleep 3
+              await http://127.0.0.1:38382 'edited Shiny fixture'
+              if ! grep -qF "$server" response.html; then
+                echo 'The test edit restarted the app' >&2
+                exit 1
+              fi
+              substituteInPlace ../inst/greeting.txt --replace-fail 'nullkomma greeting' 'edited greeting'
+              await http://127.0.0.1:38381 'edited greeting'
+              await http://127.0.0.1:38382 'edited Shiny fixture'
               if grep -qi 'address already in use' server.log; then
                 cat server.log >&2
                 exit 1
