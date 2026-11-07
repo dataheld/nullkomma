@@ -4,6 +4,7 @@
     let
       inherit (harness)
         callFlakeWith
+        perSystem
         project
         root
         treefmt
@@ -37,5 +38,34 @@
         format nested-config/allowed.md
         touch "$out"
       '';
+      # Editors report what the lint check reports, whatever native files say.
+      checks.markdown-language-server =
+        let
+          inherit ((perSystem withDefaults).nullkomma) editor files;
+        in
+        pkgs.runCommand "markdown-language-server"
+          {
+            nativeBuildInputs = [
+              pkgs.neovim-unwrapped
+              editor.languageServers.rumdl.package
+            ];
+          }
+          ''
+            ${project md}
+            printf '# Title\n\n<div>HTML is allowed.</div>\n\n[broken]()\n\n' > page.md
+            printf 'long line %.0s' {1..15} >> page.md
+            printf 'end\n' >> page.md
+            printf 'MD042: false\n' > .markdownlint.yml
+            printf '[global]\ndisable = ["MD042"]\n' > .rumdl.toml
+            nvim --clean -l ${pkgs.writeText "check.lua" ''
+              dofile("${files.".nvim.lua".source}")
+              vim.cmd.edit("page.md")
+              vim.bo.filetype = "markdown"
+              assert(vim.wait(60000, function() return #vim.diagnostic.get(0) > 0 end))
+              local codes = vim.tbl_map(function(d) return d.code end, vim.diagnostic.get(0))
+              assert(vim.deep_equal(codes, { "MD042" }), vim.inspect(codes))
+            ''}
+            touch "$out"
+          '';
     };
 }
