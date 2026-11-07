@@ -38,19 +38,7 @@
         nullkomma.agents.skills.nk-upgrade = ./_nix/nk-upgrade;
         partitionedAttrs.tests = lib.mkIf (config.partitions ? dev) (lib.mkDefault "dev");
         # Unconditional: deciding by the tests would make every output depend on every system.
-        flake = {
-          tests.systems = unitTests;
-          schemas.tests = {
-            version = 1;
-            doc = "[nix-unit](https://github.com/nix-community/nix-unit) tests by system, run by `checks.<system>.nix-unit`.";
-            inventory = output: {
-              children.systems.children = builtins.mapAttrs (system: _: {
-                what = "nix-unit test suite";
-                forSystems = [ system ];
-              }) output.systems;
-            };
-          };
-        };
+        flake.tests.systems = unitTests;
         nullkomma.gitignore = [
           "result"
           "result-*"

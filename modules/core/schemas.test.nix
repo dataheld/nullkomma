@@ -10,29 +10,26 @@
     let
       inherit (harness) callFlakeWith nullkomma root;
       fixture = root + "/tests/fixtures/partitioned";
-      # Evaluates the partitioned fixture as a flake reading it would, extended by `module`.
+      # The partitioned fixture's root, with `extraInputs` in its `dev` partition and `module`.
       partitioned =
-        module:
-        (import (fixture + "/flake.nix")).outputs {
-          inherit (inputs) nixpkgs;
-          nullkomma-schemas = (import (root + "/schemas/flake.nix")).outputs { inherit (inputs) flake-schemas; };
-          self.outPath = fixture;
-          flake-parts = lib.recursiveUpdate inputs.flake-parts {
-            lib.mkFlake =
-              args: consumer:
-              inputs.flake-parts.lib.mkFlake args {
-                imports = [
-                  consumer
-                  module
-                ];
-              };
+        extraInputs: module:
+        inputs.flake-parts.lib.mkFlake
+          {
+            inputs = {
+              inherit (inputs) flake-parts nixpkgs;
+              nullkomma-schemas = (import (root + "/schemas/flake.nix")).outputs { inherit (inputs) flake-schemas; };
+              self.outPath = fixture;
+            };
+          }
+          {
+            imports = [
+              (fixture + "/root.nix")
+              module
+            ];
+            partitions.dev = { inherit extraInputs; };
           };
-        };
-      withExtraInputs = extraInputs: {
-        partitions.dev.extraInputs = lib.mkForce extraInputs;
-      };
-      unevaluated = partitioned (withExtraInputs { nullkomma = throw "evaluated the `dev` partition"; });
-      evaluated = partitioned (withExtraInputs { inherit nullkomma; });
+      unevaluated = partitioned { nullkomma = throw "evaluated the `dev` partition"; } { };
+      evaluated = partitioned { inherit nullkomma; } { };
       # What Nix reads of a schema to resolve an installable.
       metadata = schema: {
         inherit (schema) version;
@@ -90,7 +87,7 @@
             shell = lib.isDerivation evaluated.devShells.${system}.default;
             tree = evaluated.processTrees.${system}.dev.processes ? all;
             runner = evaluated.taskRunners.${system}.default.tasks ? all;
-            tests = lib.attrNames evaluated.tests.systems;
+            tests = evaluated.tests ? systems;
             inventory = {
               tree = lib.attrNames (evaluated.schemas.processTrees.inventory evaluated.processTrees).children.${system}.children;
               runner = lib.attrNames (evaluated.schemas.taskRunners.inventory evaluated.taskRunners).children.${system}.children;
@@ -100,7 +97,7 @@
             shell = true;
             tree = true;
             runner = true;
-            tests = lib.attrNames evaluated.tests.systems;
+            tests = evaluated.tests ? systems;
             inventory = {
               tree = [ "dev" ];
               runner = [ "default" ];
@@ -110,8 +107,7 @@
         testPartitionedAttrsExposeAllNamesOfAnOutput = {
           expr =
             namesOf
-              (partitioned {
-                imports = [ (withExtraInputs { inherit nullkomma; }) ];
+              (partitioned { inherit nullkomma; } {
                 partitionedAttrs.processTrees = "dev";
                 partitions.dev.module.perSystem.process-compose.other.settings.processes.true.command = "true";
               })
