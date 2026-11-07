@@ -32,6 +32,11 @@
       inputs.uv2nix.follows = "uv2nix";
     };
     process-compose-flake.url = "github:Platonic-Systems/process-compose-flake";
+    up = {
+      url = "https://flakehub.com/f/DeterminateSystems/up/0.1.*";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-schemas.follows = "flake-schemas";
+    };
     terranix = {
       url = "github:terranix/terranix";
       inputs.nixpkgs.follows = "nixpkgs";
