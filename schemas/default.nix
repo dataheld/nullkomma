@@ -21,13 +21,15 @@ let
 in
 flake-schemas.exportedSchemas
 // {
-  processTrees = derivationsWith "[process-compose](https://github.com/F1bonacc1/process-compose) trees." (
-    tree:
-    builtins.mapAttrs (_: process: {
-      what = if process.description != null then process.description else "process";
-      shortDescription = if process.command != null then process.command else "";
-    }) (tree.processes or { })
-  );
+  processTrees =
+    derivationsWith "[process-compose](https://github.com/F1bonacc1/process-compose) trees."
+      (
+        tree:
+        builtins.mapAttrs (_: process: {
+          what = if process.description != null then process.description else "process";
+          shortDescription = if process.command != null then process.command else "";
+        }) (tree.processes or { })
+      );
   taskRunners = derivationsWith "Task runners, with their tasks in `tasks`." (
     runner:
     builtins.mapAttrs (_: task: {

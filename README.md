@@ -178,6 +178,11 @@ partitions.dev = {
 
 nullkomma then takes per-system outputs, such as `packages` or `checks`, from the partition.
 
+If other flakes consume yours, keep nullkomma itself in that partition too.
+Most `nix` commands read `schemas` to resolve `.#name`, so define them in the root,
+with `inputs.nullkomma-schemas.url = "https://flakehub.com/f/dataheld/nullkomma/*?dir=schemas";`
+and `flake.schemas = inputs.nullkomma-schemas.schemas;`.
+
 ### Linting
 
 Configure linters in Nix, not in config files.

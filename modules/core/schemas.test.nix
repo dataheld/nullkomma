@@ -17,7 +17,9 @@
           {
             inputs = {
               inherit (inputs) flake-parts nixpkgs;
-              nullkomma-schemas = (import (root + "/schemas/flake.nix")).outputs { inherit (inputs) flake-schemas; };
+              nullkomma-schemas = (import (root + "/schemas/flake.nix")).outputs {
+                inherit (inputs) flake-schemas;
+              };
               self.outPath = fixture;
             };
           }
@@ -30,7 +32,10 @@
             }
           );
       evaluated = partitioned { inherit nullkomma; };
-      childrenOf = output: lib.attrNames (evaluated.schemas.${output}.inventory evaluated.${output}).children.${system}.children;
+      childrenOf =
+        output:
+        lib.attrNames
+          (evaluated.schemas.${output}.inventory evaluated.${output}).children.${system}.children;
     in
     {
       nullkomma.nix.unit.tests = {
@@ -39,7 +44,14 @@
             let
               inherit (partitioned { nullkomma = throw "evaluated the `dev` partition"; }) schemas;
             in
-            lib.mapAttrs (_: schema: schema.version) { inherit (schemas) apps processTrees taskRunners tests; };
+            lib.mapAttrs (_: schema: schema.version) {
+              inherit (schemas)
+                apps
+                processTrees
+                taskRunners
+                tests
+                ;
+            };
           expected = {
             apps = 1;
             processTrees = 1;
