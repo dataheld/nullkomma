@@ -791,7 +791,7 @@ e.g. `app <- function() shiny::shinyApp(ui, server)`, and declare `shiny` in `DE
 `nix run .#shiny` installs the package and serves the app,
 with only its `Depends`/`Imports` closure.
 `process-compose up` serves each of `devFunctions` from the working tree with pkgload,
-restarts them when `r-document-namespace` reruns,
+restarts them when `r-document-namespace` reruns or another file that R installs changes, such as in `inst/`,
 and reloads open pages once a new app process serves them.
 They run in [Shiny's developer mode](https://shiny.posit.co/r/reference/shiny/latest/devmode.html)
 and record a [reactlog](https://rstudio.github.io/reactlog/).
