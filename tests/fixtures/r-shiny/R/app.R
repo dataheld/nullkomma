@@ -22,7 +22,10 @@ app <- function() {
 #' @return A Shiny app object.
 #' @export
 greeting_app <- function() {
-  greeting <- readLines(system.file("greeting.txt", package = "nullkommashinyfixture"))
+  greeting <- readLines(system.file(
+    "greeting.txt",
+    package = "nullkommashinyfixture"
+  ))
   shiny::shinyApp(
     ui = shiny::fluidPage(shiny::h1(greeting)),
     server = function(input, output, session) {}
