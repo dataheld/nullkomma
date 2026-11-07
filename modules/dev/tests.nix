@@ -314,6 +314,10 @@
                 root="$(git rev-parse --show-toplevel)"
                 scratch="$(mktemp -d)"
                 trap 'rm -rf "$scratch"' EXIT
+                # The root needs no partition for what it defines itself; `dev/` is missing here.
+                mkdir "$scratch/root" "$scratch/init"
+                cp -R "$root"/{flake.nix,flake.lock,lib,modules,templates} "$scratch/root/"
+                (cd "$scratch/init" && nix flake init --template "path:$scratch/root")
                 mkdir "$scratch/project"
                 cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
                 check() {

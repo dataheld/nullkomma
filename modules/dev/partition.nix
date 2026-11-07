@@ -7,7 +7,6 @@
   partitionedAttrs = lib.genAttrs [
     "legacyPackages"
     "processTrees"
-    "schemas"
     "taskRunners"
     "tests"
   ] (_: "dev");
