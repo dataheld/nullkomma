@@ -178,6 +178,11 @@ partitions.dev = {
 
 nullkomma then takes per-system outputs, such as `packages` or `checks`, from the partition.
 
+If other flakes consume yours, keep nullkomma itself in that partition too,
+but leave `schemas` out of `partitionedAttrs`, and `apps` too if the partition has none:
+most `nix` commands read `schemas` to resolve `.#name`, and `nix run` searches `apps`.
+Nix's default schemas then list `processTrees`, `taskRunners` and `tests` as unknown.
+
 ### Linting
 
 Configure linters in Nix, not in config files.
