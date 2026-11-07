@@ -215,6 +215,38 @@
       }
       # Nixpkgs has no Chromium for macOS.
       // lib.optionalAttrs pkgs.stdenv.isLinux {
+        r-browser-fonts =
+          pkgs.runCommand "r-browser-fonts" { nativeBuildInputs = [ (lib.getBin pkgs.fontconfig) ]; }
+            ''
+              source <(grep '^export FONTCONFIG_FILE=' ${lib.getExe (perSystem plain).nullkomma.r.browser})
+              # The fonts and configuration of a machine, where fontconfig would find them.
+              # FONTCONFIG_PATH stands in for /etc/fonts.
+              export HOME="$TMPDIR/home" FONTCONFIG_PATH="$TMPDIR/home"
+              mkdir -p "$HOME"/{.nix-profile/share,.local/share,.config/fontconfig}
+              ln -s ${pkgs.liberation_ttf}/share/fonts "$HOME/.nix-profile/share/fonts"
+              ln -s ${pkgs.liberation_ttf}/share/fonts "$HOME/.local/share/fonts"
+              echo '<fontconfig><alias binding="same"><family>Arial</family><prefer><family>DejaVu Serif</family></prefer></alias></fontconfig>' |
+                tee "$HOME/local.conf" > "$HOME/.config/fontconfig/fonts.conf"
+
+              families() {
+                for family in sans-serif serif monospace Arial 'Times New Roman' 'Courier New'; do
+                  fc-match --format '%{family}\n' "$family"
+                done
+              }
+              diff - <(families) <<'FAMILIES'
+              DejaVu Sans
+              DejaVu Serif
+              DejaVu Sans Mono
+              Liberation Sans
+              Liberation Serif
+              Liberation Mono
+              FAMILIES
+              if fc-list --format '%{file}\n' | grep -F "$HOME"; then
+                echo 'The browser must not use the fonts of the machine' >&2
+                exit 1
+              fi
+              touch $out
+            '';
         r-shinytest2 =
           pkgs.runCommand "r-shinytest2" { nativeBuildInputs = [ (perSystem plain).nullkomma.r.package ]; }
             ''
