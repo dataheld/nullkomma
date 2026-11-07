@@ -13,6 +13,29 @@
     let
       cfg = config.nullkomma.r;
       rlib = import ../../../lib/r.nix { inherit lib; };
+      # Only these fonts and fontconfig's own rules:
+      # a machine's fonts and configuration must not change what browser tests render.
+      fontsConf =
+        pkgs:
+        let
+          rules = pkgs.runCommand "fontconfig-conf.d" { } ''
+            cp -rL ${pkgs.fontconfig.out}/etc/fonts/conf.d "$out"
+            chmod u+w "$out"
+            rm "$out"/{50-user,51-local}.conf
+          '';
+        in
+        pkgs.runCommand "fonts.conf" { } ''
+          grep -vF '<dir prefix="xdg">fonts</dir>' ${
+            pkgs.makeFontsConf {
+              fontDirectories = [
+                pkgs.liberation_ttf
+                pkgs.dejavu_fonts
+              ];
+              impureFontDirectories = [ ];
+              includes = [ rules ];
+            }
+          } > "$out"
+        '';
     in
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption (
@@ -28,14 +51,7 @@
                 pkgs.writeShellApplication {
                   name = "r-chromium-with-fonts";
                   text = ''
-                    export FONTCONFIG_FILE=${
-                      pkgs.makeFontsConf {
-                        fontDirectories = [
-                          pkgs.liberation_ttf
-                          pkgs.dejavu_fonts
-                        ];
-                      }
-                    }
+                    export FONTCONFIG_FILE=${fontsConf pkgs}
                     exec ${lib.getExe pkgs.chromium} "$@"
                   '';
                 }
