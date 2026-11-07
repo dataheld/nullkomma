@@ -148,36 +148,10 @@
                 namespace = "r";
                 working_dir = "./${cfg.prefix}";
                 # r-document-namespace's watch restarts the app on R changes,
-                # its own on the other files that R installs, but help pages.
+                # its own on the other files that R installs.
                 depends_on.r-document-namespace.condition = "process_completed_successfully";
                 depends_on.r-shiny-browser.condition = "process_started";
-                watch.paths = [
-                  {
-                    path = ".";
-                    include = [
-                      "DESCRIPTION"
-                      "LICENSE"
-                      "LICENCE"
-                      "NEWS"
-                      "NEWS.md"
-                    ]
-                    ++ map (dir: "${dir}/**") [
-                      "data"
-                      "demo"
-                      "exec"
-                      "inst"
-                      "src"
-                    ];
-                    # File names in `include` match at any depth; load_all compiles into src/.
-                    exclude = [
-                      "tests/**"
-                      "vignettes/**"
-                      "*.o"
-                      "*.so"
-                      "*.dll"
-                    ];
-                  }
-                ];
+                watch.paths = [ (import ./_installed-files.nix) ];
                 command = pkgs.writeShellApplication {
                   name = "r-shiny-${function}";
                   runtimeInputs = [ config.nullkomma.r.package ];
