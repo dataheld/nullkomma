@@ -112,6 +112,22 @@
                 };
               };
           };
+          # One directory watched by a process with a relative working_dir and one without.
+          spellings =
+            let
+              watcher = {
+                command = "true";
+                watch.paths = [ { path = "watched"; } ];
+              };
+            in
+            raw {
+              perSystem.process-compose.dev.settings.processes = {
+                in-root = watcher;
+                in-working-dir = watcher // {
+                  working_dir = "./";
+                };
+              };
+            };
           privacy =
             sections:
             (raw { nullkomma.privacy = { inherit sections; }; }).debug.config.nullkomma.privacy.policy;
@@ -701,6 +717,18 @@
               # Without watches, it runs in place.
               ${task isolated "isolated"}
               test -e side-effect
+              touch $out
+            '';
+            # A change restarts every process watching it, whatever its working_dir.
+            watch-working-dirs = pkgs.runCommand "nullkomma-watch-working-dirs" { } ''
+              ${harness.project md}
+              mkdir watched
+              ${harness.watching spellings "in-root in-working-dir"}
+              settled in-root 1
+              settled in-working-dir 1
+              touch watched/change
+              settled in-root 2
+              settled in-working-dir 2
               touch $out
             '';
             neovim-config =
