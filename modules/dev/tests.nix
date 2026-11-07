@@ -86,6 +86,7 @@
       fixtures = lib.genAttrs [
         "cloudflare"
         "md"
+        "python"
         "quarto"
         "quarto-branded"
         "r"

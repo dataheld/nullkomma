@@ -1,0 +1,7 @@
+[project]
+name = "nk-scripts"
+version = "0.1.0"
+
+[project.scripts]
+first = "nk_scripts:main"
+second = "nk_scripts:main"

@@ -33,6 +33,7 @@ Every new input lands in every consumer's `flake.lock`; dev-only inputs go in
 | [make-shell](https://flake.parts/options/make-shell.html)                       | not used: would add a consumer input for ~30 lines of `mkShell` wrapper                                                            |
 | [std](https://flake.parts/options/std.html)                                     | not used: heavy framework with many inputs                                                                                         |
 | [mission-control](https://flake.parts/options/mission-control.html)             | not used: deprecated; tasks use process-compose-flake                                                                              |
+| [pydev](https://flake.parts/options/pydev.html)                                 | not used: built on poetry2nix, not uv                                                                                              |
 
 Revisit these when the module or our needs change.
 
@@ -97,8 +98,7 @@ named in their logs.
 
 Check your work locally, from fastest to strictest:
 
-1. While you work, run the narrowest task that covers the change,
-   e.g. `nk r-test`.
+1. While you work, run the narrowest task that covers the change.
 1. Before you report a change as done, run `nk all`, then `nk flake-check`,
    and fix what fails.
    `nk all` formats, builds and runs every check in the working tree.

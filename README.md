@@ -184,7 +184,7 @@ Configure linters in Nix, not in config files.
 Native config files are ignored (Jarl, which can't ignore them, fails instead);
 suppression comments such as `# shellcheck disable=SC2086` still work.
 Your settings override plugins' `lib.mkDefault` values, and lists concatenate.
-typos, rumdl (`markdown`), actionlint, gitleaks and jscpd take their settings
+typos, rumdl (`markdown`), actionlint, gitleaks, jscpd, Ruff and ty take their settings
 from `nullkomma.lint.<tool>`; the others from treefmt-nix:
 
 | Linter        | Nix configuration                                   | Settings                                                 |
@@ -341,6 +341,7 @@ Those marked under Default are enabled unless you opt out.
 | [`flakehub`][flakehub]                                                                            | ✅       | [`fh`]                                                                                                         |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`quarto`](#quarto) (includes nkdocs; optional [brand](#brand))                                   |         | [`quarto`]                                                                                                     |                                            |                                                           | `site`             |                            | `quarto-render`, `quarto-preview`                                                                                                              | `quarto-preview`                                                                                                                              | `playwright`                                    |
 | [`cloudflare`](#cloudflare)                                                                       |         | [`wrangler`]                                                                                                   |                                            | `cloudflare-validate` ([OpenTofu] validation)             |                    | `deploy`[^deploy]          | `cloudflare-validate`, `cloudflare-plan`, `cloudflare-deploy`                                                                                  |                                                                                                                                               | `cloudflare-api`, `cloudflare-docs`, `opentofu` |
+| [`python`](#python)                                                                               |         | [Python], [uv], [ty], editable package with its dependency groups and extras                                   | [`ruff-check`][ruff], `ruff-format`        | `python-lock-check`, `python-test`, `python-typecheck`    | `default`, `dist`  | `<script>`, `python-lock`  | `python-lock`, `python-lock-check`, `python-test`, `python-typecheck`                                                                          | `python-lock-check`, `python-test`, `python-typecheck`                                                                                        |                                                 |
 | [`r`](#r) (optional [non-Nix collaboration](#r-development-without-nix), [pkgdown brand](#brand)) |         | [R], [radian], [Air]; [languageserver], [`pkgload`], [pak], [httpgd], [later], [rstudioapi], [btw], [mcptools] | `air`, [`jarl`][jarl]                      | `r-document-namespace`, `r-test`, `r-check`               | `site` ([pkgdown]) | `r-lock`, `shiny` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-lock`, `r-run-app` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-shiny-<function>` (opt-in) | `r` ([btw], [mcptools]); `playwright` (Shiny)   |
 
 Plugins meet only through framework options, so one could live in a flake of its own,
@@ -497,6 +498,8 @@ Installing editors belongs to your user environment, e.g. [lap](https://github.c
 ### `quarto`
 
 Renders the project into `packages.site`; `quarto-preview` serves it and reloads on edits.
+Site resources are copied as files,
+including those linked from outside the output directory.
 For a documentation site, select nkdocs, a Quarto extension nullkomma generates, in `_quarto.yml`:
 
 ```yaml
@@ -578,6 +581,31 @@ OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is invo
 }
 ```
 <!-- nullkomma:cloudflare:end -->
+
+### `python`
+
+Enable it for a pure-Python package at the flake root:
+[uv2nix] and [pyproject.nix] build it from `pyproject.toml` and `uv.lock`, preferring dependency wheels.
+Native extensions and `[tool.uv] conflicts` are not supported.
+
+<!-- nullkomma:python:start -->
+```nix
+{
+  # Whether to enable the python plugin.
+  nullkomma.python.enable = true;
+
+  # Nix Python interpreter; must satisfy the project's requires-python.
+  # perSystem.nullkomma.python.interpreter = pkgs.python3;
+
+  # pyproject.nix overlay for native libraries and package build fixes, applied
+  # after uv.lock.
+  # perSystem.nullkomma.python.overlay = final: prev: {};
+
+  # Extra commands available to pytest, for example pkgs.git.
+  # perSystem.nullkomma.python.test.packages = [ ];
+}
+```
+<!-- nullkomma:python:end -->
 
 ### `r`
 
@@ -835,13 +863,19 @@ It is **not**:
 [ppm]: https://packagemanager.posit.co
 [process-compose]: https://f1bonacc1.github.io/process-compose/
 [process-compose-flake]: https://github.com/Platonic-Systems/process-compose-flake
+[pyproject.nix]: https://pyproject-nix.github.io/pyproject.nix/
+[python]: https://www.python.org
 [r]: https://www.r-project.org
 [radian]: https://github.com/randy3k/radian
 [rstudioapi]: https://rstudio.github.io/rstudioapi/
+[ruff]: https://docs.astral.sh/ruff/
 [terranix]: https://terranix.org/flake-parts.html
 [toml]: https://toml.io
 [treefmt]: https://treefmt.com
 [typos]: https://github.com/crate-ci/typos
+[ty]: https://docs.astral.sh/ty/
+[uv]: https://docs.astral.sh/uv/
+[uv2nix]: https://pyproject-nix.github.io/uv2nix/
 [yaml]: https://yaml.org
 [yaml-language-server]: https://github.com/redhat-developer/yaml-language-server
 [`actionlint`]: https://github.com/rhysd/actionlint

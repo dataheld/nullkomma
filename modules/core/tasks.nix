@@ -28,7 +28,8 @@
           readOnly = true;
           description = ''
             `sandbox { process, args ? [ ], output ? null }` runs a task of the `dev` tree
-            once in a copy of `nullkomma.src`; `output`, a project path, becomes `$out`.
+            once in a copy of `nullkomma.src`; `output`, a project path,
+            becomes `$out`, self-contained: symlinks are copied as their targets.
           '';
         };
         options.nullkomma.scratch = lib.mkOption {
@@ -267,7 +268,7 @@
               mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
               cd source
               ${lib.getExe run} ${lib.escapeShellArgs ([ process ] ++ args)}
-              ${if output == null then ''touch "$out"'' else ''cp -R ${lib.escapeShellArg output} "$out"''}
+              ${if output == null then ''touch "$out"'' else ''cp -RL ${lib.escapeShellArg output} "$out"''}
             '';
           nullkomma.scratch =
             {
