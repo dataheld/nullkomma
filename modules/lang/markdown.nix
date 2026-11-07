@@ -25,11 +25,13 @@
               "--config"
               (toString ruleConfig)
             ];
-            nullkomma.editor.languageServers.marksman = {
-              package = pkgs.marksman;
+            nullkomma.editor.languageServers.rumdl = {
+              package = pkgs.rumdl;
               command = [
-                "marksman"
+                "rumdl"
                 "server"
+                "--config"
+                (toString ruleConfig)
               ];
               filetypes = [ "markdown" ];
             };
