@@ -2,48 +2,38 @@
 flake-schemas:
 let
   isModule = m: builtins.isAttrs m || builtins.isFunction m;
-  runnable =
-    {
-      doc,
-      childrenOf,
-    }:
-    {
-      version = 1;
-      inherit doc;
-      roles.nix-run = { };
-      appendSystem = true;
-      defaultAttrPath = [ "default" ];
-      inventory = output: {
-        children = builtins.mapAttrs (system: items: {
+  # Without the `nix-run` role of `up`'s schemas: `nix run .#name` evaluates every output
+  # with that role, and a flake that others consume keeps these in its partition.
+  derivationsWith = doc: childrenOf: {
+    version = 1;
+    inherit doc;
+    inventory = output: {
+      children = builtins.mapAttrs (system: items: {
+        forSystems = [ system ];
+        children = builtins.mapAttrs (_: item: {
           forSystems = [ system ];
-          children = builtins.mapAttrs (_: item: {
-            forSystems = [ system ];
-            evalChecks.isDerivation = item.type or null == "derivation";
-            children = builtins.mapAttrs (_: child: { forSystems = [ system ]; } // child) (childrenOf item);
-          }) items;
-        }) output;
-      };
+          evalChecks.isDerivation = item.type or null == "derivation";
+          children = builtins.mapAttrs (_: child: { forSystems = [ system ]; } // child) (childrenOf item);
+        }) items;
+      }) output;
     };
+  };
 in
 flake-schemas.exportedSchemas
 // {
-  processTrees = runnable {
-    doc = "[process-compose](https://github.com/F1bonacc1/process-compose) trees, run by `nix run`.";
-    childrenOf =
-      tree:
-      builtins.mapAttrs (_: process: {
-        what = if process.description != null then process.description else "process";
-        shortDescription = if process.command != null then process.command else "";
-      }) (tree.processes or { });
-  };
-  taskRunners = runnable {
-    doc = "Task runners, run by `nix run`, with their tasks in `tasks`.";
-    childrenOf =
-      runner:
-      builtins.mapAttrs (_: task: {
-        what = task.description or "task runner";
-      }) (runner.tasks or { });
-  };
+  processTrees = derivationsWith "[process-compose](https://github.com/F1bonacc1/process-compose) trees." (
+    tree:
+    builtins.mapAttrs (_: process: {
+      what = if process.description != null then process.description else "process";
+      shortDescription = if process.command != null then process.command else "";
+    }) (tree.processes or { })
+  );
+  taskRunners = derivationsWith "Task runners, with their tasks in `tasks`." (
+    runner:
+    builtins.mapAttrs (_: task: {
+      what = task.description or "task runner";
+    }) (runner.tasks or { })
+  );
   tests = {
     version = 1;
     doc = "[nix-unit](https://github.com/nix-community/nix-unit) tests by system, run by `checks.<system>.nix-unit`.";

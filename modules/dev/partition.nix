@@ -2,11 +2,13 @@
 # Dev-only inputs live in ../../dev/flake.nix, outside consumers' flake.lock.
 { inputs, lib, ... }:
 {
-  imports = [ (import ../../schemas/flake-module.nix inputs.flake-schemas) ];
   partitions.dev.extraInputsFlake = ../../dev;
+  flake.schemas = import ../../schemas inputs.flake-schemas;
   # The root lacks the framework and plugins that add these outputs.
   partitionedAttrs = lib.genAttrs [
     "legacyPackages"
+    "processTrees"
+    "taskRunners"
     "tests"
   ] (_: "dev");
 }

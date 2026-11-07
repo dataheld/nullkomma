@@ -17,6 +17,7 @@
           ];
         };
       };
-      config.flake.schemas = import ../../schemas inputs.flake-schemas;
+      # A root reading these itself defines the same keys again in its `dev` partition.
+      config.flake.schemas = lib.mapAttrs (_: lib.mkDefault) (import ../../schemas inputs.flake-schemas);
     };
 }

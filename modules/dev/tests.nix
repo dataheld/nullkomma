@@ -314,6 +314,18 @@
                 root="$(git rev-parse --show-toplevel)"
                 scratch="$(mktemp -d)"
                 trap 'rm -rf "$scratch"' EXIT
+                # Installables of a root with nullkomma only in its partition, which has no `dev/` here.
+                partitioned="path:$scratch/partitioned"
+                mkdir "$scratch/partitioned"
+                cp "$root"/tests/fixtures/partitioned/*.nix "$scratch/partitioned/"
+                nix flake lock "$partitioned" \
+                  --override-input nixpkgs ${inputs.nixpkgs} \
+                  --override-input flake-parts ${inputs.flake-parts} \
+                  --override-input nullkomma-schemas "path:$root/schemas" \
+                  --override-input nullkomma-schemas/flake-schemas ${inputs.flake-schemas}
+                nix build --dry-run "$partitioned#hello"
+                nix eval "$partitioned#hello.drvPath"
+                nix run "$partitioned#hello"
                 mkdir "$scratch/project"
                 cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
                 check() {

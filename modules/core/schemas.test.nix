@@ -10,9 +10,9 @@
     let
       inherit (harness) callFlakeWith nullkomma root;
       fixture = root + "/tests/fixtures/partitioned";
-      # The partitioned fixture's root, with `extraInputs` in its `dev` partition and `module`.
+      # The partitioned fixture's root, with `extraInputs` in its `dev` partition.
       partitioned =
-        extraInputs: module:
+        extraInputs:
         inputs.flake-parts.lib.mkFlake
           {
             inputs = {
@@ -21,101 +21,45 @@
               self.outPath = fixture;
             };
           }
-          {
-            imports = [
-              (fixture + "/root.nix")
-              module
-            ];
-            partitions.dev = { inherit extraInputs; };
-          };
-      unevaluated = partitioned { nullkomma = throw "evaluated the `dev` partition"; } { };
-      evaluated = partitioned { inherit nullkomma; } { };
-      # What Nix reads of a schema to resolve an installable.
-      metadata = schema: {
-        inherit (schema) version;
-        roles = lib.attrNames (schema.roles or { });
-        appendSystem = schema.appendSystem or false;
-        defaultAttrPath = schema.defaultAttrPath or null;
-      };
-      runnable = {
-        version = 1;
-        roles = [ "nix-run" ];
-        appendSystem = true;
-        defaultAttrPath = [ "default" ];
-      };
-      namesOf = flake: lib.mapAttrs (output: _: lib.attrNames flake.${output}.${system});
+          (
+            { config, ... }:
+            {
+              imports = [ (fixture + "/root.nix") ];
+              partitions.dev = { inherit extraInputs; };
+              flake.schemasInPartition = config.partitions.dev.module.flake.schemas;
+            }
+          );
+      evaluated = partitioned { inherit nullkomma; };
+      childrenOf = output: lib.attrNames (evaluated.schemas.${output}.inventory evaluated.${output}).children.${system}.children;
     in
     {
       nullkomma.nix.unit.tests = {
-        testPartitionedRootResolvesInstallablesWithoutThePartition = {
-          expr = {
-            metadata = lib.mapAttrs (_: metadata) {
-              inherit (unevaluated.schemas)
-                apps
-                processTrees
-                taskRunners
-                tests
-                ;
-            };
-            names = namesOf unevaluated {
-              devShells = { };
-              processTrees = { };
-              taskRunners = { };
-            };
-          };
-          expected = {
-            metadata = {
-              apps = metadata inputs.flake-schemas.exportedSchemas.apps;
-              processTrees = runnable;
-              taskRunners = runnable;
-              tests = {
-                version = 1;
-                roles = [ ];
-                appendSystem = false;
-                defaultAttrPath = null;
-              };
-            };
-            names = {
-              devShells = [ "default" ];
-              processTrees = [ "dev" ];
-              taskRunners = [ "default" ];
-            };
-          };
-        };
-        testPartitionedRootReadsItsNamesFromThePartition = {
-          expr = {
-            shell = lib.isDerivation evaluated.devShells.${system}.default;
-            tree = evaluated.processTrees.${system}.dev.processes ? all;
-            runner = evaluated.taskRunners.${system}.default.tasks ? all;
-            tests = evaluated.tests ? systems;
-            inventory = {
-              tree = lib.attrNames (evaluated.schemas.processTrees.inventory evaluated.processTrees).children.${system}.children;
-              runner = lib.attrNames (evaluated.schemas.taskRunners.inventory evaluated.taskRunners).children.${system}.children;
-            };
-          };
-          expected = {
-            shell = true;
-            tree = true;
-            runner = true;
-            tests = evaluated.tests ? systems;
-            inventory = {
-              tree = [ "dev" ];
-              runner = [ "default" ];
-            };
-          };
-        };
-        testPartitionedAttrsExposeAllNamesOfAnOutput = {
+        testPartitionedRootHasSchemasWithoutItsPartition = {
           expr =
-            namesOf
-              (partitioned { inherit nullkomma; } {
-                partitionedAttrs.processTrees = "dev";
-                partitions.dev.module.perSystem.process-compose.other.settings.processes.true.command = "true";
-              })
-              { processTrees = { }; };
-          expected.processTrees = [
-            "dev"
-            "other"
-          ];
+            let
+              inherit (partitioned { nullkomma = throw "evaluated the `dev` partition"; }) schemas;
+            in
+            lib.mapAttrs (_: schema: schema.version) { inherit (schemas) apps processTrees taskRunners tests; };
+          expected = {
+            apps = 1;
+            processTrees = 1;
+            taskRunners = 1;
+            tests = 1;
+          };
+        };
+        testPartitionedRootDescribesItsPartitionsOutputs = {
+          expr = {
+            processTrees = childrenOf "processTrees";
+            taskRunners = childrenOf "taskRunners";
+            tests = (evaluated.schemas.tests.inventory evaluated.tests).children.systems.children ? ${system};
+            same = evaluated.schemasInPartition.tests.doc == evaluated.schemas.tests.doc;
+          };
+          expected = {
+            processTrees = [ "dev" ];
+            taskRunners = [ "default" ];
+            tests = true;
+            same = true;
+          };
         };
         testProjectAddsOwnSchemasNextToNullkommas = {
           expr =
@@ -132,15 +76,13 @@
                 ;
             in
             {
-              custom = schemas.custom.doc;
-              processTrees = metadata schemas.processTrees;
-              taskRunners = metadata schemas.taskRunners;
+              inherit (schemas.custom) doc;
+              nullkommas = schemas ? taskRunners && schemas ? tests;
               wellKnown = schemas ? apps;
             };
           expected = {
-            custom = "custom";
-            processTrees = runnable;
-            taskRunners = runnable;
+            doc = "custom";
+            nullkommas = true;
             wellKnown = true;
           };
         };

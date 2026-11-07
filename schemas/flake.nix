@@ -7,6 +7,5 @@
     { flake-schemas, ... }:
     {
       schemas = import ./. flake-schemas;
-      flakeModules.default = import ./flake-module.nix flake-schemas;
     };
 }
