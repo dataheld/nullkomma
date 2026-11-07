@@ -1,0 +1,63 @@
+diff --git a/src/loader/mutators.go b/src/loader/mutators.go
+index 07dfb0e..df87813 100644
+--- a/src/loader/mutators.go
++++ b/src/loader/mutators.go
+@@ -87,21 +87,14 @@ func copyWorkingDirToProcesses(p *types.Project, wd string) {
+ // and so the absolute paths are baked into OriginalConfig - which ScaleProcess
+ // replays verbatim to build replicas.
+ func resolveWatchPaths(p *types.Project) {
+-	cwd := ""
+ 	for name, proc := range p.Processes {
+ 		if !proc.Watch.IsEnabled() {
+ 			continue
+ 		}
+-		base := proc.WorkingDir
+-		if base == "" {
+-			if cwd == "" {
+-				var err error
+-				if cwd, err = os.Getwd(); err != nil {
+-					log.Error().Err(err).Msgf("failed to resolve watch paths for process %s", name)
+-					continue
+-				}
+-			}
+-			base = cwd
++		base, err := filepath.Abs(proc.WorkingDir)
++		if err != nil {
++			log.Error().Err(err).Msgf("failed to resolve watch paths for process %s", name)
++			continue
+ 		}
+ 		for i, watchPath := range proc.Watch.Paths {
+ 			if watchPath.Path == "" {
+diff --git a/src/watcher/matcher.go b/src/watcher/matcher.go
+index 75cdd7b..77cd552 100644
+--- a/src/watcher/matcher.go
++++ b/src/watcher/matcher.go
+@@ -209,7 +209,11 @@ func LogExclusionPatterns(logPath string) []string {
+ 	if strings.TrimSpace(logPath) == "" {
+ 		return nil
+ 	}
+-	clean := filepath.ToSlash(filepath.Clean(logPath))
++	abs, err := filepath.Abs(logPath)
++	if err != nil {
++		abs = filepath.Clean(logPath)
++	}
++	clean := filepath.ToSlash(abs)
+ 	dir, base := path.Split(clean)
+ 	ext := path.Ext(base)
+ 	prefix := strings.TrimSuffix(base, ext)
+diff --git a/src/watcher/tree.go b/src/watcher/tree.go
+index 19b3c47..2a75848 100644
+--- a/src/watcher/tree.go
++++ b/src/watcher/tree.go
+@@ -19,7 +19,10 @@ import (
+ // file and renaming it over the target, which destroys a watch registered on
+ // the original. Watching the parent and filtering on the name survives that.
+ func resolveRoot(configured string) (dir string, onlyBase string, err error) {
+-	clean := filepath.Clean(configured)
++	clean, err := filepath.Abs(configured)
++	if err != nil {
++		return "", "", err
++	}
+ 	info, err := os.Stat(clean)
+ 	if err != nil {
+ 		return "", "", err
