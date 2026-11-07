@@ -518,6 +518,82 @@
                 missingLanguage = false;
               };
             };
+            testStdioServersStartInDevShell =
+              let
+                servers =
+                  devShell:
+                  (builtins.fromJSON
+                    (perSystem (raw {
+                      imports = [ plugins.agents ];
+                      nullkomma.agents.enable = true;
+                      nullkomma.devShell.enable = devShell;
+                      perSystem.nullkomma.agents.mcpServers = {
+                        demo = {
+                          type = "stdio";
+                          command = "demo";
+                          args = [ "--flag" ];
+                        };
+                        docs = {
+                          type = "http";
+                          url = "https://example.com/mcp";
+                        };
+                      };
+                    })).nullkomma.files.".mcp.json".text
+                  ).mcpServers;
+                docs = {
+                  type = "http";
+                  url = "https://example.com/mcp";
+                };
+              in
+              {
+                expr = {
+                  inDevShell = servers true;
+                  withoutDevShell = servers false;
+                };
+                expected = {
+                  inDevShell = {
+                    inherit docs;
+                    demo = {
+                      type = "stdio";
+                      command = "nix";
+                      args = [
+                        "develop"
+                        "--command"
+                        "demo"
+                        "--flag"
+                      ];
+                    };
+                    nullkomma = {
+                      type = "stdio";
+                      command = "nix";
+                      args = [
+                        "develop"
+                        "--command"
+                        "nk"
+                        "mcp"
+                      ];
+                    };
+                  };
+                  withoutDevShell = {
+                    inherit docs;
+                    demo = {
+                      type = "stdio";
+                      command = "demo";
+                      args = [ "--flag" ];
+                    };
+                    nullkomma = {
+                      type = "stdio";
+                      command = "nix";
+                      args = [
+                        "run"
+                        ".#taskRunners.${pkgs.stdenv.hostPlatform.system}.default"
+                        "--"
+                        "mcp"
+                      ];
+                    };
+                  };
+                };
+              };
             testTasksAllFormatsAndChecks = {
               expr = lib.attrNames (perSystem fixtures.md).processTrees.dev.processes.all.depends_on;
               expected = [
