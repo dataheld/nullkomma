@@ -147,9 +147,11 @@
               value = {
                 namespace = "r";
                 working_dir = "./${cfg.prefix}";
-                # r-document-namespace's watch restarts the app on R changes.
+                # r-document-namespace's watch restarts the app on R changes,
+                # its own on the other files that R installs.
                 depends_on.r-document-namespace.condition = "process_completed_successfully";
                 depends_on.r-shiny-browser.condition = "process_started";
+                watch.paths = [ (import ./_installed-files.nix) ];
                 command = pkgs.writeShellApplication {
                   name = "r-shiny-${function}";
                   runtimeInputs = [ config.nullkomma.r.package ];

@@ -396,6 +396,8 @@
           RS
           snapshot=tests/testthat/_snaps/snapshot.md
           touch -d @0 "$snapshot"
+          mkdir inst
+          echo data > inst/data.txt
           ${watching fixtures.r "r-test"}
           settled r-test 1
           test ! -e tests/testthat/side-effect.txt
@@ -406,6 +408,9 @@
           sed -i 's/      hello/      goodbye/' "$snapshot"
           settled r-test 4
           test -e tests/testthat/_snaps/snapshot.new.md
+          # Edits to other files that R installs rerun it too.
+          echo edited > inst/data.txt
+          settled r-test 5
         '';
         r-pkgdown-legal = legalcheck "r-pkgdown-legal" published.packages.${system}.site;
         r-declarative-brand = linkcheck "r-declarative-brand" declarativeBrand.packages.${system}.site;

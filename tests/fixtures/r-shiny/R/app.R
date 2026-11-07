@@ -17,11 +17,17 @@ app <- function() {
 
 #' Create a second fixture app, served next to the first
 #'
+#' Reads its greeting from an installed file when it creates the app.
+#'
 #' @return A Shiny app object.
 #' @export
 greeting_app <- function() {
+  greeting <- readLines(system.file(
+    "greeting.txt",
+    package = "nullkommashinyfixture"
+  ))
   shiny::shinyApp(
-    ui = shiny::fluidPage(shiny::h1("nullkomma greeting")),
+    ui = shiny::fluidPage(shiny::h1(greeting)),
     server = function(input, output, session) {}
   )
 }

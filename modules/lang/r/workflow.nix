@@ -292,7 +292,10 @@
                     outputs = [ "tests/testthat/_snaps" ];
                     keep = compiled;
                   };
-                  watch.paths = [ { path = "tests"; } ];
+                  watch.paths = [
+                    { path = "tests"; }
+                    (import ./_installed-files.nix)
+                  ];
                 };
                 check.depends_on = after "r-test";
               })
