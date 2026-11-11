@@ -534,6 +534,82 @@
                 missingLanguage = false;
               };
             };
+            testStdioServersStartInDevShell =
+              let
+                servers =
+                  devShell:
+                  (builtins.fromJSON
+                    (perSystem (raw {
+                      imports = [ plugins.agents ];
+                      nullkomma.agents.enable = true;
+                      nullkomma.devShell.enable = devShell;
+                      perSystem.nullkomma.agents.mcpServers = {
+                        demo = {
+                          type = "stdio";
+                          command = "demo";
+                          args = [ "--flag" ];
+                        };
+                        docs = {
+                          type = "http";
+                          url = "https://example.com/mcp";
+                        };
+                      };
+                    })).nullkomma.files.".mcp.json".text
+                  ).mcpServers;
+                docs = {
+                  type = "http";
+                  url = "https://example.com/mcp";
+                };
+              in
+              {
+                expr = {
+                  inDevShell = servers true;
+                  withoutDevShell = servers false;
+                };
+                expected = {
+                  inDevShell = {
+                    inherit docs;
+                    demo = {
+                      type = "stdio";
+                      command = "nix";
+                      args = [
+                        "develop"
+                        "--command"
+                        "demo"
+                        "--flag"
+                      ];
+                    };
+                    nullkomma = {
+                      type = "stdio";
+                      command = "nix";
+                      args = [
+                        "develop"
+                        "--command"
+                        "nk"
+                        "mcp"
+                      ];
+                    };
+                  };
+                  withoutDevShell = {
+                    inherit docs;
+                    demo = {
+                      type = "stdio";
+                      command = "demo";
+                      args = [ "--flag" ];
+                    };
+                    nullkomma = {
+                      type = "stdio";
+                      command = "nix";
+                      args = [
+                        "run"
+                        ".#taskRunners.${pkgs.stdenv.hostPlatform.system}.default"
+                        "--"
+                        "mcp"
+                      ];
+                    };
+                  };
+                };
+              };
             testTasksAllFormatsAndChecks = {
               expr = lib.attrNames (perSystem fixtures.md).processTrees.dev.processes.all.depends_on;
               expected = [
@@ -782,6 +858,29 @@
                     assert(failure:find("formatter-failed", 1, true))
                     assert(vim.api.nvim_buf_get_lines(0, 0, -1, false)[1] == "{")
                   ''}
+                  touch $out
+                '';
+            # Stdio MCP servers start in the dev shell, so its hooks must leave stdout to them.
+            dev-shell-hook =
+              pkgs.runCommandLocal "nullkomma-dev-shell-hook"
+                {
+                  inherit
+                    ((raw {
+                      nullkomma.devShell.enable = true;
+                      perSystem.nullkomma.devShell.shellHook = ''
+                        echo hooked
+                        export HOOKED=1
+                      '';
+                    }).devShells.${pkgs.stdenv.hostPlatform.system}.default
+                    )
+                    shellHook
+                    ;
+                }
+                ''
+                  eval "$shellHook" > stdout 2> stderr
+                  test ! -s stdout
+                  grep -qx hooked stderr
+                  test "$HOOKED" = 1
                   touch $out
                 '';
             # Every language server an editor is told to start is in the dev shell.

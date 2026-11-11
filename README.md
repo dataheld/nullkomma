@@ -105,6 +105,8 @@ from your `flake.lock`, so they match the nullkomma you use:
   It runs its own process-compose instance, not the one of an interactive `process-compose up`.
   Plugins add servers for their tools (see the MCP column under [Plugins](#plugins)).
   The agent starts each server when it needs it, so they are not processes of the `dev` tree.
+  Stdio servers start in the development shell (`nix develop --command`),
+  so they and the processes they start see its environment.
 - `.agents/skills/` holds [Agent Skills](https://agentskills.io), named `nk-*`.
 
 This repository is also an [Agent Plugin](https://agent-plugins.org):
@@ -426,7 +428,8 @@ agents operate the previews in [Playwright's](https://github.com/microsoft/playw
 
   # MCP servers by name, each with a `type` (`stdio` with `command` and `args`,
   # or `http` with `url`); plugins add here. The `agents` plugin writes them to
-  # `.mcp.json`, the `vscode` plugin to `.vscode/mcp.json`.
+  # `.mcp.json`, the `vscode` plugin to `.vscode/mcp.json`; stdio servers start
+  # in the dev shell, when enabled.
   # perSystem.nullkomma.agents.mcpServers = { };
 }
 ```

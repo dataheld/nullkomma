@@ -9,7 +9,15 @@
 { inputs, ... }:
 {
   framework =
-    { flake-parts-lib, lib, ... }:
+    {
+      config,
+      flake-parts-lib,
+      lib,
+      ...
+    }:
+    let
+      inDevShell = config.nullkomma.devShell.enable;
+    in
     {
       imports = [
         (inputs.flake-parts.lib.mkTransposedPerSystemModule {
@@ -242,17 +250,25 @@
         {
           taskRunners.default = runner;
           nullkomma.devShell.packages = [ runner ];
-          # Launches `nk mcp` without the dev shell, whose hooks may write to stdout.
-          nullkomma.agents.mcpServers.nullkomma = {
-            type = "stdio";
-            command = "nix";
-            args = [
-              "run"
-              ".#taskRunners.${system}.default"
-              "--"
-              "mcp"
-            ];
-          };
+          # Generated configs start stdio servers in the dev shell, which has `nk`.
+          nullkomma.agents.mcpServers.nullkomma =
+            if inDevShell then
+              {
+                type = "stdio";
+                command = "nk";
+                args = [ "mcp" ];
+              }
+            else
+              {
+                type = "stdio";
+                command = "nix";
+                args = [
+                  "run"
+                  ".#taskRunners.${system}.default"
+                  "--"
+                  "mcp"
+                ];
+              };
           nullkomma.sandbox =
             {
               process,

@@ -40,7 +40,17 @@
         in
         {
           devShells = lib.mkIf enabled {
-            default = lib.mkDefault (pkgs.mkShell { inherit (cfg) packages env shellHook; });
+            default = lib.mkDefault (
+              pkgs.mkShell {
+                inherit (cfg) packages env;
+                # Stdio MCP servers start in the dev shell and own its stdout.
+                shellHook = lib.optionalString (cfg.shellHook != "") ''
+                  {
+                  ${cfg.shellHook}
+                  } >&2
+                '';
+              }
+            );
           };
         };
     };
