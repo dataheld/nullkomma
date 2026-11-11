@@ -15,3 +15,13 @@
     }
   });
 }
+// A newly opened page of this app closes its older ones,
+// so that each `process-compose up` replaces the pages of the last.
+// Reloads are no openings.
+{
+  const pages = new BroadcastChannel("nullkomma-pages");
+  pages.onmessage = () => window.close();
+  if (performance.getEntriesByType("navigation")[0]?.type === "navigate") {
+    pages.postMessage("opened");
+  }
+}

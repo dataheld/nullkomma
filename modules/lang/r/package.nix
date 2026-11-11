@@ -269,7 +269,7 @@
                         "${pkgs.pandoc}/bin"
                         "--set-default"
                         "R_BROWSER"
-                        (if pkgs.stdenv.isDarwin then "/usr/bin/open" else "${pkgs.xdg-utils}/bin/xdg-open")
+                        config.nullkomma.browse.command
                         "--set"
                         "LANG"
                         "en_US.UTF-8"
