@@ -54,6 +54,10 @@ in
                           postFetch = old.src.postFetch or "";
                         };
                         vendorHash = "sha256-Je5L5/Yrss/mfwMty0PdWZChTIue24u447zGConInAA=";
+                        # shortcut: make watch roots absolute for a relative working_dir;
+                        # drop once process-compose does, see
+                        # https://github.com/dataheld/nullkomma/issues/384.
+                        patches = (old.patches or [ ]) ++ [ ../../patches/process-compose.patch ];
                       })
                     );
                     cli.preHook = ''
