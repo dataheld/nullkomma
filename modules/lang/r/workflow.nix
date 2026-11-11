@@ -318,7 +318,7 @@
                     index <- file.path("${destination}", "index.html")
                     if (!file.exists(index)) message("Waiting for r-build-site to write ", index)
                     while (!file.exists(index)) Sys.sleep(1)
-                    servr::httw("${destination}", browser = TRUE)
+                    servr::httw("${destination}", browser = FALSE)
                   ''}";
                   ready_log_line = "Serving the directory";
                 };
@@ -355,6 +355,7 @@
                 }
               )
             );
+            nullkomma.browse.servers = lib.mkIf cfg.pkgdown.enable [ "r-preview-site" ];
             nullkomma.files = lib.mkIf (cfg.pkgdown.enable && cfg.pkgdown.assets != null) {
               "${prefix}pkgdown/assets" = {
                 mode = "generated";

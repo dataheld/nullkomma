@@ -130,7 +130,6 @@
                   launch.browser = FALSE
                 )
               '';
-            localHost = if cfg.shiny.host == "0.0.0.0" then "127.0.0.1" else cfg.shiny.host;
             launcher = pkgs.writeShellScriptBin "shiny" ''
               exec ${pkgsR.R}/bin/Rscript --vanilla ${
                 script {
@@ -150,7 +149,6 @@
                 # r-document-namespace's watch restarts the app on R changes,
                 # its own on the other files that R installs.
                 depends_on.r-document-namespace.condition = "process_completed_successfully";
-                depends_on.r-shiny-browser.condition = "process_started";
                 watch.paths = [ (import ./_installed-files.nix) ];
                 command = pkgs.writeShellApplication {
                   name = "r-shiny-${function}";
@@ -182,37 +180,13 @@
             }) cfg.shiny.devFunctions;
           in
           {
+            nullkomma.browse.servers = map (a: a.name) devApps;
             apps.shiny = {
               type = "app";
               program = lib.getExe launcher;
               meta.description = "Run the project's exported Shiny app";
             };
             process-compose.dev.settings.processes = lib.listToAttrs devApps // {
-              # A prerequisite of the apps, so that their restarts don't open more tabs.
-              r-shiny-browser = {
-                namespace = "r";
-                command = pkgs.writeShellApplication {
-                  name = "r-shiny-browser";
-                  runtimeInputs = [
-                    config.process-compose.dev.package
-                    config.nullkomma.r.package
-                  ];
-                  text = ''
-                    apps=(${lib.escapeShellArgs (map (a: a.name) devApps)})
-                    for app in "''${apps[@]}"; do
-                      for _ in {1..120}; do
-                        if ports=$(process-compose process ports "$app" 2>&1) && [[ "$ports" =~ \[([0-9]+) ]]; then
-                          Rscript --vanilla -e "utils::browseURL('http://${localHost}:''${BASH_REMATCH[1]}')"
-                          continue 2
-                        fi
-                        sleep 1
-                      done
-                      echo "$ports" >&2
-                      exit 1
-                    done
-                  '';
-                };
-              };
               # Groups the apps for `nk`: watches restart all dependents, so this one must not open tabs.
               r-run-app = {
                 namespace = "r";

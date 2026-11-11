@@ -29,6 +29,7 @@
       fixture = root + "/tests/fixtures/r";
       customDestination = callFlakeWith {
         nullkomma.r.pkgdown.config.destination = "public";
+        perSystem.nullkomma.browse.command = "${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}";
       } fixture;
       privacy = root + "/tests/fixtures/quarto-branded/_privacy";
       local = {
@@ -478,7 +479,6 @@
           git check-ignore -q pkgdown/assets/brand.svg
         '';
         r-pkgdown-preview = check "r-pkgdown-preview" ''
-          export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
           git init -q
           printf 'destination: yaml-destination\n' >> _pkgdown.yml
           ${task customDestination "r-build-site"} --preview
@@ -489,7 +489,6 @@
         '';
         r-pkgdown-live =
           (check "r-pkgdown-live" ''
-            export R_BROWSER=${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}
             git init -q
             # A stopped `process-compose run` signals its whole process group, so the builder needs its own.
             set -m

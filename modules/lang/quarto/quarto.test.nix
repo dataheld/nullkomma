@@ -147,6 +147,7 @@
             quarto = pkgs.writeShellScriptBin "quarto" ''
               printf '%s\n' "$PWD" "$@" > "$CALLED"
               if [[ "$1" == preview ]]; then
+                echo 'Browse at http://localhost:4200/'
                 exec ${pkgs.python3}/bin/python3 -m http.server --bind 127.0.0.1 --directory "$SERVED" 0 2>> "$REQUESTS"
               fi
             '';
@@ -154,7 +155,10 @@
               { self, ... }:
               {
                 nullkomma.quarto.root = self.outPath + "/docs";
-                perSystem.nullkomma.quarto.package = quarto;
+                perSystem.nullkomma = {
+                  quarto.package = quarto;
+                  browse.command = "${pkgs.writeShellScript "browser" ''echo "$1" > "$OPENED"''}";
+                };
               }
             ) (root + "/tests/fixtures/quarto");
           in
@@ -168,7 +172,7 @@
               __darwinAllowLocalNetworking = true;
             }
             ''
-              export CALLED=$PWD/called REQUESTS=$PWD/requests SERVED=$PWD/served
+              export CALLED=$PWD/called REQUESTS=$PWD/requests SERVED=$PWD/served OPENED=$PWD/opened
               render=90B3C9E8-0DBC-4BC0-B164-AA2D5C031B28/index.qmd
               mkdir -p "$SERVED/''${render%/*}" && echo rendered > "$SERVED/$render"
               mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
@@ -187,10 +191,12 @@
                 sleep 1
               done
               grep -qF "GET /$render " "$REQUESTS" || { cat preview.log >&2; exit 1; }
+              for _ in {1..30}; do test -s "$OPENED" && break; sleep 1; done
+              grep -qx http://localhost:4200/ "$OPENED" || { cat preview.log >&2; exit 1; }
               kill "$pid"
               wait "$pid" || true
               trap - EXIT
-              printf '%s\n' "$(cd ../.. && pwd)/docs" preview > expected
+              printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
               cmp expected "$CALLED"
               ${task flake "quarto-render"} --to html
               printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected

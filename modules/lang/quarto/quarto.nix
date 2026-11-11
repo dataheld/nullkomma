@@ -102,28 +102,31 @@
           { config, pkgs, ... }:
           let
             quarto = config.nullkomma.quarto.package;
-            quartoProcess = description: command: {
+            quartoProcess = description: command: args: {
               namespace = "quarto";
               inherit description;
               working_dir = "./${prefix}";
               command = pkgs.writeShellApplication {
                 name = "quarto-${command}";
                 runtimeInputs = [ quarto ];
-                text = ''exec quarto ${command} "$@"'';
+                text = ''exec quarto ${lib.escapeShellArgs ([ command ] ++ args)} "$@"'';
               };
             };
           in
           {
             nullkomma.devShell.packages = [ quarto ];
+            nullkomma.browse.servers = [ "quarto-preview" ];
             nullkomma.editor.vscode.extensions = [ "quarto.quarto" ];
             process-compose.dev.settings.processes = {
-              quarto-render = quartoProcess "Render the Quarto site" "render" // {
+              quarto-render = quartoProcess "Render the Quarto site" "render" [ ] // {
                 disabled = true;
               };
               all.depends_on.quarto-render.condition = "process_completed_successfully";
               # Quarto watches the working tree and live-reloads the browser itself.
               quarto-preview =
-                quartoProcess "Serve the site on localhost, re-rendering and reloading on changes" "preview"
+                quartoProcess "Serve the site on localhost, re-rendering and reloading on changes" "preview" [
+                  "--no-browser"
+                ]
                 // {
                   depends_on.quarto-preview-includes.condition = "process_started";
                   ready_log_line = "Browse at";

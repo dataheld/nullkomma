@@ -26,8 +26,10 @@
       } fixture;
       plain = callFlakeWith { nullkomma.r.shiny.enable = lib.mkForce false; } fixture;
       # Shares its first port with `enabled`, whose app holds it while the dev apps start.
-      local = callFlakeWith { nullkomma.r.shiny.port = 38380; } fixture;
-      single = callFlakeWith { nullkomma.r.shiny.devFunctions = lib.mkForce [ "app" ]; } fixture;
+      local = callFlakeWith {
+        nullkomma.r.shiny.port = 38380;
+        perSystem.nullkomma.browse.command = "${pkgs.writeShellScript "browser" ''echo "$1" >> "$TMPDIR/opened"''}";
+      } fixture;
       mcpServer = (perSystem local).nullkomma.agents.mcpServers.r;
       heavy = [
         "shiny"
@@ -69,9 +71,6 @@
         };
       };
       checks = {
-        # Building the launcher runs ShellCheck on it.
-        r-shiny-single-app = pkgs.writeText "r-shiny-single-app" (perSystem single)
-        .process-compose.dev.settings.processes.r-shiny-browser.command;
         r-shinytest2-timeouts = pkgs.runCommand "r-shinytest2-timeouts" { } ''
           timeouts() {
             "$1/bin/Rscript" --vanilla -e 'cat(Sys.getenv(c("SHINYTEST2_LOAD_TIMEOUT", "SHINYTEST2_TIMEOUT")))'
@@ -107,9 +106,6 @@
               mkdir sub
               cd sub
               export R_LIBS_SITE="${pkgs.rPackages.pkgload}/library:${pkgs.rPackages.testthat}/library"
-              export R_BROWSER="$TMPDIR/browser"
-              printf '#!/bin/sh\necho "$1" >> "%s"\n' "$TMPDIR/opened" > "$R_BROWSER"
-              chmod +x "$R_BROWSER"
               # A stopped `process-compose run` signals its whole process group, so the builder needs its own.
               set -m
               pids=()
