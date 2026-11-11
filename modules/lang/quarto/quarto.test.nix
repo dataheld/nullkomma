@@ -142,6 +142,35 @@
             HOME=$TMPDIR quarto pandoc lua walk.lua
             touch $out
           '';
+        # Real quarto, since the opener depends on the exact line it logs.
+        quarto-preview-opens =
+          let
+            fixture = root + "/tests/fixtures/quarto";
+            flake = callFlakeWith {
+              perSystem.nullkomma.browse.command = "${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}";
+            } fixture;
+          in
+          pkgs.runCommand "nullkomma-quarto-preview-opens"
+            {
+              nativeBuildInputs = [
+                pkgs.curl
+                pkgs.lsof
+              ];
+              __darwinAllowLocalNetworking = true;
+            }
+            ''
+              ${harness.project fixture}
+              set -m
+              PC_DISABLE_TUI=1 ${task flake "quarto-preview"} > "$TMPDIR/preview.log" 2>&1 &
+              pid=$!
+              trap 'kill "$pid"; wait "$pid" || true' EXIT
+              for _ in {1..120}; do test -s "$TMPDIR/opened" && break; sleep 1; done
+              curl --noproxy '*' --fail --silent "$(cat "$TMPDIR/opened")" | grep -qF 'Fixture home' || {
+                cat -v "$TMPDIR/opened" "$TMPDIR/preview.log" >&2
+                exit 1
+              }
+              touch $out
+            '';
         quarto-preview =
           let
             quarto = pkgs.writeShellScriptBin "quarto" ''
@@ -157,7 +186,7 @@
                 nullkomma.quarto.root = self.outPath + "/docs";
                 perSystem.nullkomma = {
                   quarto.package = quarto;
-                  browse.command = "${pkgs.writeShellScript "browser" ''echo "$1" > "$OPENED"''}";
+                  browse.command = "${pkgs.coreutils}/bin/true";
                 };
               }
             ) (root + "/tests/fixtures/quarto");
@@ -172,7 +201,7 @@
               __darwinAllowLocalNetworking = true;
             }
             ''
-              export CALLED=$PWD/called REQUESTS=$PWD/requests SERVED=$PWD/served OPENED=$PWD/opened
+              export CALLED=$PWD/called REQUESTS=$PWD/requests SERVED=$PWD/served
               render=90B3C9E8-0DBC-4BC0-B164-AA2D5C031B28/index.qmd
               mkdir -p "$SERVED/''${render%/*}" && echo rendered > "$SERVED/$render"
               mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
@@ -191,8 +220,6 @@
                 sleep 1
               done
               grep -qF "GET /$render " "$REQUESTS" || { cat preview.log >&2; exit 1; }
-              for _ in {1..30}; do test -s "$OPENED" && break; sleep 1; done
-              grep -qx http://localhost:4200/ "$OPENED" || { cat preview.log >&2; exit 1; }
               kill "$pid"
               wait "$pid" || true
               trap - EXIT

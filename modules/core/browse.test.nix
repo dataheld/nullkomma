@@ -20,7 +20,7 @@
         namespace = "demo";
         command = ''
           echo 'see https://example.org'
-          echo 'Listening on http://0.0.0.0:3838 now'
+          printf 'Listening on \e[4mhttp://0.0.0.0:3838\e[24m now\n'
           echo started >> started
           exec sleep 600
         '';

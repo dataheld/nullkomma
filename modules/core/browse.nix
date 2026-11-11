@@ -40,11 +40,12 @@
             pkgs.writeShellApplication {
               name = "${name}-browser";
               runtimeInputs = [ config.process-compose.dev.package ];
+              # The URL ends at the color codes that some servers log around it.
               # Browsers may refuse 0.0.0.0, on which servers listen for all addresses.
               text = ''
                 while :; do
                   while IFS= read -r line; do
-                    if [[ "$line" == *${lib.escapeShellArg ready}* && "$line" =~ https?://[^[:space:]]+ ]]; then
+                    if [[ "$line" == *${lib.escapeShellArg ready}* && "$line" =~ https?://[^[:space:][:cntrl:]]+ ]]; then
                       exec ${lib.escapeShellArg cfg.command} "''${BASH_REMATCH[0]/:\/\/0.0.0.0:/://127.0.0.1:}"
                     fi
                   done < <(process-compose process logs ${lib.escapeShellArg name} 2>/dev/null)
