@@ -2,6 +2,10 @@
   "recommendations": [
     "arrterian.nix-env-selector",
     "ibecker.treefmt-vscode",
-    "jnoortheen.nix-ide"
+    "jetmartin.bats",
+    "jnoortheen.nix-ide",
+    "mads-hartmann.bash-ide-vscode",
+    "quarto.quarto",
+    "redhat.vscode-yaml"
   ]
 }
