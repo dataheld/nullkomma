@@ -281,7 +281,7 @@
               patchShebangs --build source >/dev/null
               export HOME="$PWD/home" XDG_CACHE_HOME="$PWD/cache" XDG_CONFIG_HOME="$PWD/config"
               export PC_LOG_FILE="$PWD/process-compose.log"
-              mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
+              mkdir -p "$HOME" "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME/process-compose"
               cd source
               ${lib.getExe run} ${lib.escapeShellArgs ([ process ] ++ args)}
               ${if output == null then ''touch "$out"'' else ''cp -RL ${lib.escapeShellArg output} "$out"''}

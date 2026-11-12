@@ -65,6 +65,10 @@
                 disabled = true;
                 watch.paths = [ { path = "trigger"; } ];
               };
+              quiet = {
+                command = "process-compose version 2> stderr";
+                disabled = true;
+              };
               rerun = {
                 description = "Rerun";
                 command = ''echo r "$@" >> log'';
@@ -686,6 +690,12 @@
                 printf 'a\nb local value\na\nb\n' | diff - log
                 if ${tasks} broken; then exit 1; fi
                 printf 'a\nb sandboxed value\n' | diff - ${sandboxed}
+                test ! -s ${
+                  sandbox {
+                    process = "quiet";
+                    output = "stderr";
+                  }
+                }
                 ${tasks} graph | grep -qF 'b --> a'
                 # MCP clients stop a stdio server with SIGTERM.
                 mkdir bin
