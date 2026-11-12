@@ -799,12 +799,9 @@ and reloads open pages once a new app process serves them.
 They run in [Shiny's developer mode](https://shiny.posit.co/r/reference/shiny/latest/devmode.html)
 and record a [reactlog](https://rstudio.github.io/reactlog/).
 With mcptools 1.0.1 or later, they register as sessions of the `r` MCP server.
-Test the function with [shinytest2](https://rstudio.github.io/shinytest2/articles/use-package.html#applications-using-a-function):
-`shinytest2::AppDriver$new(app)`.
-Pass the function, not a pre-created app object, if its server uses
-package-private helpers.
-With a pre-created object, shinytest2 can load those helpers from a stale
-installed package instead of the working tree.
+Test the app with [shinytest2](https://rstudio.github.io/shinytest2/articles/use-package.html) by passing the exported function, `shinytest2::AppDriver$new(app)`:
+with a pre-created app object or a wrapper defined in a test file, it runs the installed package instead of the working tree.
+For an app with arguments, create a function in the package namespace, e.g. `rlang::new_function(NULL, quote(run_app(x = 1)), asNamespace("mypkg"))`.
 
 `nk r-test` loads the working-tree source.
 Flake checks and `nk r-test --installed` test a fresh installation,
