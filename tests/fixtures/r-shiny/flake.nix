@@ -6,13 +6,6 @@
   outputs =
     inputs:
     inputs.nullkomma.lib.mkFlake { inherit inputs; } {
-      nullkomma.r.enable = true;
-      nullkomma.r.shiny = {
-        enable = true;
-        devFunctions = [
-          "app"
-          "greeting_app"
-        ];
-      };
+      imports = inputs.nullkomma.lib.importTree ./nix;
     };
 }
