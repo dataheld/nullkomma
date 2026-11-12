@@ -6,14 +6,15 @@
       settings = config.nullkomma.lint.jscpd;
     in
     {
-      config.perSystem =
-        {
-          config,
-          pkgs,
-          system,
-          ...
-        }:
-        lib.mkIf enabled (
+      config = lib.mkIf enabled {
+        nullkomma.lint.jscpd.threshold = lib.mkDefault 0;
+        perSystem =
+          {
+            config,
+            pkgs,
+            system,
+            ...
+          }:
           let
             assets = {
               aarch64-darwin = {
@@ -64,10 +65,7 @@
                 ];
                 command = "${lib.getExe jscpd} --config ${
                   (pkgs.formats.json { }).generate "jscpd.json" (
-                    {
-                      threshold = 0;
-                    }
-                    // settings
+                    settings
                     // {
                       ignore = config.treefmt.settings.excludes ++ (settings.ignore or [ ]);
                     }
@@ -76,7 +74,7 @@
               };
               check.depends_on.jscpd.condition = "process_completed_successfully";
             };
-          }
-        );
+          };
+      };
     };
 }

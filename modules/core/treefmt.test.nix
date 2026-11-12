@@ -13,6 +13,7 @@
         fixtures
         perSystem
         project
+        raw
         root
         treefmt
         ;
@@ -37,6 +38,19 @@
         } md).checks.${system}.treefmt;
     in
     {
+      nullkomma.nix.unit.tests.testLintListsConcatenate = {
+        expr =
+          (raw {
+            imports = [
+              { nullkomma.lint.ruff.lint.ignore = [ "E501" ]; }
+              { nullkomma.lint.ruff.lint.ignore = [ "F401" ]; }
+            ];
+          }).debug.config.nullkomma.lint.ruff.lint.ignore;
+        expected = [
+          "F401"
+          "E501"
+        ];
+      };
       nullkomma.nix.unit.tests.testTreefmtProgramsCanBeDisabled = {
         expr = lib.attrNames (
           lib.filterAttrs (
