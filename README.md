@@ -736,9 +736,10 @@ To keep a committed `.Rprofile` of your own, set
   # Shiny choose an available port.
   # nullkomma.r.shiny.port = 3838;
 
-  # CRAN snapshot date corresponding to the package set in `nixpkgs-r`, for PPM
-  # and non-Nix interop.
-  # nullkomma.r.snapshot = CRAN snapshot date of nixpkgs-r;
+  # CRAN snapshot date, for PPM and non-Nix interop. The default is the date in
+  # the ref of `nixpkgs-r`, or else its commit date: an upper bound, as nixpkgs
+  # updates its R packages less often. Set it for an exact date.
+  # nullkomma.r.snapshot = date of nixpkgs-r;
 
   # Run testthat with `r-test`: on the pkgload-loaded source in the dev loop and
   # `check`, on the installed package in nix flake check (or with `nk r-test
@@ -769,7 +770,7 @@ Declare dependencies in `DESCRIPTION`, including `Config/Needs/*` fields;
 [pak] locks them in `pkg.lock`.
 After changing them or updating Nix, run `nk r-lock` and commit both files.
 Nix takes package names from `pkg.lock`, but versions and builds from the `nixpkgs-r` input;
-`r-lock` resolves against the [PPM] snapshot of the same date.
+`r-lock` resolves against the [PPM] snapshot of `nullkomma.r.snapshot`, by default an upper bound.
 The development environment holds exactly these packages, the tools in the table above,
 and `extraPackages`.
 

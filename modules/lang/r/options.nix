@@ -89,8 +89,12 @@
         snapshot = lib.mkOption {
           type = lib.types.str;
           default = defaultSnapshot;
-          defaultText = lib.literalExpression "CRAN snapshot date of nixpkgs-r";
-          description = "CRAN snapshot date corresponding to the package set in `nixpkgs-r`, for PPM and non-Nix interop.";
+          defaultText = lib.literalExpression "date of nixpkgs-r";
+          description = ''
+            CRAN snapshot date, for PPM and non-Nix interop. The default is the date in the ref of
+            `nixpkgs-r`, or else its commit date: an upper bound, as nixpkgs updates its R packages
+            less often. Set it for an exact date.
+          '';
         };
         ppmUrl = lib.mkOption {
           type = lib.types.str;
