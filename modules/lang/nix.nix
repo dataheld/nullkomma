@@ -36,6 +36,7 @@
       };
       config = lib.mkIf cfg.nix.enable {
         nullkomma.agents.skills.nk-upgrade = ./_nix/nk-upgrade;
+        nullkomma.lint.jscpd.formatsExts.nix = lib.mkDefault [ "nix" ];
         partitionedAttrs.tests = lib.mkIf (config.partitions ? dev) (lib.mkDefault "dev");
         # Unconditional: deciding by the tests would make every output depend on every system.
         flake = {

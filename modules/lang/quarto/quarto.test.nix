@@ -150,29 +150,21 @@
               perSystem.nullkomma.browse.command = "${pkgs.writeShellScript "browser" ''echo "$1" > "$TMPDIR/opened"''}";
             } fixture;
           in
-          pkgs.runCommand "nullkomma-quarto-preview-opens"
-            {
-              nativeBuildInputs = [
-                pkgs.curl
-                pkgs.lsof
-              ];
-              __darwinAllowLocalNetworking = true;
+          harness.serving "nullkomma-quarto-preview-opens" [ pkgs.curl ] ''
+            ${harness.project fixture}
+            set -m
+            PC_DISABLE_TUI=1 ${task flake "quarto-preview"} > "$TMPDIR/preview.log" 2>&1 &
+            pid=$!
+            trap 'kill "$pid"; wait "$pid" || true' EXIT
+            logs=("$TMPDIR/preview.log")
+            awaiting 'test -s "$TMPDIR/opened"' "$pid"
+            curl --noproxy '*' --fail --silent --show-error "$(cat "$TMPDIR/opened")" > index.html || {
+              cat -v "$TMPDIR/opened" "$TMPDIR/preview.log" >&2
+              exit 1
             }
-            ''
-              ${harness.project fixture}
-              set -m
-              PC_DISABLE_TUI=1 ${task flake "quarto-preview"} > "$TMPDIR/preview.log" 2>&1 &
-              pid=$!
-              trap 'kill "$pid"; wait "$pid" || true' EXIT
-              logs=("$TMPDIR/preview.log")
-              awaiting 'test -s "$TMPDIR/opened"' "$pid"
-              curl --noproxy '*' --fail --silent --show-error "$(cat "$TMPDIR/opened")" > index.html || {
-                cat -v "$TMPDIR/opened" "$TMPDIR/preview.log" >&2
-                exit 1
-              }
-              grep -qF 'Fixture home' index.html
-              touch $out
-            '';
+            grep -qF 'Fixture home' index.html
+            touch $out
+          '';
         quarto-preview =
           let
             quarto = pkgs.writeShellScriptBin "quarto" ''

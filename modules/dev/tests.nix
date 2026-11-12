@@ -211,6 +211,14 @@
               server=$!
               trap 'kill "$server" 2>/dev/null || true; wait || true' EXIT
             '';
+            # A build that runs servers on localhost through process-compose,
+            # which finds ports with lsof on macOS, which has it outside the sandbox.
+            serving =
+              name: tools:
+              pkgs.runCommand name {
+                nativeBuildInputs = tools ++ [ pkgs.lsof ];
+                __darwinAllowLocalNetworking = true;
+              };
             # Every page of a built site meets German legal requirements.
             legalcheck =
               name: site:

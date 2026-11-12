@@ -20,20 +20,20 @@
       checks.jscpd-nix-config = pkgs.runCommand "jscpd-nix-config" { } ''
         ${project fixture}
         mkdir generated custom
-        cat > generated/one.R <<'R'
-        greet <- function(names, prefix) {
-          greetings <- character()
-          for (name in names) {
-            normalized <- tolower(trimws(name))
-            greeting <- paste0(prefix, normalized)
-            message(greeting)
-            greetings <- c(greetings, greeting)
-          }
-          paste(greetings, collapse = "\n")
+        cat > generated/one.nix <<'NIX'
+        { lib, names, prefix }:
+        let
+          normalized = map (name: lib.toLower (lib.trim name)) names;
+          greetings = map (name: "''${prefix}''${name}") normalized;
+          counted = lib.imap1 (index: greeting: "''${toString index}. ''${greeting}") greetings;
+        in
+        {
+          inherit greetings counted;
+          text = lib.concatStringsSep "\n" counted;
         }
-        R
-        for copy in generated/two.R custom/one.R custom/two.R; do
-          cp generated/one.R "$copy"
+        NIX
+        for copy in generated/two.nix custom/one.nix custom/two.nix; do
+          cp generated/one.nix "$copy"
         done
         fails threshold ${jscpd}
         # Native configuration cannot relax the threshold.
