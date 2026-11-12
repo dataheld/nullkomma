@@ -41,7 +41,6 @@
                 ps.mdformat-footnote
                 ps.mdformat-frontmatter
                 ps.mdformat-gfm
-                ps.mdformat-gfm-alerts
               ]);
             };
           };
