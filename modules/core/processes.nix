@@ -6,12 +6,6 @@
 # set `disabled = true` on actions that should only run when asked for.
 # `up <name>` also starts the disabled processes that `<name>` depends on.
 { inputs, ... }:
-let
-  # One process-compose server per checkout, without a TCP port.
-  socket = pkgs: ''
-    export PC_SOCKET_PATH="''${PC_SOCKET_PATH:-''${XDG_RUNTIME_DIR:-/tmp}/nk-$(${pkgs.coreutils}/bin/id -u)-$(pwd | ${pkgs.coreutils}/bin/cksum | ${pkgs.coreutils}/bin/cut -d' ' -f1).sock}"
-  '';
-in
 {
   framework =
     { flake-parts-lib, lib, ... }:
@@ -60,10 +54,11 @@ in
                         patches = (old.patches or [ ]) ++ [ ../../patches/process-compose.patch ];
                       })
                     );
+                    # One process-compose server per checkout, without a TCP port.
                     cli.preHook = ''
                       cd "$(${lib.getExe pkgs.git} rev-parse --show-toplevel)"
-                    ''
-                    + socket pkgs;
+                      export PC_SOCKET_PATH="''${PC_SOCKET_PATH:-''${XDG_RUNTIME_DIR:-/tmp}/nk-$(${pkgs.coreutils}/bin/id -u)-$(pwd | ${pkgs.coreutils}/bin/cksum | ${pkgs.coreutils}/bin/cut -d' ' -f1).sock}"
+                    '';
                     cli.environment.PC_HIDE_DISABLED_PROC = lib.mkDefault true;
                   }
                 ];
@@ -80,14 +75,9 @@ in
         {
           process-compose.dev = { };
           # Native `process-compose` commands use the `dev` tree.
-          nullkomma.devShell = {
-            packages = [ tree.package ];
-            env = {
-              PC_CONFIG_FILES = "${tree.outputs.settingsFile}";
-              PC_HIDE_DISABLED_PROC = "true";
-            };
-            shellHook = socket pkgs;
-          };
+          nullkomma.devShell.packages = [
+            (pkgs.writeShellScriptBin "process-compose" ''exec ${lib.getExe tree.outputs.package} "$@"'')
+          ];
           processTrees = lib.mapAttrs (
             _: tree: tree.outputs.package // { inherit (tree.settings) processes; }
           ) config.process-compose;
