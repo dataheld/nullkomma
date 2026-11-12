@@ -32,15 +32,28 @@
             commentPrefix = "#";
             sections.r = cfg.buildIgnore;
           };
-          "${cfg.prefix}.Rprofile" = {
-            mode = lib.mkDefault "generated";
-            commentPrefix = "#";
-            text = lib.mkMerge [
-              # R skips the user's profile when a project has one.
-              (lib.mkBefore ''if (file.exists("~/.Rprofile")) source("~/.Rprofile")'')
-              (lib.mkAfter (builtins.readFile ./_load-all.R))
-            ];
-          };
+          "${cfg.prefix}.Rprofile" =
+            let
+              profile = lib.concatStringsSep "\n" (
+                # R skips the user's profile when a project has one.
+                [ ''if (file.exists("~/.Rprofile")) source("~/.Rprofile")'' ]
+                # Without Nix, the profile is committed for collaborators, with their own lines.
+                ++ lib.optional cfg.nonNix.enable (builtins.readFile ../r-non-nix/_assets/profile.R)
+                ++ [ (builtins.readFile ./_load-all.R) ]
+              );
+            in
+            {
+              commentPrefix = "#";
+            }
+            // (
+              if cfg.nonNix.enable then
+                { sections.r = profile; }
+              else
+                {
+                  mode = lib.mkDefault "generated";
+                  text = profile;
+                }
+            );
         };
       };
     };

@@ -13,12 +13,6 @@
           enable = true;
           domain = "maxheld.de";
         };
-        github = {
-          workflows = {
-            source = "./.github/workflows";
-            ref = null;
-          };
-        };
         gitignore = [ ".claude/" ];
         quarto = {
           enable = true;
@@ -41,9 +35,10 @@
         };
       };
       perSystem.nullkomma.files = {
-        # The workspace editor settings are tracked and hand-edited.
+        # Tracked and hand-edited.
         ".vscode/settings.json".mode = "source";
         ".vscode/extensions.json".mode = "source";
+        ".github/workflows/push.yml".enable = false;
         "README.md" = {
           commentPrefix = "<!--";
           commentSuffix = " -->";
