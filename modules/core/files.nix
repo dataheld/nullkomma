@@ -1,5 +1,5 @@
-# Files are either a source of truth (written once, then edited and committed)
-# or generated from Nix (overwritten on every run and Git-ignored).
+# Files are either a source of truth (written once, then committed and edited, except for
+# nullkomma's marked sections) or generated from Nix (overwritten on every run and Git-ignored).
 {
   framework =
     {
@@ -14,9 +14,6 @@
         let
           fileModule =
             { name, config, ... }:
-            let
-              current = self.outPath + "/${name}";
-            in
             {
               options = {
                 enable = lib.mkOption {
@@ -30,7 +27,7 @@
                     "generated"
                   ];
                   default = "source";
-                  description = "`source`: written by `write-files`, then a committed source of truth, updated only while unedited. `generated`: written from Nix by `generate-files` (also on entering the dev shell), overwritten when changed, and only if Git ignores it.";
+                  description = "`source`: written by `write-files` if absent, then committed and the project's, except for its `sections`. `generated`: written from Nix by `generate-files` (also on entering the dev shell), overwritten when changed, and only if Git ignores it.";
                 };
                 commentPrefix = lib.mkOption {
                   type = lib.types.nullOr lib.types.str;
@@ -56,34 +53,15 @@
                   type = lib.types.path;
                   description = "Store path whose content is written to `${name}`.";
                 };
-                initialSource = lib.mkOption {
-                  type = lib.types.nullOr lib.types.path;
-                  default = null;
-                  description = "Project content `source` is derived from; `write-files` replaces the file while it still matches.";
-                };
                 sections = lib.mkOption {
-                  type = lib.types.attrsOf lib.types.lines;
+                  type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
                   default = { };
-                  description = "Marked sections nullkomma owns inside an otherwise project-owned source file, by name: replaced in place, else appended, and removed once undeclared. Needs `commentPrefix`.";
+                  description = "Marked sections nullkomma owns inside an otherwise project-owned source file, by name, as text or file: replaced in place, else appended, and removed once undeclared. A file without markers that equals the sections' plain text gets them marked. Needs `commentPrefix`.";
                 };
               };
-              config = lib.mkMerge [
-                {
-                  source = lib.mkIf (config.text != null) (
-                    pkgs.writeText "nullkomma-${lib.replaceStrings [ "/" ] [ "-" ] name}" config.text
-                  );
-                }
-                (lib.mkIf (config.sections != { }) {
-                  initialSource = lib.mkIf (builtins.pathExists current) current;
-                  text =
-                    assert lib.assertMsg (
-                      config.commentPrefix != null
-                    ) "File ${name} needs a commentPrefix for its sections.";
-                    import ./_sections.nix { inherit lib; } {
-                      inherit (config) commentPrefix commentSuffix sections;
-                    } (if builtins.pathExists current then builtins.readFile current else "");
-                })
-              ];
+              config.source = lib.mkIf (config.text != null) (
+                pkgs.writeText "nullkomma-${lib.replaceStrings [ "/" ] [ "-" ] name}" config.text
+              );
             };
         in
         {
@@ -103,6 +81,29 @@
         { config, pkgs, ... }:
         let
           files = lib.filterAttrs (_: f: f.enable) config.nullkomma.files;
+          # `_sections.awk`'s arguments for a file's sections.
+          splice =
+            path: f:
+            assert lib.assertMsg (
+              f.commentPrefix != null
+            ) "File ${path} needs a commentPrefix for its sections.";
+            lib.escapeShellArgs [
+              "-v"
+              "prefix=${f.commentPrefix}"
+              "-v"
+              "suffix=${f.commentSuffix}"
+              "-v"
+              "sections=${
+                lib.concatStringsSep " " (
+                  lib.mapAttrsToList (
+                    name: section:
+                    "${name} ${
+                      if builtins.isString section then pkgs.writeText "nullkomma-section-${name}" section else section
+                    }"
+                  ) f.sections
+                )
+              }"
+            ];
           generated = lib.mapAttrs (
             path: f:
             if f.directory then
@@ -126,30 +127,37 @@
             name: mode:
             pkgs.writeShellApplication {
               inherit name;
+              # Functions run once per declared file, which may be none.
+              excludeShellChecks = [ "SC2329" ];
               runtimeInputs = [
                 pkgs.coreutils
+                pkgs.gawk
                 pkgs.git
               ];
               text = ''
                 mode=${mode}
+                sections=${./_sections.awk}
               ''
               + builtins.readFile ./_files.sh
               + lib.concatStrings (
                 lib.mapAttrsToList (
                   path: f:
-                  let
-                    source =
-                      assert lib.assertMsg (
-                        !f.directory || mode == "generated"
-                      ) "Directory ${path} must be a generated file.";
-                      if mode == "generated" then generated.${path} else f.source;
-                  in
-                  ''
-                    process_file ${lib.escapeShellArg path} ${lib.escapeShellArg "${source}"} ${
-                      lib.escapeShellArg (if f.initialSource == null then "" else "${f.initialSource}")
-                    }
-                  ''
-                ) (lib.filterAttrs (_: f: f.mode == mode) files)
+                  assert lib.assertMsg (
+                    !f.directory || f.mode == "generated"
+                  ) "Directory ${path} must be a generated file.";
+                  if f.mode != mode then
+                    ''
+                      declare_file ${lib.escapeShellArg path}
+                    ''
+                  else if f.sections != { } then
+                    ''
+                      splice_file ${lib.escapeShellArg path} ${splice path f}
+                    ''
+                  else
+                    ''
+                      process_file ${lib.escapeShellArg path} ${lib.escapeShellArg "${if mode == "generated" then generated.${path} else f.source}"}
+                    ''
+                ) files
               )
               + ''
                 finish
@@ -182,14 +190,9 @@
             write-files = task "Update the files nullkomma committed, keeping your edits" write;
             generate-files = task "Regenerate nullkomma's Git-ignored files; entering the dev shell does this too" generate;
           };
-          # Generated files follow the Nix configuration, not the working tree: refresh them on
-          # entering the dev shell (direnv re-enters when the flake changes), only if they changed.
-          nullkomma.devShell.shellHook = lib.mkIf (generated != { }) ''
-            if stamp="$(git rev-parse --git-path nullkomma/files/generated-by 2>/dev/null)" &&
-              [ "$(cat "$stamp" 2>/dev/null)" != ${generate} ]; then
-              ${lib.getExe generate} && echo ${generate} > "$stamp"
-            fi
-          '';
+          # Generated files follow the Nix configuration, not the working tree:
+          # refresh them on entering the dev shell (direnv re-enters when the flake changes).
+          nullkomma.devShell.shellHook = lib.mkIf (generated != { }) (lib.getExe generate);
         };
     };
 }

@@ -1,17 +1,13 @@
 # shellcheck shell=bash
 mode="${mode:?file mode must be set by the caller}"
+sections="${sections:?the section splicer must be set by the caller}"
 root="$(git rev-parse --show-toplevel)"
 cd "$root" || exit 1
-state="$(git rev-parse --path-format=absolute --git-common-dir)/nullkomma/files"
-accept=""
-accepted=false
 status=0
 declared=()
 unignored=()
-if [ "$mode" = source ] && [ "${1:-}" = --accept ] && [ "$#" = 2 ]; then
-  accept="$2"
-elif [ "$#" != 0 ]; then
-  echo "Usage: write-files [--accept <path>] (after resolving a conflict); generate-files takes no arguments" >&2
+if [ "$#" != 0 ]; then
+  echo "Usage: $mode-files takes no arguments" >&2
   exit 1
 fi
 
@@ -35,12 +31,12 @@ safe_path() {
   done
 }
 
-# shellcheck disable=SC2329 # unused when no file of this mode is enabled
+declare_file() {
+  declared+=("$1")
+}
+
 process_file() {
-  local path="$1" source="$2" initial="${3:-}" base incoming
-  if [ -n "$accept" ] && [ "$accept" != "$path" ]; then
-    return
-  fi
+  local path="$1" source="$2"
   safe_path "$path" || return
   declared+=("$path")
   if [ "$mode" = generated ] && git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
@@ -63,54 +59,54 @@ process_file() {
     echo "generated $path/"
     return
   fi
-  if [ -e "$path" ] && [ ! -f "$path" ]; then
-    echo "Not a regular file: $path" >&2
+  regular "$path" || return
+  if [ "$mode" = generated ] && ! git check-ignore -q -- "$path"; then
+    unignored+=("$path")
     status=1
     return
   fi
-  if [ "$mode" = generated ]; then
-    if ! git check-ignore -q -- "$path"; then
-      unignored+=("$path")
-      status=1
-      return
-    fi
-    cmp -s "$source" "$path" && return
-    mkdir -p "$(dirname "$path")"
-    cp --remove-destination "$source" "$path"
-    chmod u+w "$path"
-    echo "generated $path"
-    return
+  # Source files without sections are written once, then the project's.
+  if [ ! -e "$path" ] || { [ "$mode" = generated ] && ! cmp -s "$source" "$path"; }; then
+    install_file "$path" "$source"
   fi
-  base="$state/base/$path"
-  incoming="$state/incoming/$path"
-  mkdir -p "$(dirname "$base")" "$(dirname "$incoming")"
-  if [ -n "$accept" ]; then
-    if [ ! -f "$path" ]; then
-      echo "Resolve or initialize $path before accepting its upstream baseline." >&2
-      status=1
-      return
-    fi
-    cp --remove-destination "$source" "$base"
-    rm -f "$incoming"
-    accepted=true
-    echo "accepted upstream baseline for $path; project content preserved"
-  elif [ ! -e "$path" ] || cmp -s "$path" "$source" || { [ -f "$base" ] && cmp -s "$path" "$base"; } ||
-    { [ -n "$initial" ] && cmp -s "$path" "$initial"; }; then
-    if ! cmp -s "$path" "$source"; then
-      mkdir -p "$(dirname "$path")"
-      cp "$source" "$path"
-      chmod u+w "$path"
-      echo "initialized/updated $path"
-    fi
-    cp --remove-destination "$source" "$base"
-    rm -f "$incoming"
-  elif [ ! -f "$base" ] || ! cmp -s "$base" "$source"; then
-    cp --remove-destination "$source" "$incoming"
-    echo "Upstream conflict: $path (project file preserved)." >&2
-    echo "Baseline: $base (may be absent); incoming: $incoming" >&2
-    echo "Use the nk-resolve-file-conflicts skill: https://github.com/dataheld/nullkomma/blob/main/modules/tools/_agents/nk-resolve-file-conflicts/SKILL.md" >&2
+}
+
+splice_file() {
+  local path="$1" spliced
+  shift
+  safe_path "$path" || return
+  declared+=("$path")
+  regular "$path" || return
+  spliced="$(mktemp)"
+  if splice "$path" "$@" >"$spliced"; then
+    cmp -s "$spliced" "$path" || install_file "$path" "$spliced"
+  else
     status=1
   fi
+  rm "$spliced"
+}
+
+# Usage: splice <file> [_sections.awk arguments]
+splice() {
+  local file="$1"
+  shift
+  [ -e "$file" ] || file=/dev/null
+  awk -f "$sections" "$@" "$file"
+}
+
+regular() {
+  if [ -e "$1" ] && [ ! -f "$1" ]; then
+    echo "Not a regular file: $1" >&2
+    status=1
+    return 1
+  fi
+}
+
+install_file() {
+  mkdir -p "$(dirname "$1")"
+  cp --remove-destination "$2" "$1"
+  chmod u+w "$1"
+  echo "wrote $1"
 }
 
 is_declared() {
@@ -121,17 +117,16 @@ is_declared() {
   return 1
 }
 
-# Removes files an earlier run wrote that are no longer declared.
+# Removes what nullkomma no longer declares: earlier generated files, and the sections of
+# tracked files, as complete marker pairs.
 prune() {
-  local base manifest path stripped
+  local manifest path stripped
   if [ "$mode" = generated ]; then
     manifest="$(git rev-parse --path-format=absolute --git-path nullkomma/files/generated)"
     mkdir -p "$(dirname "$manifest")"
-    # Manifests used to be shared, so a worktree's first run may have to prune what that lists.
-    [ -e "$manifest" ] || cp "$state/generated" "$manifest" 2>/dev/null || touch "$manifest"
+    touch "$manifest"
     while IFS= read -r path; do
-      # Skip paths now written as source files.
-      if [ -n "$path" ] && ! is_declared "$path" && [ ! -f "$state/base/$path" ] && safe_path "$path" &&
+      if [ -n "$path" ] && ! is_declared "$path" && safe_path "$path" &&
         [ -e "$path" ] && ! git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
         rm -rf "$path"
         echo "removed $path (no longer generated)"
@@ -140,42 +135,22 @@ prune() {
     printf '%s\n' "${declared[@]}" >"$manifest"
     return
   fi
-  shopt -s globstar dotglob nullglob
-  for base in "$state"/base/**; do
-    path="${base#"$state/base/"}"
-    if [ ! -f "$base" ] || is_declared "$path" || ! safe_path "$path"; then
+  while IFS= read -r -d '' path; do
+    if is_declared "$path" || ! safe_path "$path" || [ ! -f "$path" ] || ! stripped="$(splice "$path")"; then
       continue
     fi
-    if [ ! -f "$path" ]; then
-      :
-    elif grep -q 'nullkomma:[^:]*:start' "$path"; then
-      stripped="$(awk '/nullkomma:[^:]+:start/ { s = 1 } !s { print } /nullkomma:[^:]+:end/ { s = 0 }' "$path")"
-      if [ -n "${stripped//[[:space:]]/}" ]; then
-        printf '%s\n' "$stripped" >"$path"
-        echo "removed nullkomma sections from $path"
-      else
-        rm "$path"
-        echo "removed $path (no longer managed)"
-      fi
-    elif cmp -s "$path" "$base"; then
+    if [ -z "${stripped//[[:space:]]/}" ]; then
       rm "$path"
       echo "removed $path (no longer managed)"
-    else
-      echo "kept edited $path (no longer managed)"
+    elif [ "$stripped" != "$(cat "$path")" ]; then
+      printf '%s\n' "$stripped" >"$path"
+      echo "removed nullkomma sections from $path"
     fi
-    rm -f "$base" "$state/incoming/$path"
-  done
+  done < <(git grep -lzE '^[^[:space:]]+ nullkomma:[^:[:space:]]+:start' || true)
 }
 
 finish() {
-  if [ -n "$accept" ]; then
-    if [ "$accepted" != true ]; then
-      echo "Not an enabled source-of-truth file: $accept" >&2
-      exit 1
-    fi
-  else
-    prune
-  fi
+  prune
   if [ "${#unignored[@]}" != 0 ]; then
     echo "Not written, because Git does not ignore them: ${unignored[*]}. Add them to .gitignore; with the git plugin, nk write-files does that." >&2
   fi
