@@ -646,16 +646,7 @@
                 ${harness.project md}
                 ${lib.getExe pkgs.git} init -q
                 export HOME="$TMPDIR" PC_LOG_FILE="$TMPDIR/pc.log"
-                # Waits for a condition while the background server runs.
-                awaiting() {
-                  until "$@"; do
-                    kill -0 "$server" || {
-                      tail -n 40 mcp.out preview.out "$PC_LOG_FILE" mcp.log >&2
-                      exit 1
-                    }
-                    sleep 0.2
-                  done
-                }
+                logs=(mcp.out preview.out "$PC_LOG_FILE" mcp.log)
                 rewatched() { [ "$(wc -l < watched)" -eq 2 ]; }
                 answered() { [ "$(grep -cE '"id":[0-9]+,' mcp.out)" -eq 5 ]; }
                 ${tasks} > menu
@@ -670,12 +661,12 @@
                 printf '#!/bin/sh\necho "$@" > %s\n' "$PWD/gcroot" > bin/nix-store
                 chmod +x bin/nix-store
                 mkfifo requests
-                PATH="$PWD/bin:$PATH" PC_LOG_FILE="$PWD/mcp.log" timeout -k 5 60 ${tasks} mcp < requests > mcp.out &
+                PATH="$PWD/bin:$PATH" PC_LOG_FILE="$PWD/mcp.log" ${tasks} mcp < requests > mcp.out &
                 server=$!
                 exec 3> requests
                 # shortcut: process-compose 1.124.0 deadlocks on MCP calls before its runner
                 # starts, which logs this; drop the wait once upstream serves MCP only after (#285).
-                awaiting grep -qsF 'Scheduler started' mcp.log
+                awaiting "grep -qsF 'Scheduler started' mcp.log" "$server"
                 printf '%s\n' >&3 \
                   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}' \
                   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
@@ -684,9 +675,10 @@
                   '{"jsonrpc":"2.0","id":4,"method":"resources/read","params":{"uri":"process://inspect"}}' \
                   '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"pc_process_start","arguments":{"name":"preview"}}}'
                 # Servers start with their prerequisites.
-                awaiting test -e watched
-                awaiting answered
+                awaiting 'test -e watched' "$server"
+                awaiting answered "$server"
                 kill "$server"
+                awaiting '! kill -0 "$server" 2>/dev/null'
                 rm watched
                 # The server outlives `nix store gc` only with its closure rooted.
                 grep -qE '^--add-root \.nullkomma/gcroots/nk-mcp --realise /nix/store/[^ ]+-nk-mcp$' gcroot
@@ -703,9 +695,9 @@
                 # Servers run with their prerequisites' watches.
                 PC_DISABLE_TUI=1 ${tasks} preview > preview.out 2>&1 &
                 server=$!
-                awaiting test -e watched
+                awaiting 'test -e watched' "$server"
                 echo >> trigger
-                awaiting rewatched
+                awaiting rewatched "$server"
                 kill "$server"
                 touch $out
               '';
@@ -714,28 +706,23 @@
               ${harness.project md}
               ${lib.getExe pkgs.git} init -q
               export HOME="$TMPDIR"
-              within() {
-                for _ in {1..300}; do eval "$1" && return; sleep 0.2; done
-                echo "timed out: $1" >&2
-                tail -n 40 mcp.out mcp.log >&2
-                exit 1
-              }
+              logs=(mcp.out mcp.log)
               mkfifo requests
               PC_LOG_FILE="$PWD/mcp.log" ${lib.getExe (perSystem contract).taskRunners.default} mcp < requests > mcp.out &
               client=$!
               exec 3> requests
-              within "grep -qsF 'Scheduler started' mcp.log"
+              awaiting "grep -qsF 'Scheduler started' mcp.log" "$client"
               printf '%s\n' >&3 \
                 '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}' \
                 '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
                 '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"pc_process_start","arguments":{"name":"hold"}}}'
-              within 'test -s held'
+              awaiting 'test -s held' "$client"
               read -r held server < held
               trap 'kill -KILL "$held" "$server" 2>/dev/null || true' EXIT
               exec 3>&-
               kill -KILL "$client"
-              within "! kill -0 $server 2>/dev/null"
-              within "! kill -0 $held 2>/dev/null"
+              awaiting "! kill -0 $server 2>/dev/null"
+              awaiting "! kill -0 $held 2>/dev/null"
               touch $out
             '';
             scratch = pkgs.runCommand "nullkomma-scratch" { } ''
@@ -760,7 +747,7 @@
               [ "$(wc -l < "$KEPT")" -eq 2 ]
               # A stopped run copies nothing back.
               echo slow > input
-              awaiting test -e "$copy/out/slow"
+              awaiting 'test -e "$copy/out/slow"' "$server"
               echo v3 > input
               settled isolated 6
               grep -qx v3 out/copy

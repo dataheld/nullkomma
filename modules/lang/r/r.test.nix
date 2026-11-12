@@ -141,21 +141,16 @@
           })
           RS
           cp tests/testthat/test-wait-a.R tests/testthat/test-wait-b.R
-          within() {
-            for _ in {1..300}; do eval "$1" && return; sleep 0.2; done
-            echo "timed out: $1" >&2
-            cat nk.log >&2
-            exit 1
-          }
+          logs=(nk.log)
           set -m
           ${task fixtures.r "r-test"} > nk.log 2>&1 &
           group=$!
           set +m
-          within '[ -f "$WORKERS" ] && [ "$(wc -l < "$WORKERS")" -ge 2 ]'
+          awaiting '[ -f "$WORKERS" ] && [ "$(wc -l < "$WORKERS")" -ge 2 ]' "$group"
           trap 'kill -KILL $(cat "$WORKERS") 2>/dev/null || true' EXIT
           kill -${signal} -- -"$group"
           for worker in $(cat "$WORKERS"); do
-            within "! kill -0 $worker 2>/dev/null"
+            awaiting "! kill -0 $worker 2>/dev/null"
           done
         '';
     in
@@ -485,7 +480,7 @@
           printf 'destination: yaml-destination\n' >> _pkgdown.yml
           ${task customDestination "r-build-site"} --preview
           # browseURL doesn't wait for the browser.
-          for _ in {1..50}; do test -f "$TMPDIR/opened" && break; sleep 0.1; done
+          awaiting 'test -s "$TMPDIR/opened"'
           grep -qF "$PWD/public/index.html" "$TMPDIR/opened"
           test ! -e yaml-destination
         '';
@@ -497,13 +492,14 @@
             PC_DISABLE_TUI=1 ${task customDestination "r-preview-site"} > preview.log 2>&1 &
             preview=$!
             trap 'kill "$preview" 2>/dev/null; wait || true' EXIT
-            sleep 3
+            logs=(preview.log)
+            awaiting 'grep -qF "Waiting for r-build-site" preview.log' "$preview"
             if test -e "$TMPDIR/opened"; then
               echo 'The preview must wait for the first build, or it opens a page without reloads' >&2
               exit 1
             fi
             ${task customDestination "r-build-site"}
-            for _ in {1..60}; do test -s "$TMPDIR/opened" && break; sleep 1; done
+            awaiting 'test -s "$TMPDIR/opened"' "$preview"
             curl --noproxy '*' --fail --silent "$(cat "$TMPDIR/opened")" > index.html || { cat preview.log >&2; exit 1; }
             grep -qF servr:reload index.html
             grep -qF nullkommafixture index.html
@@ -562,22 +558,17 @@
           RS
           workers() { [ -f "$WORKERS" ] && [ "$(wc -l < "$WORKERS")" -ge "$1" ]; }
           stopped() { ! kill -0 "$(sed -n "$1p" "$WORKERS")" 2>/dev/null; }
-          within() {
-            for _ in {1..300}; do "$@" && return; sleep 0.2; done
-            echo "timed out: $*" >&2
-            cat pc.log >&2
-            exit 1
-          }
+          logs=(pc.log)
           ${lib.getExe (perSystem fixtures.r).process-compose.dev.outputs.package} up r-test > pc.log 2>&1 &
           pc=$!
           trap 'kill "$pc" 2>/dev/null || true' EXIT
-          within workers 1
+          awaiting 'workers 1' "$pc"
           echo >> tests/testthat/test-wait.R
-          within workers 2
-          within stopped 1
+          awaiting 'workers 2' "$pc"
+          awaiting 'stopped 1' "$pc"
           kill "$pc"
           wait "$pc" || true
-          within stopped 2
+          awaiting 'stopped 2'
         '';
         r-test-stopped-by-hup = stoppedBy "HUP";
         r-test-stopped-by-term = stoppedBy "TERM";

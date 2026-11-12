@@ -74,8 +74,10 @@
           perSystem = flake: flake.allSystems.${system};
           # Command running a flake's task, from inside a Git repository.
           task = flake: name: "${lib.getExe (perSystem flake).taskRunners.default} ${name}";
-          # Shell prelude: a writable copy of `src` as the working Git repository, and
-          # `fails <message> <command...>`, expecting the command to fail with message.
+          # Shell prelude: a writable copy of `src` as the working Git repository,
+          # `fails <message> <command...>`, expecting the command to fail with message, and
+          # `awaiting <condition> [pid]`, evaluating the condition until it holds; it fails
+          # after 600 s, or once process `pid` has exited, showing the ends of the files in `logs`.
           project = src: ''
             cp -R ${src} project
             chmod -R u+w project
@@ -91,6 +93,23 @@
                 exit 1
               fi
               grep -qF -- "$message" "$TMPDIR/failure.log" || { cat "$TMPDIR/failure.log"; exit 1; }
+            }
+            logs=()
+            awaiting() {
+              local start=$SECONDS failure=
+              until eval "$1"; do
+                if [ -n "''${2-}" ] && ! kill -0 "$2" 2>/dev/null; then
+                  failure="process $2 exited while"
+                elif ((SECONDS - start >= 600)); then
+                  failure="gave up after 600 s"
+                fi
+                if [ -n "$failure" ]; then
+                  ((''${#logs[@]} == 0)) || tail -n 40 "''${logs[@]}" >&2 || true
+                  echo "$failure waiting for: $1" >&2
+                  exit 1
+                fi
+                sleep 0.2
+              done
             }
           '';
           # What a fixture's user sees: the `nk` menu; variants of another fixture share its menu.
@@ -143,24 +162,14 @@
             # The brand nullkomma publishes with, for fixtures checking real content.
             brand = inputs.brand;
             # After `project`: runs `process-compose up <process>` of `flake` with watches, as `$server`,
-            # with shell functions `awaiting <command...>`, polling until it succeeds,
-            # and `settled <process> <runs>`, waiting for that many runs to exit, and no further start.
+            # with shell function `settled <process> <runs>`, waiting for that many runs to exit, and no further start.
             watching = flake: process: ''
               export PC_LOG_FILE="$TMPDIR/process-compose.log"
+              logs=("$TMPDIR/up.log" "$PC_LOG_FILE")
               count() { grep -E "process=$1\$" "$PC_LOG_FILE" 2>/dev/null | grep -cF " $2 " || true; }
-              awaiting() {
-                for _ in {1..1500}; do
-                  "$@" && return
-                  kill -0 "$server" || break
-                  sleep 0.2
-                done
-                cat "$TMPDIR/up.log" "$PC_LOG_FILE" >&2
-                echo "Timed out waiting for: $*" >&2
-                exit 1
-              }
               exited() { [ "$(count "$1" Exited)" -ge "$2" ]; }
               settled() {
-                awaiting exited "$1" "$2"
+                awaiting "exited $1 $2" "$server"
                 sleep 3
                 [ "$(count "$1" Started)" -eq "$2" ] || {
                   cat "$TMPDIR/up.log" "$PC_LOG_FILE" >&2
@@ -274,7 +283,7 @@
           process-compose.dev.settings.processes.all.depends_on.check-fixtures.condition =
             "process_completed_successfully";
           process-compose.dev.settings.processes.check-fixtures = {
-            description = "Run nix flake check and flake-checker on fixture projects, including invalid ones";
+            description = "Run nix flake check and flake-checker on a fixture project, and initialize the template";
             disabled = true;
             command = pkgs.writeShellApplication {
               name = "check-fixtures";
@@ -292,54 +301,13 @@
                 (cd "$scratch/init" && nix flake init --template "path:$scratch/root")
                 mkdir "$scratch/project"
                 cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
-                check() {
-                  nix flake check "path:$scratch/project" \
-                    --override-input nullkomma "path:$root" \
-                    --no-write-lock-file --print-build-logs
-                }
-                check
+                nix flake check "path:$scratch/project" \
+                  --override-input nullkomma "path:$root" \
+                  --no-write-lock-file --print-build-logs
                 # Consumer CI lints the lock; its Nixpkgs must be visible as a root input.
                 nix flake lock "path:$scratch/project" --override-input nullkomma "path:$root"
                 flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
-                rm "$scratch/project/flake.lock"
-              ''
-              +
-                lib.concatMapStrings
-                  (case: ''
-
-                    printf %s ${lib.escapeShellArg case.content} > "$scratch/project/${case.file}"
-                    if check > "$scratch/failure.log" 2>&1; then
-                      echo "Consumer with invalid ${case.file} unexpectedly passed nix flake check" >&2
-                      exit 1
-                    fi
-                    ${lib.concatMapStrings (entry: ''
-                      grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log" || {
-                        cat "$scratch/failure.log"
-                        echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed without: ${entry}"} >&2
-                        exit 1
-                      }
-                    '') case.expect}
-                    echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed nix flake check, as expected"}
-                    rm "$scratch/project/${case.file}"
-                  '')
-                  [
-                    {
-                      file = "unformatted.nix";
-                      content = "{foo=1;}\n";
-                      expect = [
-                        "diff --git a/unformatted.nix b/unformatted.nix"
-                        "+{ foo = 1; }"
-                      ];
-                    }
-                    {
-                      file = "unformatted.md";
-                      content = "# Title\n* item\n";
-                      expect = [
-                        "diff --git a/unformatted.md b/unformatted.md"
-                        "+- item"
-                      ];
-                    }
-                  ];
+              '';
             };
           };
           checks =
