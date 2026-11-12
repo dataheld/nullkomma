@@ -640,7 +640,7 @@ To keep a committed `.Rprofile` of your own, set
 
   # Arguments to `R CMD check`. Set them without `--no-tests` to also run the
   # tests inside `R CMD check`. Default: `--no-manual --ignore-vignettes`, plus
-  # `--no-tests` while `r-test` runs the tests.
+  # `--as-cran` if `cranBound` and `--no-tests` while `r-test` runs the tests.
   # nullkomma.r.check.args = …;
 
   # Whether to add the `r-check` check (build and check the package with
@@ -654,10 +654,11 @@ To keep a committed `.Rprofile` of your own, set
   # uploads or coverage threshold. Default: whether covr is in pkg.lock.
   # nullkomma.r.coverage.enable = …;
 
-  # Whether the package is meant for CRAN. If not, `r-check` skips what only
-  # CRAN needs: CRAN and Bioconductor index lookups, for dependency cycles and
-  # for links to packages that are not installed, and CRAN's limits on installed
-  # size and data compression.
+  # Whether the package is meant for CRAN. If so, `r-check` runs `R CMD check
+  # --as-cran`, without CRAN's incoming checks, which need network access. If
+  # not, `r-check` skips what only CRAN needs: CRAN and Bioconductor index
+  # lookups, for dependency cycles and for links to packages that are not
+  # installed, and CRAN's limits on installed size and data compression.
   # nullkomma.r.cranBound = true;
 
   # Extra R packages from nixpkgs (e.g. dev tooling not in DESCRIPTION); pak,

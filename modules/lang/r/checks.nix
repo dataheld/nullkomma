@@ -18,8 +18,9 @@
             "--no-manual"
             "--ignore-vignettes"
           ]
+          ++ lib.optional cfg.cranBound "--as-cran"
           ++ lib.optional cfg.testthat.enable "--no-tests";
-          defaultText = lib.literalMD "`--no-manual --ignore-vignettes`, plus `--no-tests` while `r-test` runs the tests";
+          defaultText = lib.literalMD "`--no-manual --ignore-vignettes`, plus `--as-cran` if `cranBound` and `--no-tests` while `r-test` runs the tests";
           description = "Arguments to `R CMD check`. Set them without `--no-tests` to also run the tests inside `R CMD check`.";
         };
         errorOn = lib.mkOption {
