@@ -782,7 +782,8 @@ and `extraPackages`.
 
 `packages.site` builds the [pkgdown] site in the sandbox, and `nk r-build-site` in the working tree;
 `r-preview-site` serves it and reloads open pages when it is rebuilt.
-A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
+pkgdown's online lookups, for CRAN/Bioconductor links and release dates, always find nothing;
+add repository links with `home.links`.
 Remote templates, web fonts and network-dependent articles must be local for the sandbox.
 
 #### Shiny app
