@@ -42,7 +42,11 @@
         };
       };
       config.perSystem = lib.mkIf cfg.enable {
-        nullkomma.files.".github/workflows/push.yml".text = ci;
+        # Project jobs go below the section, as `jobs` is the last key.
+        nullkomma.files.".github/workflows/push.yml" = {
+          commentPrefix = "#";
+          sections.github = ci;
+        };
       };
     };
 }

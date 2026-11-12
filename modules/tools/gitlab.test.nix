@@ -21,7 +21,7 @@
           nullkomma.gitlab.enable = true;
         } (root + "/tests/fixtures/md");
       files = flake: (perSystem flake).nullkomma.files;
-      pipeline = flake: (files flake).".gitlab-ci.yml".source;
+      pipeline = flake: (files flake).".gitlab-ci.yml".sections.gitlab;
       variants =
         lib.genAttrs
           [
@@ -78,7 +78,7 @@
             (builtins.tryEval (
               (consumer {
                 systems = lib.mkForce [ "aarch64-darwin" ];
-              }).allSystems.aarch64-darwin.nullkomma.files.".gitlab-ci.yml".source
+              }).allSystems.aarch64-darwin.nullkomma.files.".gitlab-ci.yml".sections.gitlab
             )).success;
           expected = false;
         };
