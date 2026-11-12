@@ -24,6 +24,27 @@
             task
             ;
           md = root + "/tests/fixtures/md";
+          # Renders nullkomma's options the way https://flake.parts does for listed modules.
+          optionsDoc = pkgs.nixosOptionsDoc {
+            options = import (root + "/modules/_options.nix") {
+              inherit lib;
+              inherit (inputs) flake-parts nixpkgs;
+              module = nullkomma.flakeModules.default;
+            };
+            transformOptions =
+              opt:
+              let
+                declarations = map (lib.removePrefix "${toString root}/") (
+                  lib.filter (lib.hasPrefix "${toString root}/") opt.declarations
+                );
+              in
+              opt
+              // {
+                inherit declarations;
+                visible = opt.visible && declarations != [ ];
+              };
+            warningsAreErrors = true;
+          };
           section = text: builtins.toFile "section.md" text;
           # Uses process-compose-flake options only, as external modules would.
           contract = raw {
@@ -477,6 +498,10 @@
                 );
                 expected = normalize (summary fixtures.md);
               };
+            testOptionsDocHasNoStorePaths = {
+              expr = lib.hasInfix builtins.storeDir (builtins.toJSON optionsDoc.optionsNix);
+              expected = false;
+            };
             testPluginsAddMcpServers =
               let
                 servers = flake: lib.attrNames (perSystem flake).nullkomma.agents.mcpServers;
@@ -1128,22 +1153,7 @@
                 )
                 touch $out
               '';
-            # Renders nullkomma's options the way https://flake.parts does for listed modules.
-            options-doc =
-              (pkgs.nixosOptionsDoc {
-                options = import (root + "/modules/_options.nix") {
-                  inherit lib;
-                  inherit (inputs) flake-parts nixpkgs;
-                  module = nullkomma.flakeModules.default;
-                };
-                transformOptions =
-                  opt:
-                  opt
-                  // {
-                    visible = opt.visible && lib.any (lib.hasPrefix (toString root)) opt.declarations;
-                  };
-                warningsAreErrors = true;
-              }).optionsCommonMark;
+            options-doc = optionsDoc.optionsCommonMark;
           };
         };
     };
