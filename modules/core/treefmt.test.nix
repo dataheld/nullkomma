@@ -10,6 +10,8 @@
     let
       inherit (harness)
         callFlakeWith
+        fixtures
+        perSystem
         project
         root
         treefmt
@@ -35,6 +37,26 @@
         } md).checks.${system}.treefmt;
     in
     {
+      nullkomma.nix.unit.tests.testTreefmtProgramsCanBeDisabled = {
+        expr = lib.attrNames (
+          lib.filterAttrs (
+            _: fixture:
+            let
+              disabled = callFlakeWith {
+                perSystem =
+                  { options, ... }:
+                  {
+                    treefmt.programs = lib.mapAttrs (_: _: {
+                      enable = lib.mkForce false;
+                    }) (options.treefmt.type.getSubOptions [ ]).programs;
+                  };
+              } fixture.outPath;
+            in
+            !(builtins.tryEval (perSystem disabled).treefmt.build.configFile.drvPath).success
+          ) fixtures
+        );
+        expected = [ ];
+      };
       checks.treefmt-rejects-unformatted-nix = pkgs.testers.testBuildFailure' {
         drv = unformatted "unformatted.nix" "{foo=1;}\n";
         expectedBuilderLogEntries = [

@@ -63,11 +63,11 @@
                 shfmt.enable = lib.mkDefault true;
               };
               treefmt.settings.formatter = {
-                shellcheck = {
+                shellcheck = lib.mkIf config.treefmt.programs.shellcheck.enable {
                   includes = [ "*.bats" ];
                   options = [ "--norc" ];
                 };
-                shfmt.includes = [ "*.bats" ];
+                shfmt = lib.mkIf config.treefmt.programs.shfmt.enable { includes = [ "*.bats" ]; };
               };
             }
             (lib.mkIf hasTests {
