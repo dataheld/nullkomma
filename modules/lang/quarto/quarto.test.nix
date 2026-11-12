@@ -164,7 +164,8 @@
               PC_DISABLE_TUI=1 ${task flake "quarto-preview"} > "$TMPDIR/preview.log" 2>&1 &
               pid=$!
               trap 'kill "$pid"; wait "$pid" || true' EXIT
-              for _ in {1..120}; do test -s "$TMPDIR/opened" && break; sleep 1; done
+              logs=("$TMPDIR/preview.log")
+              awaiting 'test -s "$TMPDIR/opened"' "$pid"
               curl --noproxy '*' --fail --silent --show-error "$(cat "$TMPDIR/opened")" > index.html || {
                 cat -v "$TMPDIR/opened" "$TMPDIR/preview.log" >&2
                 exit 1

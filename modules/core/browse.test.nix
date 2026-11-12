@@ -40,13 +40,13 @@
         ${harness.project (harness.root + "/tests/fixtures/md")}
         touch trigger
         ${harness.watching browsed "server"}
-        awaiting test -s "$TMPDIR/opened"
+        awaiting 'test -s "$TMPDIR/opened"' "$server"
         test "$(cat "$TMPDIR/opened")" = http://127.0.0.1:3838
         test "${(perSystem browsed).process-compose.dev.settings.processes.server-browser.namespace}" = demo
         # Restarts reuse the open page.
         echo >> trigger
         restarted() { [ "$(wc -l < started)" -eq 2 ]; }
-        awaiting restarted
+        awaiting restarted "$server"
         sleep 2
         test "$(wc -l < "$TMPDIR/opened")" -eq 1
         touch $out

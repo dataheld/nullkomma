@@ -102,8 +102,10 @@
           perSystem = flake: flake.allSystems.${system};
           # Command running a flake's task, from inside a Git repository.
           task = flake: name: "${lib.getExe (perSystem flake).taskRunners.default} ${name}";
-          # Shell prelude: a writable copy of `src` as the working Git repository, and
-          # `fails <message> <command...>`, expecting the command to fail with message.
+          # Shell prelude: a writable copy of `src` as the working Git repository,
+          # `fails <message> <command...>`, expecting the command to fail with message, and
+          # `awaiting <condition> [pid]`, evaluating the condition until it holds; it fails
+          # after 600 s, or once process `pid` has exited, showing the ends of the files in `logs`.
           project = src: ''
             cp -R ${src} project
             chmod -R u+w project
@@ -119,6 +121,23 @@
                 exit 1
               fi
               grep -qF -- "$message" "$TMPDIR/failure.log" || { cat "$TMPDIR/failure.log"; exit 1; }
+            }
+            logs=()
+            awaiting() {
+              local start=$SECONDS failure=
+              until eval "$1"; do
+                if [ -n "''${2-}" ] && ! kill -0 "$2" 2>/dev/null; then
+                  failure="process $2 exited while"
+                elif ((SECONDS - start >= 600)); then
+                  failure="gave up after 600 s"
+                fi
+                if [ -n "$failure" ]; then
+                  ((''${#logs[@]} == 0)) || tail -n 40 "''${logs[@]}" >&2 || true
+                  echo "$failure waiting for: $1" >&2
+                  exit 1
+                fi
+                sleep 0.2
+              done
             }
           '';
           # What a fixture's user sees: the `nk` menu; variants of another fixture share its menu.
@@ -171,24 +190,14 @@
             # The brand nullkomma publishes with, for fixtures checking real content.
             brand = inputs.brand;
             # After `project`: runs `process-compose up <process>` of `flake` with watches, as `$server`,
-            # with shell functions `awaiting <command...>`, polling until it succeeds,
-            # and `settled <process> <runs>`, waiting for that many runs to exit, and no further start.
+            # with shell function `settled <process> <runs>`, waiting for that many runs to exit, and no further start.
             watching = flake: process: ''
               export PC_LOG_FILE="$TMPDIR/process-compose.log"
+              logs=("$TMPDIR/up.log" "$PC_LOG_FILE")
               count() { grep -E "process=$1\$" "$PC_LOG_FILE" 2>/dev/null | grep -cF " $2 " || true; }
-              awaiting() {
-                for _ in {1..1500}; do
-                  "$@" && return
-                  kill -0 "$server" || break
-                  sleep 0.2
-                done
-                cat "$TMPDIR/up.log" "$PC_LOG_FILE" >&2
-                echo "Timed out waiting for: $*" >&2
-                exit 1
-              }
               exited() { [ "$(count "$1" Exited)" -ge "$2" ]; }
               settled() {
-                awaiting exited "$1" "$2"
+                awaiting "exited $1 $2" "$server"
                 sleep 3
                 [ "$(count "$1" Started)" -eq "$2" ] || {
                   cat "$TMPDIR/up.log" "$PC_LOG_FILE" >&2
