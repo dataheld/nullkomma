@@ -2,9 +2,11 @@
   partitions.dev.module = {
     perSystem =
       {
+        config,
         harness,
         lib,
         pkgs,
+        system,
         ...
       }:
       let
@@ -82,6 +84,21 @@
           };
         };
         checks = {
+          r-non-nix-dev-shell =
+            pkgs.runCommand "nullkomma-r-non-nix-dev-shell"
+              {
+                exportReferencesGraph = [
+                  "closure"
+                  (builtins.unsafeDiscardOutputDependency config.devShells.default.drvPath)
+                ];
+              }
+              ''
+                if grep -F ${nonNixProject.name} closure; then
+                  echo "nix develop builds the R fixture" >&2
+                  exit 1
+                fi
+                touch $out
+              '';
           r-non-nix-files = nonNixProject;
           r-non-nix-package =
             (lib.findFirst (p: p.pname or "" == "withr") null
@@ -187,10 +204,8 @@
                 touch $out
               '';
         };
-        process-compose.dev.settings.processes.all.depends_on.test-r-non-nix.condition =
-          "process_completed_successfully";
         process-compose.dev.settings.processes.test-r-non-nix = {
-          description = "Test Ubuntu R workflows without Nix in Docker, on macOS in its own Colima VM; args go to docker build";
+          description = "Test Ubuntu R workflows without Nix in Docker, on macOS in the Colima VM nullkomma-r-test, left running for other runs (stop it with colima stop --profile nullkomma-r-test); args go to docker build";
           disabled = true;
           command = pkgs.writeShellApplication {
             name = "test-r-non-nix";
@@ -209,20 +224,20 @@
               profile=nullkomma-r-test
               # Colima edits Docker contexts; keep them away from the user's.
               export DOCKER_CONFIG="$scratch/docker"
-              if ! colima status --profile "$profile" > /dev/null 2>&1; then
+              colima status --profile "$profile" > /dev/null 2>&1 ||
                 colima start --profile "$profile" --vm-type vz --vz-rosetta
-                trap 'rm -rf "$scratch"; colima stop --profile "$profile"' EXIT
-              fi
               DOCKER_HOST="$(colima status --profile "$profile" --json | jq -r .docker_socket)"
               export DOCKER_HOST
             ''
             + ''
               docker info > /dev/null
-              cp -R ${nonNixProject} "$scratch/project"
+              project="$(nix build --no-link --print-out-paths .#checks.${system}.r-non-nix-files)"
+              cp -R "$project" "$scratch/project"
               chmod -R u+w "$scratch/project"
               cp ${root + "/tests/r-non-nix/Dockerfile"} "$scratch/Dockerfile"
               cp ${root + "/tests/r-non-nix/run.sh"} "$scratch/run.sh"
-              image=nullkomma-r-non-nix:${builtins.substring 11 12 (toString nonNixProject)}
+              name="''${project##*/}"
+              image="nullkomma-r-non-nix:''${name:0:12}"
               BUILDKIT_PROGRESS=plain docker build --platform linux/amd64 \
                 --build-arg R_VERSION=${(perSystem withProfile).nullkomma.r.package.version} \
                 --tag "$image" "$@" "$scratch"
