@@ -197,8 +197,10 @@
               {
                 path = ".";
                 exclude = [
-                  "R"
-                  "NAMESPACE"
+                  "{NAMESPACE,R/**}"
+                  "*.o"
+                  "*.so"
+                  "*.dll"
                   "tests/testthat/_snaps/**"
                   "man/*.Rd"
                   "docs/**"
