@@ -149,21 +149,20 @@
             };
             contain = pkgs.callPackage ./_subprocesses { };
             after = name: { ${name}.condition = "process_completed_successfully"; };
-            # Compiled code, so that scratch copies don't rebuild it on every run.
-            compiled = [
-              "/src/*.o"
-              "/src/*.so"
-              "/src/*.dll"
+            # pkgload::load_all compiles these into the working tree's src/.
+            objects = [
+              "*.o"
+              "*.so"
+              "*.dll"
             ];
+            # Compiled code, so that scratch copies don't rebuild it on every run.
+            compiled = map (object: "/src/${object}") objects;
             # For tasks that read the whole package; R changes reach them through the cascade.
             packageWatch.paths = [
               {
                 path = ".";
-                exclude = [
-                  "R"
-                  "NAMESPACE"
-                ]
-                ++ generated;
+                # A pattern with a slash matches from the package root, not names at any depth.
+                exclude = [ "{NAMESPACE,R/**}" ] ++ objects ++ generated;
               }
             ];
             rscript = "${pcfg.package}/bin/Rscript --vanilla";
