@@ -71,7 +71,7 @@
                 # Native R must not install Config/Needs packages that Nix leaves out.
                 runtimeFields =
                   lib.hasInfix "NULLKOMMA_R_ALL_CONFIG_NEEDS=false"
-                    (perSystem runtimeOnly).nullkomma.files.".Renviron".text;
+                    (perSystem runtimeOnly).nullkomma.files.".Renviron".sections.r;
               };
             expected = {
               enabled = true;

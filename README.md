@@ -307,12 +307,9 @@ Features live in Nix; nullkomma writes files only where tools need them:
 | `write-files`               | `.envrc`, `.gitignore` and `AGENTS.md` sections, GitHub workflows, `.gitlab-ci.yml` |                                                                                             |
 | `generate-files`            |                                                      | `.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
 
-`write-files` writes source-of-truth files once (`nullkomma.files."<path>".mode = "source"`),
-and later updates them only if you haven't edited them.
-Otherwise it keeps your version, saves the incoming one in Git's metadata directory and fails;
-the nk-resolve-file-conflicts skill resolves this, and `nk write-files --accept <path>` marks the file as up to date.
-A file can instead hold marked `sections` inside your own text, which `write-files` replaces wherever you moved them.
-Once nullkomma no longer declares a file, `write-files` strips its sections, or deletes it if unedited.
+`write-files` writes source-of-truth files (`nullkomma.files."<path>".mode = "source"`) once; then they are yours.
+It keeps only their marked `sections` up to date, wherever you moved them, and strips them once nullkomma no longer declares them.
+Add your own lines outside the markers, for example your jobs below nullkomma's section of `push.yml`.
 
 `generate-files` overwrites generated files (`mode = "generated"`) when they differ from Nix,
 and removes ones no longer declared; it refuses to overwrite files Git tracks.

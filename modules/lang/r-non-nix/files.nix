@@ -25,18 +25,20 @@
           { config, ... }:
           {
             nullkomma.files = {
-              "${prefix}.Rprofile" = {
-                mode = "source";
-                text = builtins.readFile ./_assets/profile.R;
+              "${prefix}.R/install.R" = {
+                commentPrefix = "#";
+                sections.r = ./_assets/install.R;
               };
-              "${prefix}.R/install.R".text = builtins.readFile ./_assets/install.R;
-              "${prefix}.Renviron".text = ''
-                NULLKOMMA_R_VERSION=${builtins.toJSON config.nullkomma.r.package.version}
-                NULLKOMMA_PPM_SNAPSHOT=${builtins.toJSON cfg.snapshot}
-                NULLKOMMA_PPM_URL=${builtins.toJSON cfg.ppmUrl}
-                NULLKOMMA_R_DEPENDENCIES=${builtins.toJSON (lib.concatStringsSep "," cfg.fields)}
-                NULLKOMMA_R_ALL_CONFIG_NEEDS=${lib.boolToString allConfigNeeds}
-              '';
+              "${prefix}.Renviron" = {
+                commentPrefix = "#";
+                sections.r = ''
+                  NULLKOMMA_R_VERSION=${builtins.toJSON config.nullkomma.r.package.version}
+                  NULLKOMMA_PPM_SNAPSHOT=${builtins.toJSON cfg.snapshot}
+                  NULLKOMMA_PPM_URL=${builtins.toJSON cfg.ppmUrl}
+                  NULLKOMMA_R_DEPENDENCIES=${builtins.toJSON (lib.concatStringsSep "," cfg.fields)}
+                  NULLKOMMA_R_ALL_CONFIG_NEEDS=${lib.boolToString allConfigNeeds}
+                '';
+              };
               "${prefix}README.md" = {
                 commentPrefix = "<!--";
                 commentSuffix = " -->";

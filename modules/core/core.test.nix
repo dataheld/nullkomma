@@ -161,7 +161,6 @@
             raw {
               perSystem.nullkomma.files = {
                 "source.txt".text = version;
-                "untouched.txt".text = version;
                 "generated.txt" = {
                   text = version;
                   mode = "generated";
@@ -170,8 +169,6 @@
               }
               # Declared only by the old version, so the new one prunes them.
               // lib.optionalAttrs (version == "old") {
-                "stale.txt".text = version;
-                "edited.txt".text = version;
                 "stale-generated.txt" = {
                   text = version;
                   mode = "generated";
@@ -182,6 +179,23 @@
                   commentSuffix = " -->";
                   sections.stale = version;
                 };
+              };
+            }
+          );
+          sectioned = raw {
+            perSystem.nullkomma.files."notes.md" = {
+              commentPrefix = "<!--";
+              commentSuffix = " -->";
+              sections.docs = "new\n";
+            };
+          };
+          ciVersions = lib.genAttrs [ "old" "new" ] (
+            version:
+            raw {
+              imports = [ plugins.github ];
+              nullkomma.github = {
+                enable = true;
+                workflows.ref = version;
               };
             }
           );
@@ -267,7 +281,6 @@
                     "AGENTS.md" = "source";
                     ".agents/skills/demo" = "generated";
                     ".agents/skills/nk-audit-output" = "generated";
-                    ".agents/skills/nk-resolve-file-conflicts" = "generated";
                   };
                   disabled = { };
                 };
@@ -383,42 +396,6 @@
                 ) == summary fixtures.md
               ) (lib.attrNames plugins);
               expected = [ ];
-            };
-            testFileSections = {
-              expr =
-                let
-                  splice = import (root + "/modules/core/_sections.nix") { inherit lib; } {
-                    commentPrefix = "<!--";
-                    commentSuffix = " -->";
-                    sections.docs = "new\n";
-                  };
-                  block = "<!-- nullkomma:docs:start -->\nnew\n<!-- nullkomma:docs:end -->\n";
-                  appended = splice "# Notes\n";
-                in
-                {
-                  inherit appended;
-                  idempotent = splice appended == appended;
-                  inPlace = splice "a\n<!-- nullkomma:docs:start -->\nold\n<!-- nullkomma:docs:end -->\nb\n";
-                  undeclared = splice "<!-- nullkomma:gone:start -->\nx\n<!-- nullkomma:gone:end -->\n";
-                  malformed = map (text: (builtins.tryEval (splice text)).success) [
-                    "<!-- nullkomma:docs:start -->\n"
-                    "<!-- nullkomma:docs:end -->\n"
-                    (block + block)
-                  ];
-                  inherit block;
-                };
-              expected = rec {
-                block = "<!-- nullkomma:docs:start -->\nnew\n<!-- nullkomma:docs:end -->\n";
-                appended = "# Notes\n\n" + block;
-                idempotent = true;
-                inPlace = "a\n" + block + "b\n";
-                undeclared = block;
-                malformed = [
-                  false
-                  false
-                  false
-                ];
-              };
             };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
               expr = map (flake: (perSystem flake).nullkomma.files.".gitignore".sections.git) [
@@ -950,49 +927,29 @@
                 touch -d @0 generated.txt
                 ${at "old" "generate-files"}
                 test "$(stat -c %Y generated.txt)" = 0
-                # Entering the dev shell regenerates only when the generated files changed.
                 rm generated.txt
                 (${(perSystem fileVersions.old).nullkomma.devShell.shellHook})
                 test -f generated.txt
-                rm generated.txt
-                (${(perSystem fileVersions.old).nullkomma.devShell.shellHook})
-                test ! -e generated.txt
-                ${at "old" "generate-files"}
                 printf 'project edit' > source.txt
                 printf 'local edit' > generated.txt
-                printf 'project edit' > edited.txt
                 printf 'Project notes.\n\n%s\n' "$(cat notes.md)" > notes.md
-                if ${at "new" "write-files"}; then
-                  echo "Edited source-of-truth file unexpectedly overwritten" >&2
-                  exit 1
-                fi
-                test ! -e stale.txt
-                test ! -e .git/nullkomma/files/base/stale.txt
-                test "$(cat edited.txt)" = 'project edit'
-                test "$(cat notes.md)" = 'Project notes.'
+                git add notes.md
+                ${at "new" "write-files"}
                 test "$(cat source.txt)" = 'project edit'
-                test "$(cat untouched.txt)" = new
-                test "$(cat .git/nullkomma/files/base/source.txt)" = old
-                test "$(cat .git/nullkomma/files/incoming/source.txt)" = new
+                test "$(cat notes.md)" = 'Project notes.'
                 ${at "new" "generate-files"} < /dev/null
                 grep -q 'DO NOT EDIT' generated.txt
                 test ! -e stale-generated.txt
-                ${at "new" "write-files"} --accept source.txt
-                test "$(${at "new" "write-files"} | wc -l)" -eq 0
-                test "$(cat source.txt)" = 'project edit'
-                test "$(cat .git/nullkomma/files/base/source.txt)" = new
-                test ! -f .git/nullkomma/files/incoming/source.txt
                 mkdir ../unknown
                 cd ../unknown
                 git init --quiet
                 echo '*generated.txt' > .git/info/exclude
                 printf 'preexisting' > source.txt
-                if ${at "new" "write-files"}; then
-                  echo "Unknown source-of-truth file was not reported" >&2
-                  exit 1
-                fi
+                printf 'preexisting\n' > notes.md
+                ${at "old" "write-files"}
                 test "$(cat source.txt)" = preexisting
-                test ! -f .git/nullkomma/files/base/source.txt
+                test "$(head -n 1 notes.md)" = preexisting
+                grep -qxF '<!-- nullkomma:stale:start -->' notes.md
                 ln -s source.txt generated.txt
                 if ${at "new" "generate-files"}; then
                   echo "Symlink target was not rejected" >&2
@@ -1019,6 +976,79 @@
                   exit 1
                 fi
                 test "$(cat privacy.qmd)" = 'own policy'
+                touch $out
+              '';
+            file-sections =
+              pkgs.runCommandLocal "nullkomma-file-sections" { nativeBuildInputs = [ pkgs.git ]; }
+                ''
+                  git init --quiet
+                  write=${lib.escapeShellArg (task sectioned "write-files")}
+                  block='<!-- nullkomma:docs:start -->\nnew\n<!-- nullkomma:docs:end -->'
+                  spliced() {
+                    printf "$1" > expected
+                    cmp expected notes.md
+                  }
+                  printf '# Notes\n' > notes.md
+                  $write
+                  spliced "# Notes\n\n$block\n"
+                  test "$($write | wc -l)" -eq 0
+                  printf 'a\n<!-- nullkomma:docs:start -->\nold\n<!-- nullkomma:docs:end -->\nb\n' > notes.md
+                  $write
+                  spliced "a\n$block\nb\n"
+                  printf '<!-- nullkomma:gone:start -->\nx\n<!-- nullkomma:gone:end -->\n' > notes.md
+                  $write
+                  spliced "$block\n"
+                  # A file from before sections, still as nullkomma wrote it, gets them marked.
+                  printf 'new\n' > notes.md
+                  $write
+                  spliced "$block\n"
+                  for malformed in "$block\n$block" '<!-- nullkomma:docs:start -->' '<!-- nullkomma:docs:end -->'; do
+                    printf "$malformed\n" > notes.md
+                    cp notes.md before
+                    if $write 2> stderr; then
+                      echo "Malformed markers were accepted" >&2
+                      exit 1
+                    fi
+                    grep -qF 'Malformed nullkomma section markers' stderr
+                    cmp before notes.md
+                  done
+                  touch $out
+                '';
+            # Upgrades need no state outside the working tree: not in a new clone (#358),
+            # nor in worktrees on different versions (#367).
+            file-upgrades =
+              let
+                at = version: task ciVersions.${version} "write-files";
+                push = ".github/workflows/push.yml";
+              in
+              pkgs.runCommandLocal "nullkomma-file-upgrades" { nativeBuildInputs = [ pkgs.git ]; } ''
+                export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
+                export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+                mkdir project
+                cd project
+                git init --quiet
+                ${at "old"}
+                git add -A
+                git commit -qm old
+                git clone -q . ../clone
+                cd ../clone
+                ${at "new"}
+                grep -qF ci.yml@new ${push}
+                test "$(git status --porcelain)" = " M ${push}"
+                cat >> ${push} <<'YAML'
+                  project:
+                    runs-on: ubuntu-latest
+                    steps:
+                      - run: echo project
+                YAML
+                ${at "old"}
+                grep -qF ci.yml@old ${push}
+                grep -qx '  project:' ${push}
+                ${lib.getExe pkgs.actionlint} ${push}
+                cd ../project
+                git worktree add -q ../linked
+                (cd ../linked && ${at "new"} && grep -qF ci.yml@new ${push})
+                test "$(${at "old"} | wc -l)" -eq 0
                 touch $out
               '';
             file-update-task =
@@ -1062,7 +1092,6 @@
             generated-files-ignored =
               let
                 at = version: task ignoredVersions.${version};
-                hook = (perSystem ignoredVersions.new).nullkomma.devShell.shellHook;
               in
               pkgs.runCommandLocal "nullkomma-generated-files-ignored" { nativeBuildInputs = [ pkgs.git ]; } ''
                 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
@@ -1075,7 +1104,7 @@
                   }
                 }
 
-                # Without a baseline, and with the project's and Quarto's lines, nothing conflicts.
+                # With the project's and Quarto's lines, nothing conflicts.
                 ${at "old" "write-files"}
                 grep -qxF /project-ignored .gitignore
                 grep -qxF '/.quarto/' .gitignore
@@ -1131,26 +1160,6 @@
                 test ! -e .agents/skills/before
                 clean
 
-                # A linked worktree's first run after manifests became per worktree reads the shared one.
-                git worktree add -q -b transition ../transition HEAD~1
-                (
-                  cd ../transition
-                  ${at "old" "generate-files"}
-                  rm "$(git rev-parse --git-path nullkomma/files/generated)"
-                  printf '%s\n' .agents/skills/before > "$(git rev-parse --git-common-dir)/nullkomma/files/generated"
-                  echo /added.txt >> .gitignore
-                  ${at "new" "generate-files"}
-                  test ! -e .agents/skills/before
-                )
-
-                # The first shell entry in a new worktree can record what it generated.
-                git worktree add -q -b fresh ../fresh
-                (
-                  cd ../fresh
-                  (${hook}) 2> "$TMPDIR/hook.log"
-                  test ! -s "$TMPDIR/hook.log"
-                  test -s "$(git rev-parse --git-path nullkomma/files/generated-by)"
-                )
                 touch $out
               '';
             options-doc = optionsDoc.optionsCommonMark;

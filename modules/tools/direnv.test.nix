@@ -25,7 +25,7 @@
             nullkomma.direnv.enable = true;
             inherit partitions;
           }
-        )).nullkomma.files.".envrc".text;
+        )).nullkomma.files.".envrc".sections.direnv;
     in
     {
       nullkomma.nix.unit.tests.testDirenvWatchesPartitionSources = {
