@@ -81,29 +81,24 @@
         { config, pkgs, ... }:
         let
           files = lib.filterAttrs (_: f: f.enable) config.nullkomma.files;
-          # `_sections.awk`'s arguments for a file's sections.
+          # `splice`'s arguments for a file's sections.
           splice =
             path: f:
             assert lib.assertMsg (
               f.commentPrefix != null
             ) "File ${path} needs a commentPrefix for its sections.";
-            lib.escapeShellArgs [
-              "-v"
-              "prefix=${f.commentPrefix}"
-              "-v"
-              "suffix=${f.commentSuffix}"
-              "-v"
-              "sections=${
-                lib.concatStringsSep " " (
-                  lib.mapAttrsToList (
-                    name: section:
-                    "${name} ${
-                      if builtins.isString section then pkgs.writeText "nullkomma-section-${name}" section else section
-                    }"
-                  ) f.sections
-                )
-              }"
-            ];
+            lib.escapeShellArgs (
+              [
+                f.commentPrefix
+                f.commentSuffix
+              ]
+              ++ lib.concatLists (
+                lib.mapAttrsToList (name: section: [
+                  name
+                  (if builtins.isString section then pkgs.writeText "nullkomma-section-${name}" section else section)
+                ]) f.sections
+              )
+            );
           generated = lib.mapAttrs (
             path: f:
             if f.directory then

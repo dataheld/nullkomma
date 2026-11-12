@@ -86,12 +86,11 @@ splice_file() {
   rm "$spliced"
 }
 
-# Usage: splice <file> [_sections.awk arguments]
+# Usage: splice <file> [<marker prefix> <marker suffix> [<section name> <section file>]...]
 splice() {
   local file="$1"
-  shift
   [ -e "$file" ] || file=/dev/null
-  awk -f "$sections" "$@" "$file"
+  awk -f "$sections" -v prefix="${2:-}" -v suffix="${3:-}" -v sections="${*:4}" "$file"
 }
 
 regular() {
