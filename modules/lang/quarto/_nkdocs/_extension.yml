@@ -6,7 +6,6 @@ contributes:
     project:
       type: website
     website:
-      repo-actions: [edit, source, issue]
       page-navigation: true
       back-to-top-navigation: true
       navbar:

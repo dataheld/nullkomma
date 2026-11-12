@@ -2,6 +2,7 @@ project:
   type: nkdocs
 website:
   repo-url: https://github.com/example/docs
+  repo-actions: [edit, source]
   sidebar:
     contents:
       - section: Guides

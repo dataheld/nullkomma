@@ -16,6 +16,7 @@
         ---
         title: ${builtins.toJSON privacy.title}
         sidebar: false
+        repo-actions: false
         ---
 
       ''

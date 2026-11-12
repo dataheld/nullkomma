@@ -59,6 +59,13 @@
           touch "$out"
         '';
         quarto-nkdocs = linkcheck "quarto-nkdocs" nkdocs.packages.${system}.site;
+        # The generated privacy page is Git-ignored, so it has no source to link to.
+        quarto-repo-actions = pkgs.runCommand "nullkomma-quarto-repo-actions" { } ''
+          site=${nkdocs.packages.${system}.site}
+          grep -qF 'class="toc-actions"' "$site/guides/intro.html"
+          test "$(grep -cF 'class="toc-actions"' "$site/legal/privacy.html")" = 0
+          touch $out
+        '';
         quarto-site = pkgs.runCommand "nullkomma-quarto-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           test ! -e ${fixtures.quarto.packages.${system}.site}/privacy.html
           grep -qi '#123456' ${themed.packages.${system}.site}/site_libs/bootstrap/*.css
