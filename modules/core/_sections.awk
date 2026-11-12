@@ -2,11 +2,19 @@
 # replaced in place or appended, undeclared ones removed, everything else kept.
 # A text without markers that equals the sections' plain content gets them marked.
 # Variables: `sections`, space-separated `<name> <file>` pairs; `prefix` and `suffix` of new markers.
-function block(name, line) {
-  out = out prefix " nullkomma:" name ":start" suffix "\n"
-  while ((getline line < file[name]) > 0) out = out line "\n"
-  close(file[name])
+function block(name) {
+  out = out prefix " nullkomma:" name ":start" suffix "\n" content(file[name])
   out = out prefix " nullkomma:" name ":end" suffix "\n"
+}
+function content(path, line, text, read) {
+  while ((read = getline line < path) > 0) text = text line "\n"
+  if (read < 0) {
+    print "Cannot read nullkomma section " path > "/dev/stderr"
+    failed = 1
+    exit 1
+  }
+  close(path)
+  return text
 }
 function malformed() {
   print "Malformed nullkomma section markers in " FILENAME "; keep one complete start/end pair per section." > "/dev/stderr"
@@ -18,8 +26,7 @@ BEGIN {
   for (i = 1; i < count; i += 2) {
     name[++declared] = pair[i]
     file[pair[i]] = pair[i + 1]
-    while ((getline line < pair[i + 1]) > 0) plain = plain line "\n"
-    close(pair[i + 1])
+    plain = plain content(pair[i + 1])
     if (i + 2 < count) plain = plain "\n"
   }
 }

@@ -95,7 +95,12 @@
               ++ lib.concatLists (
                 lib.mapAttrsToList (name: section: [
                   name
-                  (if builtins.isString section then pkgs.writeText "nullkomma-section-${name}" section else section)
+                  (
+                    if builtins.isString section then
+                      pkgs.writeText "nullkomma-section-${name}" section
+                    else
+                      "${section}"
+                  )
                 ]) f.sections
               )
             );
