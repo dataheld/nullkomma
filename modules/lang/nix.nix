@@ -69,7 +69,7 @@
             unit = config.nullkomma.nix.unit;
             attr = "tests.systems.${system}";
             run = pkgs.runCommand "check-nix-unit" { nativeBuildInputs = [ pkgs.nix-unit ]; } ''
-              # An empty NIX_CONF_DIR keeps the host's nix.conf, which may set settings nix-unit's Nix lacks.
+              # An empty NIX_CONF_DIR hides the host's nix.conf, whose settings nix-unit's Nix may not know.
               mkdir home conf && export HOME="$PWD/home" NIX_CONF_DIR="$PWD/conf"
               unset NIX_STORE
               export NIX_STORE_DIR=${builtins.storeDir}
