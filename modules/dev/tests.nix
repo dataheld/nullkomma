@@ -311,7 +311,7 @@
           process-compose.dev.settings.processes.all.depends_on.check-fixtures.condition =
             "process_completed_successfully";
           process-compose.dev.settings.processes.check-fixtures = {
-            description = "Run nix flake check and flake-checker on fixture projects, including invalid ones";
+            description = "Run nix flake check and flake-checker on a fixture project, and initialize the template";
             disabled = true;
             command = pkgs.writeShellApplication {
               name = "check-fixtures";
@@ -329,54 +329,13 @@
                 (cd "$scratch/init" && nix flake init --template "path:$scratch/root")
                 mkdir "$scratch/project"
                 cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
-                check() {
-                  nix flake check "path:$scratch/project" \
-                    --override-input nullkomma "path:$root" \
-                    --no-write-lock-file --print-build-logs
-                }
-                check
+                nix flake check "path:$scratch/project" \
+                  --override-input nullkomma "path:$root" \
+                  --no-write-lock-file --print-build-logs
                 # Consumer CI lints the lock; its Nixpkgs must be visible as a root input.
                 nix flake lock "path:$scratch/project" --override-input nullkomma "path:$root"
                 flake-checker --no-telemetry --fail-mode "$scratch/project/flake.lock"
-                rm "$scratch/project/flake.lock"
-              ''
-              +
-                lib.concatMapStrings
-                  (case: ''
-
-                    printf %s ${lib.escapeShellArg case.content} > "$scratch/project/${case.file}"
-                    if check > "$scratch/failure.log" 2>&1; then
-                      echo "Consumer with invalid ${case.file} unexpectedly passed nix flake check" >&2
-                      exit 1
-                    fi
-                    ${lib.concatMapStrings (entry: ''
-                      grep -qF -- ${lib.escapeShellArg entry} "$scratch/failure.log" || {
-                        cat "$scratch/failure.log"
-                        echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed without: ${entry}"} >&2
-                        exit 1
-                      }
-                    '') case.expect}
-                    echo ${lib.escapeShellArg "Consumer with invalid ${case.file} failed nix flake check, as expected"}
-                    rm "$scratch/project/${case.file}"
-                  '')
-                  [
-                    {
-                      file = "unformatted.nix";
-                      content = "{foo=1;}\n";
-                      expect = [
-                        "diff --git a/unformatted.nix b/unformatted.nix"
-                        "+{ foo = 1; }"
-                      ];
-                    }
-                    {
-                      file = "unformatted.md";
-                      content = "# Title\n* item\n";
-                      expect = [
-                        "diff --git a/unformatted.md b/unformatted.md"
-                        "+- item"
-                      ];
-                    }
-                  ];
+              '';
             };
           };
           checks =

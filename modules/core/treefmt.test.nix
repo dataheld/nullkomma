@@ -1,6 +1,12 @@
 {
   partitions.dev.module.perSystem =
-    { harness, pkgs, ... }:
+    {
+      harness,
+      lib,
+      pkgs,
+      system,
+      ...
+    }:
     let
       inherit (harness)
         callFlakeWith
@@ -8,6 +14,7 @@
         root
         treefmt
         ;
+      md = root + "/tests/fixtures/md";
       flake = callFlakeWith {
         nullkomma.generatedPaths = [ "generated/**" ];
         perSystem.nullkomma.files."managed" = {
@@ -15,11 +22,35 @@
           directory = true;
           source = root + "/tests/fixtures/r-brand/assets";
         };
-      } (root + "/tests/fixtures/md");
+      } md;
+      # A consumer whose flake check finds `content` unformatted in a new file.
+      unformatted =
+        file: content:
+        (callFlakeWith {
+          perSystem.treefmt.projectRoot = pkgs.runCommandLocal "unformatted" { } ''
+            cp -R ${md} "$out"
+            chmod -R u+w "$out"
+            printf %s ${lib.escapeShellArg content} > "$out"/${file}
+          '';
+        } md).checks.${system}.treefmt;
     in
     {
+      checks.treefmt-rejects-unformatted-nix = pkgs.testers.testBuildFailure' {
+        drv = unformatted "unformatted.nix" "{foo=1;}\n";
+        expectedBuilderLogEntries = [
+          "diff --git a/unformatted.nix b/unformatted.nix"
+          "+{ foo = 1; }"
+        ];
+      };
+      checks.treefmt-rejects-unformatted-md = pkgs.testers.testBuildFailure' {
+        drv = unformatted "unformatted.md" "# Title\n* item\n";
+        expectedBuilderLogEntries = [
+          "diff --git a/unformatted.md b/unformatted.md"
+          "+- item"
+        ];
+      };
       checks.treefmt-skips-generated = pkgs.runCommand "treefmt-skips-generated" { } ''
-        ${project (root + "/tests/fixtures/md")}
+        ${project md}
         ${treefmt flake}
         for directory in managed/nested generated/nested; do
           mkdir -p "$directory"
