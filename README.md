@@ -70,6 +70,7 @@ actions such as `write-files`, tasks that need a sandbox,
 and the `all` and `check` groups are disabled.
 `process-compose up <process>` starts one process and its prerequisites;
 `PC_DISABLED_PROCESSES=r-check process-compose up` skips some.
+`up` does not report a failed task in its exit status; `nk <task>` does.
 Other commands, e.g. `process-compose process logs r-test`,
 reach the running tree through a per-checkout socket.
 

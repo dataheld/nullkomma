@@ -65,6 +65,10 @@
                 disabled = true;
                 watch.paths = [ { path = "trigger"; } ];
               };
+              quiet = {
+                command = "process-compose version 2> stderr";
+                disabled = true;
+              };
               rerun = {
                 description = "Rerun";
                 command = ''echo r "$@" >> log'';
@@ -658,14 +662,15 @@
           checks = {
             tasks =
               let
+                inherit ((perSystem contract).nullkomma) devShell sandbox;
                 tasks = lib.getExe (perSystem contract).taskRunners.default;
-                sandboxed = (perSystem contract).nullkomma.sandbox {
+                sandboxed = sandbox {
                   process = "b";
                   args = [ "sandboxed value" ];
                   output = "log";
                 };
               in
-              pkgs.runCommand "nullkomma-tasks" { } ''
+              pkgs.runCommand "nullkomma-tasks" (devShell.env // { nativeBuildInputs = devShell.packages; }) ''
                 ${harness.project md}
                 ${lib.getExe pkgs.git} init -q
                 export HOME="$TMPDIR" PC_LOG_FILE="$TMPDIR/pc.log"
@@ -676,8 +681,21 @@
                 grep -qF '[demo]' menu
                 ${tasks} b 'local value'
                 printf 'a\nb local value\n' | diff - log
+                # The dev shell's `process-compose` runs in the Git root.
+                mkdir sub
+                (
+                  ${devShell.shellHook}
+                  cd sub && process-compose up b -t=false
+                )
+                printf 'a\nb local value\na\nb\n' | diff - log
                 if ${tasks} broken; then exit 1; fi
                 printf 'a\nb sandboxed value\n' | diff - ${sandboxed}
+                test ! -s ${
+                  sandbox {
+                    process = "quiet";
+                    output = "stderr";
+                  }
+                }
                 ${tasks} graph | grep -qF 'b --> a'
                 # MCP clients stop a stdio server with SIGTERM.
                 mkdir bin
