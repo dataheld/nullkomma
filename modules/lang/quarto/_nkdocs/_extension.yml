@@ -22,4 +22,3 @@ contributes:
         toc: true
         code-copy: true
         code-link: true
-        css: [docs.css]
