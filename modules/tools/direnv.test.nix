@@ -1,13 +1,22 @@
 {
   partitions.dev.module.perSystem =
-    { harness, ... }:
+    {
+      harness,
+      lib,
+      pkgs,
+      system,
+      ...
+    }:
     let
       inherit (harness)
+        callFlake
         perSystem
         plugins
+        project
         rawAt
         root
         ;
+      partitioned = root + "/tests/fixtures/dev-partition";
       envrc =
         partitions:
         (perSystem (
@@ -35,5 +44,15 @@
           watch_file modules/dev/dogfood.nix
         '';
       };
+      # Through the flake's outputs, as `nk` runs: `.gitignore` shows the partition's module applies.
+      checks.direnv-watches-dev-partition =
+        pkgs.runCommandLocal "nullkomma-direnv-watches-dev-partition" { }
+          ''
+            ${project partitioned}
+            ${lib.getExe (callFlake partitioned).taskRunners.${system}.default} write-files
+            grep -qx /scratch/ .gitignore
+            grep -qx 'watch_dir dev' .envrc
+            touch $out
+          '';
     };
 }
