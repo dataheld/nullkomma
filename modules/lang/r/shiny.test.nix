@@ -115,18 +115,10 @@
                 pid=$!
                 pids+=("$pid")
               }
-              # Polls until $1 serves a page containing $2, which stays in response.html.
+              logs=(server.log)
+              # Waits until $1 serves a page containing $2, which stays in response.html.
               await() {
-                for attempt in {1..90}; do
-                  if curl --noproxy '*' --fail --silent "$1" > response.html && grep -qF "$2" response.html; then
-                    return
-                  fi
-                  kill -0 "$pid" 2>/dev/null || break
-                  sleep 1
-                done
-                cat server.log >&2
-                echo "$1 did not serve $2" >&2
-                exit 1
+                awaiting "curl --noproxy '*' --fail --silent $1 > response.html && grep -qF ''${2@Q} response.html" "$pid"
               }
               stop() {
                 kill "$pid"
@@ -156,11 +148,8 @@
               grep -qE 'Warning.*greeting requested' server.log
               test -z "$(find man -type f -name '*.Rd' -print -quit)"
               grep -qx keep man/sentinel
-              for attempt in {1..30}; do
-                [[ "$(sort "$TMPDIR/opened" 2>/dev/null)" == $'http://127.0.0.1:38381\nhttp://127.0.0.1:38382' ]] && break
-                sleep 1
-              done
-              diff <(printf '%s\n' http://127.0.0.1:38381 http://127.0.0.1:38382) <(sort "$TMPDIR/opened")
+              printf '%s\n' http://127.0.0.1:38381 http://127.0.0.1:38382 > "$TMPDIR/browsed"
+              awaiting 'sort "$TMPDIR/opened" 2>/dev/null | cmp -s "$TMPDIR/browsed"' "$pid"
 
               # Edits restart the apps on their ports, so that open pages can reload.
               substituteInPlace ../R/app.R --replace-fail 'working-tree Shiny fixture' 'edited Shiny fixture'
@@ -200,10 +189,7 @@
                 {
                   echo '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"check","version":"0"}}}'
                   printf '%s\n' "$@"
-                  for attempt in {1..300}; do
-                    answered $(($# + 1)) && break
-                    sleep 1
-                  done
+                  awaiting "answered $(($# + 1))"
                 } | ${lib.escapeShellArgs ([ mcpServer.command ] ++ mcpServer.args)} > mcp.jsonl
               }
               mcp "$(call 1 btw_tool_run_r '{"_intent":"check","code":"1 + 1"}')" \
