@@ -187,7 +187,8 @@
           };
           # Generated files follow the Nix configuration, not the working tree:
           # refresh them on entering the dev shell (direnv re-enters when the flake changes).
-          nullkomma.devShell.shellHook = lib.mkIf (generated != { }) (lib.getExe generate);
+          # A refusal is reported, but does not stop the shell.
+          nullkomma.devShell.shellHook = lib.mkIf (generated != { }) "${lib.getExe generate} || true";
         };
     };
 }

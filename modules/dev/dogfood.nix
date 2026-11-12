@@ -18,7 +18,11 @@
           enable = true;
           brand.enable = true;
         };
-        lint.jscpd.ignore = [ "tests/snapshots/**" ];
+        lint.jscpd.ignore = [
+          "tests/snapshots/**"
+          # Shares the checkout and Nix setup steps with ci.yml.
+          ".github/workflows/push.yml"
+        ];
         lint.markdown = {
           MD013 = false;
           MD028 = false;
