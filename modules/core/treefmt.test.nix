@@ -17,7 +17,7 @@
         root
         treefmt
         ;
-      md = root + "/tests/fixtures/md";
+      template = root + "/templates/default";
       flake = callFlakeWith {
         nullkomma.generatedPaths = [ "generated/**" ];
         perSystem.nullkomma.files."managed" = {
@@ -25,17 +25,17 @@
           directory = true;
           source = root + "/tests/fixtures/r-brand/assets";
         };
-      } md;
+      } template;
       # A consumer whose flake check finds `content` unformatted in a new file.
       unformatted =
         file: content:
         (callFlakeWith {
           perSystem.treefmt.projectRoot = pkgs.runCommandLocal "unformatted" { } ''
-            cp -R ${md} "$out"
+            cp -R ${template} "$out"
             chmod -R u+w "$out"
             printf %s ${lib.escapeShellArg content} > "$out"/${file}
           '';
-        } md).checks.${system}.treefmt;
+        } template).checks.${system}.treefmt;
     in
     {
       nullkomma.nix.unit.tests.testLintListsConcatenate = {
@@ -86,7 +86,7 @@
         ];
       };
       checks.treefmt-skips-generated = pkgs.runCommand "treefmt-skips-generated" { } ''
-        ${project md}
+        ${project template}
         ${treefmt flake}
         for directory in managed/nested generated/nested; do
           mkdir -p "$directory"

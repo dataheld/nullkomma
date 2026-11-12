@@ -8,7 +8,7 @@
         root
         task
         ;
-      fixture = root + "/tests/fixtures/md";
+      fixture = root + "/templates/default";
       jscpd = task (callFlakeWith { nullkomma.generatedPaths = [ "generated/**" ]; } fixture) "jscpd";
       customized = task (callFlakeWith {
         nullkomma.generatedPaths = [ "generated/**" ];

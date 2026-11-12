@@ -8,11 +8,11 @@
         root
         treefmt
         ;
-      md = root + "/tests/fixtures/md";
+      template = root + "/templates/default";
     in
     {
       checks.yaml-nix-config = pkgs.runCommand "yaml-nix-config" { } ''
-        ${project md}
+        ${project template}
         ${treefmt (
           callFlakeWith {
             perSystem.treefmt.programs.yamllint.settings.rules.truthy.allowed-values = [
@@ -20,7 +20,7 @@
               "false"
               "yes"
             ];
-          } md
+          } template
         )}
         printf 'name: value\n' > custom.yaml
         printf 'name: "%0120d"\n' 0 > long.yaml
@@ -37,11 +37,11 @@
         touch "$out"
       '';
       checks.actionlint-nix-config = pkgs.runCommand "actionlint-nix-config" { } ''
-        ${project md}
+        ${project template}
         ${treefmt (
           callFlakeWith {
             nullkomma.lint.actionlint.self-hosted-runner.labels = [ "custom-runner" ];
-          } md
+          } template
         )}
         mkdir -p .github/workflows
         printf 'self-hosted-runner:\n  labels: ["native-only"]\n' > .github/actionlint.yaml
