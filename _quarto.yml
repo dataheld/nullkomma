@@ -10,6 +10,7 @@ website:
   site-url: https://nullkomma.maxheld.de
   description: "Extra-DRY 🤌, maximally transparent 🫥, batteries-included 🔋 Nix ❄️ boilerplate experiment 🧪."
   repo-url: https://github.com/dataheld/nullkomma
+  repo-actions: [edit, source, issue]
   navbar:
     right:
       - icon: github
