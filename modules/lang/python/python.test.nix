@@ -103,7 +103,12 @@
                 }
               )
             );
-            editor = c: map (f: c.nullkomma.files.${f}.source.outPath) [ ".nvim.lua" ".vscode/settings.json" ];
+            editor =
+              c:
+              map (f: c.nullkomma.files.${f}.source.outPath) [
+                ".nvim.lua"
+                ".vscode/settings.json"
+              ];
             development = c: c.nullkomma.python.environments.development.outPath;
           in
           {
