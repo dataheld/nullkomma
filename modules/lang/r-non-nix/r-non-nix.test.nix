@@ -205,7 +205,7 @@
               '';
         };
         process-compose.dev.settings.processes.test-r-non-nix = {
-          description = "Test Ubuntu R workflows without Nix in Docker, on macOS in the Colima VM nullkomma-r-test, left running for other runs (stop it with colima stop --profile nullkomma-r-test); args go to docker build";
+          description = "Test Ubuntu R workflows without Nix in Docker, on macOS in a Colima VM of its own; args go to docker build";
           disabled = true;
           command = pkgs.writeShellApplication {
             name = "test-r-non-nix";
@@ -221,11 +221,11 @@
               trap 'rm -rf "$scratch"' EXIT
             ''
             + lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
-              profile=nullkomma-r-test
+              profile="nullkomma-r-test-$$"
               # Colima edits Docker contexts; keep them away from the user's.
               export DOCKER_CONFIG="$scratch/docker"
-              colima status --profile "$profile" > /dev/null 2>&1 ||
-                colima start --profile "$profile" --vm-type vz --vz-rosetta
+              trap 'colima delete --force --data --profile "$profile"; rm -rf "$scratch"' EXIT
+              colima start --profile "$profile" --vm-type vz --vz-rosetta
               DOCKER_HOST="$(colima status --profile "$profile" --json | jq -r .docker_socket)"
               export DOCKER_HOST
             ''
