@@ -3,6 +3,7 @@
 # `--unsorted` lists groups in source order: nullkomma, custom, then plugins.
 # Each recipe runs its task once, as `nullkomma.sandbox` does in builds:
 # prerequisites (`depends_on`) with `up`, then the task with its arguments.
+# `treefmt` finishes before the other prerequisites start, as they read what it rewrites.
 # Servers, tasks that signal readiness (`ready_log_line`, `readiness_probe`)
 # or depend on one, run with `up <name>` instead, as they don't exit;
 # the watches of their prerequisites rerun them on changes.
@@ -186,9 +187,16 @@
               shift
               case "$process" in
               ${lib.concatStrings (
-                lib.mapAttrsToList (name: p: ''
-                  ${lib.escapeShellArg name}) process-compose up ${lib.escapeShellArgs (lib.attrNames p.depends_on)} -t=false ;;
-                '') (lib.filterAttrs (_: p: p.depends_on != null) processes)
+                lib.mapAttrsToList (
+                  name: p:
+                  let
+                    inherit (lib.partition (n: n == "treefmt") (lib.attrNames p.depends_on)) right wrong;
+                    up =
+                      stage:
+                      lib.optionalString (stage != [ ]) "process-compose up ${lib.escapeShellArgs stage} -t=false; ";
+                  in
+                  "${lib.escapeShellArg name}) ${up right}${up wrong};;\n"
+                ) (lib.filterAttrs (_: p: p.depends_on != null) processes)
               )}
               esac
               # `run` passes arguments through a shell.

@@ -4,6 +4,7 @@
 # nullkomma:git:start
 .quarto/
 _site/
+site_libs/
 .luarc.json
 result
 result-*
