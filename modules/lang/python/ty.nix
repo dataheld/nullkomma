@@ -14,11 +14,7 @@
         perSystem =
           { config, pkgs, ... }:
           let
-            settings = (pkgs.formats.toml { }).generate "ty.toml" (
-              lib.recursiveUpdate {
-                environment.python = toString config.nullkomma.python.environments.development;
-              } ty
-            );
+            settings = (pkgs.formats.toml { }).generate "ty.toml" ty;
             # ty merges the user's ty.toml even with --config-file.
             isolated = pkgs.writeShellApplication {
               name = "ty";
@@ -52,7 +48,7 @@
               python-typecheck = {
                 namespace = "python";
                 description = "Check Python types with ty";
-                command = "${lib.getExe isolated} check --config-file ${settings}";
+                command = "${lib.getExe isolated} check --config-file ${settings} --python ${config.nullkomma.python.environments.development}";
                 watch.paths = [
                   {
                     path = ".";

@@ -93,6 +93,34 @@
             program = "nk-example";
           };
         };
+        testPythonEditorFilesIgnoreSource =
+          let
+            edited = perSystem (
+              harness.callFlake (
+                builtins.path {
+                  path = fixture;
+                  filter = path: _: baseNameOf path != "tests";
+                }
+              )
+            );
+            editor =
+              c:
+              map (f: c.nullkomma.files.${f}.source.outPath) [
+                ".nvim.lua"
+                ".vscode/settings.json"
+              ];
+            development = c: c.nullkomma.python.environments.development.outPath;
+          in
+          {
+            expr = {
+              development = development cfg == development edited;
+              editor = editor cfg == editor edited;
+            };
+            expected = {
+              development = false;
+              editor = true;
+            };
+          };
         testPythonStringRoot = {
           expr = lib.isString (perSystem stringRoot).nullkomma.python.environments.development.drvPath;
           expected = true;
@@ -218,11 +246,18 @@
           ${devShell.shellHook}
           substituteInPlace src/nk_example/__init__.py --replace-fail 'Hello from Python' 'Edited source'
           test "$(python -c 'from nk_example import greeting; print(greeting())')" = 'Edited source'
-          ${editor.vscode.settings."python.defaultInterpreterPath"} -c 'import pytest'
           ${
             lib.head editor.vscode.settings."ty.path"
           } check --config-file ${editor.languageServers.ty.settings.ty.configurationFile}
-          uv run --offline python -c pass
+          test "$(uv run python -c 'from nk_example import greeting; print(greeting())')" = 'Edited source'
+          uv run python -m pytest --version
+          test -L .venv
+          ${devShell.shellHook}
+          test -L .venv
+          rm .venv
+          mkdir .venv
+          ${devShell.shellHook}
+          test -z "$(ls -A .venv)"
           touch "$out"
         '';
       checks.python-dev-loop = pkgs.runCommand "python-dev-loop" { } ''
