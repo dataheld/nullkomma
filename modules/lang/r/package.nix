@@ -194,21 +194,7 @@
               })
             )
           ) pcfg.buildInputs;
-          final = base.override {
-            overrides =
-              sourceOverrides
-              // systemLibraries
-              // lib.optionalAttrs cfg.pkgdown.enable {
-                pkgdown =
-                  (systemLibraries.pkgdown or (sourceOverrides.pkgdown or base.pkgdown)).overrideAttrs
-                    (old: {
-                      # shortcut: skip repository lookups for offline builds.
-                      # Drop once pkgdown supports this without patching:
-                      # https://github.com/dataheld/nullkomma/issues/307.
-                      patches = (old.patches or [ ]) ++ [ ../../../patches/pkgdown.patch ];
-                    });
-              };
-          };
+          final = base.override { overrides = sourceOverrides // systemLibraries; };
         in
         {
           config.nullkomma.agents.mcpServers.r = {

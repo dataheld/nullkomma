@@ -199,6 +199,8 @@
                 r-contain Rscript --vanilla - "$preview" <<'RS'
                 # Cached Sass paths make repeated Bootstrap copies overwrite read-only Nix assets.
                 options(sass.cache = FALSE)
+                # pkgdown looks up CRAN, Bioconductor and release dates online; offline, none exist.
+                options(httr2_mock = function(req) httr2::response(404))
                 override <- jsonlite::fromJSON(${builtins.toJSON (builtins.toJSON cfg.pkgdown.config)}, simplifyVector = FALSE)
                 .libPaths(c(${
                   lib.concatMapStrings (library: ''"${library}", '') pcfg.pkgdown.libraries

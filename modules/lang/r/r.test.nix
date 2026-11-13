@@ -597,6 +597,10 @@
           echo 'stop("local-r-source-marker")' >> R/hello.R
           fails local-r-source-marker ${task fixtures.r "r-check"}
         '';
+        r-check-cran-bound = check "r-check-cran-bound" ''
+          ${task fixtures.r "r-check"} 2>&1 | tee "$TMPDIR/r-check.log"
+          grep -F -- --as-cran "$TMPDIR/r-check.log"
+        '';
         r-check-not-cran-bound =
           let
             flake = callFlakeWith { nullkomma.r.cranBound = false; } fixture;

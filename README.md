@@ -641,7 +641,7 @@ To keep a committed `.Rprofile` of your own, set
 
   # Arguments to `R CMD check`. Set them without `--no-tests` to also run the
   # tests inside `R CMD check`. Default: `--no-manual --ignore-vignettes`, plus
-  # `--no-tests` while `r-test` runs the tests.
+  # `--as-cran` if `cranBound` and `--no-tests` while `r-test` runs the tests.
   # nullkomma.r.check.args = …;
 
   # Whether to add the `r-check` check (build and check the package with
@@ -655,10 +655,11 @@ To keep a committed `.Rprofile` of your own, set
   # uploads or coverage threshold. Default: whether covr is in pkg.lock.
   # nullkomma.r.coverage.enable = …;
 
-  # Whether the package is meant for CRAN. If not, `r-check` skips what only
-  # CRAN needs: CRAN and Bioconductor index lookups, for dependency cycles and
-  # for links to packages that are not installed, and CRAN's limits on installed
-  # size and data compression.
+  # Whether the package is meant for CRAN. If so, `r-check` runs `R CMD check
+  # --as-cran`, without CRAN's incoming checks, which need network access. If
+  # not, `r-check` skips what only CRAN needs: CRAN and Bioconductor index
+  # lookups, for dependency cycles and for links to packages that are not
+  # installed, and CRAN's limits on installed size and data compression.
   # nullkomma.r.cranBound = true;
 
   # Extra R packages from nixpkgs (e.g. dev tooling not in DESCRIPTION); pak,
@@ -736,9 +737,10 @@ To keep a committed `.Rprofile` of your own, set
   # Shiny choose an available port.
   # nullkomma.r.shiny.port = 3838;
 
-  # CRAN snapshot date corresponding to the package set in `nixpkgs-r`, for PPM
-  # and non-Nix interop.
-  # nullkomma.r.snapshot = CRAN snapshot date of nixpkgs-r;
+  # CRAN snapshot date, for PPM and non-Nix interop. The default is the date in
+  # the ref of `nixpkgs-r`, or else its commit date: an upper bound, as nixpkgs
+  # updates its R packages less often. Set it for an exact date.
+  # nullkomma.r.snapshot = date of nixpkgs-r;
 
   # Run testthat with `r-test`: on the pkgload-loaded source in the dev loop and
   # `check`, on the installed package in nix flake check (or with `nk r-test
@@ -769,7 +771,7 @@ Declare dependencies in `DESCRIPTION`, including `Config/Needs/*` fields;
 [pak] locks them in `pkg.lock`.
 After changing them or updating Nix, run `nk r-lock` and commit both files.
 Nix takes package names from `pkg.lock`, but versions and builds from the `nixpkgs-r` input;
-`r-lock` resolves against the [PPM] snapshot of the same date.
+`r-lock` resolves against the [PPM] snapshot of `nullkomma.r.snapshot`, by default an upper bound.
 The development environment holds exactly these packages, the tools in the table above,
 and `extraPackages`.
 
@@ -782,7 +784,8 @@ and `extraPackages`.
 
 `packages.site` builds the [pkgdown] site in the sandbox, and `nk r-build-site` in the working tree;
 `r-preview-site` serves it and reloads open pages when it is rebuilt.
-A patch skips pkgdown's online CRAN/Bioconductor lookup; add those links with `home.links`.
+pkgdown's online lookups, such as for CRAN/Bioconductor links, always find nothing;
+add repository links with `home.links`.
 Remote templates, web fonts and network-dependent articles must be local for the sandbox.
 
 #### Shiny app
@@ -797,12 +800,9 @@ and reloads open pages once a new app process serves them.
 They run in [Shiny's developer mode](https://shiny.posit.co/r/reference/shiny/latest/devmode.html)
 and record a [reactlog](https://rstudio.github.io/reactlog/).
 With mcptools 1.0.1 or later, they register as sessions of the `r` MCP server.
-Test the function with [shinytest2](https://rstudio.github.io/shinytest2/articles/use-package.html#applications-using-a-function):
-`shinytest2::AppDriver$new(app)`.
-Pass the function, not a pre-created app object, if its server uses
-package-private helpers.
-With a pre-created object, shinytest2 can load those helpers from a stale
-installed package instead of the working tree.
+Test the app with [shinytest2](https://rstudio.github.io/shinytest2/articles/use-package.html) by passing the exported function, `shinytest2::AppDriver$new(app)`:
+with a pre-created app object or a wrapper defined in a test file, it runs the installed package instead of the working tree.
+For an app with arguments, create a function in the package namespace, e.g. `rlang::new_function(NULL, quote(run_app(x = 1)), asNamespace("mypkg"))`.
 
 `nk r-test` loads the working-tree source.
 Flake checks and `nk r-test --installed` test a fresh installation,

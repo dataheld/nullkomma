@@ -67,7 +67,9 @@
           type = lib.types.bool;
           default = true;
           description = ''
-            Whether the package is meant for CRAN. If not, `r-check` skips what only CRAN needs:
+            Whether the package is meant for CRAN. If so, `r-check` runs `R CMD check --as-cran`,
+            without CRAN's incoming checks, which need network access.
+            If not, `r-check` skips what only CRAN needs:
             CRAN and Bioconductor index lookups, for dependency cycles and for links to packages
             that are not installed, and CRAN's limits on installed size and data compression.
           '';
@@ -87,8 +89,12 @@
         snapshot = lib.mkOption {
           type = lib.types.str;
           default = defaultSnapshot;
-          defaultText = lib.literalExpression "CRAN snapshot date of nixpkgs-r";
-          description = "CRAN snapshot date corresponding to the package set in `nixpkgs-r`, for PPM and non-Nix interop.";
+          defaultText = lib.literalExpression "date of nixpkgs-r";
+          description = ''
+            CRAN snapshot date, for PPM and non-Nix interop. The default is the date in the ref of
+            `nixpkgs-r`, or else its commit date: an upper bound, as nixpkgs updates its R packages
+            less often. Set it for an exact date.
+          '';
         };
         ppmUrl = lib.mkOption {
           type = lib.types.str;
