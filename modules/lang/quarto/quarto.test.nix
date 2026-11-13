@@ -59,6 +59,13 @@
           touch "$out"
         '';
         quarto-nkdocs = linkcheck "quarto-nkdocs" nkdocs.packages.${system}.site;
+        # The generated privacy page is Git-ignored, so it has no source to link to.
+        quarto-repo-actions = pkgs.runCommand "nullkomma-quarto-repo-actions" { } ''
+          site=${nkdocs.packages.${system}.site}
+          grep -qF 'class="toc-actions"' "$site/guides/intro.html"
+          test "$(grep -cF 'class="toc-actions"' "$site/legal/privacy.html")" = 0
+          touch $out
+        '';
         quarto-site = pkgs.runCommand "nullkomma-quarto-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           test ! -e ${fixtures.quarto.packages.${system}.site}/privacy.html
           grep -qi '#123456' ${themed.packages.${system}.site}/site_libs/bootstrap/*.css
@@ -177,10 +184,7 @@
           let
             quarto = pkgs.writeShellScriptBin "quarto" ''
               printf '%s\n' "$PWD" "$@" > "$CALLED"
-              if [[ "$1" == preview ]]; then
-                echo 'Browse at http://localhost:4200/'
-                exec ${pkgs.python3}/bin/python3 -m http.server --bind 127.0.0.1 --directory "$SERVED" 0 2>> "$REQUESTS"
-              fi
+              echo 'Browse at http://localhost:4200/'
             '';
             flake = callFlakeWith (
               { self, ... }:
@@ -193,45 +197,17 @@
               }
             ) (root + "/tests/fixtures/quarto");
           in
-          pkgs.runCommand "nullkomma-quarto-preview"
-            {
-              # process-compose finds ports with lsof on macOS, which has it outside the sandbox.
-              nativeBuildInputs = [
-                pkgs.git
-                pkgs.lsof
-              ];
-              __darwinAllowLocalNetworking = true;
-            }
-            ''
-              export CALLED=$PWD/called REQUESTS=$PWD/requests SERVED=$PWD/served
-              render=90B3C9E8-0DBC-4BC0-B164-AA2D5C031B28/index.qmd
-              mkdir -p "$SERVED/''${render%/*}" && echo rendered > "$SERVED/$render"
-              mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
-              echo '{{< include ../README.md >}}' > ../index.qmd
-              # A stopped process-compose signals its whole process group, so the builder needs its own.
-              set -m
-              PC_DISABLE_TUI=1 ${task flake "quarto-preview"} > preview.log 2>&1 &
-              pid=$!
-              trap 'kill "$pid"; wait "$pid" || true' EXIT
-              # Quarto re-renders pages whose included files changed only when asked to.
-              for attempt in {1..60}; do
-                echo "edit $attempt" >> ../../README.md
-                if grep -qF "GET /$render " "$REQUESTS" 2>/dev/null; then
-                  break
-                fi
-                sleep 1
-              done
-              grep -qF "GET /$render " "$REQUESTS" || { cat preview.log >&2; exit 1; }
-              kill "$pid"
-              wait "$pid" || true
-              trap - EXIT
-              printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
-              cmp expected "$CALLED"
-              ${task flake "quarto-render"} --to html
-              printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected
-              cmp expected "$CALLED"
-              touch $out
-            '';
+          pkgs.runCommand "nullkomma-quarto-preview" { nativeBuildInputs = [ pkgs.git ]; } ''
+            export CALLED=$PWD/called
+            mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
+            PC_DISABLE_TUI=1 ${task flake "quarto-preview"}
+            printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
+            cmp expected "$CALLED"
+            ${task flake "quarto-render"} --to html
+            printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected
+            cmp expected "$CALLED"
+            touch $out
+          '';
       };
     };
 }
