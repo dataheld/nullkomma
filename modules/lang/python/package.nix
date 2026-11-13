@@ -99,12 +99,12 @@
             shellHook = ''
               unset PYTHONPATH
               export NULLKOMMA_PYTHON_ROOT="$(${lib.getExe pkgs.git} rev-parse --show-toplevel)"
+              # A stable path for uv and editors; a real environment there stays the project's.
+              [[ -d $NULLKOMMA_PYTHON_ROOT/.venv && ! -L $NULLKOMMA_PYTHON_ROOT/.venv ]] ||
+                ln -sfn ${environments.development} "$NULLKOMMA_PYTHON_ROOT/.venv"
             '';
           };
-          nullkomma.editor.vscode = {
-            extensions = [ "ms-python.python" ];
-            settings."python.defaultInterpreterPath" = lib.mkDefault "${environments.development}/bin/python";
-          };
+          nullkomma.editor.vscode.extensions = [ "ms-python.python" ];
         }
       );
     };
