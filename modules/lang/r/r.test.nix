@@ -422,8 +422,6 @@
               grep -qF '#123456' "$site"/deps/bootstrap-*/*.css
               cmp ${root + "/tests/fixtures/r-brand/assets/brand.svg"} "$site/brand.svg"
               grep -qxF 'shared R workflow' "$site/workflow.txt"
-              # pkgdown looks up release dates for NEWS.md online.
-              grep -qF 'nullkommafixture 0.0.1' "$site/news/index.html"
               python - "$site" ${english.packages.${system}.site} <<'PY'
               import sys
               from html.parser import HTMLParser
