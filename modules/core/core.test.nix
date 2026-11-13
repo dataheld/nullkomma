@@ -104,6 +104,17 @@
               };
             };
           };
+          # A check recording whether formatting has finished.
+          formatting = raw {
+            perSystem.process-compose.dev.settings.processes = {
+              treefmt.command = lib.mkForce "sleep 1; touch formatted";
+              probe = {
+                command = "if test -e formatted; then echo after; else echo before; fi >> order";
+                disabled = true;
+              };
+              check.depends_on.probe.condition = "process_completed_successfully";
+            };
+          };
           # A watched process writing into its own watched tree.
           isolated = raw {
             perSystem =
@@ -760,6 +771,15 @@
               kill -KILL "$client"
               awaiting "! kill -0 $server 2>/dev/null"
               awaiting "! kill -0 $held 2>/dev/null"
+              touch $out
+            '';
+            # `all` formats before any check reads the tree; `check` doesn't format.
+            all-formats-first = pkgs.runCommand "nullkomma-all-formats-first" { } ''
+              ${harness.project template}
+              ${task formatting "check"}
+              test ! -e formatted
+              ${task formatting "all"}
+              printf 'before\nafter\n' | diff - order
               touch $out
             '';
             scratch = pkgs.runCommand "nullkomma-scratch" { } ''

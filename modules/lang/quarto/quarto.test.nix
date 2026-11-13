@@ -49,6 +49,22 @@
       } (root + "/tests/fixtures/quarto");
     in
     {
+      # Quarto renders into the project root before moving to `_site`;
+      # treefmt and jscpd neither read nor watch what it leaves there.
+      nullkomma.nix.unit.tests.testQuartoSiteLibsAreGenerated =
+        let
+          inherit (perSystem fixtures.quarto) process-compose treefmt;
+        in
+        {
+          expr = map (lib.elem "site_libs/**") [
+            treefmt.settings.excludes
+            (lib.head process-compose.dev.settings.processes.jscpd.watch.paths).exclude
+          ];
+          expected = [
+            true
+            true
+          ];
+        };
       checks = {
         quarto-site-resources = pkgs.runCommand "quarto-site-resources" { } ''
           site=${linked.packages.${system}.site}
