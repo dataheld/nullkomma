@@ -9,18 +9,18 @@
         root
         treefmt
         ;
-      md = root + "/tests/fixtures/md";
+      template = root + "/templates/default";
       # Shared defaults, as plugins contribute them.
       withDefaults = callFlakeWith {
         nullkomma.lint.markdown = {
           MD013 = false;
           MD033 = false;
         };
-      } md;
+      } template;
     in
     {
       checks.markdown-nix-config = pkgs.runCommand "markdown-nix-config" { } ''
-        ${project md}
+        ${project template}
         ${treefmt withDefaults}
         printf '# Title\n\n<div>HTML is allowed.</div>\n\n' > allowed.md
         printf 'long line %.0s' {1..15} >> allowed.md
@@ -51,7 +51,7 @@
             ];
           }
           ''
-            ${project md}
+            ${project template}
             printf '# Title\n\n<div>HTML is allowed.</div>\n\n[broken]()\n\n' > page.md
             printf 'long line %.0s' {1..15} >> page.md
             printf 'end\n' >> page.md

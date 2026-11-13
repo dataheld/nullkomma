@@ -37,7 +37,7 @@
         expectedError.msg = "server needs a ready_log_line";
       };
       checks.browse = pkgs.runCommand "nullkomma-browse" { } ''
-        ${harness.project (harness.root + "/tests/fixtures/md")}
+        ${harness.project (harness.root + "/templates/default")}
         touch trigger
         ${harness.watching browsed "server"}
         awaiting 'test -s "$TMPDIR/opened"' "$server"

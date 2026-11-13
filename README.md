@@ -514,6 +514,7 @@ project:
 website:
   title: My project
   repo-url: https://github.com/example/project
+  repo-actions: [edit, source, issue]
 ```
 
 nkdocs only switches on stock Quarto features; configure everything else in `_quarto.yml` as usual.
@@ -772,8 +773,7 @@ Nix takes package names from `pkg.lock`, but versions and builds from the `nixpk
 The development environment holds exactly these packages, the tools in the table above,
 and `extraPackages`.
 
-> [!NOTE]
-> Packages from `Remotes`, or missing from `nixpkgs-r`, build from their lockfile-pinned sources
+> **Note:** Packages from `Remotes`, or missing from `nixpkgs-r`, build from their lockfile-pinned sources
 > unless `allowOffNixpkgs = false`.
 > URL sources and CRAN packages missing from `nixpkgs-r` need `hashes.<package>`
 > from `nix store prefetch-file <url>`. GitLab and local references are unsupported; use `git::` for GitLab.

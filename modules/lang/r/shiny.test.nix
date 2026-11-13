@@ -81,17 +81,12 @@
           touch $out
         '';
         r-shiny =
-          pkgs.runCommand "r-shiny"
-            {
-              # process-compose finds ports with lsof on macOS, which has it outside the sandbox.
-              nativeBuildInputs = [
-                pkgs.curl
-                pkgs.git
-                pkgs.jq
-                pkgs.lsof
-              ];
-              __darwinAllowLocalNetworking = true;
-            }
+          harness.serving "r-shiny"
+            [
+              pkgs.curl
+              pkgs.git
+              pkgs.jq
+            ]
             ''
               ${harness.project fixture}
               if grep -E -- '-r-(pkgload|pak|languageserver|roxygen2|pkgdown|testthat|desc)-' ${closure}/store-paths; then

@@ -1,13 +1,15 @@
 {
   plugins.markdown =
     { config, lib, ... }:
+    let
+      rules = config.nullkomma.lint.markdown;
+    in
     {
       config = lib.mkIf config.nullkomma.markdown.enable {
         nullkomma.lint.markdown.MD041 = lib.mkDefault false;
         perSystem =
-          { pkgs, ... }:
+          { config, pkgs, ... }:
           let
-            rules = config.nullkomma.lint.markdown;
             ruleConfig = (pkgs.formats.toml { }).generate "rumdl.toml" (
               lib.filterAttrs (_: lib.isAttrs) rules
               // {
@@ -20,11 +22,13 @@
               enable = lib.mkDefault true;
               priority = 1;
             };
-            treefmt.settings.formatter.rumdl-check.options = [
-              "--no-cache"
-              "--config"
-              (toString ruleConfig)
-            ];
+            treefmt.settings.formatter.rumdl-check = lib.mkIf config.treefmt.programs.rumdl-check.enable {
+              options = [
+                "--no-cache"
+                "--config"
+                (toString ruleConfig)
+              ];
+            };
             nullkomma.editor.languageServers.rumdl = {
               package = pkgs.rumdl;
               command = [
@@ -41,7 +45,6 @@
                 ps.mdformat-footnote
                 ps.mdformat-frontmatter
                 ps.mdformat-gfm
-                ps.mdformat-gfm-alerts
               ]);
             };
           };

@@ -10,11 +10,14 @@
     let
       inherit (harness)
         callFlakeWith
+        fixtures
+        perSystem
         project
+        raw
         root
         treefmt
         ;
-      md = root + "/tests/fixtures/md";
+      template = root + "/templates/default";
       flake = callFlakeWith {
         nullkomma.generatedPaths = [ "generated/**" ];
         perSystem.nullkomma.files."managed" = {
@@ -22,19 +25,52 @@
           directory = true;
           source = root + "/tests/fixtures/r-brand/assets";
         };
-      } md;
+      } template;
       # A consumer whose flake check finds `content` unformatted in a new file.
       unformatted =
         file: content:
         (callFlakeWith {
           perSystem.treefmt.projectRoot = pkgs.runCommandLocal "unformatted" { } ''
-            cp -R ${md} "$out"
+            cp -R ${template} "$out"
             chmod -R u+w "$out"
             printf %s ${lib.escapeShellArg content} > "$out"/${file}
           '';
-        } md).checks.${system}.treefmt;
+        } template).checks.${system}.treefmt;
     in
     {
+      nullkomma.nix.unit.tests.testLintListsConcatenate = {
+        expr =
+          (raw {
+            imports = [
+              { nullkomma.lint.ruff.lint.ignore = [ "E501" ]; }
+              { nullkomma.lint.ruff.lint.ignore = [ "F401" ]; }
+            ];
+          }).debug.config.nullkomma.lint.ruff.lint.ignore;
+        expected = [
+          "F401"
+          "E501"
+        ];
+      };
+      nullkomma.nix.unit.tests.testTreefmtProgramsCanBeDisabled = {
+        expr = lib.attrNames (
+          lib.filterAttrs (
+            _: fixture:
+            let
+              disabled = callFlakeWith {
+                perSystem =
+                  { options, ... }:
+                  {
+                    treefmt.programs = lib.mapAttrs (_: _: {
+                      enable = lib.mkForce false;
+                    }) (options.treefmt.type.getSubOptions [ ]).programs;
+                  };
+              } fixture.outPath;
+            in
+            !(builtins.tryEval (perSystem disabled).treefmt.build.configFile.drvPath).success
+          ) fixtures
+        );
+        expected = [ ];
+      };
       checks.treefmt-rejects-unformatted-nix = pkgs.testers.testBuildFailure' {
         drv = unformatted "unformatted.nix" "{foo=1;}\n";
         expectedBuilderLogEntries = [
@@ -50,7 +86,7 @@
         ];
       };
       checks.treefmt-skips-generated = pkgs.runCommand "treefmt-skips-generated" { } ''
-        ${project md}
+        ${project template}
         ${treefmt flake}
         for directory in managed/nested generated/nested; do
           mkdir -p "$directory"

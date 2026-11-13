@@ -16,6 +16,7 @@
         ---
         title: ${builtins.toJSON privacy.title}
         sidebar: false
+        repo-actions: false
         ---
 
       ''
@@ -128,46 +129,8 @@
                   "--no-browser"
                 ]
                 // {
-                  depends_on.quarto-preview-includes.condition = "process_started";
                   ready_log_line = "Browse at";
                 };
-              # shortcut: `quarto preview` misses changes to included files,
-              # quarto-dev/quarto-cli#2795; ask it to re-render pages with includes
-              # through its undocumented render URL. Drop this once that is fixed,
-              # see https://github.com/dataheld/nullkomma/issues/289.
-              quarto-preview-includes = {
-                namespace = "quarto";
-                # Runs at the Git root, as includes may reach beyond the project.
-                watch.paths = [
-                  {
-                    path = ".";
-                    include = [ "*.md" ];
-                    exclude = [
-                      ".git"
-                      ".quarto"
-                      "_site"
-                    ];
-                  }
-                ];
-                command = pkgs.writeShellApplication {
-                  name = "quarto-preview-includes";
-                  runtimeInputs = [
-                    config.process-compose.dev.package
-                    pkgs.curl
-                    pkgs.gnugrep
-                  ];
-                  text = ''
-                    # Before the preview listens, it renders everything itself.
-                    port=$(process-compose process ports quarto-preview | grep -o '[0-9]\+' | head -n 1) || exit 0
-                    cd "./${prefix}"
-                    pages=$(grep -rlF --include='*.qmd' --exclude-dir=_site --exclude-dir=.quarto '{{< include' .) || [ $? -eq 1 ]
-                    for page in $pages; do
-                      echo "Re-rendering ''${page#./}"
-                      curl -fsS -o /dev/null "http://127.0.0.1:$port/90B3C9E8-0DBC-4BC0-B164-AA2D5C031B28/''${page#./}"
-                    done
-                  '';
-                };
-              };
             };
             packages.site = lib.mkDefault (
               config.nullkomma.sandbox {

@@ -10,11 +10,11 @@
         ;
       customized = callFlakeWith {
         nullkomma.lint.gitleaks.allowlists = [ { paths = [ "^allowed[.]txt$" ]; } ];
-      } (root + "/tests/fixtures/md");
+      } (root + "/templates/default");
     in
     {
       checks.gitleaks = pkgs.runCommand "gitleaks-treefmt" { } ''
-        scan=${(perSystem fixtures.md).treefmt.settings.formatter.gitleaks.command}
+        scan=${(perSystem fixtures.template).treefmt.settings.formatter.gitleaks.command}
         printf 'ordinary project text\n' > clean.txt
         "$scan" clean.txt
         printf '%s%s\n' 'ghp_' 'xcW3BwhFZwDiTfeZpXyE2KJm6RQbnVhqUsa7' > secret.txt

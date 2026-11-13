@@ -36,6 +36,7 @@
       };
       config = lib.mkIf cfg.nix.enable {
         nullkomma.agents.skills.nk-upgrade = ./_nix/nk-upgrade;
+        nullkomma.lint.jscpd.formatsExts.nix = lib.mkDefault [ "nix" ];
         partitionedAttrs.tests = lib.mkIf (config.partitions ? dev) (lib.mkDefault "dev");
         # Unconditional: deciding by the tests would make every output depend on every system.
         flake = {
@@ -68,7 +69,8 @@
             unit = config.nullkomma.nix.unit;
             attr = "tests.systems.${system}";
             run = pkgs.runCommand "check-nix-unit" { nativeBuildInputs = [ pkgs.nix-unit ]; } ''
-              mkdir home && export HOME="$PWD/home"
+              # An empty NIX_CONF_DIR hides the host's nix.conf, whose settings nix-unit's Nix may not know.
+              mkdir home conf && export HOME="$PWD/home" NIX_CONF_DIR="$PWD/conf"
               unset NIX_STORE
               export NIX_STORE_DIR=${builtins.storeDir}
               export NIX_REMOTE="$HOME/storedata"

@@ -19,6 +19,7 @@
           brand.enable = true;
         };
         lint.jscpd.ignore = [
+          "tests/fixtures/*/flake.nix"
           "tests/snapshots/**"
           # Shares the checkout and Nix setup steps with ci.yml.
           ".github/workflows/push.yml"

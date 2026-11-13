@@ -310,7 +310,7 @@
         };
         testRRequiresDescription = {
           expr =
-            (perSystem (callFlakeWith { nullkomma.r.enable = true; } (root + "/tests/fixtures/md")))
+            (perSystem (callFlakeWith { nullkomma.r.enable = true; } (root + "/templates/default")))
             .nullkomma.r.packages;
           expectedError.msg = "`DESCRIPTION` is missing";
         };

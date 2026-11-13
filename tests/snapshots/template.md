@@ -1,4 +1,4 @@
-# `nk` in `tests/fixtures/md`
+# `nk` in `templates/default`
 
 ```text
 Available recipes:

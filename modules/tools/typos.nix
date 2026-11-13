@@ -11,11 +11,11 @@
             configFile = lib.mkDefault (
               toString ((pkgs.formats.toml { }).generate "nullkomma-typos.toml" config.nullkomma.lint.typos)
             );
+            # typos only knows English; skip translations named like privacy sections.
+            excludes = map (language: "*.${language.code}.md") (
+              lib.filter (language: language.code != "en") config.nullkomma.privacy.languages
+            );
           };
-          # typos only knows English; skip translations named like privacy sections.
-          treefmt.settings.formatter.typos.excludes = map (language: "*.${language.code}.md") (
-            lib.filter (language: language.code != "en") config.nullkomma.privacy.languages
-          );
         };
     };
 }
