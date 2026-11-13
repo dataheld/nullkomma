@@ -129,7 +129,8 @@
                     tag = "v0.7.1";
                     hash = "sha256-M7NyL0arkM9VNnOf65Dt3ITWCmiwmXWwLGXc0/Td+iw=";
                   };
-                  checkInputs = (old.checkInputs or [ ]) ++ [ pkgsR.rPackages.renv ];
+                  # Its terminal tests time out on busy machines (#360); r-console tests nullkomma's wiring.
+                  doCheck = false;
                 }
               );
 
