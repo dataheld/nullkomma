@@ -190,19 +190,12 @@
                 lib.mapAttrsToList (
                   name: p:
                   let
-                    names = lib.attrNames p.depends_on;
-                    stages = lib.filter (stage: stage != [ ]) [
-                      (lib.intersectLists [ "treefmt" ] names)
-                      (lib.subtractLists [ "treefmt" ] names)
-                    ];
+                    inherit (lib.partition (n: n == "treefmt") (lib.attrNames p.depends_on)) right wrong;
+                    up =
+                      stage:
+                      lib.optionalString (stage != [ ]) "process-compose up ${lib.escapeShellArgs stage} -t=false; ";
                   in
-                  ''
-                    ${lib.escapeShellArg name}) ${
-                      lib.concatMapStringsSep "; " (
-                        stage: "process-compose up ${lib.escapeShellArgs stage} -t=false"
-                      ) stages
-                    } ;;
-                  ''
+                  "${lib.escapeShellArg name}) ${up right}${up wrong};;\n"
                 ) (lib.filterAttrs (_: p: p.depends_on != null) processes)
               )}
               esac
