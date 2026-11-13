@@ -91,11 +91,14 @@
         nullkomma.generatedPaths = [
           "${prefix}.quarto/**"
           "${prefix}_site/**"
+          # Rendered here, then moved to `_site/`.
+          "${prefix}site_libs/**"
           "${prefix}.luarc.json"
         ];
         nullkomma.gitignore = [
           ".quarto/"
           "_site/"
+          "site_libs/"
           # Quarto's Lua editor hints, pointing at its store path.
           ".luarc.json"
         ];
