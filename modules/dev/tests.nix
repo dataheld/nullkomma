@@ -55,17 +55,22 @@
           ];
           debug = true;
         };
-      fixtures = lib.genAttrs [
-        "cloudflare"
-        "md"
-        "python"
-        "quarto"
-        "quarto-branded"
-        "r"
-        "r-off-nixpkgs"
-        "r-shiny"
-        "shell"
-      ] (name: callFlake (root + "/tests/fixtures/${name}"));
+      fixtures =
+        lib.genAttrs [
+          "cloudflare"
+          "python"
+          "quarto"
+          "quarto-branded"
+          "r"
+          "r-off-nixpkgs"
+          "r-shiny"
+          "shell"
+        ] (name: callFlake (root + "/tests/fixtures/${name}"))
+        // {
+          template = callFlake (root + "/templates/default");
+        };
+      # A fixture's directory, relative to the repository.
+      relative = flake: lib.removePrefix "${toString root}/" (toString flake.outPath);
     in
     {
       perSystem =
@@ -118,9 +123,9 @@
               (
                 name: flake:
                 pkgs.runCommand "nullkomma-snapshot-${name}" { } ''
-                  ${project (root + "/tests/fixtures/${name}")}
+                  ${project flake.outPath}
                   {
-                    printf '# `nk` in `tests/fixtures/%s`\n\n```text\n' ${name}
+                    printf '# `nk` in `%s`\n\n```text\n' ${relative flake}
                     ${task flake ""}
                     printf '```\n'
                   } > "$out"
@@ -148,7 +153,7 @@
               task
               project
               ;
-            raw = rawAt (root + "/tests/fixtures/md");
+            raw = rawAt (root + "/templates/default");
             # A built site's local links and fragments resolve.
             linkcheck =
               name: site:
@@ -183,6 +188,14 @@
               server=$!
               trap 'kill "$server" 2>/dev/null || true; wait || true' EXIT
             '';
+            # A build that runs servers on localhost through process-compose,
+            # which finds ports with lsof on macOS, which has it outside the sandbox.
+            serving =
+              name: tools:
+              pkgs.runCommand name {
+                nativeBuildInputs = tools ++ [ pkgs.lsof ];
+                __darwinAllowLocalNetworking = true;
+              };
             # Every page of a built site meets German legal requirements.
             legalcheck =
               name: site:
@@ -248,7 +261,7 @@
               text = ''
                 root="$(git rev-parse --show-toplevel)"
                 case "''${1-}" in
-                  ${lib.concatStringsSep "|" (lib.attrNames fixtures)}) ;;
+                  ${lib.concatMapAttrsStringSep "\n" (name: flake: "${name}) src=${relative flake} ;;") fixtures}
                   *)
                     echo "Usage: nk build-fixture-interactive <${lib.concatStringsSep "|" (lib.attrNames fixtures)}>" >&2
                     exit 1
@@ -256,7 +269,7 @@
                 esac
                 # Not $TMPDIR: `nix develop` deletes its own when it exits.
                 scratch="$(mktemp -d "/tmp/nk-$1.XXXXXX")"
-                cp -R "$root/tests/fixtures/$1/." "$scratch"
+                cp -R "$root/$src/." "$scratch"
                 sed -i "s|nullkomma.url = .*|nullkomma.url = \"git+file://$root\";|" "$scratch/flake.nix"
                 cd "$scratch"
                 git init -q
@@ -283,7 +296,7 @@
           process-compose.dev.settings.processes.all.depends_on.check-fixtures.condition =
             "process_completed_successfully";
           process-compose.dev.settings.processes.check-fixtures = {
-            description = "Run nix flake check and flake-checker on a fixture project, and initialize the template";
+            description = "Initialize the template, then run nix flake check and flake-checker on it";
             disabled = true;
             command = pkgs.writeShellApplication {
               name = "check-fixtures";
@@ -296,11 +309,9 @@
                 scratch="$(mktemp -d)"
                 trap 'rm -rf "$scratch"' EXIT
                 # The root needs no partition for what it defines itself; `dev/` is missing here.
-                mkdir "$scratch/root" "$scratch/init"
+                mkdir "$scratch/root" "$scratch/project"
                 cp -R "$root"/{flake.nix,flake.lock,lib,modules,templates} "$scratch/root/"
-                (cd "$scratch/init" && nix flake init --template "path:$scratch/root")
-                mkdir "$scratch/project"
-                cp "$root/tests/fixtures/md/flake.nix" "$root/tests/fixtures/md/README.md" "$scratch/project/"
+                (cd "$scratch/project" && nix flake init --template "path:$scratch/root")
                 nix flake check "path:$scratch/project" \
                   --override-input nullkomma "path:$root" \
                   --no-write-lock-file --print-build-logs

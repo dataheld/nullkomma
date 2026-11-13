@@ -17,7 +17,7 @@
           (
             _: description:
             lib.mkOption {
-              type = lib.types.attrsOf lib.types.anything;
+              type = lib.types.attrsOf lib.types.json;
               default = { };
               inherit description;
             }

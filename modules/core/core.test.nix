@@ -23,7 +23,28 @@
             summary
             task
             ;
-          md = root + "/tests/fixtures/md";
+          template = root + "/templates/default";
+          # Renders nullkomma's options the way https://flake.parts does for listed modules.
+          optionsDoc = pkgs.nixosOptionsDoc {
+            options = import (root + "/modules/_options.nix") {
+              inherit lib;
+              inherit (inputs) flake-parts nixpkgs;
+              module = nullkomma.flakeModules.default;
+            };
+            transformOptions =
+              opt:
+              let
+                declarations = map (lib.removePrefix "${toString root}/") (
+                  lib.filter (lib.hasPrefix "${toString root}/") opt.declarations
+                );
+              in
+              opt
+              // {
+                inherit declarations;
+                visible = opt.visible && declarations != [ ];
+              };
+            warningsAreErrors = true;
+          };
           section = text: builtins.toFile "section.md" text;
           # Uses process-compose-flake options only, as external modules would.
           contract = raw {
@@ -183,7 +204,7 @@
             version:
             let
               directory = {
-                source = md;
+                source = template;
                 mode = "generated";
                 directory = true;
               };
@@ -236,7 +257,7 @@
                     imports = [ plugins.agents ];
                     nullkomma.agents = {
                       inherit enable;
-                      skills.demo = md;
+                      skills.demo = template;
                     };
                     perSystem.nullkomma.agents.mcpServers.demo = {
                       type = "http";
@@ -271,7 +292,7 @@
                   nullkomma = lib.genAttrs (lib.attrNames plugins ++ [ "devShell" ]) (_: {
                     enable = false;
                   });
-                } md)
+                } template)
               ];
               expected = lib.replicate 2 (summary (raw { }));
             };
@@ -300,7 +321,7 @@
                       nullkomma.editor.vscode.settings."nix.serverPath" = "project-nixd";
                       treefmt.programs.deadnix.enable = false;
                     };
-                  } md
+                  } template
                 );
               in
               {
@@ -339,8 +360,8 @@
                   ];
                   outputsEvaluate = map (outputs: lib.all lib.isAttrs (lib.attrValues outputs)) [
                     (raw dev)
-                    (callFlakeWith dev md).outputs
-                    (callFlakeWith (dev // { nullkomma.nix.enable = false; }) md).outputs
+                    (callFlakeWith dev template).outputs
+                    (callFlakeWith (dev // { nullkomma.nix.enable = false; }) template).outputs
                   ];
                 };
                 expected = {
@@ -356,7 +377,7 @@
               };
             testDevTreeRunsShellTasks = {
               expr = lib.attrNames (
-                lib.filterAttrs (_: p: p.disabled != true) (perSystem fixtures.md).processTrees.dev.processes
+                lib.filterAttrs (_: p: p.disabled != true) (perSystem fixtures.template).processTrees.dev.processes
               );
               expected = [
                 "flake-checker"
@@ -370,21 +391,21 @@
                 summary (
                   callFlakeWith {
                     imports = [ { nullkomma.cloudflare.worker = "fixture-site"; } ];
-                    nullkomma.${name}.enable = !fixtures.md.debug.config.nullkomma.${name}.enable;
-                  } (if name == "r" then root + "/tests/fixtures/r" else md)
-                ) == summary fixtures.md
+                    nullkomma.${name}.enable = !fixtures.template.debug.config.nullkomma.${name}.enable;
+                  } (if name == "r" then root + "/tests/fixtures/r" else template)
+                ) == summary fixtures.template
               ) (lib.attrNames plugins);
               expected = [ ];
             };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
               expr = map (flake: (perSystem flake).nullkomma.files.".gitignore".sections.git) [
-                fixtures.md
+                fixtures.template
                 (callFlakeWith {
                   perSystem.nullkomma.files = {
                     ".vscode/settings.json".mode = "source";
                     ".vscode/extensions.json".enable = false;
                   };
-                } md)
+                } template)
               ];
               expected = [
                 (lib.concatLines [
@@ -449,18 +470,22 @@
                         nullkomma.modules.flake.nix
                         nullkomma.modules.flake.default
                       ];
-                    } md
+                    } template
                   )
                 );
-                expected = normalize (summary fixtures.md);
+                expected = normalize (summary fixtures.template);
               };
+            testOptionsDocHasNoStorePaths = {
+              expr = lib.hasInfix builtins.storeDir (builtins.toJSON optionsDoc.optionsNix);
+              expected = false;
+            };
             testPluginsAddMcpServers =
               let
                 servers = flake: lib.attrNames (perSystem flake).nullkomma.agents.mcpServers;
               in
               {
                 expr = map servers [
-                  fixtures.md
+                  fixtures.template
                   fixtures.cloudflare
                   fixtures.quarto
                   (callFlakeWith { nullkomma.quarto.enable = true; } (root + "/tests/fixtures/r-shiny"))
@@ -592,7 +617,7 @@
                 };
               };
             testTasksAllFormatsAndChecks = {
-              expr = lib.attrNames (perSystem fixtures.md).processTrees.dev.processes.all.depends_on;
+              expr = lib.attrNames (perSystem fixtures.template).processTrees.dev.processes.all.depends_on;
               expected = [
                 "check"
                 "flake-checker"
@@ -628,12 +653,6 @@
                   };
                 };
               };
-            testTemplatesAreFixtures = {
-              expr = lib.mapAttrs (_: t: builtins.readFile (t.path + "/flake.nix")) nullkomma.templates;
-              expected = lib.mapAttrs (
-                _: _: builtins.readFile (root + "/tests/fixtures/md/flake.nix")
-              ) nullkomma.templates;
-            };
             # keep-sorted end
           };
           checks = {
@@ -648,7 +667,7 @@
                 };
               in
               pkgs.runCommand "nullkomma-tasks" (devShell.env // { nativeBuildInputs = devShell.packages; }) ''
-                ${harness.project md}
+                ${harness.project template}
                 ${lib.getExe pkgs.git} init -q
                 export HOME="$TMPDIR" PC_LOG_FILE="$TMPDIR/pc.log"
                 logs=(mcp.out preview.out "$PC_LOG_FILE" mcp.log)
@@ -721,7 +740,7 @@
               '';
             # An MCP client that quits closes the server's stdin, then may SIGKILL it; a crashed client only closes stdin.
             mcp-without-client = pkgs.runCommand "nullkomma-mcp-without-client" { } ''
-              ${harness.project md}
+              ${harness.project template}
               ${lib.getExe pkgs.git} init -q
               export HOME="$TMPDIR"
               logs=(mcp.out mcp.log)
@@ -744,7 +763,7 @@
               touch $out
             '';
             scratch = pkgs.runCommand "nullkomma-scratch" { } ''
-              ${harness.project md}
+              ${harness.project template}
               export KEPT="$TMPDIR/kept" XDG_CACHE_HOME="$TMPDIR/cache"
               echo v1 > input
               mkdir out
@@ -779,7 +798,7 @@
             '';
             # A change restarts every process watching it, whatever its working_dir.
             watch-working-dirs = pkgs.runCommand "nullkomma-watch-working-dirs" { } ''
-              ${harness.project md}
+              ${harness.project template}
               mkdir watched
               ${harness.watching spellings "in-root in-working-dir"}
               settled in-root 1
@@ -794,13 +813,13 @@
                 {
                   nativeBuildInputs = [
                     pkgs.neovim-unwrapped
-                    (perSystem fixtures.md).treefmt.build.wrapper
+                    (perSystem fixtures.template).treefmt.build.wrapper
                   ];
                 }
                 ''
-                  ${harness.project md}
+                  ${harness.project template}
                   HOME=$TMPDIR nvim --clean -l ${pkgs.writeText "check.lua" ''
-                    dofile("${(perSystem fixtures.md).nullkomma.files.".nvim.lua".source}")
+                    dofile("${(perSystem fixtures.template).nullkomma.files.".nvim.lua".source}")
                     assert(vim.lsp.config.nixd.cmd[1] == "nixd")
                     assert(vim.lsp.config.nixd.settings.nixd.formatting.command[1] == "treefmt")
                     assert(vim.lsp.is_enabled("nixd"))
@@ -831,7 +850,7 @@
                             "-c"
                             "echo formatter-failed >&2; exit 1"
                           ];
-                        } md
+                        } template
                       )).nullkomma.files.".nvim.lua".source
                     }")
                     vim.cmd.file("broken.nix")
@@ -868,11 +887,11 @@
             # Every language server an editor is told to start is in the dev shell.
             language-servers =
               pkgs.runCommandLocal "nullkomma-language-servers"
-                { nativeBuildInputs = (perSystem fixtures.md).nullkomma.devShell.packages; }
+                { nativeBuildInputs = (perSystem fixtures.template).nullkomma.devShell.packages; }
                 ''
                   ${lib.concatMapStrings (s: ''
                     command -v ${lib.escapeShellArg (lib.head s.command)}
-                  '') (lib.attrValues (perSystem fixtures.md).nullkomma.editor.languageServers)}
+                  '') (lib.attrValues (perSystem fixtures.template).nullkomma.editor.languageServers)}
                   touch $out
                 '';
             file-updates =
@@ -1035,7 +1054,7 @@
                     "develop --command nk write-files") exit 1 ;;
                   esac
                 '';
-                update = task fixtures.md "flake-update";
+                update = task fixtures.template "flake-update";
               in
               pkgs.runCommandLocal "nullkomma-file-update-task" { nativeBuildInputs = [ nix ]; } ''
                 mkdir project
@@ -1102,7 +1121,7 @@
                 # and a new file is refused until the root list covers it.
                 fails added.txt ${at "new" "generate-files"}
                 test ! -e added.txt
-                test -f .agents/skills/after/README.md
+                test -f .agents/skills/after/flake.nix
                 test ! -e .agents/skills/before
                 clean
                 ${at "new" "write-files"}
@@ -1137,22 +1156,7 @@
 
                 touch $out
               '';
-            # Renders nullkomma's options the way https://flake.parts does for listed modules.
-            options-doc =
-              (pkgs.nixosOptionsDoc {
-                options = import (root + "/modules/_options.nix") {
-                  inherit lib;
-                  inherit (inputs) flake-parts nixpkgs;
-                  module = nullkomma.flakeModules.default;
-                };
-                transformOptions =
-                  opt:
-                  opt
-                  // {
-                    visible = opt.visible && lib.any (lib.hasPrefix (toString root)) opt.declarations;
-                  };
-                warningsAreErrors = true;
-              }).optionsCommonMark;
+            options-doc = optionsDoc.optionsCommonMark;
           };
         };
     };

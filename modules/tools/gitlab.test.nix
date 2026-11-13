@@ -19,7 +19,7 @@
           imports = [ module ];
           nullkomma.github.enable = false;
           nullkomma.gitlab.enable = true;
-        } (root + "/tests/fixtures/md");
+        } (root + "/templates/default");
       files = flake: (perSystem flake).nullkomma.files;
       pipeline = flake: (files flake).".gitlab-ci.yml".sections.gitlab;
       variants =
@@ -58,7 +58,7 @@
     {
       nullkomma.nix.unit.tests = {
         testGitlabIsOptIn = {
-          expr = (files fixtures.md) ? ".gitlab-ci.yml";
+          expr = (files fixtures.template) ? ".gitlab-ci.yml";
           expected = false;
         };
         testGitlabReplacesGithubWhenSelected = {
