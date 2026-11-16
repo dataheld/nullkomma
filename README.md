@@ -583,6 +583,10 @@ OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is invo
   # from `GITHUB_REPOSITORY` or Git origin at deployment time.
   # nullkomma.cloudflare.name = null;
 
+  # Whether to enable the Worker serving `packages.site`, with its deployment;
+  # without it, the plugin adds only Wrangler and the Cloudflare MCP servers.
+  # nullkomma.cloudflare.site.enable = true;
+
   # Worker serving `packages.site`; also keys its Terraform state.
   # nullkomma.cloudflare.worker = config.nullkomma.cloudflare.name;
 }
