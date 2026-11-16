@@ -31,8 +31,78 @@
           };
       };
       inherit (fixtures) cloudflare;
+      # What the plugin adds to the framework's outputs.
+      added =
+        let
+          outputs = flake: {
+            tools = map lib.getName (perSystem flake).nullkomma.devShell.packages;
+            mcpServers = lib.attrNames (perSystem flake).nullkomma.agents.mcpServers;
+            apps = lib.attrNames flake.apps.${system};
+            packages = lib.attrNames flake.packages.${system};
+            checks = lib.attrNames flake.checks.${system};
+            tasks = lib.attrNames (perSystem flake).taskRunners.default.tasks;
+            privacy = lib.attrNames flake.debug.config.nullkomma.privacy.sections;
+            inherit (flake.debug.config.nullkomma) gitignore;
+          };
+          framework = outputs (raw { });
+        in
+        flake: lib.mapAttrs (name: lib.subtractLists framework.${name}) (outputs flake);
     in
     {
+      nullkomma.nix.unit.tests.testToolingWithoutSite = {
+        expr = map added [
+          (raw {
+            imports = [ plugins.cloudflare ];
+            nullkomma.cloudflare = {
+              enable = true;
+              site.enable = false;
+            };
+          })
+          (raw bare)
+        ];
+        expected =
+          let
+            tooling = {
+              tools = [ "wrangler" ];
+              mcpServers = [
+                "cloudflare-api"
+                "cloudflare-docs"
+              ];
+            };
+          in
+          [
+            (
+              tooling
+              // {
+                apps = [ ];
+                packages = [ ];
+                checks = [ ];
+                tasks = [ ];
+                privacy = [ ];
+                gitignore = [ ];
+              }
+            )
+            (
+              tooling
+              // {
+                mcpServers = tooling.mcpServers ++ [ "opentofu" ];
+                apps = [ "deploy" ];
+                packages = [
+                  "deploy"
+                  "site"
+                ];
+                checks = [ "cloudflare-validate" ];
+                tasks = [
+                  "cloudflare-deploy"
+                  "cloudflare-plan"
+                  "cloudflare-validate"
+                ];
+                privacy = [ "cloudflare" ];
+                gitignore = [ "/.nullkomma/cloudflare/" ];
+              }
+            )
+          ];
+      };
       checks = {
         cloudflare-devshell =
           (raw {
