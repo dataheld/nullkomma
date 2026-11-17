@@ -49,6 +49,14 @@
         flake: lib.mapAttrs (name: lib.subtractLists framework.${name}) (outputs flake);
     in
     {
+      nullkomma.nix.unit.tests.testSiteNeedsOpentofu = {
+        expr =
+          (raw {
+            imports = [ bare ];
+            nullkomma.opentofu.enable = false;
+          }).debug.config.nullkomma.opentofu.enable;
+        expectedError.msg = "conflicting definition values";
+      };
       nullkomma.nix.unit.tests.testToolingWithoutSite = {
         expr = map added [
           (raw {

@@ -1,4 +1,7 @@
-{ inputs, ... }:
+{ config, inputs, ... }:
+let
+  inherit (config.plugins) opentofu;
+in
 {
   plugins.cloudflare =
     { config, lib, ... }:
@@ -11,7 +14,7 @@
       missing = "is required to plan or deploy; see https://github.com/dataheld/nullkomma#cloudflare";
     in
     {
-      imports = [ inputs.terranix.flakeModule ];
+      imports = [ opentofu ];
       options.nullkomma.cloudflare = {
         site.enable =
           lib.mkEnableOption "the Worker serving `packages.site`, with its deployment; without it, the plugin adds only Wrangler and the Cloudflare MCP servers"
@@ -56,6 +59,7 @@
               };
           }
           (lib.mkIf cfg.site.enable {
+            nullkomma.opentofu.enable = true;
             nullkomma.gitignore = [ "/.nullkomma/cloudflare/" ];
             nullkomma.privacy.sections.cloudflare = {
               order = 200;
@@ -89,10 +93,6 @@
                 '';
               in
               {
-                nullkomma.agents.mcpServers.opentofu = {
-                  type = "http";
-                  url = "https://mcp.opentofu.org/mcp";
-                };
                 # terranix also exports packages.deploy, whose .init, .plan, ... `nix run` falls back to.
                 apps.deploy = {
                   type = "app";

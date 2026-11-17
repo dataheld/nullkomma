@@ -208,6 +208,7 @@
             summary = flake: {
               files = lib.attrNames (perSystem flake).nullkomma.files;
               tools = map lib.getName (perSystem flake).nullkomma.devShell.packages;
+              mcpServers = lib.attrNames (perSystem flake).nullkomma.agents.mcpServers;
               formatters = lib.attrNames (perSystem flake).treefmt.build.programs;
               tasks = lib.attrNames (perSystem flake).taskRunners.default.tasks;
               checks = lib.attrNames flake.checks.${system};
