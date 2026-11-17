@@ -1,26 +1,24 @@
 { config, inputs, ... }:
 let
-  inherit (config.flake.flakeModules) opentofu;
+  inherit (config.flake.flakeModules) cloudflare opentofu;
 in
 {
-  plugins.cloudflare =
+  plugins.cloudflareSite =
     { config, lib, ... }:
     let
-      cfg = config.nullkomma.cloudflare;
+      cfg = config.nullkomma.cloudflareSite;
       label = "[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?";
       inferName = cfg.name == null && (cfg.domain != null || cfg.worker == null);
       siteName = if cfg.name == null then "\${var.site_name}" else cfg.name;
       workerName = if cfg.worker == null then siteName else cfg.worker;
-      missing = "is required to plan or deploy; see https://github.com/dataheld/nullkomma#cloudflare";
+      missing = "is required to plan or deploy; see https://github.com/dataheld/nullkomma#cloudflaresite";
     in
     {
-      imports = [ opentofu ];
-      options.nullkomma.cloudflare = {
-        site.enable =
-          lib.mkEnableOption "the Worker serving `packages.site`, with its deployment; without it, the plugin adds only Wrangler and the Cloudflare MCP servers"
-          // {
-            default = true;
-          };
+      imports = [
+        cloudflare
+        opentofu
+      ];
+      options.nullkomma.cloudflareSite = {
         domain = lib.mkOption {
           type = lib.types.nullOr (lib.types.strMatching "${label}(\\.${label})+");
           default = null;
@@ -35,11 +33,12 @@ in
         worker = lib.mkOption {
           type = lib.types.nullOr (lib.types.strMatching "[a-z0-9][a-z0-9-]*");
           default = cfg.name;
-          defaultText = lib.literalExpression "config.nullkomma.cloudflare.name";
+          defaultText = lib.literalExpression "config.nullkomma.cloudflareSite.name";
           description = "Worker serving `packages.site`; also keys its Terraform state.";
         };
       };
-      config = lib.mkIf (cfg.enable && cfg.site.enable) {
+      config = lib.mkIf cfg.enable {
+        nullkomma.cloudflare.enable = true;
         nullkomma.opentofu.enable = true;
         nullkomma.gitignore = [ "/.nullkomma/cloudflare/" ];
         nullkomma.privacy.sections.cloudflare = {
@@ -134,14 +133,14 @@ in
                         name="''${GITHUB_REPOSITORY#*/}"
                       else
                         if ! repository="$(git remote get-url origin)"; then
-                          echo "Cannot infer Cloudflare name; set nullkomma.cloudflare.name or configure Git origin." >&2
+                          echo "Cannot infer Cloudflare name; set nullkomma.cloudflareSite.name or configure Git origin." >&2
                           exit 1
                         fi
                         name="''${repository##*/}"
                         name="''${name%.git}"
                       fi
                       if [[ ! "$name" =~ ^${label}$ ]]; then
-                        echo "Cloudflare repository name must be a lowercase DNS label (1-63 characters); set nullkomma.cloudflare.name." >&2
+                        echo "Cloudflare repository name must be a lowercase DNS label (1-63 characters); set nullkomma.cloudflareSite.name." >&2
                         exit 1
                       fi
                       export TF_VAR_site_name="$name"

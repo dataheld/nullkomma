@@ -284,7 +284,7 @@ Each `link` names an entry of `meta.link`; `privacy: true` links to the privacy 
 
 ### Privacy policy
 
-Plugins that process visitors' data, such as `cloudflare`, add a section to `nullkomma.privacy.sections`;
+Plugins that process visitors' data, such as `cloudflareSite`, add a section to `nullkomma.privacy.sections`;
 so can a brand or your project:
 
 ```nix
@@ -345,7 +345,8 @@ Those marked under Default are enabled unless you opt out.
 | [`neovim`](#editors)                                                                              | ✅       |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`flakehub`][flakehub]                                                                            | ✅       | [`fh`]                                                                                                         |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`quarto`](#quarto) (includes nkdocs; optional [brand](#brand))                                   |         | [`quarto`]                                                                                                     |                                            |                                                           | `site`             |                            | `quarto-render`, `quarto-preview`                                                                                                              | `quarto-preview`                                                                                                                              | `playwright`                                    |
-| [`cloudflare`](#cloudflare) (site deploy enables `opentofu`)                                      |         | [`wrangler`]                                                                                                   |                                            | `cloudflare-validate` ([OpenTofu] validation)             |                    | `deploy`[^deploy]          | `cloudflare-validate`, `cloudflare-plan`, `cloudflare-deploy`                                                                                  |                                                                                                                                               | `cloudflare-api`, `cloudflare-docs`             |
+| [`cloudflare`][`wrangler`]                                                                        |         | [`wrangler`]                                                                                                   |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `cloudflare-api`, `cloudflare-docs`             |
+| [`cloudflareSite`](#cloudflaresite) (enables `cloudflare`, `opentofu`)                            |         |                                                                                                                |                                            | `cloudflare-validate` ([OpenTofu] validation)             |                    | `deploy`[^deploy]          | `cloudflare-validate`, `cloudflare-plan`, `cloudflare-deploy`                                                                                  |                                                                                                                                               |                                                 |
 | [`opentofu`][terranix]                                                                            |         |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `opentofu`                                      |
 | [`python`](#python)                                                                               |         | [Python], [uv], [ty], editable package with its dependency groups and extras                                   | [`ruff-check`][ruff], `ruff-format`        | `python-lock-check`, `python-test`, `python-typecheck`    | `default`, `dist`  | `<script>`, `python-lock`  | `python-lock`, `python-lock-check`, `python-test`, `python-typecheck`                                                                          | `python-lock-check`, `python-test`, `python-typecheck`                                                                                        |                                                 |
 | [`r`](#r) (optional [non-Nix collaboration](#r-development-without-nix), [pkgdown brand](#brand)) |         | [R], [radian], [Air]; [languageserver], [`pkgload`], [pak], [httpgd], [later], [rstudioapi], [btw], [mcptools] | `air`, [`jarl`][jarl]                      | `r-document-namespace`, `r-test`, `r-check`               | `site` ([pkgdown]) | `r-lock`, `shiny` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-lock`, `r-run-app` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-shiny-<function>` (opt-in) | `r` ([btw], [mcptools]); `playwright` (Shiny)   |
@@ -550,7 +551,7 @@ With `brand.enable`, list the generated `_nullkomma-brand.yml` in `_quarto.yml`'
 ```
 <!-- nullkomma:quarto:end -->
 
-### `cloudflare`
+### `cloudflareSite`
 
 Serves `packages.site` as [Workers static assets][cloudflare] at `https://<name>.<domain>`,
 deployed with [Terranix], including DNS and the HTTPS certificate;
@@ -571,29 +572,25 @@ env:
 
 OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is involved.
 
-<!-- nullkomma:cloudflare:start -->
+<!-- nullkomma:cloudflareSite:start -->
 ```nix
 {
-  # Whether to enable the cloudflare plugin.
-  nullkomma.cloudflare.enable = true;
+  # Whether to enable the cloudflareSite plugin.
+  nullkomma.cloudflareSite.enable = true;
 
   # Existing Cloudflare zone serving `<name>.<domain>`; null disables the
   # shorthand.
-  # nullkomma.cloudflare.domain = null;
+  # nullkomma.cloudflareSite.domain = null;
 
   # Subdomain label and default Worker name; null infers the repository name
   # from `GITHUB_REPOSITORY` or Git origin at deployment time.
-  # nullkomma.cloudflare.name = null;
-
-  # Whether to enable the Worker serving `packages.site`, with its deployment;
-  # without it, the plugin adds only Wrangler and the Cloudflare MCP servers.
-  # nullkomma.cloudflare.site.enable = true;
+  # nullkomma.cloudflareSite.name = null;
 
   # Worker serving `packages.site`; also keys its Terraform state.
-  # nullkomma.cloudflare.worker = config.nullkomma.cloudflare.name;
+  # nullkomma.cloudflareSite.worker = config.nullkomma.cloudflareSite.name;
 }
 ```
-<!-- nullkomma:cloudflare:end -->
+<!-- nullkomma:cloudflareSite:end -->
 
 ### `python`
 

@@ -9,7 +9,7 @@
       nullkomma = {
         generatedPaths = [ "tests/fixtures/r/tests/testthat/_snaps/**" ];
         brand = inputs.brand;
-        cloudflare = {
+        cloudflareSite = {
           enable = true;
           domain = "maxheld.de";
         };

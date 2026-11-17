@@ -401,7 +401,7 @@
                 name:
                 summary (
                   callFlakeWith {
-                    imports = [ { nullkomma.cloudflare.worker = "fixture-site"; } ];
+                    imports = [ { nullkomma.cloudflareSite.worker = "fixture-site"; } ];
                     nullkomma.${name}.enable = !fixtures.template.debug.config.nullkomma.${name}.enable;
                   } (if name == "r" then root + "/tests/fixtures/r" else template)
                 ) == summary fixtures.template

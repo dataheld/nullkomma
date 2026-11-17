@@ -7,7 +7,7 @@
   outputs =
     inputs:
     inputs.nullkomma.lib.mkFlake { inherit inputs; } {
-      nullkomma.cloudflare = {
+      nullkomma.cloudflareSite = {
         enable = true;
         worker = "fixture-site";
         domain = "example.org";

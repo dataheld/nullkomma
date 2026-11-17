@@ -19,8 +19,8 @@
         flake: (perSystem flake).terranix.terranixConfigurations.deploy.result.terraformConfiguration;
       # Any flake with a `packages.site`, without other plugins.
       bare = {
-        imports = [ plugins.cloudflare ];
-        nullkomma.cloudflare = {
+        imports = [ plugins.cloudflareSite ];
+        nullkomma.cloudflareSite = {
           enable = true;
           worker = "bare-site";
         };
@@ -61,10 +61,7 @@
         expr = map added [
           (raw {
             imports = [ plugins.cloudflare ];
-            nullkomma.cloudflare = {
-              enable = true;
-              site.enable = false;
-            };
+            nullkomma.cloudflare.enable = true;
           })
           (raw bare)
         ];
@@ -170,7 +167,7 @@
               jq '.terraform.backend = {local: {path: .terraform.backend.s3.key}}' ${
                 tfConfig (raw {
                   imports = [ bare ];
-                  nullkomma.cloudflare.worker = lib.mkForce null;
+                  nullkomma.cloudflareSite.worker = lib.mkForce null;
                 })
               } > config.tf.json
               tofu init > /dev/null
@@ -193,7 +190,7 @@
               lib.getExe
                 (perSystem (raw {
                   imports = [ bare ];
-                  nullkomma.cloudflare = {
+                  nullkomma.cloudflareSite = {
                     domain = "example.org";
                   }
                   // options;
