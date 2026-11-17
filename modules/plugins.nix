@@ -20,8 +20,6 @@
     default = { };
     apply = lib.mapAttrs (
       name: module: {
-        # Plugins import the plugins they build on; the key loads each one once.
-        key = "nullkomma#plugins.${name}";
         imports = [ module ];
         options.nullkomma.${name}.enable = lib.mkEnableOption "the ${name} plugin";
       }

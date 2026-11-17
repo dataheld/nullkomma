@@ -58,8 +58,9 @@ Candidates for upstreaming instead of keeping here:
 
 Peer plugins never read each other's options;
 shared values are framework options any plugin may set or read.
-A plugin may import and enable the plugins it builds on,
-as the `cloudflare` site deploy does with `opentofu`.
+A plugin that builds on another imports its `flakeModules.<name>`,
+which flake-parts loads once, and sets `nullkomma.<name>.enable = true`
+where it needs it, as the `cloudflare` site deploy does with `opentofu`.
 Templates only select plugins and options.
 After changing what a plugin adds, use the update-integration-matrix skill.
 
