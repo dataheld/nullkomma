@@ -23,7 +23,7 @@
         })
       ];
       options.perSystem = flake-parts-lib.mkPerSystemOption (
-        { pkgs, ... }:
+        { config, pkgs, ... }:
         {
           options.process-compose = lib.mkOption {
             type = lib.types.attrsOf (
@@ -54,9 +54,9 @@
                         patches = (old.patches or [ ]) ++ [ ../../patches/process-compose.patch ];
                       })
                     );
-                    # One process-compose server per checkout, without a TCP port.
+                    # One process-compose server per project in each checkout, without a TCP port.
                     cli.preHook = ''
-                      cd "$(${lib.getExe pkgs.git} rev-parse --show-toplevel)"
+                      cd ${config.nullkomma.root}
                       export PC_SOCKET_PATH="''${PC_SOCKET_PATH:-''${XDG_RUNTIME_DIR:-/tmp}/nk-$(${pkgs.coreutils}/bin/id -u)-$(pwd | ${pkgs.coreutils}/bin/cksum | ${pkgs.coreutils}/bin/cut -d' ' -f1).sock}"
                     '';
                     cli.environment.PC_HIDE_DISABLED_PROC = lib.mkDefault true;

@@ -1,8 +1,8 @@
 # shellcheck shell=bash
 mode="${mode:?file mode must be set by the caller}"
 sections="${sections:?the section splicer must be set by the caller}"
-root="$(git rev-parse --show-toplevel)"
-cd "$root" || exit 1
+manifest="${manifest:?the list of generated files must be set by the caller}"
+cd "${root:?the project root must be set by the caller}" || exit 1
 status=0
 declared=()
 unignored=()
@@ -130,19 +130,19 @@ in_nested_project() {
 # Removes what nullkomma no longer declares: earlier generated files, and the sections of
 # tracked files outside nested projects, as complete marker pairs.
 prune() {
-  local manifest path stripped
+  local list path stripped
   if [ "$mode" = generated ]; then
-    manifest="$(git rev-parse --path-format=absolute --git-path nullkomma/files/generated)"
-    mkdir -p "$(dirname "$manifest")"
-    touch "$manifest"
+    list="$(git rev-parse --path-format=absolute --git-path "$manifest")"
+    mkdir -p "$(dirname "$list")"
+    touch "$list"
     while IFS= read -r path; do
       if [ -n "$path" ] && ! is_declared "$path" && safe_path "$path" &&
         [ -e "$path" ] && ! git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
         rm -rf "$path"
         echo "removed $path (no longer generated)"
       fi
-    done <"$manifest"
-    printf '%s\n' "${declared[@]}" >"$manifest"
+    done <"$list"
+    printf '%s\n' "${declared[@]}" >"$list"
     return
   fi
   while IFS= read -r -d '' path; do
