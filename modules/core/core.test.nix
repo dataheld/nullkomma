@@ -193,6 +193,27 @@
               };
             }
           );
+          # A flake in `nested/`, below its repository's root.
+          nestedFiles =
+            inputs.flake-parts.lib.mkFlake
+              {
+                inputs.self = {
+                  outPath = "/source/nested";
+                  sourceInfo.outPath = "/source";
+                };
+              }
+              {
+                imports = [ nullkomma.flakeModules.framework ];
+                debug = true;
+                perSystem.nullkomma.files = {
+                  "source.txt".text = "nested";
+                  "generated.txt" = {
+                    text = "nested";
+                    mode = "generated";
+                    commentPrefix = "#";
+                  };
+                };
+              };
           sectioned = raw {
             perSystem.nullkomma.files."notes.md" = {
               commentPrefix = "<!--";
@@ -1021,6 +1042,14 @@
                   printf 'new\n' > notes.md
                   $write
                   spliced "$block\n"
+                  # Sections in a nested project, with its own flake.nix, are that project's.
+                  mkdir -p nested/docs
+                  touch nested/flake.nix
+                  printf '<!-- nullkomma:other:start -->\nx\n<!-- nullkomma:other:end -->\n' > nested/docs/notes.md
+                  cp nested/docs/notes.md before
+                  git add nested
+                  $write
+                  cmp before nested/docs/notes.md
                   for malformed in "$block\n$block" '<!-- nullkomma:docs:start -->' '<!-- nullkomma:docs:end -->'; do
                     printf "$malformed\n" > notes.md
                     cp notes.md before
@@ -1033,6 +1062,28 @@
                   done
                   touch $out
                 '';
+            # A flake below its repository's root writes only into its own directory.
+            nested-project =
+              let
+                at = version: task fileVersions.${version};
+                nested = task nestedFiles;
+              in
+              pkgs.runCommandLocal "nullkomma-nested-project" { nativeBuildInputs = [ pkgs.git ]; } ''
+                git init --quiet
+                echo '*generated.txt' > .git/info/exclude
+                ${at "old" "generate-files"}
+                mkdir -p nested/sub
+                ${nested "write-files"}
+                (cd nested/sub && ${nested "generate-files"})
+                test "$(cat nested/source.txt)" = nested
+                grep -qx nested nested/generated.txt
+                test ! -e source.txt
+                grep -qx old generated.txt
+                ${at "new" "generate-files"}
+                test ! -e stale-generated.txt
+                grep -qx nested nested/generated.txt
+                touch $out
+              '';
             # Upgrades need no state outside the working tree: not in a new clone (#358),
             # nor in worktrees on different versions (#367).
             file-upgrades =

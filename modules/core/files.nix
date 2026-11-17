@@ -68,18 +68,28 @@
           options.nullkomma.files = lib.mkOption {
             type = lib.types.attrsOf (lib.types.submodule fileModule);
             default = { };
-            description = "Files written into the project, keyed by repo-relative path.";
+            description = "Files written into the project, keyed by path from the flake's directory.";
           };
           options.nullkomma.src = lib.mkOption {
             type = lib.types.package;
             readOnly = true;
             description = "The flake's source with every generated file in place, as after `generate-files`: where sandboxed checks and site builds start.";
           };
+          options.nullkomma.root = lib.mkOption {
+            type = lib.types.str;
+            readOnly = true;
+            description = "Shell word for the flake's directory in the working tree: Git's top level, or the directory below it that holds `flake.nix`. Tasks, the task runner and the dev shell work there.";
+          };
         }
       );
       config.perSystem =
         { config, pkgs, ... }:
         let
+          # `/<dir>` for a flake below its repository's root, else empty; only the text, so
+          # scripts don't depend on the source.
+          directory = builtins.unsafeDiscardStringContext (
+            lib.removePrefix (toString (self.sourceInfo.outPath or self.outPath)) (toString self.outPath)
+          );
           files = lib.filterAttrs (_: f: f.enable) config.nullkomma.files;
           # `splice`'s arguments for a file's sections.
           splice =
@@ -137,6 +147,8 @@
               text = ''
                 mode=${mode}
                 sections=${./_sections.awk}
+                root=${config.nullkomma.root}
+                manifest=${lib.escapeShellArg "nullkomma/files/generated${lib.escapeURL directory}"}
               ''
               + builtins.readFile ./_files.sh
               + lib.concatStrings (
@@ -172,6 +184,7 @@
           };
         in
         {
+          nullkomma.root = ''"$(${lib.getExe pkgs.git} rev-parse --show-toplevel)"${lib.escapeShellArg directory}'';
           nullkomma.src = pkgs.runCommand "source" { } (
             ''
               cp -R ${self} "$out"

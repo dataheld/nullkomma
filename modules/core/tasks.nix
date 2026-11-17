@@ -249,7 +249,7 @@
                 pkgs.git
                 pkgs.just
               ];
-              text = ''exec just --justfile ${justfile} --working-directory "$(git rev-parse --show-toplevel)" "$@"'';
+              text = ''exec just --justfile ${justfile} --working-directory ${config.nullkomma.root} "$@"'';
             }
             // {
               tasks = lib.mapAttrs (_: p: { inherit (p) description; }) tasks;
