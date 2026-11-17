@@ -45,8 +45,8 @@ in
         nullkomma.privacy.sections.cloudflare = {
           order = 200;
           markdown = {
-            en = ./_cloudflare/privacy.en.md;
-            de = ./_cloudflare/privacy.de.md;
+            en = ./_cloudflare-site/privacy.en.md;
+            de = ./_cloudflare-site/privacy.de.md;
           };
         };
         perSystem =
