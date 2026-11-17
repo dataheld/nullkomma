@@ -1021,6 +1021,14 @@
                   printf 'new\n' > notes.md
                   $write
                   spliced "$block\n"
+                  # Sections in a nested project, with its own flake.nix, are that project's.
+                  mkdir -p nested/docs
+                  touch nested/flake.nix
+                  printf '<!-- nullkomma:other:start -->\nx\n<!-- nullkomma:other:end -->\n' > nested/docs/notes.md
+                  cp nested/docs/notes.md before
+                  git add nested
+                  $write
+                  cmp before nested/docs/notes.md
                   for malformed in "$block\n$block" '<!-- nullkomma:docs:start -->' '<!-- nullkomma:docs:end -->'; do
                     printf "$malformed\n" > notes.md
                     cp notes.md before

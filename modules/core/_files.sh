@@ -116,8 +116,19 @@ is_declared() {
   return 1
 }
 
+# As for Nix, a file belongs to the project of the nearest flake.nix above it.
+in_nested_project() {
+  local parent
+  parent="$(dirname "$1")"
+  while [ "$parent" != . ]; do
+    [ -e "$parent/flake.nix" ] && return
+    parent="$(dirname "$parent")"
+  done
+  return 1
+}
+
 # Removes what nullkomma no longer declares: earlier generated files, and the sections of
-# tracked files, as complete marker pairs.
+# tracked files outside nested projects, as complete marker pairs.
 prune() {
   local manifest path stripped
   if [ "$mode" = generated ]; then
@@ -135,7 +146,8 @@ prune() {
     return
   fi
   while IFS= read -r -d '' path; do
-    if is_declared "$path" || ! safe_path "$path" || [ ! -f "$path" ] || ! stripped="$(splice "$path")"; then
+    if is_declared "$path" || ! safe_path "$path" || in_nested_project "$path" ||
+      [ ! -f "$path" ] || ! stripped="$(splice "$path")"; then
       continue
     fi
     if [ -z "${stripped//[[:space:]]/}" ]; then
