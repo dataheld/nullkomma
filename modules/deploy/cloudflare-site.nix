@@ -1,0 +1,217 @@
+{ config, inputs, ... }:
+let
+  inherit (config.flake.flakeModules) cloudflare opentofu;
+in
+{
+  plugins.cloudflareSite =
+    { config, lib, ... }:
+    let
+      cfg = config.nullkomma.cloudflareSite;
+      label = "[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?";
+      inferName = cfg.name == null && (cfg.domain != null || cfg.worker == null);
+      siteName = if cfg.name == null then "\${var.site_name}" else cfg.name;
+      workerName = if cfg.worker == null then siteName else cfg.worker;
+      missing = "is required to plan or deploy; see https://github.com/dataheld/nullkomma#cloudflaresite";
+    in
+    {
+      imports = [
+        cloudflare
+        opentofu
+      ];
+      options.nullkomma.cloudflareSite = {
+        domain = lib.mkOption {
+          type = lib.types.nullOr (lib.types.strMatching "${label}(\\.${label})+");
+          default = null;
+          example = "example.org";
+          description = "Existing Cloudflare zone serving `<name>.<domain>`; null disables the shorthand.";
+        };
+        name = lib.mkOption {
+          type = lib.types.nullOr (lib.types.strMatching label);
+          default = null;
+          description = "Subdomain label and default Worker name; null infers the repository name from `GITHUB_REPOSITORY` or Git origin at deployment time.";
+        };
+        worker = lib.mkOption {
+          type = lib.types.nullOr (lib.types.strMatching "[a-z0-9][a-z0-9-]*");
+          default = cfg.name;
+          defaultText = lib.literalExpression "config.nullkomma.cloudflareSite.name";
+          description = "Worker serving `packages.site`; also keys its Terraform state.";
+        };
+      };
+      config = lib.mkIf cfg.enable {
+        nullkomma.cloudflare.enable = true;
+        nullkomma.opentofu.enable = true;
+        nullkomma.gitignore = [ "/.nullkomma/cloudflare/" ];
+        nullkomma.privacy.sections.cloudflare = {
+          order = 200;
+          markdown = {
+            en = ./_cloudflare-site/privacy.en.md;
+            de = ./_cloudflare-site/privacy.de.md;
+          };
+        };
+        perSystem =
+          { config, pkgs, ... }:
+          let
+            inherit (config.packages) site;
+            tf = config.terranix.terranixConfigurations.deploy;
+            provider =
+              (import inputs.terraform-providers-bin { nixpkgs = pkgs; }).providers.cloudflare.cloudflare;
+            account_id = "\${var.account_id}";
+            script_name = "\${cloudflare_workers_script.site.script_name}";
+            # Like Wrangler, pass these as settings rather than publishing them;
+            # the provider uploads every file in the assets directory.
+            optionalFile = name: "\${fileexists(\"${site}/${name}\") ? file(\"${site}/${name}\") : null}";
+            assets = pkgs.runCommand "site-assets" { } ''
+              cp -r ${site} $out
+              chmod -R u+w $out
+              rm -f $out/_headers $out/_redirects
+            '';
+            validate = configuration: ''
+              cd "$(mktemp -d)"
+              ln -s ${configuration} config.tf.json
+              ${lib.getExe tf.terraformWrapper.package} init -backend=false
+              ${lib.getExe tf.terraformWrapper.package} validate
+            '';
+          in
+          {
+            # terranix also exports packages.deploy, whose .init, .plan, ... `nix run` falls back to.
+            apps.deploy = {
+              type = "app";
+              program = lib.getExe config.packages.deploy;
+              meta.description = "Publish the site to Cloudflare";
+            };
+            # These use the caller's `nix` to evaluate the working tree, not the dev shell's build of it.
+            process-compose.dev.settings.processes =
+              lib.mapAttrs
+                (name: p: {
+                  namespace = "cloudflare";
+                  inherit (p) description;
+                  command = pkgs.writeShellApplication {
+                    inherit name;
+                    inherit (p) text;
+                  };
+                  disabled = true;
+                })
+                {
+                  cloudflare-deploy = {
+                    description = "Publish the site to Cloudflare";
+                    text = "exec nix run .#deploy";
+                  };
+                  cloudflare-plan = {
+                    description = "Show the changes cloudflare-deploy would make; args go to `tofu plan`";
+                    text = ''
+                      nix run .#deploy.init
+                      exec nix run .#deploy.terraform -- plan "$@"
+                    '';
+                  };
+                  cloudflare-validate = {
+                    description = "Validate the Cloudflare Terraform configuration";
+                    text = ''
+                      configuration="$(nix build --no-link --print-out-paths .#deploy.config)"
+                      ${validate ''"$configuration"''}
+                    '';
+                  };
+                }
+              // {
+                check.depends_on.cloudflare-validate.condition = "process_completed_successfully";
+              };
+            checks.cloudflare-validate = pkgs.runCommand "cloudflare-validate" { } ''
+              export HOME="$TMPDIR"
+              ${validate tf.result.terraformConfiguration}
+              touch "$out"
+            '';
+            terranix = {
+              exportDevShells = false;
+              terranixConfigurations.deploy = {
+                workdir = ".nullkomma/cloudflare";
+                terraformWrapper = {
+                  package = pkgs.opentofu.withPlugins (_: [ provider ]);
+                  extraRuntimeInputs = lib.optional inferName pkgs.git;
+                  prefixText = ''
+                    export TF_IN_AUTOMATION=1 TF_INPUT=0 TF_CLI_ARGS_apply=-auto-approve
+                    ${lib.optionalString inferName ''
+                      if [[ -n "''${GITHUB_REPOSITORY:-}" ]]; then
+                        name="''${GITHUB_REPOSITORY#*/}"
+                      else
+                        if ! repository="$(git remote get-url origin)"; then
+                          echo "Cannot infer Cloudflare name; set nullkomma.cloudflareSite.name or configure Git origin." >&2
+                          exit 1
+                        fi
+                        name="''${repository##*/}"
+                        name="''${name%.git}"
+                      fi
+                      if [[ ! "$name" =~ ^${label}$ ]]; then
+                        echo "Cloudflare repository name must be a lowercase DNS label (1-63 characters); set nullkomma.cloudflareSite.name." >&2
+                        exit 1
+                      fi
+                      export TF_VAR_site_name="$name"
+                    ''}
+                    export TF_VAR_account_id="''${CLOUDFLARE_ACCOUNT_ID:?${missing}}"
+                    export AWS_ACCESS_KEY_ID="''${CLOUDFLARE_R2_ACCESS_KEY_ID:?${missing}}"
+                    export AWS_SECRET_ACCESS_KEY="''${CLOUDFLARE_R2_SECRET_ACCESS_KEY:?${missing}}"
+                    export AWS_ENDPOINT_URL_S3="https://$CLOUDFLARE_ACCOUNT_ID.r2.cloudflarestorage.com"
+                    export TF_CLI_ARGS_init="-backend-config=bucket=''${CLOUDFLARE_STATE_BUCKET:?${missing}}"
+                  '';
+                };
+                modules = lib.singleton {
+                  terraform = {
+                    required_providers.cloudflare = {
+                      source = "cloudflare/cloudflare";
+                      inherit (provider) version;
+                    };
+                    backend.s3 = {
+                      key = "${workerName}.tfstate";
+                      region = "auto";
+                      use_lockfile = true;
+                      use_path_style = true;
+                    }
+                    // lib.genAttrs [
+                      "skip_credentials_validation"
+                      "skip_metadata_api_check"
+                      "skip_region_validation"
+                      "skip_requesting_account_id"
+                      "skip_s3_checksum"
+                    ] (_: true);
+                  };
+                  variable.account_id.type = "string";
+                  variable.site_name = lib.mkIf inferName {
+                    type = "string";
+                    validation = {
+                      condition = "\${can(regex(\"^${label}$\", var.site_name))}";
+                      error_message = "Cloudflare name must be a lowercase DNS label (1-63 characters).";
+                    };
+                  };
+                  resource = {
+                    cloudflare_workers_script.site = {
+                      inherit account_id;
+                      script_name = workerName;
+                      assets = {
+                        directory = "${assets}";
+                        config = {
+                          not_found_handling = "404-page";
+                          headers = optionalFile "_headers";
+                          redirects = optionalFile "_redirects";
+                        };
+                      };
+                    };
+                    # Serve only on the custom domains.
+                    cloudflare_workers_script_subdomain.site = {
+                      inherit account_id script_name;
+                      enabled = false;
+                      previews_enabled = false;
+                    };
+                    cloudflare_workers_custom_domain = lib.optionalAttrs (cfg.domain != null) {
+                      subdomain = {
+                        inherit account_id;
+                        hostname = "${siteName}.${cfg.domain}";
+                        zone_name = cfg.domain;
+                        service = script_name;
+                      };
+                    };
+                  };
+                };
+              };
+            };
+          };
+      };
+    };
+}

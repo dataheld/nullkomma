@@ -50,7 +50,7 @@
         };
         nullkomma.r.pkgdown.brand.enable = true;
         nullkomma.r.pkgdown.assets = root + "/tests/fixtures/r-brand/assets";
-        nullkomma.cloudflare = cloudflare;
+        nullkomma.cloudflareSite = cloudflare;
         perSystem.process-compose.dev.settings.processes = {
           workflow-asset.command = "mkdir -p pkgdown/assets && echo 'shared R workflow' > pkgdown/assets/workflow.txt";
           r-build-site.depends_on.workflow-asset.condition = "process_completed_successfully";
@@ -60,7 +60,7 @@
       published = callFlakeWith {
         nullkomma.brand = brand;
         nullkomma.r.pkgdown.brand.enable = true;
-        nullkomma.cloudflare = cloudflare;
+        nullkomma.cloudflareSite = cloudflare;
       } fixture;
       declarativeBrand = callFlakeWith {
         nullkomma.brand.lib.brand = root + "/tests/fixtures/site-brand/brand.yml";
@@ -68,7 +68,7 @@
         nullkomma.privacy.sections.local = local;
       } fixture;
       english = callFlakeWith {
-        nullkomma.cloudflare = cloudflare;
+        nullkomma.cloudflareSite = cloudflare;
         nullkomma.privacy.sections.local = local;
         nullkomma.privacy.languages = [
           {
