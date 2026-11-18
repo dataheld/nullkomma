@@ -15,17 +15,16 @@
         ;
       devOnly = root + "/tests/fixtures/dev-only";
       served = flake: {
-        outputs =
-          lib.mapAttrs (_: output: lib.attrNames output.${system}) {
-            inherit (flake)
-              checks
-              devShells
-              packages
-              processTrees
-              taskRunners
-              ;
-            tests = flake.tests.systems;
-          };
+        outputs = lib.mapAttrs (_: output: lib.attrNames output.${system}) {
+          inherit (flake)
+            checks
+            devShells
+            packages
+            processTrees
+            taskRunners
+            ;
+          tests = flake.tests.systems;
+        };
         formatter = lib.isDerivation flake.formatter.${system};
         envrc = (perSystem flake).nullkomma.files.".envrc".sections.direnv;
       };

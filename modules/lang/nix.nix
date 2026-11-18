@@ -19,9 +19,7 @@
           { options, ... }:
           {
             config = lib.optionalAttrs (options ? partitionedAttrs) {
-              partitionedAttrs.tests = lib.mkIf (cfg.nix.enable && config.partitions ? dev) (
-                lib.mkDefault "dev"
-              );
+              partitionedAttrs.tests = lib.mkIf (cfg.nix.enable && config.partitions ? dev) (lib.mkDefault "dev");
             };
           }
         )

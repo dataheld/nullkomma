@@ -181,9 +181,32 @@ partitions.dev = {
 
 nullkomma then takes per-system outputs, such as `packages` or `checks`, from the partition.
 
-If other flakes consume yours, keep nullkomma itself in that partition too,
-but leave `schemas` out of `partitionedAttrs`, and `apps` too if the partition has none:
-most `nix` commands read `schemas` to resolve `.#name`, and `nix run` searches `apps`.
+If other flakes consume yours, keep nullkomma itself in `dev/flake.nix` too,
+and import it only in the partition, with your own `nixpkgs` and `flake-parts` inputs:
+
+```nix
+inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+  imports = [ inputs.flake-parts.flakeModules.partitions ];
+  partitionedAttrs = inputs.nixpkgs.lib.genAttrs [
+    "checks"
+    "devShells"
+    "formatter"
+    "packages"
+    "processTrees"
+    "taskRunners"
+    "tests"
+  ] (_: "dev");
+  partitions.dev = {
+    extraInputsFlake = ./dev;
+    module = { inputs, ... }: { imports = [ inputs.nullkomma.flakeModules.default ]; };
+  };
+}
+```
+
+`pkgs` then comes from your `nixpkgs`, which flake-checker checks.
+Add `apps` if the partition has any, and leave out `packages` if consuming flakes read yours:
+they would fetch the partition's inputs.
+Leave out `schemas`: most `nix` commands read it to resolve `.#name`.
 Nix's default schemas then list `processTrees`, `taskRunners` and `tests` as unknown.
 
 ### Linting

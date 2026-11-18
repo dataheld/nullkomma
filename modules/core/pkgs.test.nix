@@ -19,8 +19,10 @@
           };
           ownPkgs =
             mkFlake: module:
-            (perSystem (mkFlake { inputs = flakeInputs; } (module // { debug = true; })))
-            ._module.args.pkgs.own or false;
+            let
+              flake = mkFlake { inputs = flakeInputs; } (module // { debug = true; });
+            in
+            (perSystem flake)._module.args.pkgs.own or false;
         in
         {
           nullkomma.nix.unit.tests.testPkgsByEntryPoint = {

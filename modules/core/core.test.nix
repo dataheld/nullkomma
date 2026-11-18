@@ -1134,7 +1134,7 @@
                 lock =
                   inputs:
                   builtins.toJSON {
-                    nodes.root.inputs = lib.genAttrs inputs lib.id;
+                    nodes.root.inputs = lib.genAttrs (lib.splitString " " inputs) lib.id;
                     root = "root";
                     version = 7;
                   };
@@ -1149,7 +1149,7 @@
                   printf '%s\n' "$@" | cmp calls -
                   : > calls
                 }
-                echo '${lock [ "nullkomma" ]}' > flake.lock
+                echo '${lock "nullkomma"}' > flake.lock
                 if ${update} nullkomma; then
                   echo "Update did not propagate file conflicts" >&2
                   exit 1
@@ -1157,7 +1157,7 @@
                 called 'flake update --flake . nullkomma' "''${files[@]}"
 
                 touch dev/flake.nix
-                echo '${lock [ "brand" "nullkomma" ]}' > dev/flake.lock
+                echo '${lock "brand nullkomma"}' > dev/flake.lock
                 ${update} nullkomma brand || true
                 called 'flake update --flake . nullkomma' 'flake update --flake ./dev brand nullkomma' "''${files[@]}"
 
@@ -1168,7 +1168,7 @@
                 grep -qF "'missing'" error
                 test ! -s calls
 
-                echo '${lock [ "fail" ]}' > flake.lock
+                echo '${lock "fail"}' > flake.lock
                 if ${update} fail; then
                   echo "Failed lock update was not propagated" >&2
                   exit 1
