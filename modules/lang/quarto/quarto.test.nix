@@ -197,7 +197,13 @@
             flake = callFlakeWith (
               { self, ... }:
               {
-                nullkomma.quarto.root = self.outPath + "/docs";
+                nullkomma.quarto = {
+                  root = self.outPath + "/docs";
+                  preview.args = [
+                    "--render"
+                    "all"
+                  ];
+                };
                 perSystem.nullkomma = {
                   quarto.package = quarto;
                   browse.command = "${pkgs.coreutils}/bin/true";
@@ -209,7 +215,7 @@
             export CALLED=$PWD/called
             mkdir -p repo/docs/sub && cd repo/docs/sub && git init -q ../..
             PC_DISABLE_TUI=1 ${task flake "quarto-preview"}
-            printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser > expected
+            printf '%s\n' "$(cd ../.. && pwd)/docs" preview --no-browser --render all > expected
             cmp expected "$CALLED"
             ${task flake "quarto-render"} --to html
             printf '%s\n' "$(cd ../.. && pwd)/docs" render --to html > expected

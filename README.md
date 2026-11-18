@@ -536,6 +536,10 @@ With `brand.enable`, list the generated `_nullkomma-brand.yml` in `_quarto.yml`'
   # Git-ignored) and in the build.
   # nullkomma.quarto.extensions = { };
 
+  # Extra arguments to `quarto preview`, after `--no-browser`; e.g. `--render
+  # all` to render all formats before serving.
+  # nullkomma.quarto.preview.args = [ ];
+
   # Generated page, relative to `root`, rendering `nullkomma.privacy.sections`
   # if there are any; null to write your own.
   # nullkomma.quarto.privacy.page = "privacy.qmd";

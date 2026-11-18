@@ -58,6 +58,15 @@
           default = "privacy.qmd";
           description = "Generated page, relative to `root`, rendering `nullkomma.privacy.sections` if there are any; null to write your own.";
         };
+        preview.args = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [ ];
+          example = [
+            "--render"
+            "all"
+          ];
+          description = "Extra arguments to `quarto preview`, after `--no-browser`; e.g. `--render all` to render all formats before serving.";
+        };
       };
       options.perSystem = flake-parts-lib.mkPerSystemOption (
         { pkgs, ... }:
@@ -128,9 +137,9 @@
               all.depends_on.quarto-render.condition = "process_completed_successfully";
               # Quarto watches the working tree and live-reloads the browser itself.
               quarto-preview =
-                quartoProcess "Serve the site on localhost, re-rendering and reloading on changes" "preview" [
-                  "--no-browser"
-                ]
+                quartoProcess "Serve the site on localhost, re-rendering and reloading on changes" "preview" (
+                  [ "--no-browser" ] ++ cfg.preview.args
+                )
                 // {
                   ready_log_line = "Browse at";
                 };
