@@ -105,6 +105,10 @@
           "${prefix}.luarc.json"
         ];
         nullkomma.gitignore = [
+          # Quarto's own lines, which it appends unless it finds them verbatim.
+          "/.quarto/"
+          "**/*.quarto_ipynb"
+          # Also beside documents rendered outside a project.
           ".quarto/"
           "_site/"
           "site_libs/"
