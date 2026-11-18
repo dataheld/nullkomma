@@ -1,7 +1,7 @@
 # nullkomma's own building blocks, published as flake-parts modules
 # (https://flake.parts/options/flake-parts-flakeModules): `flakeModules.<plugin>`,
 # `flakeModules.framework` and `flakeModules.default`, also as `modules.flake.*`.
-# `framework` and `plugins` are internal to this flake; several files can contribute to one.
+# `framework`, `mkFlake` and `plugins` are internal to this flake; several files can contribute to one.
 {
   config,
   inputs,
@@ -14,6 +14,11 @@
     type = lib.types.deferredModule;
     default = { };
     description = "Shared nullkomma option and output plumbing, without plugin selection; exported as `flakeModules.framework`.";
+  };
+  options.mkFlake = lib.mkOption {
+    type = lib.types.deferredModule;
+    default = { };
+    description = "What `lib.mkFlake` adds to `flakeModules.default`, as it evaluates the flake with nullkomma's flake-parts.";
   };
   options.plugins = lib.mkOption {
     type = lib.types.lazyAttrsOf lib.types.deferredModule;

@@ -128,6 +128,10 @@ Everything else comes from your project's flake.
 
 ### Adding nullkomma to a project
 
+This is for a leaf, a project that no other flake has as an input.
+If other flakes have yours as an input, set it up as [Development-only inputs](#development-only-inputs) describes,
+so that nullkomma does not enter their `flake.lock`.
+
 In your project, with a clean working tree, run:
 
 ```sh
@@ -181,9 +185,15 @@ partitions.dev = {
 
 nullkomma then takes per-system outputs, such as `packages` or `checks`, from the partition.
 
-If other flakes consume yours, keep nullkomma itself in that partition too,
-but leave `schemas` out of `partitionedAttrs`, and `apps` too if the partition has none:
-most `nix` commands read `schemas` to resolve `.#name`, and `nix run` searches `apps`.
+If other flakes consume yours, keep nullkomma itself in `dev/flake.nix` too,
+and import `flakeModules.default` only in the partition, with your own `nixpkgs` and `flake-parts`,
+as in [this tested example](https://github.com/dataheld/nullkomma/blob/main/tests/fixtures/dev-only/flake.nix).
+`pkgs` then comes from your `nixpkgs`, which flake-checker checks.
+In `partitionedAttrs`, add `apps` if the partition has any,
+and leave out `packages` if consuming flakes read yours: they would fetch the partition's inputs.
+Then also set `systems` at the root; nullkomma sets it only in the partition,
+and without it the root's `packages` are empty.
+Leave out `schemas`: most `nix` commands read it to resolve `.#name`.
 Nix's default schemas then list `processTrees`, `taskRunners` and `tests` as unknown.
 
 ### Linting

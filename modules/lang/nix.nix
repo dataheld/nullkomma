@@ -13,6 +13,17 @@
       unitTests = lib.mapAttrs (_: c: c.nullkomma.nix.unit.tests) config.allSystems;
     in
     {
+      # Where flake-parts' partitions module is imported, as `lib.mkFlake` does.
+      imports = [
+        (
+          { options, ... }:
+          {
+            config = lib.optionalAttrs (options ? partitionedAttrs) {
+              partitionedAttrs.tests = lib.mkIf (cfg.nix.enable && config.partitions ? dev) (lib.mkDefault "dev");
+            };
+          }
+        )
+      ];
       options.perSystem = flake-parts-lib.mkPerSystemOption {
         options.nullkomma.nix.unit = {
           tests = lib.mkOption {
@@ -37,7 +48,6 @@
       config = lib.mkIf cfg.nix.enable {
         nullkomma.agents.skills.nk-upgrade = ./_nix/nk-upgrade;
         nullkomma.lint.jscpd.formatsExts.nix = lib.mkDefault [ "nix" ];
-        partitionedAttrs.tests = lib.mkIf (config.partitions ? dev) (lib.mkDefault "dev");
         # Unconditional: deciding by the tests would make every output depend on every system.
         flake = {
           tests.systems = unitTests;
@@ -130,16 +140,34 @@
               };
               flake-update = {
                 namespace = "nix";
-                description = "Update flake inputs, then write-files and generate-files; args go to `nix flake update`";
+                description = "Update flake inputs in flake.lock and dev/flake.lock, all or those named, then write-files and generate-files";
                 disabled = true;
                 # Uses the project's own `nix`, which may differ from Nixpkgs'.
                 command = pkgs.writeShellApplication {
                   name = "flake-update";
+                  runtimeInputs = [ pkgs.jq ];
                   text = ''
-                    nix flake update "$@"
-                    if [[ $# == 0 && -f dev/flake.nix ]]; then
-                      nix flake update --flake ./dev
+                    flakes=(.)
+                    if [[ -f dev/flake.nix ]]; then
+                      flakes+=(./dev)
                     fi
+                    lockedInputs() {
+                      if [[ -f $1/flake.lock ]]; then
+                        jq -r '.nodes[.root].inputs | keys[] | select(IN($ARGS.positional[]))' --args -- "''${@:2}" < "$1/flake.lock"
+                      fi
+                    }
+                    for name in "$@"; do
+                      if [[ -z $(for flake in "''${flakes[@]}"; do lockedInputs "$flake" "$name"; done) ]]; then
+                        echo "flake-update: no flake.lock here has the input '$name'" >&2
+                        exit 1
+                      fi
+                    done
+                    for flake in "''${flakes[@]}"; do
+                      mapfile -t names < <(lockedInputs "$flake" "$@")
+                      if (($# == 0 || ''${#names[@]} > 0)); then
+                        nix flake update --flake "$flake" "''${names[@]}"
+                      fi
+                    done
                     status=0
                     nix develop --command nk write-files || status=1
                     nix develop --command nk generate-files || status=1

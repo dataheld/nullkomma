@@ -25,5 +25,5 @@ Available recipes:
 
     [nix]
     flake-checker *args       # Check that flake.lock pins a recent, upstream Nixpkgs
-    flake-update *args        # Update flake inputs, then write-files and generate-files; args go to `nix flake update`
+    flake-update *args        # Update flake inputs in flake.lock and dev/flake.lock, all or those named, then write-files and generate-files
 ```
