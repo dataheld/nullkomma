@@ -238,6 +238,10 @@ Use process-compose's own settings, such as
 a task's own `mcp` block, e.g. `mcp.type = "resource"`, changes how `nk mcp` serves it.
 Change plugins' tasks with ordinary module merging, e.g. `lib.mkForce` on a `command`;
 builds and checks then use the changed task too.
+
+For browser checks with nixpkgs' Playwright, set `PLAYWRIGHT_BROWSERS_PATH = config.nullkomma.playwrightBrowsers`.
+On Linux, its Chromium renders with the fonts of `nullkomma.fontconfig`, as R's and the agents' browsers do,
+whatever fonts and fontconfig configuration the machine has.
 A flake-parts module outside nullkomma can add tasks the same way.
 
 ### Brand
@@ -752,9 +756,9 @@ To keep a committed `.Rprofile` of your own, set
 
   # Chrome-compatible browser for shinytest2/chromote. On macOS, null uses
   # chromote's locally installed Chrome discovery; sandboxed browser tests
-  # require Linux or a supplied Nix browser. Default: Chromium with Liberation
-  # and DejaVu fonts on Linux when chromote (e.g. via shinytest2) is in pkg.lock
-  # or extraPackages; otherwise null.
+  # require Linux or a supplied Nix browser. Default: Chromium with
+  # `nullkomma.fontconfig` on Linux when chromote (e.g. via shinytest2) is in
+  # pkg.lock or extraPackages; otherwise null.
   # perSystem.nullkomma.r.browser = …;
 
   # System libraries to add to the build of an R package, for packages whose

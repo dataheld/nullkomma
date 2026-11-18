@@ -26,7 +26,15 @@
         {
           config.nullkomma.agents.mcpServers.playwright = lib.mkIf browser {
             type = "stdio";
-            command = lib.getExe pkgs.playwright-mcp;
+            # nixpkgs' playwright-mcp fixes PLAYWRIGHT_BROWSERS_PATH, but its Chromium takes FONTCONFIG_FILE.
+            command =
+              if pkgs.stdenv.isLinux then
+                "${pkgs.writeShellScript "playwright-mcp" ''
+                  export FONTCONFIG_FILE=${config.nullkomma.fontconfig}
+                  exec ${lib.getExe pkgs.playwright-mcp} "$@"
+                ''}"
+              else
+                lib.getExe pkgs.playwright-mcp;
             # The default browser profile would be in the read-only Nix store.
             args = [
               "--headless"
