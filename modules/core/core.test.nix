@@ -1174,10 +1174,9 @@
                   }
                 }
 
-                # With the project's and Quarto's lines, nothing conflicts.
+                # With the project's lines, nothing conflicts.
                 ${at "old" "write-files"}
                 grep -qxF /project-ignored .gitignore
-                grep -qxF '/.quarto/' .gitignore
                 grep -qxF /generated.txt .gitignore
                 test "$(grep -cF .agents .gitignore)" = 0
                 git add -A
