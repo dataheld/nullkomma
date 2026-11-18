@@ -1,7 +1,6 @@
+# nullkomma:git:start
 /.quarto/
 **/*.quarto_ipynb
-
-# nullkomma:git:start
 .quarto/
 _site/
 site_libs/

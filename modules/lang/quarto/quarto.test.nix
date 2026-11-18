@@ -165,6 +165,22 @@
             HOME=$TMPDIR quarto pandoc lua walk.lua
             touch $out
           '';
+        # Real quarto, since it appends to `.gitignore` what it does not find there verbatim.
+        quarto-render-ignored =
+          pkgs.runCommand "nullkomma-quarto-render-ignored" { nativeBuildInputs = [ pkgs.git ]; }
+            ''
+              ${harness.project fixtures.quarto.outPath}
+              ${task fixtures.quarto "write-files"}
+              git add -A
+              git -c user.name=test -c user.email=test@example.com commit -qm init
+              ${task fixtures.quarto "quarto-render"}
+              test -z "$(git status --porcelain)" || {
+                git status --porcelain
+                git --no-pager diff
+                exit 1
+              }
+              touch $out
+            '';
         # Real quarto, since the opener depends on the exact line it logs.
         quarto-preview-opens =
           let
