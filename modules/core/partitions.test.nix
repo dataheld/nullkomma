@@ -33,7 +33,7 @@
       nullkomma.nix.unit.tests.testDevOnlyNullkommaServesOutputs = {
         expr = map served [
           (callFlake devOnly)
-          # As set up before nullkomma imported flake-parts' partitions module only in `lib.mkFlake`.
+          # Projects may still disable nullkomma's partition defaults by their key.
           (callFlakeWith { disabledModules = [ { key = "nullkomma#devPartition"; } ]; } devOnly)
         ];
         expected = lib.replicate 2 {

@@ -151,20 +151,19 @@
                     if [[ -f dev/flake.nix ]]; then
                       flakes+=(./dev)
                     fi
-                    # The names after the flake that its flake.lock has as inputs.
-                    locked() {
+                    lockedInputs() {
                       if [[ -f $1/flake.lock ]]; then
-                        jq -r '.nodes[.root].inputs | keys[] | select(IN($ARGS.positional[]))' --args "''${@:2}" < "$1/flake.lock"
+                        jq -r '.nodes[.root].inputs | keys[] | select(IN($ARGS.positional[]))' --args -- "''${@:2}" < "$1/flake.lock"
                       fi
                     }
                     for name in "$@"; do
-                      if [[ -z $(for flake in "''${flakes[@]}"; do locked "$flake" "$name"; done) ]]; then
+                      if [[ -z $(for flake in "''${flakes[@]}"; do lockedInputs "$flake" "$name"; done) ]]; then
                         echo "flake-update: no flake.lock here has the input '$name'" >&2
                         exit 1
                       fi
                     done
                     for flake in "''${flakes[@]}"; do
-                      mapfile -t names < <(locked "$flake" "$@")
+                      mapfile -t names < <(lockedInputs "$flake" "$@")
                       if (($# == 0 || ''${#names[@]} > 0)); then
                         nix flake update --flake "$flake" "''${names[@]}"
                       fi

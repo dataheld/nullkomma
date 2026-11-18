@@ -187,6 +187,8 @@ as in [this tested example](https://github.com/dataheld/nullkomma/blob/main/test
 `pkgs` then comes from your `nixpkgs`, which flake-checker checks.
 In `partitionedAttrs`, add `apps` if the partition has any,
 and leave out `packages` if consuming flakes read yours: they would fetch the partition's inputs.
+Then also set `systems` at the root; nullkomma sets it only in the partition,
+and without it the root's `packages` are empty.
 Leave out `schemas`: most `nix` commands read it to resolve `.#name`.
 Nix's default schemas then list `processTrees`, `taskRunners` and `tests` as unknown.
 

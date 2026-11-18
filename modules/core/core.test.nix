@@ -1164,11 +1164,11 @@
                 ${update} nullkomma brand || true
                 called 'flake update --flake . nullkomma' 'flake update --flake ./dev brand nullkomma' "''${files[@]}"
 
-                if ${update} nullkomma missing 2> error; then
+                if ${update} nullkomma --help 2> error; then
                   echo "Update of an input no flake has succeeded" >&2
                   exit 1
                 fi
-                grep -qF "'missing'" error
+                grep -qF "'--help'" error
                 test ! -s calls
 
                 echo '${lock "fail"}' > flake.lock
