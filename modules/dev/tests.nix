@@ -3,7 +3,12 @@
 # fixtures' own checks and devshells become checks of nullkomma.
 {
   partitions.dev.module =
-    { inputs, lib, ... }:
+    {
+      config,
+      inputs,
+      lib,
+      ...
+    }:
     let
       nullkomma = inputs.self;
       root = ../..;
@@ -33,6 +38,7 @@
             self = self';
             nullkomma = debugged;
             inherit (nullkomma.inputs) nixpkgs;
+            flake-parts = consumerFlakeParts module;
           };
           outputs = flake.outputs flakeInputs;
           self' = outputs // {
@@ -44,12 +50,46 @@
           };
         in
         self';
+      # A consumer's own flake-parts, at another store path than nullkomma's, as its own lock gives.
+      # Where nullkomma is only a `dev` input, it serves this checkout to that partition,
+      # extended by `module`, and exposes the partition's `allSystems`.
+      consumerFlakeParts =
+        module:
+        let
+          inherit (inputs) flake-parts;
+          copy = builtins.path {
+            path = flake-parts.outPath;
+            name = "consumer-flake-parts";
+          };
+        in
+        flake-parts
+        // {
+          flakeModules = flake-parts.flakeModules // {
+            partitions = copy + "/extras/partitions.nix";
+          };
+          lib = flake-parts.lib // {
+            mkFlake =
+              args: consumer:
+              flake-parts.lib.mkFlake args {
+                imports = [ consumer ];
+                partitions.dev = {
+                  extraInputs = lib.mkForce { inherit nullkomma; };
+                  module = {
+                    imports = [ module ];
+                    debug = true;
+                  };
+                };
+                partitionedAttrs.allSystems = "dev";
+              };
+          };
+        };
       callFlake = callFlakeWith { };
       # Only the framework and `module`, without default plugins.
       rawAt =
         src: module:
         inputs.flake-parts.lib.mkFlake { inputs.self.outPath = src; } {
           imports = [
+            config.mkFlake
             nullkomma.flakeModules.framework
             module
           ];

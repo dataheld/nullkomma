@@ -1126,36 +1126,57 @@
                 nix = pkgs.writeShellScriptBin "nix" ''
                   printf '%s\n' "$*" >> "$NULLKOMMA_TEST_LOG"
                   case "$*" in
-                    "flake update fail") exit 7 ;;
+                    "flake update --flake . fail") exit 7 ;;
                     "develop --command nk write-files") exit 1 ;;
                   esac
                 '';
                 update = task fixtures.template "flake-update";
+                lock =
+                  inputs:
+                  builtins.toJSON {
+                    nodes.root.inputs = lib.genAttrs inputs lib.id;
+                    root = "root";
+                    version = 7;
+                  };
               in
               pkgs.runCommandLocal "nullkomma-file-update-task" { nativeBuildInputs = [ nix ]; } ''
-                mkdir project
+                mkdir -p project/dev
                 cd project
                 ${lib.getExe pkgs.git} init -q
                 export NULLKOMMA_TEST_LOG="$PWD/calls"
+                files=('develop --command nk write-files' 'develop --command nk generate-files')
+                called() {
+                  printf '%s\n' "$@" | cmp calls -
+                  : > calls
+                }
+                echo '${lock [ "nullkomma" ]}' > flake.lock
                 if ${update} nullkomma; then
                   echo "Update did not propagate file conflicts" >&2
                   exit 1
                 fi
-                printf '%s\n' 'flake update nullkomma' 'develop --command nk write-files' 'develop --command nk generate-files' > expected
-                cmp calls expected
-                : > calls
+                called 'flake update --flake . nullkomma' "''${files[@]}"
+
+                touch dev/flake.nix
+                echo '${lock [ "brand" "nullkomma" ]}' > dev/flake.lock
+                ${update} nullkomma brand || true
+                called 'flake update --flake . nullkomma' 'flake update --flake ./dev brand nullkomma' "''${files[@]}"
+
+                if ${update} nullkomma missing 2> error; then
+                  echo "Update of an input no flake has succeeded" >&2
+                  exit 1
+                fi
+                grep -qF "'missing'" error
+                test ! -s calls
+
+                echo '${lock [ "fail" ]}' > flake.lock
                 if ${update} fail; then
                   echo "Failed lock update was not propagated" >&2
                   exit 1
                 fi
-                printf '%s\n' 'flake update fail' > expected
-                cmp calls expected
-                : > calls
-                mkdir dev
-                touch dev/flake.nix
+                called 'flake update --flake . fail'
+
                 ${update} || true
-                printf '%s\n' 'flake update' 'flake update --flake ./dev' > expected
-                head -n 2 calls | cmp - expected
+                called 'flake update --flake .' 'flake update --flake ./dev' "''${files[@]}"
                 touch $out
               '';
             # Generated paths stay out of `git status` whether or not `write-files` ran.

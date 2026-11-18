@@ -50,6 +50,7 @@ in
       args: module:
       inputs.flake-parts.lib.mkFlake args {
         imports = [
+          config.mkFlake
           flakeModules.default
           module
         ];

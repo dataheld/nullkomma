@@ -8,12 +8,13 @@ description: >-
 # Upgrading nullkomma
 
 1. Start from a clean Git working tree.
-   Before updating, save nullkomma's locked revision from `flake.lock`.
+   Before updating, save nullkomma's locked revision from `flake.lock`,
+   or from `dev/flake.lock` if nullkomma is only a development input there.
    Follow the root input's reference, including any `follows` paths,
    rather than assuming its lock node is named `nullkomma`.
    Both GitHub and FlakeHub locks can provide `locked.rev`.
 1. Run `nk flake-update`, or `nk flake-update nullkomma` to update only nullkomma.
-   It updates `flake.lock`, then runs `write-files` and `generate-files`.
+   It updates `flake.lock` and `dev/flake.lock`, then runs `write-files` and `generate-files`.
    If it fails, inspect whether the lock update failed
    or only the subsequent file updates reported a problem.
    Do not treat a failed input update as a completed upgrade.
@@ -61,7 +62,7 @@ description: >-
    Does nullkomma now do this by default, or offer a more concise way?
 1. Reload the dev shell (`direnv reload`) so later commands use the new version.
 1. Run `nk all`, then `nk flake-check`, and fix what fails.
-1. Commit `flake.lock` and the updated files together.
+1. Commit the updated lock files and other files together.
 
 Do not update `README.md` or otherwise record the upgrade in the repository;
 report it to the user instead.
