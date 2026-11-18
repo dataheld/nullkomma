@@ -203,7 +203,10 @@
                 };
               }
               {
-                imports = [ nullkomma.flakeModules.framework ];
+                imports = [
+                  config.mkFlake
+                  nullkomma.flakeModules.framework
+                ];
                 debug = true;
                 perSystem.nullkomma.files = {
                   "source.txt".text = "nested";
