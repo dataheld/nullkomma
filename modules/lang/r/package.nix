@@ -13,33 +13,10 @@
     let
       cfg = config.nullkomma.r;
       rlib = import ../../../lib/r.nix { inherit lib; };
-      # Only these fonts and fontconfig's own rules:
-      # a machine's fonts and configuration must not change what browser tests render.
-      fontsConf =
-        pkgs:
-        let
-          rules = pkgs.runCommand "fontconfig-conf.d" { } ''
-            cp -rL ${pkgs.fontconfig.out}/etc/fonts/conf.d "$out"
-            chmod u+w "$out"
-            rm "$out"/{50-user,51-local}.conf
-          '';
-        in
-        pkgs.runCommand "fonts.conf" { } ''
-          grep -vF '<dir prefix="xdg">fonts</dir>' ${
-            pkgs.makeFontsConf {
-              fontDirectories = [
-                pkgs.liberation_ttf
-                pkgs.dejavu_fonts
-              ];
-              impureFontDirectories = [ ];
-              includes = [ rules ];
-            }
-          } > "$out"
-        '';
     in
     {
       options.perSystem = flake-parts-lib.mkPerSystemOption (
-        { pkgs, ... }:
+        { config, pkgs, ... }:
         {
           options.nullkomma.r.browser = lib.mkOption {
             type = lib.types.nullOr lib.types.package;
@@ -51,13 +28,13 @@
                 pkgs.writeShellApplication {
                   name = "r-chromium-with-fonts";
                   text = ''
-                    export FONTCONFIG_FILE=${fontsConf pkgs}
+                    export FONTCONFIG_FILE=${config.nullkomma.fontconfig}
                     exec ${lib.getExe pkgs.chromium} "$@"
                   '';
                 }
               else
                 null;
-            defaultText = lib.literalMD "Chromium with Liberation and DejaVu fonts on Linux when chromote (e.g. via shinytest2) is in pkg.lock or extraPackages; otherwise null";
+            defaultText = lib.literalMD "Chromium with `nullkomma.fontconfig` on Linux when chromote (e.g. via shinytest2) is in pkg.lock or extraPackages; otherwise null";
             description = "Chrome-compatible browser for shinytest2/chromote. On macOS, null uses chromote's locally installed Chrome discovery; sandboxed browser tests require Linux or a supplied Nix browser.";
           };
           options.nullkomma.r.packages = lib.mkOption {
