@@ -60,6 +60,13 @@ description: >-
    and compare it with this project.
    For each difference: is it still needed?
    Does nullkomma now do this by default, or offer a more concise way?
+1. Check where nullkomma is an input.
+   If other flakes have this project as an input,
+   nullkomma belongs only in `dev/flake.nix`,
+   as README's "Development-only inputs" describes;
+   otherwise, in `flake.nix`, as the template has it.
+   Ask the user if the repository does not show whether other flakes use it.
+   If the project has the other setup, propose the move to the user.
 1. Reload the dev shell (`direnv reload`) so later commands use the new version.
 1. Run `nk all`, then `nk flake-check`, and fix what fails.
 1. Commit the updated lock files and other files together.

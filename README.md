@@ -128,6 +128,10 @@ Everything else comes from your project's flake.
 
 ### Adding nullkomma to a project
 
+This is for a leaf, a project that no other flake has as an input.
+If other flakes have yours as an input, set it up as [Development-only inputs](#development-only-inputs) describes,
+so that nullkomma does not enter their `flake.lock`.
+
 In your project, with a clean working tree, run:
 
 ```sh
