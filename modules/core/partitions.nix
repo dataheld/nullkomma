@@ -2,9 +2,9 @@
 # `partitions.dev.extraInputsFlake`, so consumers never lock or fetch them.
 # Per-system outputs then come from the `dev` partition;
 # flake-level outputs, such as `lib`, cannot depend on those inputs.
-# The flake-parts that evaluates a flake brings flake-parts' partitions module:
-# `lib.mkFlake` nullkomma's, a consumer's own `mkFlake` the consumer's.
-# Another copy, from another pin, would declare its options twice.
+# The flake-parts that evaluates the flake imports its own partitions module:
+# nullkomma's in `lib.mkFlake`, the consumer's in its own `mkFlake`.
+# A second copy, from another pin, would declare the same options twice.
 { inputs, ... }:
 let
   inherit (inputs.flake-parts.flakeModules) partitions;

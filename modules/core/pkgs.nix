@@ -1,7 +1,8 @@
-# `lib.mkFlake` makes nullkomma's curated Nixpkgs pin the default `pkgs`. Consumers expose it
-# as their own input (`nixpkgs.follows = "nullkomma/nixpkgs"`, as in the template),
+# `lib.mkFlake` makes nullkomma's curated Nixpkgs pin the default `pkgs`.
+# Consumers expose it as their own input
+# (`nixpkgs.follows = "nullkomma/nixpkgs"`, as in the template),
 # so lock tooling such as flake-checker sees the Nixpkgs they actually use.
-# Elsewhere, as in a `dev` partition of a flake that does not use `lib.mkFlake`,
+# Elsewhere, as in a `dev` partition of a flake without `lib.mkFlake`,
 # `pkgs` is flake-parts' default: the flake's own `nixpkgs` input.
 { inputs, ... }:
 {
