@@ -3,6 +3,12 @@
 [![built with nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
 [![FlakeHub](https://img.shields.io/endpoint?url=https://flakehub.com/f/dataheld/nullkomma/badge)](https://flakehub.com/flake/dataheld/nullkomma)
 
+> [!WARNING]
+> nullkomma is an experiment.
+> The design goals are fixed,
+> but the implementation is unstable and partially vibe-coded to prove things out.
+> Not recommended for production use.
+
 extra-[DRY](https://en.wikipedia.org/wiki/Don%27t_repeat_yourself) 🤌,
 maximally transparent 🫥,
 batteries-included 🔋
