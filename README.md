@@ -99,12 +99,14 @@ builds and checks run sandboxed, on the files Git tracks (`git add` new files fi
 | `nix flake update`                    | (`flake.lock`)      | `nk flake-update`                     |                                            |
 
 `nk flake-update` also runs `write-files` and `generate-files`;
-after another `nix flake update`, e.g. by a bot, run those two yourself.
+after another `nix flake update`, e.g. by a bot, run those two yourself and commit what they change.
 
 ### MCP servers and skills
 
 The [`agents`](#agents) plugin generates two things that coding agents read,
-from your `flake.lock`, so they match the nullkomma you use:
+from your `flake.lock`, so they match the nullkomma you use.
+Agents read them on opening a checkout, before anything can enter the development shell,
+so both are [committed](#files-in-your-repository):
 
 - `.mcp.json` lists [MCP] servers.
   `nullkomma` (`nk mcp`) serves the tasks as tools,
@@ -114,6 +116,8 @@ from your `flake.lock`, so they match the nullkomma you use:
   The agent starts each server when it needs it, so they are not processes of the `dev` tree.
   Stdio servers start in the development shell (`nix develop --command`),
   so they and the processes they start see its environment.
+  A server given as a store path starts as `mcp-<name>` from the shell's `PATH`,
+  so the file is the same on every system.
 - `.agents/skills/` holds [Agent Skills](https://agentskills.io), named `nk-*`.
 
 This repository is also an [Agent Plugin](https://agent-plugins.org):
@@ -321,22 +325,32 @@ The sections are a starting point, not legal advice.
 
 Features live in Nix; nullkomma writes files only where tools need them:
 
-|                             | **Source of truth** (committed, yours to edit)       | **Generated from Nix** (Git-ignored, don't edit)                                            |
-| --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `nix flake init --template` | `flake.nix`                                          |                                                                                             |
-| `write-files`               | `.envrc`, `.gitignore` and `AGENTS.md` sections, GitHub workflows, `.gitlab-ci.yml` |                                                                                             |
-| `generate-files`            |                                                      | `.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
+|                             | **Source of truth** (committed, yours to edit)                                      | **Generated from Nix** (committed, don't edit)      | **Generated from Nix** (Git-ignored, don't edit)                                              |
+| --------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `nix flake init --template` | `flake.nix`                                                                         |                                                     |                                                                                               |
+| `write-files`               | `.envrc`, `.gitignore` and `AGENTS.md` sections, GitHub workflows, `.gitlab-ci.yml` |                                                     |                                                                                               |
+| `generate-files`            |                                                                                     | `.mcp.json`, `.vscode/mcp.json`, `.agents/skills/*` | `.vscode/settings.json`, `.vscode/extensions.json`, `.nvim.lua`, Quarto brand and extensions |
+
+[The snapshots of the example projects](https://github.com/dataheld/nullkomma/tree/main/tests/snapshots)
+list each one's files by mode.
 
 `write-files` writes source-of-truth files (`nullkomma.files."<path>".mode = "source"`) once; then they are yours.
 It keeps only their marked `sections` up to date, wherever you moved them, and strips them once nullkomma no longer declares them.
 Add your own lines outside the markers, for example your jobs below nullkomma's section of `push.yml`.
 
-`generate-files` overwrites generated files (`mode = "generated"`) when they differ from Nix,
-and removes ones no longer declared; it refuses to overwrite files Git tracks.
-A generated directory holds its own `.gitignore`;
-a generated file must be ignored already, usually by nullkomma's `.gitignore` section, or `generate-files` does not write it and fails.
+`generate-files` overwrites generated files when they differ from Nix,
+and removes ones no longer declared.
 Entering the dev shell runs it; tasks never do.
 To change a generated file, change the Nix options.
+
+- Git-ignored files (`mode = "generated"`) serve tools that run in the dev shell.
+  `generate-files` refuses to overwrite files Git tracks.
+  A generated directory holds its own `.gitignore`;
+  a generated file must be ignored already, usually by nullkomma's `.gitignore` section, or `generate-files` does not write it and fails.
+- Committed files (`mode = "committed"`) serve programs that read them on opening a checkout,
+  before anything can enter the dev shell, such as coding agents.
+  Git must not ignore them, and their content must be the same on every system.
+  The `generate-files-check` check fails when they differ from Nix: commit what `generate-files` changes.
 
 ## Plugins
 
@@ -345,7 +359,7 @@ Those marked under Default are enabled unless you opt out.
 
 | Plugin                                                                                            | Default | `devShells`                                                                                                    | `formatter`                                | `checks`                                                  | `packages`         | `apps`                     | `taskRunners`                                                                                                                                  | `processTrees`                                                                                                                                | MCP                                             |
 | ------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------- | ------------------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| framework                                                                                         | always  | `nk`, [`process-compose`][process-compose]                                                                     | [treefmt]                                  | `treefmt`; [each `check` prerequisite](#tasks-and-checks) |                    |                            | `all`, `check`, `flake-check`, `treefmt`, `write-files`, `generate-files`, `mcp`, `graph`                                                      | `dev`: `treefmt`                                                                                                                              | `nullkomma`                                     |
+| framework                                                                                         | always  | `nk`, [`process-compose`][process-compose], `mcp-<server>`                                                                     | [treefmt]                                  | `treefmt`, `generate-files-check`; [each `check` prerequisite](#tasks-and-checks) |                    |                            | `all`, `check`, `flake-check`, `treefmt`, `write-files`, `generate-files`, `generate-files-check`, `mcp`, `graph`                                                      | `dev`: `treefmt`                                                                                                                              | `nullkomma`                                     |
 | [`nix`](#nix)                                                                                     | ✅       | [nixd]                                                                                                         | [`nixfmt`], [`deadnix`], [`nixf-diagnose`] | `nix-unit`                                                |                    |                            | `nix-unit`, `flake-update`, [`flake-checker`]                                                                                                  | `flake-checker`, `nix-unit`                                                                                                                   |                                                 |
 | [`markdown`][md]                                                                                  | ✅       | [`rumdl`]                                                                                                     | [`mdformat`], [`rumdl`]                    |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`json`][json]                                                                                    | ✅       | [JSON language server][jsonls]                                                                                 | [`jsonfmt`]                                |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
