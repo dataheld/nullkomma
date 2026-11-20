@@ -1,4 +1,6 @@
-# `nk` in `tests/fixtures/r-shiny`
+# `tests/fixtures/r-shiny`
+
+## `nk`
 
 ```text
 Available recipes:
@@ -6,7 +8,8 @@ Available recipes:
     all *args                  # Format, build and run every check
     check *args                # Run the checks that `nix flake check` also runs
     flake-check *args          # Run every check sandboxed, on Git-tracked files, as CI does; args go to `nix flake check`
-    generate-files *args       # Regenerate nullkomma's Git-ignored files; entering the dev shell does this too
+    generate-files *args       # Regenerate the files nullkomma generates from Nix; entering the dev shell does this too
+    generate-files-check *args # Check that the committed generated files match Nix
     treefmt *args              # Format and lint all files
     write-files *args          # Update the files nullkomma committed, keeping your edits
     mcp                        # Serve the tasks as MCP tools over stdio, for agents
@@ -31,4 +34,23 @@ Available recipes:
     r-preview-site             # Serve the pkgdown website on localhost, reloading pages when r-build-site rewrites them
     r-run-app                  # Serve the working-tree Shiny apps with pkgload, open them in the browser, and reload them on changes
     r-test *args               # Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package
+```
+
+## Files
+
+```text
+committed .agents/skills/nk-audit-output/
+committed .agents/skills/nk-upgrade/
+committed .agents/skills/nullkomma-r-package-development/
+committed .mcp.json
+committed .vscode/mcp.json
+generated .Rprofile
+generated .nvim.lua
+generated .vscode/extensions.json
+generated .vscode/settings.json
+source    .Rbuildignore (sections: r)
+source    .envrc (sections: direnv)
+source    .github/workflows/push.yml (sections: github)
+source    .gitignore (sections: git)
+source    AGENTS.md (sections: agents)
 ```

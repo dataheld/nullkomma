@@ -2,10 +2,13 @@
 mode="${mode:?file mode must be set by the caller}"
 sections="${sections:?the section splicer must be set by the caller}"
 manifest="${manifest:?the list of generated files must be set by the caller}"
+committed_manifest="${committed_manifest:?the list of committed generated files must be set by the caller}"
 cd "${root:?the project root must be set by the caller}" || exit 1
 status=0
 declared=()
+committed=()
 unignored=()
+ignored=()
 if [ "$#" != 0 ]; then
   echo "Usage: $mode-files takes no arguments" >&2
   exit 1
@@ -35,16 +38,25 @@ declare_file() {
   declared+=("$1")
 }
 
+# Usage: process_file <path> <source> <source|generated|committed>
 process_file() {
-  local path="$1" source="$2"
+  local path="$1" source="$2" kind="$3"
   safe_path "$path" || return
   declared+=("$path")
-  if [ "$mode" = generated ] && git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+  if [ "$kind" = generated ] && git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
     echo "Refusing to overwrite tracked $path with a generated file; remove it from Git or disable the file in Nix." >&2
     status=1
     return
   fi
-  if [ "$mode" = generated ] && [ -d "$source" ]; then
+  if [ "$kind" = committed ]; then
+    committed+=("$path")
+    if git check-ignore -q -- "$path"; then
+      ignored+=("$path")
+      status=1
+      return
+    fi
+  fi
+  if [ "$kind" != source ] && [ -d "$source" ]; then
     if [ -e "$path" ] && [ ! -d "$path" ]; then
       echo "Not a directory: $path" >&2
       status=1
@@ -60,13 +72,13 @@ process_file() {
     return
   fi
   regular "$path" || return
-  if [ "$mode" = generated ] && ! git check-ignore -q -- "$path"; then
+  if [ "$kind" = generated ] && ! git check-ignore -q -- "$path"; then
     unignored+=("$path")
     status=1
     return
   fi
   # Source files without sections are written once, then the project's.
-  if [ ! -e "$path" ] || { [ "$mode" = generated ] && ! cmp -s "$source" "$path"; }; then
+  if [ ! -e "$path" ] || { [ "$kind" != source ] && ! cmp -s "$source" "$path"; }; then
     install_file "$path" "$source"
   fi
 }
@@ -127,22 +139,13 @@ in_nested_project() {
   return 1
 }
 
-# Removes what nullkomma no longer declares: earlier generated files, and the sections of
-# tracked files outside nested projects, as complete marker pairs.
+# Removes what nullkomma no longer declares: earlier generated files,
+# and the sections of tracked files outside nested projects, as complete marker pairs.
 prune() {
-  local list path stripped
+  local path stripped
   if [ "$mode" = generated ]; then
-    list="$(git rev-parse --path-format=absolute --git-path "$manifest")"
-    mkdir -p "$(dirname "$list")"
-    touch "$list"
-    while IFS= read -r path; do
-      if [ -n "$path" ] && ! is_declared "$path" && safe_path "$path" &&
-        [ -e "$path" ] && ! git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
-        rm -rf "$path"
-        echo "removed $path (no longer generated)"
-      fi
-    done <"$list"
-    printf '%s\n' "${declared[@]}" >"$list"
+    prune_generated "$manifest" ignored "${declared[@]}"
+    prune_generated "$committed_manifest" committed "${committed[@]}"
     return
   fi
   while IFS= read -r -d '' path; do
@@ -160,10 +163,31 @@ prune() {
   done < <(git grep -lzE '^[^[:space:]]+ nullkomma:[^:[:space:]]+:start' || true)
 }
 
+# Usage: prune_generated <manifest> <ignored|committed> <paths it lists from now on...>
+# An ignored file that Git now tracks is the project's; a committed one stays nullkomma's.
+prune_generated() {
+  local list kind="$2" path
+  list="$(git rev-parse --path-format=absolute --git-path "$1")"
+  shift 2
+  mkdir -p "$(dirname "$list")"
+  touch "$list"
+  while IFS= read -r path; do
+    if [ -n "$path" ] && ! is_declared "$path" && safe_path "$path" && [ -e "$path" ] &&
+      { [ "$kind" = committed ] || ! git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; }; then
+      rm -rf "$path"
+      echo "removed $path (no longer generated)"
+    fi
+  done <"$list"
+  printf '%s\n' "$@" >"$list"
+}
+
 finish() {
   prune
   if [ "${#unignored[@]}" != 0 ]; then
     echo "Not written, because Git does not ignore them: ${unignored[*]}. Add them to .gitignore; with the git plugin, nk write-files does that." >&2
+  fi
+  if [ "${#ignored[@]}" != 0 ]; then
+    echo "Not written, because Git ignores them, though they are to be committed: ${ignored[*]}. Remove them from .gitignore; with the git plugin, nk write-files does that." >&2
   fi
   exit "$status"
 }

@@ -79,6 +79,7 @@
     { config, lib, ... }:
     let
       enabled = config.nullkomma.vscode.enable;
+      inDevShell = config.nullkomma.devShell.enable;
     in
     {
       config.perSystem =
@@ -93,7 +94,8 @@
               (
                 name: content:
                 lib.nameValuePair ".vscode/${name}.json" {
-                  mode = lib.mkDefault "generated";
+                  # Agents in VS Code read `mcp.json` on opening a checkout.
+                  mode = lib.mkDefault (if name == "mcp" && inDevShell then "committed" else "generated");
                   commentPrefix = "//";
                   source = json.generate "vscode-${name}.json" content;
                 }

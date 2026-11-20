@@ -1,6 +1,7 @@
 # Coding agents get always-on rules from a section of the committed AGENTS.md,
 # version-specific workflows as Agent Skills (https://agentskills.io) generated from Nix,
 # and MCP servers from a generated `.mcp.json`.
+# Agents read skills and servers on opening a checkout, so both are committed.
 {
   framework =
     {
@@ -12,6 +13,10 @@
     let
       browser = config.nullkomma.agents.browser.enable;
       inDevShell = config.nullkomma.devShell.enable;
+      # Store paths differ between systems,
+      # so a committed configuration names a command on the dev shell's PATH.
+      launcher = name: "mcp-${name}";
+      stored = server: server ? command && builtins.hasContext server.command;
     in
     {
       options.nullkomma.agents.browser.enable =
@@ -50,10 +55,10 @@
           options.nullkomma.agents.generatedMcpServers = lib.mkOption {
             type = lib.types.attrsOf lib.types.anything;
             readOnly = true;
-            description = "`mcpServers` as generated configurations list them: with the dev shell enabled, stdio servers start through `nix develop --command`, so they see its environment.";
+            description = "`mcpServers` as generated configurations list them: with the dev shell enabled, stdio servers start through `nix develop --command`, so they see its environment, by a command on its `PATH`: `mcp-<name>` for a store path.";
           };
           config.nullkomma.agents.generatedMcpServers = lib.mapAttrs (
-            _: server:
+            name: server:
             if inDevShell && server ? command then
               server
               // {
@@ -61,13 +66,18 @@
                 args = [
                   "develop"
                   "--command"
-                  server.command
+                  (if stored server then launcher name else server.command)
                 ]
                 ++ server.args or [ ];
               }
             else
               server
           ) config.nullkomma.agents.mcpServers;
+          config.nullkomma.devShell.packages = lib.mkIf inDevShell (
+            lib.mapAttrsToList (
+              name: server: pkgs.writeShellScriptBin (launcher name) ''exec ${server.command} "$@"''
+            ) (lib.filterAttrs (_: stored) config.nullkomma.agents.mcpServers)
+          );
         }
       );
       config.nullkomma.gitignore = lib.mkIf browser [ ".playwright-mcp/" ];
@@ -76,12 +86,13 @@
     { config, lib, ... }:
     let
       cfg = config.nullkomma.agents;
+      inDevShell = config.nullkomma.devShell.enable;
     in
     {
       config = lib.mkIf cfg.enable {
         nullkomma.agents.skills.nk-audit-output = ./_agents/nk-audit-output;
         perSystem =
-          { config, ... }:
+          { config, pkgs, ... }:
           {
             nullkomma.files = {
               "AGENTS.md" = {
@@ -90,15 +101,18 @@
                 sections.agents = builtins.readFile ./_agents/AGENTS.md;
               };
               ".mcp.json" = {
-                mode = lib.mkDefault "generated";
-                text = builtins.toJSON { mcpServers = config.nullkomma.agents.generatedMcpServers; };
+                # Without the dev shell, stdio servers start from store paths.
+                mode = lib.mkDefault (if inDevShell then "committed" else "generated");
+                source = (pkgs.formats.json { }).generate "mcp.json" {
+                  mcpServers = config.nullkomma.agents.generatedMcpServers;
+                };
               };
             }
             // lib.mapAttrs' (
               name: source:
               lib.nameValuePair ".agents/skills/${name}" {
                 inherit source;
-                mode = "generated";
+                mode = lib.mkDefault "committed";
                 directory = true;
               }
             ) cfg.skills;

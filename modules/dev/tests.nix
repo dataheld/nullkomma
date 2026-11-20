@@ -157,16 +157,30 @@
               done
             }
           '';
-          # What a fixture's user sees: the `nk` menu; variants of another fixture share its menu.
+          # What a fixture's user sees: the `nk` menu and the files nullkomma writes, by mode;
+          # variants of another fixture share them.
           snapshots =
             lib.mapAttrs
               (
                 name: flake:
+                let
+                  files = lib.filterAttrs (_: f: f.enable) (perSystem flake).nullkomma.files;
+                  describe = path: f: [
+                    f.mode
+                    (path + lib.optionalString f.directory "/")
+                    (lib.optionalString (
+                      f.sections != { }
+                    ) " (sections: ${lib.concatStringsSep ", " (lib.attrNames f.sections)})")
+                  ];
+                  rows = lib.concatLists (lib.sortOn lib.concatStrings (lib.mapAttrsToList describe files));
+                in
                 pkgs.runCommand "nullkomma-snapshot-${name}" { } ''
                   ${project flake.outPath}
                   {
-                    printf '# `nk` in `%s`\n\n```text\n' ${relative flake}
+                    printf '# `%s`\n\n## `nk`\n\n```text\n' ${relative flake}
                     ${task flake ""}
+                    printf '```\n\n## Files\n\n```text\n'
+                    printf '%-10s%s%s\n' ${lib.escapeShellArgs rows}
                     printf '```\n'
                   } > "$out"
                 ''
@@ -337,7 +351,7 @@
           process-compose.dev.settings.processes.all.depends_on.check-fixtures.condition =
             "process_completed_successfully";
           process-compose.dev.settings.processes.check-fixtures = {
-            description = "Initialize the template, then run nix flake check and flake-checker on it";
+            description = "Initialize the template and generate its files, then run nix flake check and flake-checker on it";
             disabled = true;
             command = pkgs.writeShellApplication {
               name = "check-fixtures";
@@ -352,7 +366,15 @@
                 # The root needs no partition for what it defines itself; `dev/` is missing here.
                 mkdir "$scratch/root" "$scratch/project"
                 cp -R "$root"/{flake.nix,flake.lock,lib,modules,templates} "$scratch/root/"
-                (cd "$scratch/project" && nix flake init --template "path:$scratch/root")
+                (
+                  cd "$scratch/project"
+                  nix flake init --template "path:$scratch/root"
+                  git init -q
+                  for task in write-files generate-files; do
+                    nix develop "path:$PWD" --override-input nullkomma "path:$root" \
+                      --no-write-lock-file --command nk "$task"
+                  done
+                )
                 nix flake check "path:$scratch/project" \
                   --override-input nullkomma "path:$root" \
                   --no-write-lock-file --print-build-logs
@@ -366,7 +388,11 @@
             lib.concatMapAttrs (
               name: flake:
               lib.mapAttrs' (check: lib.nameValuePair "fixture-${name}-${check}") (
-                flake.checks.${system} // { devshell = flake.devShells.${system}.default; }
+                # Fixtures are not adopted projects, so they commit no generated files.
+                removeAttrs flake.checks.${system} [ "generate-files-check" ]
+                // {
+                  devshell = flake.devShells.${system}.default;
+                }
               )
             ) fixtures
             // lib.mapAttrs' (

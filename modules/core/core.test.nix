@@ -193,6 +193,29 @@
               };
             }
           );
+          committedVersions = lib.genAttrs [ "old" "new" ] (
+            version:
+            raw {
+              perSystem.nullkomma.files = {
+                "committed.txt" = {
+                  text = version;
+                  mode = "committed";
+                  commentPrefix = "#";
+                };
+                "skill" = {
+                  source = template;
+                  mode = "committed";
+                  directory = true;
+                };
+              }
+              // lib.optionalAttrs (version == "old") {
+                "stale.txt" = {
+                  text = version;
+                  mode = "committed";
+                };
+              };
+            }
+          );
           # A flake in `nested/`, below its repository's root.
           nestedFiles =
             inputs.flake-parts.lib.mkFlake
@@ -303,19 +326,14 @@
               {
                 expr = {
                   enabled = lib.mapAttrs (_: f: f.mode) (files true);
-                  servers = lib.attrNames (builtins.fromJSON (files true).".mcp.json".text).mcpServers;
                   disabled = files false;
                 };
                 expected = {
-                  servers = [
-                    "demo"
-                    "nullkomma"
-                  ];
                   enabled = {
                     ".mcp.json" = "generated";
                     "AGENTS.md" = "source";
-                    ".agents/skills/demo" = "generated";
-                    ".agents/skills/nk-audit-output" = "generated";
+                    ".agents/skills/demo" = "committed";
+                    ".agents/skills/nk-audit-output" = "committed";
                   };
                   disabled = { };
                 };
@@ -432,6 +450,16 @@
               ) (lib.attrNames plugins);
               expected = [ ];
             };
+            # Committed MCP configurations must not differ between systems.
+            testGeneratedMcpServersHaveNoStorePaths = {
+              expr = lib.attrNames (
+                lib.filterAttrs (
+                  _: flake:
+                  builtins.hasContext (builtins.toJSON (perSystem flake).nullkomma.agents.generatedMcpServers)
+                ) fixtures
+              );
+              expected = [ ];
+            };
             testGitignoreContainsPluginPatternsAndGeneratedFiles = {
               expr = map (flake: (perSystem flake).nullkomma.files.".gitignore".sections.git) [
                 fixtures.template
@@ -448,10 +476,8 @@
                   "result-*"
                   ".direnv/"
                   "/.nullkomma/gcroots/"
-                  "/.mcp.json"
                   "/.nvim.lua"
                   "/.vscode/extensions.json"
-                  "/.vscode/mcp.json"
                   "/.vscode/settings.json"
                 ])
                 (lib.concatLines [
@@ -459,9 +485,7 @@
                   "result-*"
                   ".direnv/"
                   "/.nullkomma/gcroots/"
-                  "/.mcp.json"
                   "/.nvim.lua"
-                  "/.vscode/mcp.json"
                 ])
               ];
             };
@@ -580,28 +604,36 @@
                 missingLanguage = false;
               };
             };
+            # In the dev shell, generated configurations name commands on its PATH, so they can be committed.
             testStdioServersStartInDevShell =
               let
-                servers =
+                hello = lib.getExe pkgs.hello;
+                project =
                   devShell:
-                  (builtins.fromJSON
-                    (perSystem (raw {
-                      imports = [ plugins.agents ];
-                      nullkomma.agents.enable = true;
-                      nullkomma.devShell.enable = devShell;
-                      perSystem.nullkomma.agents.mcpServers = {
-                        demo = {
-                          type = "stdio";
-                          command = "demo";
-                          args = [ "--flag" ];
-                        };
-                        docs = {
-                          type = "http";
-                          url = "https://example.com/mcp";
-                        };
+                  (perSystem (raw {
+                    imports = [ plugins.agents ];
+                    nullkomma.agents.enable = true;
+                    nullkomma.devShell.enable = devShell;
+                    perSystem.nullkomma.agents.mcpServers = {
+                      demo = {
+                        type = "stdio";
+                        command = "demo";
+                        args = [ "--flag" ];
                       };
-                    })).nullkomma.files.".mcp.json".text
-                  ).mcpServers;
+                      stored = {
+                        type = "stdio";
+                        command = hello;
+                      };
+                      docs = {
+                        type = "http";
+                        url = "https://example.com/mcp";
+                      };
+                    };
+                  })).nullkomma;
+                generated = devShell: {
+                  mode = (project devShell).files.".mcp.json".mode;
+                  servers = (project devShell).agents.generatedMcpServers;
+                };
                 docs = {
                   type = "http";
                   url = "https://example.com/mcp";
@@ -609,49 +641,68 @@
               in
               {
                 expr = {
-                  inDevShell = servers true;
-                  withoutDevShell = servers false;
+                  inDevShell = generated true;
+                  withoutDevShell = generated false;
                 };
                 expected = {
                   inDevShell = {
-                    inherit docs;
-                    demo = {
-                      type = "stdio";
-                      command = "nix";
-                      args = [
-                        "develop"
-                        "--command"
-                        "demo"
-                        "--flag"
-                      ];
-                    };
-                    nullkomma = {
-                      type = "stdio";
-                      command = "nix";
-                      args = [
-                        "develop"
-                        "--command"
-                        "nk"
-                        "mcp"
-                      ];
+                    mode = "committed";
+                    servers = {
+                      inherit docs;
+                      demo = {
+                        type = "stdio";
+                        command = "nix";
+                        args = [
+                          "develop"
+                          "--command"
+                          "demo"
+                          "--flag"
+                        ];
+                      };
+                      stored = {
+                        type = "stdio";
+                        command = "nix";
+                        args = [
+                          "develop"
+                          "--command"
+                          "mcp-stored"
+                        ];
+                      };
+                      nullkomma = {
+                        type = "stdio";
+                        command = "nix";
+                        args = [
+                          "develop"
+                          "--command"
+                          "nk"
+                          "mcp"
+                        ];
+                      };
                     };
                   };
                   withoutDevShell = {
-                    inherit docs;
-                    demo = {
-                      type = "stdio";
-                      command = "demo";
-                      args = [ "--flag" ];
-                    };
-                    nullkomma = {
-                      type = "stdio";
-                      command = "nix";
-                      args = [
-                        "run"
-                        ".#taskRunners.${pkgs.stdenv.hostPlatform.system}.default"
-                        "--"
-                        "mcp"
-                      ];
+                    mode = "generated";
+                    servers = {
+                      inherit docs;
+                      demo = {
+                        type = "stdio";
+                        command = "demo";
+                        args = [ "--flag" ];
+                      };
+                      stored = {
+                        type = "stdio";
+                        command = hello;
+                      };
+                      nullkomma = {
+                        type = "stdio";
+                        command = "nix";
+                        args = [
+                          "run"
+                          ".#taskRunners.${pkgs.stdenv.hostPlatform.system}.default"
+                          "--"
+                          "mcp"
+                        ];
+                      };
                     };
                   };
                 };
@@ -941,6 +992,28 @@
                   ${lib.concatMapStrings (s: ''
                     command -v ${lib.escapeShellArg (lib.head s.command)}
                   '') (lib.attrValues (perSystem fixtures.template).nullkomma.editor.languageServers)}
+                  touch $out
+                '';
+            # Every stdio MCP server a generated configuration starts is a command in the dev shell.
+            mcp-servers =
+              let
+                projects = map perSystem [
+                  fixtures.quarto
+                  fixtures.r
+                ];
+                commands = lib.concatMap (
+                  project:
+                  map (server: lib.elemAt server.args 2) (
+                    lib.filter (server: server ? command) (lib.attrValues project.nullkomma.agents.generatedMcpServers)
+                  )
+                ) projects;
+              in
+              pkgs.runCommandLocal "nullkomma-mcp-servers"
+                { nativeBuildInputs = lib.concatMap (project: project.nullkomma.devShell.packages) projects; }
+                ''
+                  ${lib.concatMapStrings (command: ''
+                    command -v ${lib.escapeShellArg command}
+                  '') commands}
                   touch $out
                 '';
             file-updates =
@@ -1253,6 +1326,69 @@
                 test ! -e .agents/skills/before
                 clean
 
+                touch $out
+              '';
+            # Committed generated files are in every checkout, as Nix generates them.
+            committed-files =
+              let
+                at = version: task committedVersions.${version};
+                check = version: "${at version "generate-files-check"}";
+              in
+              pkgs.runCommandLocal "nullkomma-committed-files" { nativeBuildInputs = [ pkgs.git ]; } ''
+                export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
+                export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+                ${project pkgs.emptyDirectory}
+                differs='committed.txt differs from the Nix configuration'
+                fails "$differs" ${check "old"}
+                ${at "old" "generate-files"}
+                grep -q 'DO NOT EDIT' committed.txt
+                test -f skill/flake.nix
+                test ! -e skill/.gitignore
+                ${check "old"}
+                git add -A
+                git commit -qm old
+
+                # Edits are drift: the check reports them, and generating restores the file.
+                printf edited > committed.txt
+                fails "$differs" ${check "old"}
+                ${at "old" "generate-files"}
+                test -z "$(git status --porcelain)"
+
+                # An upgrade rewrites tracked files and removes those no longer declared.
+                fails "$differs" ${check "new"}
+                ${at "new" "generate-files"}
+                grep -qx new committed.txt
+                test "$(git status --porcelain)" = "$(printf ' M committed.txt\n D stale.txt')"
+                ${check "new"}
+
+                # A file to commit must not be ignored.
+                git rm -q --cached committed.txt
+                rm committed.txt
+                echo /committed.txt > .git/info/exclude
+                fails 'Git ignores them' ${at "new" "generate-files"}
+                test ! -e committed.txt
+                touch $out
+              '';
+            # Sandboxed checks see committed files as Git has them, so they can tell stale ones.
+            committed-source =
+              let
+                project = rawAt (pkgs.writeTextDir "committed.txt" "stale\n") {
+                  perSystem.nullkomma.files = {
+                    "committed.txt" = {
+                      text = "new";
+                      mode = "committed";
+                    };
+                    "generated.txt" = {
+                      text = "new";
+                      mode = "generated";
+                    };
+                  };
+                };
+                inherit ((perSystem project).nullkomma) src;
+              in
+              pkgs.runCommandLocal "nullkomma-committed-source" { } ''
+                grep -qx stale ${src}/committed.txt
+                grep -qx new ${src}/generated.txt
                 touch $out
               '';
             options-doc = optionsDoc.optionsCommonMark;

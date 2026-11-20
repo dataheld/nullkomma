@@ -12,9 +12,7 @@ result-*
 /.nullkomma/gcroots/
 .playwright-mcp/
 .claude/
-/.mcp.json
 /.nvim.lua
-/.vscode/mcp.json
 /_nullkomma-brand.yml
 /privacy.qmd
 # nullkomma:git:end

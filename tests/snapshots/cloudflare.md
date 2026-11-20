@@ -1,29 +1,48 @@
-# `nk` in `tests/fixtures/cloudflare`
+# `tests/fixtures/cloudflare`
+
+## `nk`
 
 ```text
 Available recipes:
     [nullkomma]
-    all *args                 # Format, build and run every check
-    check *args               # Run the checks that `nix flake check` also runs
-    flake-check *args         # Run every check sandboxed, on Git-tracked files, as CI does; args go to `nix flake check`
-    generate-files *args      # Regenerate nullkomma's Git-ignored files; entering the dev shell does this too
-    treefmt *args             # Format and lint all files
-    write-files *args         # Update the files nullkomma committed, keeping your edits
-    mcp                       # Serve the tasks as MCP tools over stdio, for agents
-    graph *args               # Print the task dependency graph; args go to `process-compose graph` (default: -f mermaid)
+    all *args                  # Format, build and run every check
+    check *args                # Run the checks that `nix flake check` also runs
+    flake-check *args          # Run every check sandboxed, on Git-tracked files, as CI does; args go to `nix flake check`
+    generate-files *args       # Regenerate the files nullkomma generates from Nix; entering the dev shell does this too
+    generate-files-check *args # Check that the committed generated files match Nix
+    treefmt *args              # Format and lint all files
+    write-files *args          # Update the files nullkomma committed, keeping your edits
+    mcp                        # Serve the tasks as MCP tools over stdio, for agents
+    graph *args                # Print the task dependency graph; args go to `process-compose graph` (default: -f mermaid)
 
     [cloudflare]
-    cloudflare-deploy *args   # Publish the site to Cloudflare
-    cloudflare-plan *args     # Show the changes cloudflare-deploy would make; args go to `tofu plan`
-    cloudflare-validate *args # Validate the Cloudflare Terraform configuration
+    cloudflare-deploy *args    # Publish the site to Cloudflare
+    cloudflare-plan *args      # Show the changes cloudflare-deploy would make; args go to `tofu plan`
+    cloudflare-validate *args  # Validate the Cloudflare Terraform configuration
 
     [gitleaks]
-    gitleaks-git *args        # Scan Git history for secrets; treefmt scans the files
+    gitleaks-git *args         # Scan Git history for secrets; treefmt scans the files
 
     [jscpd]
-    jscpd *args               # Find duplicated code
+    jscpd *args                # Find duplicated code
 
     [nix]
-    flake-checker *args       # Check that flake.lock pins a recent, upstream Nixpkgs
-    flake-update *args        # Update flake inputs in flake.lock and dev/flake.lock, all or those named, then write-files and generate-files
+    flake-checker *args        # Check that flake.lock pins a recent, upstream Nixpkgs
+    flake-update *args         # Update flake inputs in flake.lock and dev/flake.lock, all or those named, then write-files and generate-files
+```
+
+## Files
+
+```text
+committed .agents/skills/nk-audit-output/
+committed .agents/skills/nk-upgrade/
+committed .mcp.json
+committed .vscode/mcp.json
+generated .nvim.lua
+generated .vscode/extensions.json
+generated .vscode/settings.json
+source    .envrc (sections: direnv)
+source    .github/workflows/push.yml (sections: github)
+source    .gitignore (sections: git)
+source    AGENTS.md (sections: agents)
 ```

@@ -39,6 +39,7 @@
         expected = lib.replicate 2 {
           outputs = {
             checks = [
+              "generate-files-check"
               "jscpd"
               "treefmt"
             ];
