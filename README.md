@@ -369,7 +369,7 @@ Those marked under Default are enabled unless you opt out.
 | [`cloudflareSite`](#cloudflaresite) (enables `cloudflare`, `opentofu`)                            |         |                                                                                                                |                                            | `cloudflare-validate` ([OpenTofu] validation)             |                    | `deploy`[^deploy]          | `cloudflare-validate`, `cloudflare-plan`, `cloudflare-deploy`                                                                                  |                                                                                                                                               |                                                 |
 | [`opentofu`][terranix]                                                                            |         |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `opentofu`                                      |
 | [`python`](#python)                                                                               |         | [Python], [uv], [ty], editable package with its dependency groups and extras                                   | [`ruff-check`][ruff], `ruff-format`        | `python-lock-check`, `python-test`, `python-typecheck`    | `default`, `dist`  | `<script>`, `python-lock`  | `python-lock`, `python-lock-check`, `python-test`, `python-typecheck`                                                                          | `python-lock-check`, `python-test`, `python-typecheck`                                                                                        |                                                 |
-| [`r`](#r) (optional [non-Nix collaboration](#r-development-without-nix), [pkgdown brand](#brand)) |         | [R], [radian], [Air]; [languageserver], [`pkgload`], [pak], [httpgd], [later], [rstudioapi], [btw], [mcptools] | `air`, [`jarl`][jarl]                      | `r-document-namespace`, `r-test`, `r-check`               | `site` ([pkgdown]) | `r-lock`, `shiny` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-lock`, `r-run-app` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-shiny-<function>` (opt-in) | `r` ([btw], [mcptools]); `playwright` (Shiny)   |
+| [`r`](#r) (optional [pkgdown brand](#brand)) |         | [R], [radian], [Air]; [languageserver], [`pkgload`], [pak], [httpgd], [later], [rstudioapi], [btw], [mcptools] | `air`, [`jarl`][jarl]                      | `r-document-namespace`, `r-test`, `r-check`               | `site` ([pkgdown]) | `r-lock`, `shiny` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-lock`, `r-run-app` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-shiny-<function>` (opt-in) | `r` ([btw], [mcptools]); `playwright` (Shiny)   |
 
 Peer plugins meet only through framework options, so one could live in a flake of its own,
 exporting its `flakeModules.<name>` with its own tasks and inputs;
@@ -710,10 +710,6 @@ To keep a committed `.Rprofile` of your own, set
   # unsupported.
   # nullkomma.r.jarl.enable = true;
 
-  # Whether to enable R development without Nix using the same pinned
-  # dependencies.
-  # nullkomma.r.nonNix.enable = false;
-
   # Directory generated into pkgdown/assets and copied by pkgdown to the website
   # root in both local and sandboxed builds. Git-ignored; null keeps
   # project-owned assets.
@@ -764,9 +760,9 @@ To keep a committed `.Rprofile` of your own, set
   # Shiny choose an available port.
   # nullkomma.r.shiny.port = 3838;
 
-  # CRAN snapshot date, for PPM and non-Nix interop. The default is the date in
-  # the ref of `nixpkgs-r`, or else its commit date: an upper bound, as nixpkgs
-  # updates its R packages less often. Set it for an exact date.
+  # CRAN snapshot date, for PPM. The default is the date in the ref of
+  # `nixpkgs-r`, or else its commit date: an upper bound, as nixpkgs updates its
+  # R packages less often. Set it for an exact date.
   # nullkomma.r.snapshot = date of nixpkgs-r;
 
   # Run testthat with `r-test`: on the pkgload-loaded source in the dev loop and
@@ -834,13 +830,6 @@ For an app with arguments, create a function in the package namespace, e.g. `rla
 `nk r-test` loads the working-tree source.
 Flake checks and `nk r-test --installed` test a fresh installation,
 including its installed namespace.
-
-#### R development without Nix
-
-For collaborators without Nix, enable `nullkomma.r.nonNix.enable`, run `nk write-files`,
-and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
-and the section it adds to your README.
-The startup profile installs from the same PPM snapshot in native R sessions only.
 
 ## Development
 

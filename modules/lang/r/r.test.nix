@@ -371,7 +371,7 @@
               console.logfile = sys.stdout
               try:
                   console.expect(r"r\$>")
-                  console.sendline('expected <- dget("runtime.R"); stopifnot(identical(R.home(), expected$home), identical(.libPaths(), expected$libraries), Sys.getenv("NULLKOMMA_R_NIX") == "true", Sys.getenv("NOT_CRAN") == "true", Sys.getenv("LC_ALL") == "en_US.UTF-8", all(vapply(c("pkgload", "assertthat", "httpgd", "languageserver", "rstudioapi"), requireNamespace, TRUE, quietly = TRUE))); cat(paste("NULLKOMMA", "RUNTIME", "OK", sep = "_"), "\\n")')
+                  console.sendline('expected <- dget("runtime.R"); stopifnot(identical(R.home(), expected$home), identical(.libPaths(), expected$libraries), Sys.getenv("NOT_CRAN") == "true", Sys.getenv("LC_ALL") == "en_US.UTF-8", all(vapply(c("pkgload", "assertthat", "httpgd", "languageserver", "rstudioapi"), requireNamespace, TRUE, quietly = TRUE))); cat(paste("NULLKOMMA", "RUNTIME", "OK", sep = "_"), "\\n")')
                   console.expect_exact("NULLKOMMA_RUNTIME_OK")
                   console.sendline('quit(save = "no")')
                   console.expect(pexpect.EOF)

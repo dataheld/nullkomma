@@ -91,7 +91,7 @@
           default = defaultSnapshot;
           defaultText = lib.literalExpression "date of nixpkgs-r";
           description = ''
-            CRAN snapshot date, for PPM and non-Nix interop. The default is the date in the ref of
+            CRAN snapshot date, for PPM. The default is the date in the ref of
             `nixpkgs-r`, or else its commit date: an upper bound, as nixpkgs updates its R packages
             less often. Set it for an exact date.
           '';
