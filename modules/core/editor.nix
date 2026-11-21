@@ -96,7 +96,7 @@
               )
               {
                 extensions.recommendations = lib.sort lib.lessThan (lib.unique cfg.extensions);
-                mcp.servers = config.nullkomma.agents.generatedMcpServers;
+                mcp.servers = config.nullkomma.agents.linkedMcpServers;
                 settings = cfg.settings;
               }
           );

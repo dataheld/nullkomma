@@ -3,7 +3,6 @@
 ^flake[.]lock$
 ^AGENTS[.]md$
 ^result(-.*)?$
-^docs$
 ^pkgdown$
 ^coverage[.]xml$
 ^pkg[.]lock$

@@ -19,6 +19,5 @@ Check your work locally, from fastest to strictest:
    `nk flake-check` runs all checks sandboxed, as CI does,
    and sees only files that Git tracks: `git add` new files first.
 
-Skills for nullkomma itself are in `.agents/skills/nk-*`,
-linked read-only from the Nix store on entering the dev shell;
+Skills for nullkomma itself are in `.agents/skills/nk-*`;
 if they are missing, run `nk link-files`.

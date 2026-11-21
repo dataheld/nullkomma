@@ -1,5 +1,5 @@
-# Helpers for R projects. nullkomma does not parse DESCRIPTION: pak resolves it
-# into a lockfile (`nix run .#r-lock`), which Nix reads as JSON.
+# pak resolves DESCRIPTION into a lockfile (`nix run .#r-lock`),
+# which Nix reads as JSON.
 { lib }:
 rec {
   defaultFields = [
@@ -105,7 +105,7 @@ rec {
             };
           }
         else
-          fail "`${p.ref}` is a pak `${p.type}` reference, which nullkomma does not support.";
+          fail "`${p.ref}` is a pak `${p.type}` reference, which nullkomma does not support; for GitLab, use a `git::` reference.";
     in
     if lock.lockfile_version or null != 1 then
       fail "unsupported pak lockfile format; ${regenerate}."

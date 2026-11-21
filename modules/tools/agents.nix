@@ -1,6 +1,5 @@
-# Coding agents get always-on rules from lines nullkomma requires in the project's AGENTS.md,
-# and version-specific workflows as Agent Skills (https://agentskills.io)
-# and MCP servers in `.mcp.json` as links.
+# Coding agents get always-on rules from lines nullkomma requires in AGENTS.md,
+# and links to version-specific Agent Skills and MCP servers (`.mcp.json`).
 {
   framework =
     {
@@ -47,12 +46,12 @@
             default = { };
             description = "MCP servers by name, each with a `type` (`stdio` with `command` and `args`, or `http` with `url`); plugins add here. The `agents` plugin links them as `.mcp.json`, the `vscode` plugin as `.vscode/mcp.json`; stdio servers start in the dev shell, when enabled.";
           };
-          options.nullkomma.agents.generatedMcpServers = lib.mkOption {
+          options.nullkomma.agents.linkedMcpServers = lib.mkOption {
             type = lib.types.attrsOf lib.types.anything;
             readOnly = true;
-            description = "`mcpServers` as generated configurations list them: with the dev shell enabled, stdio servers start through `nix develop --command`, so they see its environment.";
+            description = "`mcpServers` as linked configurations list them: with the dev shell enabled, stdio servers start through `nix develop --command`, so they see its environment.";
           };
-          config.nullkomma.agents.generatedMcpServers = lib.mapAttrs (
+          config.nullkomma.agents.linkedMcpServers = lib.mapAttrs (
             _: server:
             if inDevShell && server ? command then
               server
@@ -85,7 +84,7 @@
           {
             nullkomma.files."AGENTS.md".text = builtins.readFile ./_agents/AGENTS.md;
             nullkomma.links = {
-              ".mcp.json".text = builtins.toJSON { mcpServers = config.nullkomma.agents.generatedMcpServers; };
+              ".mcp.json".text = builtins.toJSON { mcpServers = config.nullkomma.agents.linkedMcpServers; };
             }
             // lib.mapAttrs' (
               name: source: lib.nameValuePair ".agents/skills/${name}" { inherit source; }

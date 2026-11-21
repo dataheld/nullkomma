@@ -181,6 +181,8 @@
         perSystem =
           { pkgs, ... }:
           {
+            # yamlfmt would rewrite the lines nullkomma requires.
+            treefmt.settings.excludes = [ ".gitlab-ci.yml" ];
             nullkomma.files.".gitlab-ci.yml".source =
               assert lib.assertMsg (lib.elem "x86_64-linux" config.systems)
                 "nullkomma.gitlab requires x86_64-linux in systems.";

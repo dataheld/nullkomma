@@ -13,12 +13,7 @@ if ! git check-ignore -q -- "$previous"; then
   blocked=1
 fi
 
-ours() {
-  case "$(readlink -- "$1")" in
-  /nix/store/*-nullkomma-links/"$1") ;;
-  *) return 1 ;;
-  esac
-}
+ours() { [[ "$(readlink -- "$1")" == /nix/store/*-nullkomma-links/"$1" ]]; }
 
 refuse() {
   echo "Not linked: $1" >&2
@@ -34,8 +29,7 @@ prune() {
       # `-f`: shells entered at once may prune the same links.
       rm -f -- "$path"
       echo "removed $path"
-      [ "$(dirname -- "$path")" = . ] ||
-        rmdir -p --ignore-fail-on-non-empty -- "$(dirname -- "$path")" 2>/dev/null || true
+      rmdir -p --ignore-fail-on-non-empty -- "$(dirname -- "$path")" 2>/dev/null || true
     fi
   done < <(find -L "$old" -type f -printf '%P\0')
 }

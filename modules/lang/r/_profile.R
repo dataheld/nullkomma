@@ -1,3 +1,5 @@
+# R skips the user's profile when a project has one.
+if (file.exists("~/.Rprofile")) source("~/.Rprofile")
 if (interactive()) {
   local({
     load <- function(...) {

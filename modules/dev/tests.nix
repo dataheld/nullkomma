@@ -372,7 +372,8 @@
             lib.concatMapAttrs (
               name: flake:
               lib.mapAttrs' (check: lib.nameValuePair "fixture-${name}-${check}") (
-                # Fixtures commit no project files; the `project-files` test covers that check.
+                # Fixtures commit only the project files their checks need;
+                # the `required-lines` test covers that check.
                 removeAttrs flake.checks.${system} [ "project-files" ]
                 // {
                   devshell = flake.devShells.${system}.default;

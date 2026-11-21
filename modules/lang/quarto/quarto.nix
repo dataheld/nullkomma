@@ -12,7 +12,6 @@
       inherit (config.nullkomma) privacy;
       prefix = import ../../../lib/prefix.nix lib self cfg.root;
       privacyPage = ''
-
         ---
         title: ${builtins.toJSON privacy.title}
         sidebar: false

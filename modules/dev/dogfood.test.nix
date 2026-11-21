@@ -17,7 +17,6 @@
         pkgs.runCommand "nullkomma-dogfood-workflow" { nativeBuildInputs = [ pkgs.git ]; }
           ''
             ${harness.project config.nullkomma.src}
-            git init --quiet
             mkdir nested
             cd nested
             ${lib.getExe config.taskRunners.default} quarto-render

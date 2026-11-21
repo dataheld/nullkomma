@@ -1,12 +1,9 @@
 ^project-only[.]txt$
-^[.]envrc$
-
 ^[.](?!aspell(/|$)|Rinstignore$)
 [.]nix$
 ^flake[.]lock$
 ^AGENTS[.]md$
 ^result(-.*)?$
-^docs$
 ^pkgdown$
 ^coverage[.]xml$
 ^pkg[.]lock$

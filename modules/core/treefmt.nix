@@ -37,20 +37,18 @@
         in
         { config, ... }:
         {
-          treefmt = {
-            # Also what other tools, like jscpd, skip as not hand-written.
-            settings.excludes =
-              generatedPaths
-              ++ lib.concatLists (
-                lib.mapAttrsToList (
-                  path: file:
-                  lib.optionals file.enable [
-                    path
-                    "${path}/**"
-                  ]
-                ) (config.nullkomma.links // config.nullkomma.files)
-              );
-          };
+          # Also what jscpd and watchers skip.
+          treefmt.settings.excludes =
+            generatedPaths
+            ++ lib.concatLists (
+              lib.mapAttrsToList (
+                path: link:
+                lib.optionals link.enable [
+                  path
+                  "${path}/**"
+                ]
+              ) config.nullkomma.links
+            );
           nullkomma.editor = {
             formatter = {
               package = config.treefmt.build.wrapper;

@@ -258,7 +258,7 @@
         {
           taskRunners.default = runner;
           nullkomma.devShell.packages = [ runner ];
-          # Generated configs start stdio servers in the dev shell, which has `nk`.
+          # Linked configs start stdio servers in the dev shell, which has `nk`.
           nullkomma.agents.mcpServers.nullkomma =
             if inDevShell then
               {

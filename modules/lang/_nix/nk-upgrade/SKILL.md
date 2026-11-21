@@ -14,31 +14,15 @@ description: >-
    rather than assuming its lock node is named `nullkomma`.
    Both GitHub and FlakeHub locks can provide `locked.rev`.
 1. Run `nk flake-update`, or `nk flake-update nullkomma` to update only nullkomma.
-   It updates `flake.lock` and `dev/flake.lock`, then runs `link-files`.
-   If it fails, inspect whether the lock update failed
-   or only linking reported a problem.
+   It updates `flake.lock` and `dev/flake.lock`.
    Do not treat a failed input update as a completed upgrade.
 1. Reload the dev shell (`direnv reload`) so later commands use the new version.
-1. If `link-files` reports that the project has its own file where nullkomma links one,
-   delete it only if an older nullkomma generated it:
-   it is listed in the file that `git rev-parse --git-path nullkomma/files/generated` names,
-   and Git does not track it.
-   Then delete that list, run `nk link-files`, and report any other such file to the user.
-1. Where the project owned a file that nullkomma now links,
-   with `perSystem.nullkomma.files.<path>.enable = false` or `.mode = "source"`,
-   set `perSystem.nullkomma.links.<path>.enable = false` instead.
-1. Older nullkomma versions kept their lines in sections between
-   `nullkomma:<name>:start` and `:end` markers.
-   Delete each such section, markers included, then run `nk project-files`
-   and add the lines it reports missing where they fit.
-1. Where adding the reported lines by hand is impractical,
-   as for generated CI such as `.gitlab-ci.yml`,
-   commit the file, then run `nk write-files --overwrite <file>`:
-   it replaces the file with nullkomma's version.
-   In `git diff -- <file>`, restore the project's own lines that the replacement dropped,
-   such as its own jobs, ignore rules or instructions,
-   keep nullkomma's changes, and run `nk project-files` again.
-   Stage nothing else before a replaced `.gitignore` has the project's lines back.
+1. Run `nk project-files` and add the lines it reports where they fit.
+   Where that is impractical, as for `.gitlab-ci.yml`,
+   commit the file, run `nk write-files --overwrite <file>`,
+   and restore the project's own lines from `git diff -- <file>`;
+   stage nothing else until a replaced `.gitignore` has them back.
+1. Run `nk link-files` and report to the user any file it does not link.
 1. Read nullkomma's new locked revision.
    Before adapting the project, review the history between the saved revisions,
    even if the upgrade reports nothing and the checks pass.

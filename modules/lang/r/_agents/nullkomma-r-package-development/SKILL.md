@@ -14,7 +14,6 @@ These points are not obvious from it:
   Edit the roxygen comments, not those files.
 - Iterate with `nk r-test`, which loads the source with pkgload.
   `nix flake check` and CI test an installed copy, so run it before you finish.
-- After changing dependencies in `DESCRIPTION`, run `nix run .#r-lock`
-  and `git add pkg.lock`; flakes only see tracked files.
-  Packages from `Remotes:` or missing from nixpkgs need `nullkomma.r.allowOffNixpkgs`.
+- After changing dependencies in `DESCRIPTION`, run `nix run .#r-lock`;
+  it stages `pkg.lock`, as flakes only see tracked files.
 - Packages needed only for development go in `nullkomma.r.extraPackages`.

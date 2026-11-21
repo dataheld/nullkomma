@@ -95,7 +95,6 @@
               fi
               fails 'must return a shiny.appobj' ${invalid "not_an_app"}
               fails 'is not an exported object' ${invalid "internal_app"}
-              git init -q
               substituteInPlace R/app.R --replace-fail 'nullkomma Shiny fixture' 'working-tree Shiny fixture' \
                 --replace-fail 'ui = shiny::fluidPage(shiny::h1' 'ui = function(req) shiny::fluidPage(warning("greeting requested"), shiny::h1'
               mkdir sub

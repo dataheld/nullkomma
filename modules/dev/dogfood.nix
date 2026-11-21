@@ -21,6 +21,8 @@
         lint.jscpd.ignore = [
           "tests/fixtures/*/flake.nix"
           "tests/snapshots/**"
+          # Copied into AGENTS.md, which must keep nullkomma's lines.
+          "modules/tools/_agents/AGENTS.md"
           # Shares the checkout and Nix setup steps with ci.yml.
           ".github/workflows/push.yml"
         ];
@@ -46,9 +48,7 @@
         files.".github/workflows/push.yml".enable = false;
         # Plugins with options beyond `enable`: only their configs have blank lines.
         files."README.md".text = lib.concatStrings (
-          lib.mapAttrsToList (_: text: "```nix\n${text}```\n") (
-            lib.filterAttrs (_: lib.hasInfix "\n\n") inputs.self.lib.configs
-          )
+          lib.attrValues (lib.filterAttrs (_: lib.hasInfix "\n\n") inputs.self.lib.configs)
         );
       };
     };

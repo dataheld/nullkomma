@@ -140,7 +140,7 @@
               };
               flake-update = {
                 namespace = "nix";
-                description = "Update flake inputs in flake.lock and dev/flake.lock, all or those named, then link-files";
+                description = "Update flake inputs in flake.lock and dev/flake.lock, all or those named";
                 disabled = true;
                 # Uses the project's own `nix`, which may differ from Nixpkgs'.
                 command = pkgs.writeShellApplication {
@@ -168,7 +168,6 @@
                         nix flake update --flake "$flake" "''${names[@]}"
                       fi
                     done
-                    nix develop --command nk link-files
                   '';
                 };
               };

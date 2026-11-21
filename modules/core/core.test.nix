@@ -19,7 +19,6 @@
             perSystem
             project
             raw
-            rawAt
             summary
             task
             ;
@@ -227,8 +226,7 @@
           projectFiles = raw {
             perSystem.nullkomma.files."docs/notes.md".text = "# Notes\nrequired\n";
           };
-          # A project with its own `.gitignore` lines and skills.
-          ignored = rawAt (root + "/tests/fixtures/edited-gitignore") {
+          ignored = raw {
             imports = [ plugins.git ];
             nullkomma.git.enable = true;
             perSystem.nullkomma.links = {
@@ -441,23 +439,21 @@
                 ])
               ];
             };
-            testImportTreeSkipsUnderscoresAndNonNix =
-              let
-                tree = root + "/tests/fixtures/import-tree";
-              in
-              {
-                expr = {
-                  found = map (p: lib.removePrefix (toString tree) (toString p)) (nullkomma.lib.importTree tree);
-                  missing = nullkomma.lib.importTree (tree + "/missing");
-                };
-                expected = {
-                  found = [
-                    "/a.nix"
-                    "/sub/b.nix"
-                  ];
-                  missing = [ ];
-                };
+            testImportTreeSkipsUnderscoresAndNonNix = {
+              expr = {
+                found = map (p: lib.removePrefix (toString importTree) (toString p)) (
+                  nullkomma.lib.importTree importTree
+                );
+                missing = nullkomma.lib.importTree (importTree + "/missing");
               };
+              expected = {
+                found = [
+                  "/a.nix"
+                  "/sub/b.nix"
+                ];
+                missing = [ ];
+              };
+            };
             testImportingModulesTwiceIsHarmless =
               let
                 # Import order may change list order, not contents.
@@ -486,19 +482,6 @@
                 );
                 expected = normalize (summary fixtures.template);
               };
-            testLinkPathsAreNotProjectFiles = {
-              expr =
-                (builtins.tryEval
-                  (perSystem (raw {
-                    perSystem.nullkomma = {
-                      links.".Rprofile".text = "linked";
-                      # How projects owned a generated file before links.
-                      files.".Rprofile".enable = false;
-                    };
-                  })).nullkomma.devShell.shellHook
-                ).success;
-              expected = false;
-            };
             testOptionsDocHasNoStorePaths = {
               expr = lib.hasInfix builtins.storeDir (builtins.toJSON optionsDoc.optionsNix);
               expected = false;
@@ -697,7 +680,6 @@
               in
               pkgs.runCommand "nullkomma-tasks" (devShell.env // { nativeBuildInputs = devShell.packages; }) ''
                 ${harness.project template}
-                ${lib.getExe pkgs.git} init -q
                 export HOME="$TMPDIR" PC_LOG_FILE="$TMPDIR/pc.log"
                 logs=(mcp.out preview.out "$PC_LOG_FILE" mcp.log)
                 rewatched() { [ "$(wc -l < watched)" -eq 2 ]; }
@@ -770,7 +752,6 @@
             # An MCP client that quits closes the server's stdin, then may SIGKILL it; a crashed client only closes stdin.
             mcp-without-client = pkgs.runCommand "nullkomma-mcp-without-client" { } ''
               ${harness.project template}
-              ${lib.getExe pkgs.git} init -q
               export HOME="$TMPDIR"
               logs=(mcp.out mcp.log)
               mkfifo requests
@@ -935,19 +916,16 @@
             links =
               let
                 at = version: task fileVersions.${version} "link-files";
+                # Records the garbage collector roots that `link-files` registers when `nix-store` is on the PATH.
+                nix-store = pkgs.writeShellScriptBin "nix-store" ''
+                  echo "$*" >> "$NULLKOMMA_TEST_ROOTS"
+                  ln -sfn "$4" "$2"
+                '';
               in
               pkgs.runCommandLocal "nullkomma-links-test" { nativeBuildInputs = [ pkgs.git ]; } ''
                 ${project template}
-                rm -r ./*
-                mkdir ../outside ../bin
-                # `nix-store` registers the garbage collector root when it is on the PATH.
-                cat > ../bin/nix-store <<'SH'
-                #!${pkgs.runtimeShell}
-                echo "$*" >> "$NULLKOMMA_TEST_ROOTS"
-                ln -sfn "$4" "$2"
-                SH
-                chmod +x ../bin/nix-store
-                export NULLKOMMA_TEST_ROOTS="$PWD/../roots" PATH="$PWD/../bin:$PATH"
+                mkdir ../outside
+                export NULLKOMMA_TEST_ROOTS="$PWD/../roots" PATH="${nix-store}/bin:$PATH"
                 # Git must ignore links and their record first, or they could be committed.
                 fails /linked.txt ${at "old"}
                 grep -qx /.nullkomma/gcroots/ "$TMPDIR/failure.log"
@@ -967,11 +945,6 @@
                 previous=.nullkomma/gcroots/links
                 test "$(readlink $previous)/linked.txt" = "$(readlink linked.txt)"
                 grep -qxF -- "--add-root $previous --realise $(readlink $previous)" ../roots
-                # Edits fail instead of being overwritten later.
-                if printf edit 2> /dev/null > linked.txt; then
-                  echo "A link was writable" >&2
-                  exit 1
-                fi
                 rm own.txt blocked
                 ${at "old"} > out
                 test "$(grep -c 'linked ' out)" = 2
@@ -986,6 +959,12 @@
                 rm linked.txt
                 (${(perSystem fileVersions.old).nullkomma.devShell.shellHook})
                 test "$(cat linked.txt)" = old
+                # Each worktree has its own links and record of them, so an upgrade in one
+                # leaves another's links in place, to prune on its own upgrade (#367).
+                git worktree add -q --orphan -b linked ../linked
+                (cd ../linked && ${at "old"} && ${at "new"})
+                test ! -e ../linked/stale.txt
+                test "$(cat stale.txt)" = old
                 # An upgrade follows the new bundle, and prunes only links into the old one.
                 rm own.txt
                 printf mine > own.txt
@@ -999,10 +978,7 @@
                 test ! -e blocked
                 test ! -e dir/linked/readme.txt
                 grep -qF "removed dir/linked/readme.txt" out
-                if grep -qF "dir/linked/a.nix" out; then
-                  echo "A link the new bundle keeps was pruned" >&2
-                  exit 1
-                fi
+                test "$(grep -cF dir/linked/a.nix out)" = 0
                 test -L dir/linked/a.nix
                 test -L dir/linked/sub/b.nix
                 test "$(cat morph/inner)" = new
@@ -1014,7 +990,7 @@
                 test -z "$(ls ../outside)"
                 touch $out
               '';
-            # nullkomma never changes a project file; it creates missing ones and checks the rest.
+            # nullkomma creates missing project files and checks the rest; it replaces one only on `--overwrite`.
             required-lines =
               let
                 check = task projectFiles "project-files";
@@ -1041,10 +1017,8 @@
                 grep -qF "kept docs/notes.md" out
                 printf 'own\n' > docs/notes.md
                 fails "docs/notes.md, as Git could not restore it" ${write} --overwrite docs/notes.md
-                export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
-                export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
                 git add docs/notes.md
-                git commit -qm notes
+                git -c user.name=test -c user.email=test@example.com commit -qm notes
                 printf 'edit\n' >> docs/notes.md
                 fails "docs/notes.md, as Git could not restore it" ${write} --overwrite docs/notes.md
                 test "$(tail -n 1 docs/notes.md)" = edit
@@ -1080,13 +1054,12 @@
               }
               touch $out
             '';
-            file-update-task =
+            flake-update-task =
               let
                 nix = pkgs.writeShellScriptBin "nix" ''
                   printf '%s\n' "$*" >> "$NULLKOMMA_TEST_LOG"
                   case "$*" in
                     "flake update --flake . fail") exit 7 ;;
-                    "develop --command nk link-files") exit 1 ;;
                   esac
                 '';
                 update = task fixtures.template "flake-update";
@@ -1098,27 +1071,23 @@
                     version = 7;
                   };
               in
-              pkgs.runCommandLocal "nullkomma-file-update-task" { nativeBuildInputs = [ nix ]; } ''
+              pkgs.runCommandLocal "nullkomma-flake-update-task" { nativeBuildInputs = [ nix ]; } ''
                 mkdir -p project/dev
                 cd project
                 ${lib.getExe pkgs.git} init -q
                 export NULLKOMMA_TEST_LOG="$PWD/calls"
-                files=('develop --command nk link-files')
                 called() {
                   printf '%s\n' "$@" | cmp calls -
                   : > calls
                 }
                 echo '${lock "nullkomma"}' > flake.lock
-                if ${update} nullkomma; then
-                  echo "Update did not propagate file conflicts" >&2
-                  exit 1
-                fi
-                called 'flake update --flake . nullkomma' "''${files[@]}"
+                ${update} nullkomma
+                called 'flake update --flake . nullkomma'
 
                 touch dev/flake.nix
                 echo '${lock "brand nullkomma"}' > dev/flake.lock
-                ${update} nullkomma brand || true
-                called 'flake update --flake . nullkomma' 'flake update --flake ./dev brand nullkomma' "''${files[@]}"
+                ${update} nullkomma brand
+                called 'flake update --flake . nullkomma' 'flake update --flake ./dev brand nullkomma'
 
                 if ${update} nullkomma --help 2> error; then
                   echo "Update of an input no flake has succeeded" >&2
@@ -1134,57 +1103,25 @@
                 fi
                 called 'flake update --flake . fail'
 
-                ${update} || true
-                called 'flake update --flake .' 'flake update --flake ./dev' "''${files[@]}"
+                ${update}
+                called 'flake update --flake .' 'flake update --flake ./dev'
                 touch $out
               '';
             # Links stay out of `git status`, beside the project's own skills.
             links-ignored =
               pkgs.runCommandLocal "nullkomma-links-ignored" { nativeBuildInputs = [ pkgs.git ]; }
                 ''
-                      export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
-                      export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
-                      ${project (root + "/tests/fixtures/edited-gitignore")}
-                      link=${lib.escapeShellArg (task ignored "link-files")}
-                      check=${lib.escapeShellArg (task ignored "project-files")}
-                      fails /.agents/skills/linked $link
-                  fails "/.agents/skills/linked" $check
-                  test ! -e .nullkomma
-                  cat ${(perSystem ignored).nullkomma.files.".gitignore".source} >> .gitignore
-                  $check
+                  ${project template}
+                  fails /.agents/skills/linked ${task ignored "link-files"}
+                  ${task ignored "write-files"}
                   git add -A
-                  git commit -qm "adopt"
-                  $link
-                  test -z "$(git status --porcelain)"
+                  ${task ignored "link-files"}
+                  test -z "$(git ls-files --others --exclude-standard)"
                   mkdir .agents/skills/own
                   touch .agents/skills/own/SKILL.md
-                  git add -A
-                  test "$(git diff --cached --name-only)" = .agents/skills/own/SKILL.md
+                  test "$(git ls-files --others --exclude-standard)" = .agents/skills/own/SKILL.md
                   touch $out
                 '';
-            # Each worktree has its own links and record of them, so an upgrade in one
-            # leaves another's links in place, to prune on its own upgrade (#367).
-            links-worktrees =
-              let
-                at = version: task fileVersions.${version} "link-files";
-              in
-              pkgs.runCommandLocal "nullkomma-links-worktrees" { nativeBuildInputs = [ pkgs.git ]; } ''
-                export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
-                export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
-                ${project template}
-                printf '%s\n' '*.txt' /dir/ /stale/ /blocked /morph /shape .nullkomma/ > .git/info/exclude
-                git add -A
-                git commit -qm init
-                git worktree add -q ../linked
-                ${at "old"}
-                (cd ../linked && ${at "old"} && ${at "new"})
-                test ! -e ../linked/stale.txt
-                test "$(cat stale.txt)" = old
-                ${at "new"}
-                test ! -e stale.txt
-                test -z "$(git status --porcelain)"
-                touch $out
-              '';
             options-doc = optionsDoc.optionsCommonMark;
           };
         };

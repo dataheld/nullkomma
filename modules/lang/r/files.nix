@@ -10,7 +10,6 @@
         "^flake[.]lock$"
         "^AGENTS[.]md$"
         "^result(-.*)?$"
-        "^docs$"
         "^pkgdown$"
         "^coverage[.]xml$"
         "^pkg[.]lock$"
@@ -21,11 +20,7 @@
       config = lib.mkIf cfg.enable {
         perSystem.nullkomma = {
           files."${cfg.prefix}.Rbuildignore".text = lib.concatLines rules;
-          links."${cfg.prefix}.Rprofile".text = lib.concatStringsSep "\n" [
-            # R skips the user's profile when a project has one.
-            ''if (file.exists("~/.Rprofile")) source("~/.Rprofile")''
-            (builtins.readFile ./_load-all.R)
-          ];
+          links."${cfg.prefix}.Rprofile".text = builtins.readFile ./_profile.R;
         };
       };
     };

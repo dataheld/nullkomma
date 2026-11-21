@@ -12,14 +12,12 @@ Once nullkomma is set up, the project's `AGENTS.md` and
 1. Find out whether other flakes have this project as an input,
    for example for its `lib`, modules or packages.
    Ask the user if the repository does not show it.
-1. Read the "Getting started" section of
-   [nullkomma's README](https://github.com/dataheld/nullkomma#getting-started)
-   and follow it; it is the source of truth for these steps.
+1. Follow the "Getting started" section of
+   [nullkomma's README](https://github.com/dataheld/nullkomma#getting-started).
    If other flakes have this project as an input, follow its
    [Development-only inputs](https://github.com/dataheld/nullkomma#development-only-inputs)
    instead of the template: nullkomma goes only into `dev/flake.nix`.
-   Let `write-files` create nullkomma's project files and the dev shell link the rest;
-   do not copy them from the nullkomma repository.
+   Do not copy nullkomma's files from its repository.
 1. Ask the user which optional plugins (for example `r` or `quarto`)
    the project needs, and set them in `flake.nix`.
 1. Investigate the rest of the repository:

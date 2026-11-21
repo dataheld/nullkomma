@@ -1,7 +1,4 @@
-# Every file has one author.
-# Links are Nix's: read-only links into the Nix store, Git-ignored, refreshed on entering the dev shell.
-# Project files are the project's: nullkomma creates missing ones on request,
-# then only checks that they keep the lines it requires.
+# Every file has one author: Nix for links, the project for project files.
 {
   framework =
     {
@@ -50,7 +47,7 @@
           options.nullkomma.files = lib.mkOption {
             type = content "Lines nullkomma requires in the file.";
             default = { };
-            description = "Project files, keyed by path from the flake's directory: `write-files` creates missing ones, and the `project-files` check lists the lines nullkomma requires that a file lacks. nullkomma changes an existing file only on `write-files --overwrite <file>`.";
+            description = "Project files, keyed by path from the flake's directory: `write-files` creates missing ones, and the `project-files` check lists the lines nullkomma requires that a file lacks.";
           };
           options.nullkomma.src = lib.mkOption {
             type = lib.types.package;
@@ -79,10 +76,7 @@
             ) "nullkomma path ${path} must stay inside the flake's directory.";
             f.enable
           );
-          links =
-            assert lib.assertMsg (lib.intersectAttrs config.nullkomma.links config.nullkomma.files == { })
-              "nullkomma paths ${toString (lib.attrNames (lib.intersectAttrs config.nullkomma.links config.nullkomma.files))} are links; to own one, set perSystem.nullkomma.links.<path>.enable = false.";
-            lib.mapAttrs (_: f: f.source) (enabled config.nullkomma.links);
+          links = lib.mapAttrs (_: f: f.source) (enabled config.nullkomma.links);
           files = enabled config.nullkomma.files;
           # Links point into it at their own path, which marks them as nullkomma's.
           bundle = pkgs.linkFarm "nullkomma-links" links;
@@ -112,12 +106,8 @@
             + "finish\n"
           );
           lacking = ''
-            # Prints the lines of $2 that file $1 lacks.
-            lacking() {
-              local missing
-              missing="$(grep -Fxv -f "$1" "$2")" || [ "$?" = 1 ]
-              grep -v '^$' <<<"$missing" || true
-            }
+            # Prints the non-blank lines of $2 that file $1 lacks.
+            lacking() { grep -Fxv -e "" -f "$1" "$2" || [ "$?" = 1 ]; }
           '';
           write =
             script "write-files"
@@ -131,24 +121,28 @@
                 + ''
                   status=0
                   overwrite=()
-                  written=()
                   if [ "''${1-}" = --overwrite ] && [ "$#" -gt 1 ]; then
                     overwrite=("''${@:2}")
                   elif [ "$#" != 0 ]; then
                     echo "Usage: write-files [--overwrite <file>...]; nk project-files lists the files that lack lines." >&2
                     exit 1
                   fi
-                  requested() {
-                    local path
-                    for path in "''${overwrite[@]}"; do
-                      [ "$path" = "$1" ] && return
+                  among() {
+                    local item
+                    for item in "''${@:2}"; do
+                      [ "$item" = "$1" ] && return
                     done
                     return 1
                   }
+                  for path in "''${overwrite[@]}"; do
+                    if ! among "$path" ${lib.escapeShellArgs (lib.attrNames files)}; then
+                      echo "Not overwritten: $path, as nullkomma requires no lines in it." >&2
+                      status=1
+                    fi
+                  done
                   write() {
-                    written+=("$1")
                     if [ -e "$1" ]; then
-                      requested "$1" || return 0
+                      among "$1" "''${overwrite[@]}" || return 0
                       if [ -z "$(lacking "$1" "$2")" ]; then
                         echo "kept $1, which has every line nullkomma requires"
                         return
@@ -166,15 +160,7 @@
                   }
                 ''
                 + forFiles "write"
-                + ''
-                  for path in "''${overwrite[@]}"; do
-                    if ! printf '%s\n' "''${written[@]}" | grep -qxF -- "$path"; then
-                      echo "Not overwritten: $path, as nullkomma requires no lines in it." >&2
-                      status=1
-                    fi
-                  done
-                  exit "$status"
-                ''
+                + "exit \"$status\"\n"
               );
           check = script "project-files" [ pkgs.gnugrep ] (
             lacking
@@ -183,7 +169,7 @@
               require() {
                 local missing
                 if [ ! -f "$1" ]; then
-                  echo "$1 is missing; nk write-files creates it." >&2
+                  echo "$1 is missing or untracked; nk write-files creates it, git add tracks it." >&2
                   status=1
                   return
                 fi
@@ -205,31 +191,15 @@
         in
         {
           nullkomma.root = ''"$(${lib.getExe pkgs.git} rev-parse --show-toplevel)"${lib.escapeShellArg directory}'';
-          nullkomma.src = pkgs.runCommand "source" { } (
-            ''
-              cp -R ${self} "$out"
-              chmod -R u+w "$out"
-            ''
-            # As in the working tree, a place the project took stays the project's.
-            + ''
-              cd ${bundle}
-              find -L . -type f -printf '%P\0' | while IFS= read -r -d "" file; do
-                target="$out/$file"
-                parent="$(dirname "$target")"
-                while [ "$parent" != "$out" ] && [ ! -L "$parent" ] && { [ -d "$parent" ] || [ ! -e "$parent" ]; }; do
-                  parent="$(dirname "$parent")"
-                done
-                if [ "$parent" = "$out" ] && [ ! -e "$target" ] && [ ! -L "$target" ]; then
-                  mkdir -p "$(dirname "$target")"
-                  cp -L "$file" "$target"
-                fi
-              done
-              chmod -R u+w "$out"
-            ''
-          );
+          # As in the working tree, a place the project took stays the project's.
+          nullkomma.src = pkgs.runCommand "source" { } ''
+            cp -R ${self} "$out"
+            chmod -R u+w "$out"
+            cp -RL --update=none ${bundle}/. "$out" || true
+          '';
           process-compose.dev.settings.processes = {
             link-files = task "Link nullkomma's files from the Nix store; entering the dev shell does this too" link;
-            write-files = task "Create the project files nullkomma requires that are missing; --overwrite <file>... replaces those that lack lines, to reconcile with git diff" write;
+            write-files = task "Create missing project files; --overwrite <file>... replaces committed ones that lack lines, to reconcile with git diff" write;
             project-files = lib.mkIf (files != { }) (
               task "Check that project files have the lines nullkomma requires" check
             );
