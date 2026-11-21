@@ -71,7 +71,7 @@
         pkgdown.assets = lib.mkOption {
           type = lib.types.nullOr lib.types.path;
           default = null;
-          description = "Directory generated into pkgdown/assets and copied by pkgdown to the website root in both local and sandboxed builds. Git-ignored; null keeps project-owned assets.";
+          description = "Directory linked as pkgdown/assets and copied by pkgdown to the website root in both local and sandboxed builds; null keeps project-owned assets.";
         };
         coverage.enable = lib.mkOption {
           type = lib.types.bool;
@@ -357,12 +357,8 @@
               )
             );
             nullkomma.browse.servers = lib.mkIf cfg.pkgdown.enable [ "r-preview-site" ];
-            nullkomma.files = lib.mkIf (cfg.pkgdown.enable && cfg.pkgdown.assets != null) {
-              "${prefix}pkgdown/assets" = {
-                mode = "generated";
-                directory = true;
-                source = cfg.pkgdown.assets;
-              };
+            nullkomma.links = lib.mkIf (cfg.pkgdown.enable && cfg.pkgdown.assets != null) {
+              "${prefix}pkgdown/assets".source = cfg.pkgdown.assets;
             };
           };
       };

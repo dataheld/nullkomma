@@ -46,7 +46,7 @@ Never filter output:
 no `grep -v`, `sed`, `2>/dev/null`, discarded streams or log-processing rules.
 If neither fix is clean, leave the output as it is.
 
-If the cause is in nullkomma (its generated files or its `/nix/store` paths),
+If the cause is in nullkomma (its linked files or its `/nix/store` paths),
 or in another upstream project, do not patch around it:
 report it to that project, unless an issue for it already exists.
 

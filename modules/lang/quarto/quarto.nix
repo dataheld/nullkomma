@@ -12,7 +12,6 @@
       inherit (config.nullkomma) privacy;
       prefix = import ../../../lib/prefix.nix lib self cfg.root;
       privacyPage = ''
-
         ---
         title: ${builtins.toJSON privacy.title}
         sidebar: false
@@ -51,12 +50,12 @@
           type = lib.types.attrsOf lib.types.path;
           default = { };
           example = lib.literalExpression ''{ my-brand = inputs.my-brand + "/_extensions/my-brand"; }'';
-          description = "Quarto extensions by name, placed in `_extensions/<name>` (generated and Git-ignored) and in the build.";
+          description = "Quarto extensions by name, linked as `_extensions/<name>` and placed in the build.";
         };
         privacy.page = lib.mkOption {
           type = lib.types.nullOr lib.types.str;
           default = "privacy.qmd";
-          description = "Generated page, relative to `root`, rendering `nullkomma.privacy.sections` if there are any; null to write your own.";
+          description = "Linked page, relative to `root`, rendering `nullkomma.privacy.sections` if there are any; null to write your own.";
         };
         preview.args = lib.mkOption {
           type = lib.types.listOf lib.types.str;
@@ -154,22 +153,12 @@
                 output = "${prefix}_site";
               }
             );
-            nullkomma.files =
+            nullkomma.links =
               lib.mapAttrs' (
-                name: source:
-                lib.nameValuePair "${prefix}_extensions/${name}" {
-                  mode = "generated";
-                  directory = true;
-                  inherit source;
-                }
+                name: source: lib.nameValuePair "${prefix}_extensions/${name}" { inherit source; }
               ) cfg.extensions
               // lib.optionalAttrs (cfg.privacy.page != null && privacy.policy != { }) {
-                "${prefix}${cfg.privacy.page}" = {
-                  mode = "generated";
-                  commentPrefix = "<!--";
-                  commentSuffix = " -->";
-                  text = privacyPage;
-                };
+                "${prefix}${cfg.privacy.page}".text = privacyPage;
               };
           };
       };

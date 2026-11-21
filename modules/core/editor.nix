@@ -1,5 +1,5 @@
 # Editor data lives in Nix: language servers are editor-neutral, and editor
-# plugins (`vscode`, `neovim`) write them out as generated files.
+# plugins (`vscode`, `neovim`) link them as configuration files.
 {
   framework =
     { flake-parts-lib, lib, ... }:
@@ -88,19 +88,15 @@
           cfg = config.nullkomma.editor.vscode;
         in
         {
-          nullkomma.files = lib.mkIf enabled (
+          nullkomma.links = lib.mkIf enabled (
             lib.mapAttrs'
               (
                 name: content:
-                lib.nameValuePair ".vscode/${name}.json" {
-                  mode = lib.mkDefault "generated";
-                  commentPrefix = "//";
-                  source = json.generate "vscode-${name}.json" content;
-                }
+                lib.nameValuePair ".vscode/${name}.json" { source = json.generate "vscode-${name}.json" content; }
               )
               {
                 extensions.recommendations = lib.sort lib.lessThan (lib.unique cfg.extensions);
-                mcp.servers = config.nullkomma.agents.generatedMcpServers;
+                mcp.servers = config.nullkomma.agents.linkedMcpServers;
                 settings = cfg.settings;
               }
           );
@@ -115,9 +111,7 @@
       config.perSystem =
         { config, ... }:
         {
-          nullkomma.files.".nvim.lua" = lib.mkIf enabled {
-            mode = lib.mkDefault "generated";
-            commentPrefix = "--";
+          nullkomma.links.".nvim.lua" = lib.mkIf enabled {
             # shortcut: JSON in a Lua long string breaks if it contains `]==]`; switch to a Lua serializer then.
             text = ''
               for name, server in pairs(vim.json.decode([==[${

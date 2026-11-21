@@ -105,7 +105,7 @@
             );
             editor =
               c:
-              map (f: c.nullkomma.files.${f}.source.outPath) [
+              map (f: c.nullkomma.links.${f}.source.outPath) [
                 ".nvim.lua"
                 ".vscode/settings.json"
               ];
