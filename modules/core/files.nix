@@ -50,7 +50,7 @@
           options.nullkomma.files = lib.mkOption {
             type = content "Lines nullkomma requires in the file.";
             default = { };
-            description = "Project files, keyed by path from the flake's directory: `write-files` creates missing ones, and the `project-files` check lists the lines nullkomma requires that a file lacks. nullkomma never changes an existing file.";
+            description = "Project files, keyed by path from the flake's directory: `write-files` creates missing ones, and the `project-files` check lists the lines nullkomma requires that a file lacks. nullkomma changes an existing file only on `write-files --overwrite <file>`.";
           };
           options.nullkomma.src = lib.mkOption {
             type = lib.types.package;
@@ -111,19 +111,74 @@
             + lib.concatMapStrings (path: "link ${lib.escapeShellArg path}\n") (lib.attrNames links)
             + "finish\n"
           );
-          write = script "write-files" [ pkgs.coreutils ] (
-            ''
-              write() {
-                [ -e "$1" ] && return
-                mkdir -p "$(dirname "$1")"
-                install -m 644 "$2" "$1"
-                echo "wrote $1"
-              }
-            ''
-            + forFiles "write"
-          );
+          lacking = ''
+            # Prints the lines of $2 that file $1 lacks.
+            lacking() {
+              local missing
+              missing="$(grep -Fxv -f "$1" "$2")" || [ "$?" = 1 ]
+              grep -v '^$' <<<"$missing" || true
+            }
+          '';
+          write =
+            script "write-files"
+              [
+                pkgs.coreutils
+                pkgs.git
+                pkgs.gnugrep
+              ]
+              (
+                lacking
+                + ''
+                  status=0
+                  overwrite=()
+                  written=()
+                  if [ "''${1-}" = --overwrite ] && [ "$#" -gt 1 ]; then
+                    overwrite=("''${@:2}")
+                  elif [ "$#" != 0 ]; then
+                    echo "Usage: write-files [--overwrite <file>...]; nk project-files lists the files that lack lines." >&2
+                    exit 1
+                  fi
+                  requested() {
+                    local path
+                    for path in "''${overwrite[@]}"; do
+                      [ "$path" = "$1" ] && return
+                    done
+                    return 1
+                  }
+                  write() {
+                    written+=("$1")
+                    if [ -e "$1" ]; then
+                      requested "$1" || return 0
+                      if [ -z "$(lacking "$1" "$2")" ]; then
+                        echo "kept $1, which has every line nullkomma requires"
+                        return
+                      fi
+                      # Git keeps what the project had, for reconciling with `git diff`.
+                      if ! git ls-files --error-unmatch -- "$1" >/dev/null 2>&1 || ! git diff --quiet HEAD -- "$1" 2>/dev/null; then
+                        echo "Not overwritten: $1, as Git could not restore it; commit it first." >&2
+                        status=1
+                        return
+                      fi
+                    fi
+                    mkdir -p "$(dirname "$1")"
+                    install -m 644 "$2" "$1"
+                    echo "wrote $1"
+                  }
+                ''
+                + forFiles "write"
+                + ''
+                  for path in "''${overwrite[@]}"; do
+                    if ! printf '%s\n' "''${written[@]}" | grep -qxF -- "$path"; then
+                      echo "Not overwritten: $path, as nullkomma requires no lines in it." >&2
+                      status=1
+                    fi
+                  done
+                  exit "$status"
+                ''
+              );
           check = script "project-files" [ pkgs.gnugrep ] (
-            ''
+            lacking
+            + ''
               status=0
               require() {
                 local missing
@@ -132,10 +187,9 @@
                   status=1
                   return
                 fi
-                missing="$(grep -Fxv -f "$1" "$2")" || [ "$?" = 1 ]
-                missing="$(grep -v '^$' <<<"$missing")" || true
+                missing="$(lacking "$1" "$2")"
                 if [ -n "$missing" ]; then
-                  printf '%s lacks lines nullkomma requires; add them where they fit:\n%s\n' "$1" "$missing" >&2
+                  printf '%s lacks lines nullkomma requires; add them where they fit, or see nk write-files --overwrite:\n%s\n' "$1" "$missing" >&2
                   status=1
                 fi
               }
@@ -175,7 +229,7 @@
           );
           process-compose.dev.settings.processes = {
             link-files = task "Link nullkomma's files from the Nix store; entering the dev shell does this too" link;
-            write-files = task "Create the project files nullkomma requires that are missing; it changes no existing file" write;
+            write-files = task "Create the project files nullkomma requires that are missing; --overwrite <file>... replaces those that lack lines, to reconcile with git diff" write;
             project-files = lib.mkIf (files != { }) (
               task "Check that project files have the lines nullkomma requires" check
             );

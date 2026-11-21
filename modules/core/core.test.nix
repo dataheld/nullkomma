@@ -1035,6 +1035,23 @@
                 grep -qx required "$TMPDIR/failure.log"
                 printf 'own\n# Notes\n\nrequired\n' > docs/notes.md
                 ${check}
+                # `--overwrite` replaces named files that lack lines, if Git can restore what they had.
+                fails Usage ${write} --overwrite
+                ${write} --overwrite docs/notes.md > out
+                grep -qF "kept docs/notes.md" out
+                printf 'own\n' > docs/notes.md
+                fails "docs/notes.md, as Git could not restore it" ${write} --overwrite docs/notes.md
+                export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
+                export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+                git add docs/notes.md
+                git commit -qm notes
+                printf 'edit\n' >> docs/notes.md
+                fails "docs/notes.md, as Git could not restore it" ${write} --overwrite docs/notes.md
+                test "$(tail -n 1 docs/notes.md)" = edit
+                git checkout -q docs/notes.md
+                fails "flake.nix, as nullkomma requires no lines in it" ${write} --overwrite docs/notes.md flake.nix
+                ${check}
+                git diff HEAD -- docs/notes.md | grep -qx -- -own
                 touch $out
               '';
             # A flake below its repository's root works only in its own directory.

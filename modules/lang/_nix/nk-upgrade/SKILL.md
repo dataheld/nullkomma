@@ -31,6 +31,14 @@ description: >-
    `nullkomma:<name>:start` and `:end` markers.
    Delete each such section, markers included, then run `nk project-files`
    and add the lines it reports missing where they fit.
+1. Where adding the reported lines by hand is impractical,
+   as for generated CI such as `.gitlab-ci.yml`,
+   commit the file, then run `nk write-files --overwrite <file>`:
+   it replaces the file with nullkomma's version.
+   In `git diff -- <file>`, restore the project's own lines that the replacement dropped,
+   such as its own jobs, ignore rules or instructions,
+   keep nullkomma's changes, and run `nk project-files` again.
+   Stage nothing else before a replaced `.gitignore` has the project's lines back.
 1. Read nullkomma's new locked revision.
    Before adapting the project, review the history between the saved revisions,
    even if the upgrade reports nothing and the checks pass.

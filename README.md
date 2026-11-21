@@ -330,9 +330,11 @@ and each file has one author, your project or Nix:
 | `write-files`               | `.envrc`, `.gitignore`, `AGENTS.md`, `.Rbuildignore`, GitHub workflows, `.gitlab-ci.yml` |                                                                                                                                       |
 | `link-files`                |                                                                                          | `.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.Rprofile`, `.agents/skills/*`, Quarto brand, extensions and privacy page, pkgdown assets |
 
-`write-files` creates the project files nullkomma requires that are missing, and never changes an existing one.
+`write-files` creates the project files nullkomma requires that are missing, and changes existing ones only when asked.
 The `project-files` check lists the lines nullkomma requires that a file lacks,
 for example after an upgrade; add them wherever they fit.
+Where that is impractical, `nk write-files --overwrite <file>...` replaces the named files with nullkomma's version,
+if Git has them committed; restore your own lines from `git diff` before you commit.
 
 Links point into the Nix store, so they follow your Nix configuration, and edits to them fail.
 Entering the dev shell runs `link-files`, which links only paths that Git ignores and that hold nothing of yours,
