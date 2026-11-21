@@ -19,5 +19,7 @@ proposals or assumptions about upstream tools.
    there. Never list unimplemented plugins.
 1. Files the plugin writes go in a sentence or two in its section below the
    table. Its options belong in their descriptions, not the README: the
-   section's config block is generated from them.
-1. Run `nk write-files` and `nix fmt`, and review the diff.
+   section's config block is printed from them by
+   `nix eval --raw .#lib.configs.<plugin>`.
+1. Run `nk project-files`, replace the config blocks whose lines it reports
+   missing, run `nix fmt`, and review the diff.

@@ -85,7 +85,7 @@
         quarto-site = pkgs.runCommand "nullkomma-quarto-site" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           test ! -e ${fixtures.quarto.packages.${system}.site}/privacy.html
           grep -qi '#123456' ${themed.packages.${system}.site}/site_libs/bootstrap/*.css
-          cmp ${(perSystem themed).nullkomma.files."_brand".source}/assets/brand.svg ${
+          cmp ${(perSystem themed).nullkomma.links."_brand".source}/assets/brand.svg ${
             root + "/tests/fixtures/r-brand/assets/brand.svg"
           }
           python - ${fixtures.quarto.packages.${system}.site} ${

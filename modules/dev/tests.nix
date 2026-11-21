@@ -246,6 +246,7 @@
               '';
             # What plugins can contribute to a consumer flake.
             summary = flake: {
+              links = lib.attrNames (perSystem flake).nullkomma.links;
               files = lib.attrNames (perSystem flake).nullkomma.files;
               tools = map lib.getName (perSystem flake).nullkomma.devShell.packages;
               mcpServers = lib.attrNames (perSystem flake).nullkomma.agents.mcpServers;
@@ -316,7 +317,6 @@
                 git init -q
                 git add -A
                 nix develop --command nk write-files
-                nix develop --command nk generate-files
                 git add -A
                 git commit -qm "add nullkomma"
                 direnv allow
@@ -337,7 +337,7 @@
           process-compose.dev.settings.processes.all.depends_on.check-fixtures.condition =
             "process_completed_successfully";
           process-compose.dev.settings.processes.check-fixtures = {
-            description = "Initialize the template, then run nix flake check and flake-checker on it";
+            description = "Initialize the template and write its project files, then run nix flake check and flake-checker on it";
             disabled = true;
             command = pkgs.writeShellApplication {
               name = "check-fixtures";
@@ -352,7 +352,13 @@
                 # The root needs no partition for what it defines itself; `dev/` is missing here.
                 mkdir "$scratch/root" "$scratch/project"
                 cp -R "$root"/{flake.nix,flake.lock,lib,modules,templates} "$scratch/root/"
-                (cd "$scratch/project" && nix flake init --template "path:$scratch/root")
+                (
+                  cd "$scratch/project"
+                  nix flake init --template "path:$scratch/root"
+                  git init -q
+                  nix develop "path:$PWD" --override-input nullkomma "path:$root" \
+                    --no-write-lock-file --command nk write-files
+                )
                 nix flake check "path:$scratch/project" \
                   --override-input nullkomma "path:$root" \
                   --no-write-lock-file --print-build-logs
@@ -366,7 +372,11 @@
             lib.concatMapAttrs (
               name: flake:
               lib.mapAttrs' (check: lib.nameValuePair "fixture-${name}-${check}") (
-                flake.checks.${system} // { devshell = flake.devShells.${system}.default; }
+                # Fixtures commit no project files; the `project-files` test covers that check.
+                removeAttrs flake.checks.${system} [ "project-files" ]
+                // {
+                  devshell = flake.devShells.${system}.default;
+                }
               )
             ) fixtures
             // lib.mapAttrs' (

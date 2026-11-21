@@ -170,26 +170,15 @@
           fileVersions = lib.genAttrs [ "old" "new" ] (
             version:
             raw {
-              perSystem.nullkomma.files = {
-                "source.txt".text = version;
-                "generated.txt" = {
-                  text = version;
-                  mode = "generated";
-                  commentPrefix = "#";
-                };
+              perSystem.nullkomma.links = {
+                "linked.txt".text = version;
+                "dir/linked".source = template;
               }
-              # Declared only by the old version, so the new one prunes them.
+              # Declared only by the old version, so the new one prunes them unless they are the project's.
               // lib.optionalAttrs (version == "old") {
-                "stale-generated.txt" = {
-                  text = version;
-                  mode = "generated";
-                  commentPrefix = "#";
-                };
-                "notes.md" = {
-                  commentPrefix = "<!--";
-                  commentSuffix = " -->";
-                  sections.stale = version;
-                };
+                "stale.txt".text = version;
+                "stale/linked".source = template;
+                "own.txt".text = version;
               };
             }
           );
@@ -208,66 +197,23 @@
                   nullkomma.flakeModules.framework
                 ];
                 debug = true;
-                perSystem.nullkomma.files = {
-                  "source.txt".text = "nested";
-                  "generated.txt" = {
-                    text = "nested";
-                    mode = "generated";
-                    commentPrefix = "#";
-                  };
+                perSystem.nullkomma = {
+                  links."linked.txt".text = "nested";
+                  files."notes.md".text = "nested";
                 };
               };
-          sectioned = raw {
-            perSystem.nullkomma.files."notes.md" = {
-              commentPrefix = "<!--";
-              commentSuffix = " -->";
-              sections.docs = "new\n";
+          projectFiles = raw {
+            perSystem.nullkomma.files."docs/notes.md".text = "# Notes\nrequired\n";
+          };
+          # A project with its own `.gitignore` lines and skills.
+          ignored = rawAt (root + "/tests/fixtures/edited-gitignore") {
+            imports = [ plugins.git ];
+            nullkomma.git.enable = true;
+            perSystem.nullkomma.links = {
+              "linked.txt".text = "linked";
+              ".agents/skills/linked".source = template;
             };
           };
-          ciVersions = lib.genAttrs [ "old" "new" ] (
-            version:
-            raw {
-              imports = [ plugins.github ];
-              nullkomma.github = {
-                enable = true;
-                workflows.ref = version;
-              };
-            }
-          );
-          # A project with its own `.gitignore` lines, and a skill renamed between versions.
-          ignoredVersions = lib.genAttrs [ "old" "new" ] (
-            version:
-            let
-              directory = {
-                source = template;
-                mode = "generated";
-                directory = true;
-              };
-            in
-            rawAt (root + "/tests/fixtures/edited-gitignore") {
-              imports = [ plugins.git ];
-              nullkomma.git.enable = true;
-              perSystem.nullkomma.files = {
-                "generated.txt" = {
-                  text = version;
-                  mode = "generated";
-                };
-                ".agents/skills/kept" = directory;
-              }
-              // (
-                if version == "old" then
-                  { ".agents/skills/before" = directory; }
-                else
-                  {
-                    ".agents/skills/after" = directory;
-                    "added.txt" = {
-                      text = version;
-                      mode = "generated";
-                    };
-                  }
-              );
-            }
-          );
         in
         {
           nullkomma.nix.unit.tests = {
@@ -284,9 +230,9 @@
                 expr = lib.attrNames (lib.filterAttrs (name: dir: !named name dir) skills);
                 expected = [ ];
               };
-            testAgentsPluginWritesSkillsAndSection =
+            testAgentsPluginLinksSkillsAndServers =
               let
-                files =
+                cfg =
                   enable:
                   (perSystem (raw {
                     imports = [ plugins.agents ];
@@ -298,26 +244,30 @@
                       type = "http";
                       url = "https://example.com/mcp";
                     };
-                  })).nullkomma.files;
+                  })).nullkomma;
               in
               {
                 expr = {
-                  enabled = lib.mapAttrs (_: f: f.mode) (files true);
-                  servers = lib.attrNames (builtins.fromJSON (files true).".mcp.json".text).mcpServers;
-                  disabled = files false;
+                  links = lib.attrNames (cfg true).links;
+                  files = lib.attrNames (cfg true).files;
+                  servers = lib.attrNames (builtins.fromJSON (cfg true).links.".mcp.json".text).mcpServers;
+                  disabled = { inherit (cfg false) links files; };
                 };
                 expected = {
+                  links = [
+                    ".agents/skills/demo"
+                    ".agents/skills/nk-audit-output"
+                    ".mcp.json"
+                  ];
+                  files = [ "AGENTS.md" ];
                   servers = [
                     "demo"
                     "nullkomma"
                   ];
-                  enabled = {
-                    ".mcp.json" = "generated";
-                    "AGENTS.md" = "source";
-                    ".agents/skills/demo" = "generated";
-                    ".agents/skills/nk-audit-output" = "generated";
+                  disabled = {
+                    links = { };
+                    files = { };
                   };
-                  disabled = { };
                 };
               };
             testAllPluginsDisabledIsBareFramework = {
@@ -432,12 +382,12 @@
               ) (lib.attrNames plugins);
               expected = [ ];
             };
-            testGitignoreContainsPluginPatternsAndGeneratedFiles = {
-              expr = map (flake: (perSystem flake).nullkomma.files.".gitignore".sections.git) [
+            testGitignoreRequiresPluginPatternsAndLinks = {
+              expr = map (flake: (perSystem flake).nullkomma.files.".gitignore".text) [
                 fixtures.template
                 (callFlakeWith {
-                  perSystem.nullkomma.files = {
-                    ".vscode/settings.json".mode = "source";
+                  perSystem.nullkomma.links = {
+                    ".vscode/settings.json".enable = false;
                     ".vscode/extensions.json".enable = false;
                   };
                 } template)
@@ -448,6 +398,8 @@
                   "result-*"
                   ".direnv/"
                   "/.nullkomma/gcroots/"
+                  "/.agents/skills/nk-audit-output"
+                  "/.agents/skills/nk-upgrade"
                   "/.mcp.json"
                   "/.nvim.lua"
                   "/.vscode/extensions.json"
@@ -459,6 +411,8 @@
                   "result-*"
                   ".direnv/"
                   "/.nullkomma/gcroots/"
+                  "/.agents/skills/nk-audit-output"
+                  "/.agents/skills/nk-upgrade"
                   "/.mcp.json"
                   "/.nvim.lua"
                   "/.vscode/mcp.json"
@@ -600,7 +554,7 @@
                           url = "https://example.com/mcp";
                         };
                       };
-                    })).nullkomma.files.".mcp.json".text
+                    })).nullkomma.links.".mcp.json".text
                   ).mcpServers;
                 docs = {
                   type = "http";
@@ -868,7 +822,7 @@
                 ''
                   ${harness.project template}
                   HOME=$TMPDIR nvim --clean -l ${pkgs.writeText "check.lua" ''
-                    dofile("${(perSystem fixtures.template).nullkomma.files.".nvim.lua".source}")
+                    dofile("${(perSystem fixtures.template).nullkomma.links.".nvim.lua".source}")
                     assert(vim.lsp.config.nixd.cmd[1] == "nixd")
                     assert(vim.lsp.config.nixd.settings.nixd.formatting.command[1] == "treefmt")
                     assert(vim.lsp.is_enabled("nixd"))
@@ -900,7 +854,7 @@
                             "echo formatter-failed >&2; exit 1"
                           ];
                         } template
-                      )).nullkomma.files.".nvim.lua".source
+                      )).nullkomma.links.".nvim.lua".source
                     }")
                     vim.cmd.file("broken.nix")
                     vim.api.nvim_buf_set_lines(0, 0, -1, false, { "{" })
@@ -943,194 +897,109 @@
                   '') (lib.attrValues (perSystem fixtures.template).nullkomma.editor.languageServers)}
                   touch $out
                 '';
-            file-updates =
+            links =
               let
-                at = version: task fileVersions.${version};
+                at = version: task fileVersions.${version} "link-files";
               in
-              pkgs.runCommandLocal "nullkomma-file-updates" { nativeBuildInputs = [ pkgs.git ]; } ''
-                mkdir project
-                cd project
-                git init --quiet
-                # Without the git plugin, the project has to ignore generated files itself.
-                printf mine > generated.txt
-                if output="$(${at "old" "generate-files"} 2>&1)"; then
-                  echo "A file Git does not ignore was overwritten" >&2
+              pkgs.runCommandLocal "nullkomma-links-test" { nativeBuildInputs = [ pkgs.git ]; } ''
+                ${project template}
+                rm -r ./*
+                mkdir ../outside
+                # Git must ignore a link first, or it could be committed.
+                fails /linked.txt ${at "old"}
+                test ! -e linked.txt
+                printf '%s\n' '*.txt' /dir/ /stale/ .nullkomma/ > .git/info/exclude
+                printf mine > own.txt
+                fails "own.txt, as the project has its own" ${at "old"}
+                test "$(cat own.txt)" = mine
+                test "$(cat linked.txt)" = old
+                test -L dir/linked/flake.nix
+                test ! -L dir/linked
+                [[ "$(readlink linked.txt)" == /nix/store/*-nullkomma-links/linked.txt ]]
+                # Edits fail instead of being overwritten later.
+                if printf edit 2> /dev/null > linked.txt; then
+                  echo "A link was writable" >&2
                   exit 1
                 fi
-                test "$(cat generated.txt)" = mine
-                grep -qF 'Add them to .gitignore' <<<"$output"
-                rm generated.txt
-                echo '*generated.txt' > .git/info/exclude
-                ${at "old" "write-files"}
-                # Runs that change nothing print nothing.
-                test "$(${at "old" "write-files"} | wc -l)" -eq 0
-                ${at "old" "generate-files"}
-                grep -q 'Generated by nullkomma. DO NOT EDIT' generated.txt
-                # Unchanged generated files keep their mtime, so e.g. `quarto preview` doesn't re-render them.
-                touch -d @0 generated.txt
-                ${at "old" "generate-files"}
-                test "$(stat -c %Y generated.txt)" = 0
-                rm generated.txt
+                rm own.txt
+                test "$(${at "old"} | wc -l)" = 1
+                test "$(${at "old"} | wc -l)" = 0
+                git add -f linked.txt
+                fails "linked.txt, as Git tracks it" ${at "old"}
+                git rm -q --cached linked.txt
+                rm linked.txt
                 (${(perSystem fileVersions.old).nullkomma.devShell.shellHook})
-                test -f generated.txt
-                printf 'project edit' > source.txt
-                printf 'local edit' > generated.txt
-                printf 'Project notes.\n\n%s\n' "$(cat notes.md)" > notes.md
-                git add notes.md
-                ${at "new" "write-files"}
-                test "$(cat source.txt)" = 'project edit'
-                test "$(cat notes.md)" = 'Project notes.'
-                ${at "new" "generate-files"} < /dev/null
-                grep -q 'DO NOT EDIT' generated.txt
-                test ! -e stale-generated.txt
-                mkdir ../unknown
-                cd ../unknown
-                git init --quiet
-                echo '*generated.txt' > .git/info/exclude
-                printf 'preexisting' > source.txt
-                printf 'preexisting\n' > notes.md
-                ${at "old" "write-files"}
-                test "$(cat source.txt)" = preexisting
-                test "$(head -n 1 notes.md)" = preexisting
-                grep -qxF '<!-- nullkomma:stale:start -->' notes.md
-                ln -s source.txt generated.txt
-                if ${at "new" "generate-files"}; then
-                  echo "Symlink target was not rejected" >&2
-                  exit 1
-                fi
-                test "$(cat source.txt)" = preexisting
-                mkdir ../branded
-                cd ../branded
-                git init --quiet
-                ${task fixtures.quarto-branded "write-files"}
-                generate="${task fixtures.quarto-branded "generate-files"}"
-                mkdir -p _extensions/greeting
-                touch _extensions/greeting/stale.lua
-                $generate
-                test -f _extensions/greeting/greeting.lua
-                test ! -e _extensions/greeting/stale.lua
-                test -w _extensions/greeting/greeting.lua
-                head -n 1 privacy.qmd | grep -q '^<!-- Generated by nullkomma.* -->$'
-                $generate
-                printf 'own policy' > privacy.qmd
-                git add -f privacy.qmd
-                if $generate; then
-                  echo "Tracked file was overwritten by a generated one" >&2
-                  exit 1
-                fi
-                test "$(cat privacy.qmd)" = 'own policy'
+                test "$(cat linked.txt)" = old
+                # An upgrade follows the new bundle, and prunes only links into the old one.
+                rm own.txt
+                printf mine > own.txt
+                ${at "new"}
+                test "$(cat linked.txt)" = new
+                test ! -e stale.txt
+                test ! -e stale
+                test "$(cat own.txt)" = mine
+                [[ "$(readlink .nullkomma/gcroots/links)" == /nix/store/*-nullkomma-links ]]
+                rm -r dir
+                ln -s ../outside dir
+                fails "as dir is a symlink" ${at "new"}
+                test -z "$(ls ../outside)"
                 touch $out
               '';
-            file-sections =
-              pkgs.runCommandLocal "nullkomma-file-sections" { nativeBuildInputs = [ pkgs.git ]; }
+            # nullkomma never changes a project file; it creates missing ones and checks the rest.
+            project-files =
+              let
+                check = task projectFiles "project-files";
+                write = task projectFiles "write-files";
+              in
+              pkgs.runCommandLocal "nullkomma-project-files" { nativeBuildInputs = [ pkgs.git ]; } ''
+                ${project template}
+                fails "docs/notes.md is missing" ${check}
+                ${write}
+                grep -qx required docs/notes.md
+                ${check}
+                test "$(${write} | wc -l)" = 0
+                printf 'own\n' > docs/notes.md
+                ${write}
+                test "$(cat docs/notes.md)" = own
+                fails "lacks lines nullkomma requires:
+                required" ${check}
+                printf 'own\n# Notes\n\nrequired\n' > docs/notes.md
+                ${check}
+                touch $out
+              '';
+            # A flake below its repository's root works only in its own directory.
+            nested-project =
+              pkgs.runCommandLocal "nullkomma-nested-project" { nativeBuildInputs = [ pkgs.git ]; }
                 ''
                   git init --quiet
-                  write=${lib.escapeShellArg (task sectioned "write-files")}
-                  block='<!-- nullkomma:docs:start -->\nnew\n<!-- nullkomma:docs:end -->'
-                  spliced() {
-                    printf "$1" > expected
-                    cmp expected notes.md
-                  }
-                  printf '# Notes\n' > notes.md
-                  $write
-                  spliced "# Notes\n\n$block\n"
-                  test "$($write | wc -l)" -eq 0
-                  printf 'a\n<!-- nullkomma:docs:start -->\nold\n<!-- nullkomma:docs:end -->\nb\n' > notes.md
-                  $write
-                  spliced "a\n$block\nb\n"
-                  printf '<!-- nullkomma:gone:start -->\nx\n<!-- nullkomma:gone:end -->\n' > notes.md
-                  $write
-                  spliced "$block\n"
-                  # A file from before sections, still as nullkomma wrote it, gets them marked.
-                  printf 'new\n' > notes.md
-                  $write
-                  spliced "$block\n"
-                  # Sections in a nested project, with its own flake.nix, are that project's.
-                  mkdir -p nested/docs
-                  touch nested/flake.nix
-                  printf '<!-- nullkomma:other:start -->\nx\n<!-- nullkomma:other:end -->\n' > nested/docs/notes.md
-                  cp nested/docs/notes.md before
-                  git add nested
-                  $write
-                  cmp before nested/docs/notes.md
-                  for malformed in "$block\n$block" '<!-- nullkomma:docs:start -->' '<!-- nullkomma:docs:end -->'; do
-                    printf "$malformed\n" > notes.md
-                    cp notes.md before
-                    if $write 2> stderr; then
-                      echo "Malformed markers were accepted" >&2
-                      exit 1
-                    fi
-                    grep -qF 'Malformed nullkomma section markers' stderr
-                    cmp before notes.md
-                  done
+                  printf '%s\n' '*.txt' .nullkomma/ > .git/info/exclude
+                  mkdir -p nested/sub
+                  cd nested/sub
+                  ${task nestedFiles "write-files"}
+                  ${task nestedFiles "link-files"}
+                  cd ../..
+                  grep -qx nested nested/notes.md
+                  test "$(cat nested/linked.txt)" = nested
+                  test ! -e linked.txt
+                  test ! -e notes.md
                   touch $out
                 '';
-            # A flake below its repository's root writes only into its own directory.
-            nested-project =
-              let
-                at = version: task fileVersions.${version};
-                nested = task nestedFiles;
-              in
-              pkgs.runCommandLocal "nullkomma-nested-project" { nativeBuildInputs = [ pkgs.git ]; } ''
-                git init --quiet
-                echo '*generated.txt' > .git/info/exclude
-                ${at "old" "generate-files"}
-                mkdir -p nested/sub
-                ${nested "write-files"}
-                (cd nested/sub && ${nested "generate-files"})
-                test "$(cat nested/source.txt)" = nested
-                grep -qx nested nested/generated.txt
-                test ! -e source.txt
-                grep -qx old generated.txt
-                ${at "new" "generate-files"}
-                test ! -e stale-generated.txt
-                grep -qx nested nested/generated.txt
-                touch $out
-              '';
-            # Upgrades need no state outside the working tree: not in a new clone (#358),
-            # nor in worktrees on different versions (#367).
-            file-upgrades =
-              let
-                at = version: task ciVersions.${version} "write-files";
-                push = ".github/workflows/push.yml";
-              in
-              pkgs.runCommandLocal "nullkomma-file-upgrades" { nativeBuildInputs = [ pkgs.git ]; } ''
-                export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
-                export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
-                mkdir project
-                cd project
-                git init --quiet
-                ${at "old"}
-                git add -A
-                git commit -qm old
-                git clone -q . ../clone
-                cd ../clone
-                ${at "new"}
-                grep -qF ci.yml@new ${push}
-                test "$(git status --porcelain)" = " M ${push}"
-                cat >> ${push} <<'YAML'
-                  project:
-                    runs-on: ubuntu-latest
-                    steps:
-                      - run: echo project
-                YAML
-                ${at "old"}
-                grep -qF ci.yml@old ${push}
-                grep -qx '  project:' ${push}
-                ${lib.getExe pkgs.actionlint} ${push}
-                cd ../project
-                git worktree add -q ../linked
-                (cd ../linked && ${at "new"} && grep -qF ci.yml@new ${push})
-                test "$(${at "old"} | wc -l)" -eq 0
-                touch $out
-              '';
+            github-workflow = pkgs.runCommandLocal "nullkomma-github-workflow" { } ''
+              ${lib.getExe pkgs.actionlint} ${
+                (perSystem (raw {
+                  imports = [ plugins.github ];
+                  nullkomma.github.enable = true;
+                })).nullkomma.files.".github/workflows/push.yml".source
+              }
+              touch $out
+            '';
             file-update-task =
               let
                 nix = pkgs.writeShellScriptBin "nix" ''
                   printf '%s\n' "$*" >> "$NULLKOMMA_TEST_LOG"
                   case "$*" in
                     "flake update --flake . fail") exit 7 ;;
-                    "develop --command nk write-files") exit 1 ;;
+                    "develop --command nk link-files") exit 1 ;;
                   esac
                 '';
                 update = task fixtures.template "flake-update";
@@ -1147,7 +1016,7 @@
                 cd project
                 ${lib.getExe pkgs.git} init -q
                 export NULLKOMMA_TEST_LOG="$PWD/calls"
-                files=('develop --command nk write-files' 'develop --command nk generate-files')
+                files=('develop --command nk link-files')
                 called() {
                   printf '%s\n' "$@" | cmp calls -
                   : > calls
@@ -1182,79 +1051,29 @@
                 called 'flake update --flake .' 'flake update --flake ./dev' "''${files[@]}"
                 touch $out
               '';
-            # Generated paths stay out of `git status` whether or not `write-files` ran.
-            generated-files-ignored =
-              let
-                at = version: task ignoredVersions.${version};
-              in
-              pkgs.runCommandLocal "nullkomma-generated-files-ignored" { nativeBuildInputs = [ pkgs.git ]; } ''
-                export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
-                export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
-                ${project (root + "/tests/fixtures/edited-gitignore")}
-                clean() {
-                  test -z "$(git status --porcelain)" || {
-                    git status --porcelain >&2
-                    exit 1
-                  }
-                }
-
-                # With the project's lines, nothing conflicts.
-                ${at "old" "write-files"}
-                grep -qxF /project-ignored .gitignore
-                grep -qxF /generated.txt .gitignore
-                test "$(grep -cF .agents .gitignore)" = 0
-                git add -A
-                git commit -qm "adopt"
-                ${at "old" "generate-files"}
-                clean
-                test "$(cat .agents/skills/kept/.gitignore)" = '*'
-
-                # A project's own skill is not affected by the generated ones beside it.
-                mkdir .agents/skills/own
-                touch .agents/skills/own/SKILL.md
-                git add -A
-                test "$(git diff --cached --name-only)" = .agents/skills/own/SKILL.md
-                git commit -qm "own skill"
-
-                # `write-files` has not run: a new directory ignores itself,
-                # and a new file is refused until the root list covers it.
-                fails added.txt ${at "new" "generate-files"}
-                test ! -e added.txt
-                test -f .agents/skills/after/flake.nix
-                test ! -e .agents/skills/before
-                clean
-                ${at "new" "write-files"}
-                ${at "new" "generate-files"}
-                test -f added.txt
-                test "$(git status --porcelain)" = ' M .gitignore'
-                git add -A
-                git commit -qm "upgrade"
-
-                # A directory from before generated directories ignored themselves is rewritten.
-                rm .agents/skills/kept/.gitignore
-                ${at "new" "generate-files"}
-                clean
-
-                # An upgrade in a linked worktree does not hide what the main checkout must prune.
-                git reset -q --hard HEAD~1
-                ${at "old" "generate-files"}
-                git worktree add -q -b upgrade ../linked
-                (
-                  cd ../linked
-                  ${at "old" "generate-files"}
-                  echo /added.txt >> .gitignore
-                  ${at "new" "generate-files"}
-                  test ! -e .agents/skills/before
+            # Links stay out of `git status`, beside the project's own skills.
+            links-ignored =
+              pkgs.runCommandLocal "nullkomma-links-ignored" { nativeBuildInputs = [ pkgs.git ]; }
+                ''
+                  export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
+                  export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+                  ${project (root + "/tests/fixtures/edited-gitignore")}
+                  link=${lib.escapeShellArg (task ignored "link-files")}
+                  check=${lib.escapeShellArg (task ignored "project-files")}
+                  fails /.agents/skills/linked $link
+                  fails "/.agents/skills/linked" $check
+                  cat ${(perSystem ignored).nullkomma.files.".gitignore".source} >> .gitignore
+                  $check
+                  $link
                   git add -A
-                  git commit -qm "upgrade"
-                )
-                git merge -q --ff-only upgrade
-                ${at "new" "generate-files"}
-                test ! -e .agents/skills/before
-                clean
-
-                touch $out
-              '';
+                  git commit -qm "adopt"
+                  test -z "$(git status --porcelain)"
+                  mkdir .agents/skills/own
+                  touch .agents/skills/own/SKILL.md
+                  git add -A
+                  test "$(git diff --cached --name-only)" = .agents/skills/own/SKILL.md
+                  touch $out
+                '';
             options-doc = optionsDoc.optionsCommonMark;
           };
         };

@@ -14,13 +14,16 @@ description: >-
    rather than assuming its lock node is named `nullkomma`.
    Both GitHub and FlakeHub locks can provide `locked.rev`.
 1. Run `nk flake-update`, or `nk flake-update nullkomma` to update only nullkomma.
-   It updates `flake.lock` and `dev/flake.lock`, then runs `write-files` and `generate-files`.
+   It updates `flake.lock` and `dev/flake.lock`, then runs `link-files`.
    If it fails, inspect whether the lock update failed
-   or only the subsequent file updates reported a problem.
+   or only linking reported a problem.
    Do not treat a failed input update as a completed upgrade.
-1. If `write-files` appended a `nullkomma:<name>` section to a file
-   that still holds an unmarked copy from an older nullkomma,
-   delete that copy and keep the project's own lines outside the markers.
+1. If `link-files` reports that the project has its own file
+   where nullkomma links one, and Git ignores that file,
+   an older nullkomma generated it: delete it and run `nk link-files`.
+   Delete `nullkomma:<name>:start` and `:end` marker lines left by older versions,
+   keeping the lines between them.
+1. Run `nk project-files` and add the lines it reports missing.
 1. Read nullkomma's new locked revision.
    Before adapting the project, review the history between the saved revisions,
    even if the upgrade reports nothing and the checks pass.

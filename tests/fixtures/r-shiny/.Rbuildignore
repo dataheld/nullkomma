@@ -1,4 +1,3 @@
-# nullkomma:r:start
 ^[.](?!aspell(/|$)|Rinstignore$)
 [.]nix$
 ^flake[.]lock$
@@ -9,4 +8,3 @@
 ^coverage[.]xml$
 ^pkg[.]lock$
 ^docs$
-# nullkomma:r:end

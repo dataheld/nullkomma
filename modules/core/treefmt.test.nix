@@ -20,11 +20,7 @@
       template = root + "/templates/default";
       flake = callFlakeWith {
         nullkomma.generatedPaths = [ "generated/**" ];
-        perSystem.nullkomma.files."managed" = {
-          mode = "generated";
-          directory = true;
-          source = root + "/tests/fixtures/r-brand/assets";
-        };
+        perSystem.nullkomma.links."managed".source = root + "/tests/fixtures/r-brand/assets";
       } template;
       # A consumer whose flake check finds `content` unformatted in a new file.
       unformatted =

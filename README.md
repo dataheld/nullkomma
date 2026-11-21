@@ -98,13 +98,12 @@ builds and checks run sandboxed, on the files Git tracks (`git add` new files fi
 |                                       | `taskRunners`       | `nk`                                  | processes with a `description`             |
 | `nix flake update`                    | (`flake.lock`)      | `nk flake-update`                     |                                            |
 
-`nk flake-update` also runs `write-files` and `generate-files`;
-after another `nix flake update`, e.g. by a bot, run those two yourself.
+`nk flake-update` also runs `link-files`, as entering the dev shell does.
 
 ### MCP servers and skills
 
-The [`agents`](#agents) plugin generates two things that coding agents read,
-from your `flake.lock`, so they match the nullkomma you use:
+The [`agents`](#agents) plugin links two things that coding agents read
+from the Nix store, so they match the nullkomma in your `flake.lock`:
 
 - `.mcp.json` lists [MCP] servers.
   `nullkomma` (`nk mcp`) serves the tasks as tools,
@@ -144,14 +143,14 @@ In your project, with a clean working tree, run:
 nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
 git add flake.nix
 nix develop --command nk write-files
-nix develop --command nk generate-files
 git add -A
 git commit -m "add nullkomma"
 direnv allow
 ```
 
 The template adds `flake.nix`, keeping existing files;
-`write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
+`write-files` adds the [project files](#files-in-your-repository) your configuration requires,
+and entering the dev shell links the rest.
 The template's `nixpkgs.follows = "nullkomma/nixpkgs"` uses nullkomma's tested Nixpkgs.
 To use your own, declare `nixpkgs.url` and set `nullkomma.inputs.nixpkgs.follows = "nixpkgs"`.
 After editing your Nix files, run `direnv reload`.
@@ -221,8 +220,8 @@ from `nullkomma.lint.<tool>`; the others from treefmt-nix:
 
 `perSystem.treefmt.settings.excludes` skips files for every tool, jscpd included;
 see [treefmt-nix's options](https://flake.parts/options/treefmt-nix.html).
-Generated files aren't formatted or linted;
-add other generated content to `nullkomma.generatedPaths` as treefmt globs.
+Links and project files with lines nullkomma requires aren't formatted or linted;
+add generated content to `nullkomma.generatedPaths` as treefmt globs.
 
 ### Tasks and checks
 
@@ -319,24 +318,24 @@ The sections are a starting point, not legal advice.
 
 ## Files in your repository
 
-Features live in Nix; nullkomma writes files only where tools need them:
+Features live in Nix; nullkomma adds files only where tools need them,
+and each file has one author, your project or Nix:
 
-|                             | **Source of truth** (committed, yours to edit)       | **Generated from Nix** (Git-ignored, don't edit)                                            |
-| --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `nix flake init --template` | `flake.nix`                                          |                                                                                             |
-| `write-files`               | `.envrc`, `.gitignore` and `AGENTS.md` sections, GitHub workflows, `.gitlab-ci.yml` |                                                                                             |
-| `generate-files`            |                                                      | `.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
+|                             | **Project files** (committed, yours)                                                     | **Links** (Git-ignored, read-only, from Nix)                                                                                          |
+| --------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `nix flake init --template` | `flake.nix`                                                                              |                                                                                                                                       |
+| `write-files`               | `.envrc`, `.gitignore`, `AGENTS.md`, `.Rbuildignore`, GitHub workflows, `.gitlab-ci.yml` |                                                                                                                                       |
+| `link-files`                |                                                                                          | `.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.Rprofile`, `.agents/skills/*`, Quarto brand, extensions and privacy page, pkgdown assets |
 
-`write-files` writes source-of-truth files (`nullkomma.files."<path>".mode = "source"`) once; then they are yours.
-It keeps only their marked `sections` up to date, wherever you moved them, and strips them once nullkomma no longer declares them.
-Add your own lines outside the markers, for example your jobs below nullkomma's section of `push.yml`.
+`write-files` creates the project files nullkomma requires that are missing, and never changes an existing one.
+The `project-files` check lists the lines nullkomma requires that a file lacks,
+for example after an upgrade; add them wherever they fit.
 
-`generate-files` overwrites generated files (`mode = "generated"`) when they differ from Nix,
-and removes ones no longer declared; it refuses to overwrite files Git tracks.
-A generated directory holds its own `.gitignore`;
-a generated file must be ignored already, usually by nullkomma's `.gitignore` section, or `generate-files` does not write it and fails.
-Entering the dev shell runs it; tasks never do.
-To change a generated file, change the Nix options.
+Links point into the Nix store, so they follow your Nix configuration, and edits to them fail.
+Entering the dev shell runs `link-files`, which links only paths that Git ignores and that hold nothing of yours,
+and removes the links nullkomma no longer declares.
+To change a link, change the Nix options;
+to own the file instead, disable the link, e.g. `perSystem.nullkomma.links.".Rprofile".enable = false`.
 
 ## Plugins
 
@@ -345,7 +344,7 @@ Those marked under Default are enabled unless you opt out.
 
 | Plugin                                                                                            | Default | `devShells`                                                                                                    | `formatter`                                | `checks`                                                  | `packages`         | `apps`                     | `taskRunners`                                                                                                                                  | `processTrees`                                                                                                                                | MCP                                             |
 | ------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------- | ------------------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| framework                                                                                         | always  | `nk`, [`process-compose`][process-compose]                                                                     | [treefmt]                                  | `treefmt`; [each `check` prerequisite](#tasks-and-checks) |                    |                            | `all`, `check`, `flake-check`, `treefmt`, `write-files`, `generate-files`, `mcp`, `graph`                                                      | `dev`: `treefmt`                                                                                                                              | `nullkomma`                                     |
+| framework                                                                                         | always  | `nk`, [`process-compose`][process-compose]                                                                     | [treefmt]                                  | `treefmt`; [each `check` prerequisite](#tasks-and-checks) |                    |                            | `all`, `check`, `flake-check`, `treefmt`, `write-files`, `link-files`, `project-files`, `mcp`, `graph`                                         | `dev`: `treefmt`                                                                                                                              | `nullkomma`                                     |
 | [`nix`](#nix)                                                                                     | ✅       | [nixd]                                                                                                         | [`nixfmt`], [`deadnix`], [`nixf-diagnose`] | `nix-unit`                                                |                    |                            | `nix-unit`, `flake-update`, [`flake-checker`]                                                                                                  | `flake-checker`, `nix-unit`                                                                                                                   |                                                 |
 | [`markdown`][md]                                                                                  | ✅       | [`rumdl`]                                                                                                     | [`mdformat`], [`rumdl`]                    |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
 | [`json`][json]                                                                                    | ✅       | [JSON language server][jsonls]                                                                                 | [`jsonfmt`]                                |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
@@ -382,7 +381,6 @@ plugins without options beyond `enable` have none.
 
 Ignores `result`.
 
-<!-- nullkomma:nix:start -->
 ```nix
 {
   # Whether to enable the nix plugin.
@@ -400,11 +398,9 @@ Ignores `result`.
   # perSystem.nullkomma.nix.unit.tests = { };
 }
 ```
-<!-- nullkomma:nix:end -->
 
 ### `shell`
 
-<!-- nullkomma:shell:start -->
 ```nix
 {
   # Whether to enable the shell plugin.
@@ -423,16 +419,14 @@ Ignores `result`.
   # perSystem.nullkomma.shell.bats.packages = [ ];
 }
 ```
-<!-- nullkomma:shell:end -->
 
 ### `agents`
 
-Writes an `agents` section into `AGENTS.md`, the rest of which is yours,
-and generates the [MCP servers and skills](#mcp-servers-and-skills).
+Requires its lines in `AGENTS.md`, the rest of which is yours,
+and links the [MCP servers and skills](#mcp-servers-and-skills).
 With `browser.enable`, which `quarto` and Shiny turn on,
 agents operate the previews in [Playwright's](https://github.com/microsoft/playwright-mcp) headless browser.
 
-<!-- nullkomma:agents:start -->
 ```nix
 {
   # Whether to enable the agents plugin.
@@ -443,18 +437,17 @@ agents operate the previews in [Playwright's](https://github.com/microsoft/playw
   # nullkomma.agents.browser.enable = false;
 
   # Agent Skill directories by name, each with a `SKILL.md` whose `name`
-  # matches; plugins add here. The `agents` plugin generates them into
+  # matches; plugins add here. The `agents` plugin links them as
   # `.agents/skills/<name>`.
   # nullkomma.agents.skills = { };
 
   # MCP servers by name, each with a `type` (`stdio` with `command` and `args`,
-  # or `http` with `url`); plugins add here. The `agents` plugin writes them to
-  # `.mcp.json`, the `vscode` plugin to `.vscode/mcp.json`; stdio servers start
+  # or `http` with `url`); plugins add here. The `agents` plugin links them as
+  # `.mcp.json`, the `vscode` plugin as `.vscode/mcp.json`; stdio servers start
   # in the dev shell, when enabled.
   # perSystem.nullkomma.agents.mcpServers = { };
 }
 ```
-<!-- nullkomma:agents:end -->
 
 ### `github`
 
@@ -463,7 +456,6 @@ it runs `nix flake check` on each supported system,
 then publishes pushes to the default branch and tags to FlakeHub, with the repository's visibility.
 Forks don't publish; private flakes need a [FlakeHub paid plan](https://flakehub.com/signup).
 
-<!-- nullkomma:github:start -->
 ```nix
 {
   # Whether to enable the github plugin.
@@ -476,13 +468,11 @@ Forks don't publish; private flakes need a [FlakeHub paid plan](https://flakehub
   # nullkomma.github.workflows.source = "dataheld/nullkomma/.github/workflows";
 }
 ```
-<!-- nullkomma:github:end -->
 
 ### `gitlab`
 
 In `nix/local.nix`:
 
-<!-- nullkomma:gitlab:start -->
 ```nix
 {
   # Whether to enable the gitlab plugin.
@@ -515,12 +505,11 @@ In `nix/local.nix`:
   # nullkomma.gitlab.tags = [ ];
 }
 ```
-<!-- nullkomma:gitlab:end -->
 
 ### Editors
 
 `vscode` and `neovim` render the plugins' language servers, formatter, MCP servers and recommended extensions
-into generated `.vscode/*.json` and `.nvim.lua`.
+into the linked `.vscode/*.json` and `.nvim.lua`.
 Neovim reads `.nvim.lua` only with `:set exrc`; its `:Format` command formats through treefmt.
 Installing editors belongs to your user environment, e.g. [lap](https://github.com/dataheld/lap).
 
@@ -541,9 +530,8 @@ website:
 ```
 
 nkdocs only switches on stock Quarto features; configure everything else in `_quarto.yml` as usual.
-With `brand.enable`, list the generated `_nullkomma-brand.yml` in `_quarto.yml`'s `metadata-files`.
+With `brand.enable`, list the linked `_nullkomma-brand.yml` in `_quarto.yml`'s `metadata-files`.
 
-<!-- nullkomma:quarto:start -->
 ```nix
 {
   # Whether to enable the quarto plugin.
@@ -552,16 +540,16 @@ With `brand.enable`, list the generated `_nullkomma-brand.yml` in `_quarto.yml`'
   # Whether to enable the shared brand on the Quarto website.
   # nullkomma.quarto.brand.enable = false;
 
-  # Quarto extensions by name, placed in `_extensions/<name>` (generated and
-  # Git-ignored) and in the build.
+  # Quarto extensions by name, linked as `_extensions/<name>` and placed in the
+  # build.
   # nullkomma.quarto.extensions = { };
 
   # Extra arguments to `quarto preview`, after `--no-browser`; e.g. `--render
   # all` to render all formats before serving.
   # nullkomma.quarto.preview.args = [ ];
 
-  # Generated page, relative to `root`, rendering `nullkomma.privacy.sections`
-  # if there are any; null to write your own.
+  # Linked page, relative to `root`, rendering `nullkomma.privacy.sections` if
+  # there are any; null to write your own.
   # nullkomma.quarto.privacy.page = "privacy.qmd";
 
   # Quarto project rendered into `packages.site` and served by the
@@ -573,7 +561,6 @@ With `brand.enable`, list the generated `_nullkomma-brand.yml` in `_quarto.yml`'
   # perSystem.nullkomma.quarto.package = …;
 }
 ```
-<!-- nullkomma:quarto:end -->
 
 ### `cloudflareSite`
 
@@ -596,7 +583,6 @@ env:
 
 OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is involved.
 
-<!-- nullkomma:cloudflareSite:start -->
 ```nix
 {
   # Whether to enable the cloudflareSite plugin.
@@ -614,7 +600,6 @@ OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is invo
   # nullkomma.cloudflareSite.worker = config.nullkomma.cloudflareSite.name;
 }
 ```
-<!-- nullkomma:cloudflareSite:end -->
 
 ### `python`
 
@@ -622,7 +607,6 @@ Enable it for a pure-Python package at the flake root:
 [uv2nix] and [pyproject.nix] build it from `pyproject.toml` and `uv.lock`, preferring dependency wheels.
 Native extensions and `[tool.uv] conflicts` are not supported.
 
-<!-- nullkomma:python:start -->
 ```nix
 {
   # Whether to enable the python plugin.
@@ -639,19 +623,17 @@ Native extensions and `[tool.uv] conflicts` are not supported.
   # perSystem.nullkomma.python.test.packages = [ ];
 }
 ```
-<!-- nullkomma:python:end -->
 
 ### `r`
 
 Enable it, then run `nix run .#r-lock`: the development shell needs the `pkg.lock` it writes.
 
 Interactive R sessions started in the package directory load it with `pkgload::load_all()`,
-after running `~/.Rprofile`, from a generated, Git-ignored `.Rprofile`.
+after running `~/.Rprofile`, from a linked `.Rprofile`.
 If loading fails, R still starts.
 To keep a committed `.Rprofile` of your own, set
-`perSystem.nullkomma.files.".Rprofile".enable = false`.
+`perSystem.nullkomma.links.".Rprofile".enable = false`.
 
-<!-- nullkomma:r:start -->
 ```nix
 {
   # Whether to enable the r plugin.
@@ -710,9 +692,8 @@ To keep a committed `.Rprofile` of your own, set
   # unsupported.
   # nullkomma.r.jarl.enable = true;
 
-  # Directory generated into pkgdown/assets and copied by pkgdown to the website
-  # root in both local and sandboxed builds. Git-ignored; null keeps
-  # project-owned assets.
+  # Directory linked as pkgdown/assets and copied by pkgdown to the website root
+  # in both local and sandboxed builds; null keeps project-owned assets.
   # nullkomma.r.pkgdown.assets = null;
 
   # Whether to enable the shared brand on the pkgdown website.
@@ -786,7 +767,6 @@ To keep a committed `.Rprofile` of your own, set
   # perSystem.nullkomma.r.pkgdown.libraries = [ ];
 }
 ```
-<!-- nullkomma:r:end -->
 
 #### Dependencies
 

@@ -18,7 +18,7 @@ Once nullkomma is set up, the project's `AGENTS.md` and
    If other flakes have this project as an input, follow its
    [Development-only inputs](https://github.com/dataheld/nullkomma#development-only-inputs)
    instead of the template: nullkomma goes only into `dev/flake.nix`.
-   Let `write-files` and `generate-files` write nullkomma's files;
+   Let `write-files` create nullkomma's project files and the dev shell link the rest;
    do not copy them from the nullkomma repository.
 1. Ask the user which optional plugins (for example `r` or `quarto`)
    the project needs, and set them in `flake.nix`.
@@ -27,7 +27,7 @@ Once nullkomma is set up, the project's `AGENTS.md` and
 1. Run `nix develop --command nk all`,
    then `nix flake check`, and fix what fails.
 1. Commit `flake.nix`, the lock files, `dev/` if there is one,
-   and the source-of-truth files `write-files` wrote.
+   and the project files `write-files` created.
 
 The point of nullkomma is to minimize boilerplate in a project's sources.
 So adopting nullkomma should usually result in *fewer* lines of code.

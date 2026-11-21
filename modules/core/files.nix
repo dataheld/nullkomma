@@ -1,5 +1,7 @@
-# Files are either a source of truth (written once, then committed and edited, except for
-# nullkomma's marked sections) or generated from Nix (overwritten on every run and Git-ignored).
+# Every file has one author.
+# Links are Nix's: read-only links into the Nix store, Git-ignored, refreshed on entering the dev shell.
+# Project files are the project's: nullkomma creates missing ones on request,
+# then only checks that they keep the lines it requires.
 {
   framework =
     {
@@ -12,68 +14,48 @@
       options.perSystem = flake-parts-lib.mkPerSystemOption (
         { pkgs, ... }:
         let
-          fileModule =
-            { name, config, ... }:
-            {
-              options = {
-                enable = lib.mkOption {
-                  type = lib.types.bool;
-                  default = true;
-                  description = "Whether to write `${name}`.";
-                };
-                mode = lib.mkOption {
-                  type = lib.types.enum [
-                    "source"
-                    "generated"
-                  ];
-                  default = "source";
-                  description = "`source`: written by `write-files` if absent, then committed and the project's, except for its `sections`. `generated`: written from Nix by `generate-files` (also on entering the dev shell), overwritten when changed, and only if Git ignores it.";
-                };
-                commentPrefix = lib.mkOption {
-                  type = lib.types.nullOr lib.types.str;
-                  default = null;
-                  description = "Line-comment prefix for the \"do not edit\" header of generated files (for example // for JSONC) and for section markers; without it, generated files get no header. Required for sections.";
-                };
-                commentSuffix = lib.mkOption {
-                  type = lib.types.str;
-                  default = "";
-                  description = "Closes the header comment and section markers, for formats without line comments (for example ` -->` with `<!--`).";
-                };
-                directory = lib.mkOption {
-                  type = lib.types.bool;
-                  default = false;
-                  description = "Whether `source` is a directory, copied whole and without a header, with its own `.gitignore`. Generated files only.";
-                };
-                text = lib.mkOption {
-                  type = lib.types.nullOr lib.types.lines;
-                  default = null;
-                  description = "File content; sets `source`.";
-                };
-                source = lib.mkOption {
-                  type = lib.types.path;
-                  description = "Store path whose content is written to `${name}`.";
-                };
-                sections = lib.mkOption {
-                  type = lib.types.attrsOf (lib.types.either lib.types.lines lib.types.path);
-                  default = { };
-                  description = "Marked sections nullkomma owns inside an otherwise project-owned source file, by name, as text or file: replaced in place, else appended, and removed once undeclared. A file without markers that equals the sections' plain text gets them marked. Needs `commentPrefix`.";
-                };
-              };
-              config.source = lib.mkIf (config.text != null) (
-                pkgs.writeText "nullkomma-${lib.replaceStrings [ "/" ] [ "-" ] name}" config.text
-              );
-            };
+          content =
+            description:
+            lib.types.attrsOf (
+              lib.types.submodule (
+                { name, config, ... }:
+                {
+                  options = {
+                    enable = lib.mkEnableOption "`${name}`" // {
+                      default = true;
+                    };
+                    text = lib.mkOption {
+                      type = lib.types.nullOr lib.types.lines;
+                      default = null;
+                      description = "Content; sets `source`.";
+                    };
+                    source = lib.mkOption {
+                      type = lib.types.path;
+                      inherit description;
+                    };
+                  };
+                  config.source = lib.mkIf (config.text != null) (
+                    pkgs.writeText "nullkomma-${lib.replaceStrings [ "/" ] [ "-" ] name}" config.text
+                  );
+                }
+              )
+            );
         in
         {
-          options.nullkomma.files = lib.mkOption {
-            type = lib.types.attrsOf (lib.types.submodule fileModule);
+          options.nullkomma.links = lib.mkOption {
+            type = content "Store path, a file or directory, that the link points to.";
             default = { };
-            description = "Files written into the project, keyed by path from the flake's directory.";
+            description = "Files from Nix, keyed by path from the flake's directory: linked read-only into the Nix store on entering the dev shell, if Git ignores the path and nothing else is there.";
+          };
+          options.nullkomma.files = lib.mkOption {
+            type = content "Lines nullkomma requires in the file.";
+            default = { };
+            description = "Project files, keyed by path from the flake's directory: `write-files` creates missing ones, and the `project-files` check lists the lines nullkomma requires that a file lacks. nullkomma never changes an existing file.";
           };
           options.nullkomma.src = lib.mkOption {
             type = lib.types.package;
             readOnly = true;
-            description = "The flake's source with every generated file in place, as after `generate-files`: where sandboxed checks and site builds start.";
+            description = "The flake's source with the targets of all links in place: where sandboxed checks and site builds start.";
           };
           options.nullkomma.root = lib.mkOption {
             type = lib.types.str;
@@ -90,93 +72,67 @@
           directory = builtins.unsafeDiscardStringContext (
             lib.removePrefix (toString (self.sourceInfo.outPath or self.outPath)) (toString self.outPath)
           );
-          files = lib.filterAttrs (_: f: f.enable) config.nullkomma.files;
-          # `splice`'s arguments for a file's sections.
-          splice =
+          enabled = lib.filterAttrs (
             path: f:
             assert lib.assertMsg (
-              f.commentPrefix != null
-            ) "File ${path} needs a commentPrefix for its sections.";
-            lib.escapeShellArgs (
-              [
-                f.commentPrefix
-                f.commentSuffix
-              ]
-              ++ lib.concatLists (
-                lib.mapAttrsToList (name: section: [
-                  name
-                  (
-                    if builtins.isString section then
-                      pkgs.writeText "nullkomma-section-${name}" section
-                    else
-                      "${section}"
-                  )
-                ]) f.sections
-              )
-            );
-          generated = lib.mapAttrs (
-            path: f:
-            if f.directory then
-              # Stays ignored whatever the root `.gitignore` says, as `python -m venv` does.
-              pkgs.runCommandLocal "nullkomma-generated-${baseNameOf path}" { } ''
-                cp -R ${f.source} "$out"
-                chmod -R u+w "$out"
-                echo '*' > "$out/.gitignore"
-              ''
-            else if f.commentPrefix == null then
-              f.source
-            else
-              pkgs.concatText "nullkomma-generated-${baseNameOf path}" [
-                (pkgs.writeText "nullkomma-warning" ''
-                  ${f.commentPrefix} Generated by nullkomma. DO NOT EDIT; change the Nix configuration.${f.commentSuffix}
-                '')
-                f.source
-              ]
-          ) (lib.filterAttrs (_: f: f.mode == "generated") files);
+              !lib.hasPrefix "/" path && !lib.elem ".." (lib.splitString "/" path)
+            ) "nullkomma path ${path} must stay inside the flake's directory.";
+            f.enable
+          );
+          links = lib.mapAttrs (_: f: f.source) (enabled config.nullkomma.links);
+          files = enabled config.nullkomma.files;
+          # Links point into it at their own path, which marks them as nullkomma's.
+          bundle = pkgs.linkFarm "nullkomma-links" links;
           script =
-            name: mode:
+            name: runtimeInputs: text:
             pkgs.writeShellApplication {
-              inherit name;
+              inherit name runtimeInputs;
               # Functions run once per declared file, which may be none.
               excludeShellChecks = [ "SC2329" ];
-              runtimeInputs = [
-                pkgs.coreutils
-                pkgs.gawk
-                pkgs.git
-              ];
-              text = ''
-                mode=${mode}
-                sections=${./_sections.awk}
-                root=${config.nullkomma.root}
-                manifest=${lib.escapeShellArg "nullkomma/files/generated${lib.escapeURL directory}"}
-              ''
-              + builtins.readFile ./_files.sh
-              + lib.concatStrings (
-                lib.mapAttrsToList (
-                  path: f:
-                  assert lib.assertMsg (
-                    !f.directory || f.mode == "generated"
-                  ) "Directory ${path} must be a generated file.";
-                  if f.mode != mode then
-                    ''
-                      declare_file ${lib.escapeShellArg path}
-                    ''
-                  else if f.sections != { } then
-                    ''
-                      splice_file ${lib.escapeShellArg path} ${splice path f}
-                    ''
-                  else
-                    ''
-                      process_file ${lib.escapeShellArg path} ${lib.escapeShellArg "${if mode == "generated" then generated.${path} else f.source}"}
-                    ''
-                ) files
-              )
-              + ''
-                finish
-              '';
+              text = "cd ${config.nullkomma.root}\n" + text;
             };
-          write = script "write-files" "source";
-          generate = script "generate-files" "generated";
+          forFiles =
+            command:
+            lib.concatMapAttrsStringSep "" (
+              path: f: "${command} ${lib.escapeShellArg path} ${f.source}\n"
+            ) files;
+          link = script "link-files" [ pkgs.coreutils pkgs.findutils pkgs.git ] (
+            "bundle=${bundle}\n"
+            + builtins.readFile ./_links.sh
+            + lib.concatMapStrings (path: "link ${lib.escapeShellArg path}\n") (lib.attrNames links)
+            + "finish\n"
+          );
+          write = script "write-files" [ pkgs.coreutils ] (
+            ''
+              write() {
+                [ -e "$1" ] && return
+                mkdir -p "$(dirname "$1")"
+                install -m 644 "$2" "$1"
+                echo "wrote $1"
+              }
+            ''
+            + forFiles "write"
+          );
+          check = script "project-files" [ pkgs.gnugrep ] (
+            ''
+              status=0
+              require() {
+                local missing
+                if [ ! -f "$1" ]; then
+                  echo "$1 is missing; nk write-files creates it." >&2
+                  status=1
+                  return
+                fi
+                missing="$(grep -Fxv -f "$1" "$2" | grep -v '^$' || true)"
+                if [ -n "$missing" ]; then
+                  printf '%s lacks lines nullkomma requires:\n%s\n' "$1" "$missing" >&2
+                  status=1
+                fi
+              }
+            ''
+            + forFiles "require"
+            + "exit \"$status\"\n"
+          );
           task = description: command: {
             namespace = "nullkomma";
             inherit description command;
@@ -190,23 +146,27 @@
               cp -R ${self} "$out"
               chmod -R u+w "$out"
             ''
-            + lib.concatStrings (
-              lib.mapAttrsToList (path: source: ''
-                rm -rf "$out"/${lib.escapeShellArg path}
-                mkdir -p "$out"/${lib.escapeShellArg (dirOf path)}
-                cp -R ${source} "$out"/${lib.escapeShellArg path}
-                chmod -R u+w "$out"/${lib.escapeShellArg path}
-              '') generated
-            )
+            + lib.concatMapStrings (path: ''
+              rm -rf "$out"/${lib.escapeShellArg path}
+            '') (lib.attrNames links)
+            + ''
+              cp -RL ${bundle}/. "$out"
+              chmod -R u+w "$out"
+            ''
           );
           process-compose.dev.settings.processes = {
-            write-files = task "Update the files nullkomma committed, keeping your edits" write;
-            generate-files = task "Regenerate nullkomma's Git-ignored files; entering the dev shell does this too" generate;
+            link-files = task "Link nullkomma's files from the Nix store; entering the dev shell does this too" link;
+            write-files = task "Create the project files nullkomma requires that are missing; it changes no existing file" write;
+            project-files = lib.mkIf (files != { }) (
+              task "Check that project files have the lines nullkomma requires" check
+            );
+            check.depends_on = lib.mkIf (files != { }) {
+              project-files.condition = "process_completed_successfully";
+            };
           };
-          # Generated files follow the Nix configuration, not the working tree:
-          # refresh them on entering the dev shell (direnv re-enters when the flake changes).
+          # Re-entering the dev shell, as direnv does when the flake changes, follows the Nix configuration.
           # A refusal is reported, but does not stop the shell.
-          nullkomma.devShell.shellHook = lib.mkIf (generated != { }) "${lib.getExe generate} || true";
+          nullkomma.devShell.shellHook = lib.mkIf (links != { }) "${lib.getExe link} || true";
         };
     };
 }

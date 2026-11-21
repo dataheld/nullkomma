@@ -42,9 +42,13 @@
             settings.excludes =
               generatedPaths
               ++ lib.concatLists (
-                lib.mapAttrsToList (path: file: [ path ] ++ lib.optional file.directory "${path}/**") (
-                  lib.filterAttrs (_: file: file.enable) config.nullkomma.files
-                )
+                lib.mapAttrsToList (
+                  path: file:
+                  lib.optionals file.enable [
+                    path
+                    "${path}/**"
+                  ]
+                ) (config.nullkomma.links // config.nullkomma.files)
               );
           };
           nullkomma.editor = {

@@ -215,7 +215,7 @@
                 } fixture
               );
             in
-            enabled.nullkomma.files ? ".agents/skills/nullkomma-r-package-development";
+            enabled.nullkomma.links ? ".agents/skills/nullkomma-r-package-development";
           expected = true;
         };
         testRRejectsInvalidPkgdownDestination = {
@@ -321,8 +321,8 @@
         testRRuntimeIsEditorIndependent = {
           expr =
             lib.elem rRuntime (perSystem runtime).nullkomma.devShell.packages
-            && !(perSystem runtime).nullkomma.files ? ".nvim.lua"
-            && !(perSystem runtime).nullkomma.files ? ".vscode/settings.json";
+            && !(perSystem runtime).nullkomma.links ? ".nvim.lua"
+            && !(perSystem runtime).nullkomma.links ? ".vscode/settings.json";
           expected = true;
         };
         testRLockBootstrapsWithoutLock = {
@@ -459,14 +459,14 @@
         r-pkgdown-local = check "r-pkgdown-local" ''
           export HTTPS_PROXY=http://127.0.0.1:1 HTTP_PROXY=http://127.0.0.1:1
           git init -q
-          ${task branded "write-files"}
+          # Assets are linked once Git ignores them, as `project-files` requires.
+          cat ${(perSystem branded).nullkomma.files.".gitignore".source} >> .gitignore
+          ${task branded "project-files"}
           (${(perSystem branded).nullkomma.devShell.shellHook})
-          # Language tasks must not overwrite files generated on shell entry.
-          printf 'local asset\n' > pkgdown/assets/local-only.txt
+          test -L pkgdown/assets/brand.svg
           # Repeated builds must not trip over read-only assets copied from the store.
           ${task branded "r-build-site"}
           ${task branded "r-build-site"}
-          cmp pkgdown/assets/local-only.txt docs/local-only.txt
           cmp pkgdown/assets/workflow.txt docs/workflow.txt
           grep -qxF 'shared R workflow' docs/workflow.txt
           grep -qF 'Lokaler Abschnitt auf Deutsch' docs/privacy.html
@@ -698,8 +698,8 @@
         '';
         # Interactive R loads the working tree above the default packages, after the user's profile.
         r-profile = check "r-profile" ''
-          ${task fixtures.r "generate-files"}
-          git check-ignore -q .Rprofile
+          ${task fixtures.r "link-files"}
+          test -L .Rprofile
           printf 'options(nullkomma.test.user = TRUE)\n' > "$HOME/.Rprofile"
           R --interactive --no-save <<'RS' 2>&1 | tee session.log
           if (isTRUE(getOption("nullkomma.test.user")) && match("package:nullkommafixture", search()) < match("package:stats", search())) cat(paste("PACKAGE", "LOADED", sep = "_"), "\n")

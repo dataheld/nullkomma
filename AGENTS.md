@@ -28,7 +28,7 @@ Every new input lands in every consumer's `flake.lock`; dev-only inputs go in
 | [process-compose-flake](https://flake.parts/options/process-compose-flake.html) | used: defines all tasks and process trees; up is kept only for its flake schemas                                                   |
 | flake-parts `flakeModules`, `modules`, `partitions`                             | used for exports and dev-only evaluation                                                                                           |
 | nix-unit                                                                        | not its flake module: the `nix` plugin runs `pkgs.nix-unit` itself, so projects get no extra input                                 |
-| [files](https://flake.parts/options/files.html)                                 | not used: its files are generated _and committed_; ours are user-owned (3-way updates or marked sections) or generated and ignored |
+| [files](https://flake.parts/options/files.html)                                 | not used: its files are generated _and committed_; ours are linked read-only from the store, or project-owned and only checked     |
 | [devshell](https://flake.parts/options/devshell.html)                           | not used: own builder and command menu overlap with up tasks                                                                       |
 | [make-shell](https://flake.parts/options/make-shell.html)                       | not used: would add a consumer input for ~30 lines of `mkShell` wrapper                                                            |
 | [std](https://flake.parts/options/std.html)                                     | not used: heavy framework with many inputs                                                                                         |
@@ -50,7 +50,7 @@ Candidates for upstreaming instead of keeping here:
   [process-compose-flake](https://github.com/Platonic-Systems/process-compose-flake)
   (#276, #277), and the `taskRunners`/`processTrees` schemas in
   [flake-schemas](https://github.com/DeterminateSystems/flake-schemas) (#278);
-- source-of-truth/generated file modes in
+- read-only store links for Git-ignored files in
   [mightyiam/files](https://github.com/mightyiam/files);
 - editor-neutral language servers (`nullkomma.editor`) as a standalone module.
 
@@ -86,7 +86,6 @@ features, and leave layout, spacing and styling to Quarto's defaults and brand.y
 Don't restate defaults, and add custom CSS only for what neither offers. Check
 rendered pages on narrow and wide screens before changing presentation.
 
-<!-- nullkomma:agents:start -->
 ## nullkomma
 
 This project's development environment comes from [nullkomma](https://github.com/dataheld/nullkomma).
@@ -108,6 +107,6 @@ Check your work locally, from fastest to strictest:
    `nk flake-check` runs all checks sandboxed, as CI does,
    and sees only files that Git tracks: `git add` new files first.
 
-Skills for nullkomma itself are in `.agents/skills/nk-*`;
-if they are missing, run `nk generate-files`.
-<!-- nullkomma:agents:end -->
+Skills for nullkomma itself are in `.agents/skills/nk-*`,
+linked read-only from the Nix store on entering the dev shell;
+if they are missing, run `nk link-files`.

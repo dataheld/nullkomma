@@ -26,7 +26,7 @@
           tests = flake.tests.systems;
         };
         formatter = lib.isDerivation flake.formatter.${system};
-        envrc = (perSystem flake).nullkomma.files.".envrc".sections.direnv;
+        envrc = (perSystem flake).nullkomma.files.".envrc".text;
       };
     in
     {
@@ -40,6 +40,7 @@
           outputs = {
             checks = [
               "jscpd"
+              "project-files"
               "treefmt"
             ];
             devShells = [ "default" ];

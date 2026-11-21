@@ -1,4 +1,3 @@
-# nullkomma:git:start
 /.quarto/
 **/*.quarto_ipynb
 .quarto/
@@ -17,4 +16,8 @@ result-*
 /.vscode/mcp.json
 /_nullkomma-brand.yml
 /privacy.qmd
-# nullkomma:git:end
+/.agents/skills/nk-audit-output
+/.agents/skills/nk-upgrade
+/_brand
+/_extensions/nkdocs
+/_extensions/nullkomma-brand

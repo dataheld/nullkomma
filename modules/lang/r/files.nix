@@ -18,29 +18,14 @@
       ++ lib.optional cfg.pkgdown.enable "^${lib.escapeRegex cfg.pkgdown.config.destination}$";
     in
     {
-      options.nullkomma.r.buildIgnore = lib.mkOption {
-        type = lib.types.lines;
-        internal = true;
-        readOnly = true;
-        description = "Shared R build exclusions.";
-      };
       config = lib.mkIf cfg.enable {
-        nullkomma.r.buildIgnore = lib.concatLines rules;
-        perSystem.nullkomma.files = {
-          # R reads every line as a pattern; the markers match no file.
-          "${cfg.prefix}.Rbuildignore" = {
-            commentPrefix = "#";
-            sections.r = cfg.buildIgnore;
-          };
-          "${cfg.prefix}.Rprofile" = {
-            mode = lib.mkDefault "generated";
-            commentPrefix = "#";
-            text = lib.concatStringsSep "\n" [
-              # R skips the user's profile when a project has one.
-              ''if (file.exists("~/.Rprofile")) source("~/.Rprofile")''
-              (builtins.readFile ./_load-all.R)
-            ];
-          };
+        perSystem.nullkomma = {
+          files."${cfg.prefix}.Rbuildignore".text = lib.concatLines rules;
+          links."${cfg.prefix}.Rprofile".text = lib.concatStringsSep "\n" [
+            # R skips the user's profile when a project has one.
+            ''if (file.exists("~/.Rprofile")) source("~/.Rprofile")''
+            (builtins.readFile ./_load-all.R)
+          ];
         };
       };
     };
