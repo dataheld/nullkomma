@@ -41,7 +41,7 @@
       # Editors report what the lint check reports, whatever native files say.
       checks.markdown-language-server =
         let
-          inherit ((perSystem withDefaults).nullkomma) editor files;
+          inherit ((perSystem withDefaults).nullkomma) editor links;
         in
         pkgs.runCommand "markdown-language-server"
           {
@@ -58,7 +58,7 @@
             printf 'MD042: false\n' > .markdownlint.yml
             printf '[global]\ndisable = ["MD042"]\n' > .rumdl.toml
             nvim --clean -l ${pkgs.writeText "check.lua" ''
-              dofile("${files.".nvim.lua".source}")
+              dofile("${links.".nvim.lua".source}")
               vim.cmd.edit("page.md")
               vim.bo.filetype = "markdown"
               assert(vim.wait(60000, function() return #vim.diagnostic.get(0) > 0 end))

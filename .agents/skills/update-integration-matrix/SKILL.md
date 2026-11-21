@@ -21,5 +21,6 @@ proposals or assumptions about upstream tools.
    table. Its options belong in their descriptions, not the README: the
    section's config block is printed from them by
    `nix eval --raw .#lib.configs.<plugin>`.
-1. Run `nk project-files`, replace the config blocks whose lines it reports
-   missing, run `nix fmt`, and review the diff.
+1. Replace the config block of every plugin whose options changed,
+   and remove those of removed plugins; `nk project-files` reports only
+   missing lines, not stale ones. Run `nix fmt`, and review the diff.

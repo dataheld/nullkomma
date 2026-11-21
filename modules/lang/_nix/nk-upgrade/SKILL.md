@@ -18,12 +18,19 @@ description: >-
    If it fails, inspect whether the lock update failed
    or only linking reported a problem.
    Do not treat a failed input update as a completed upgrade.
-1. If `link-files` reports that the project has its own file
-   where nullkomma links one, and Git ignores that file,
-   an older nullkomma generated it: delete it and run `nk link-files`.
-   Delete `nullkomma:<name>:start` and `:end` marker lines left by older versions,
-   keeping the lines between them.
-1. Run `nk project-files` and add the lines it reports missing.
+1. Reload the dev shell (`direnv reload`) so later commands use the new version.
+1. If `link-files` reports that the project has its own file where nullkomma links one,
+   delete it only if an older nullkomma generated it:
+   it is listed in the file that `git rev-parse --git-path nullkomma/files/generated` names,
+   and Git does not track it.
+   Then delete that list, run `nk link-files`, and report any other such file to the user.
+1. Where the project owned a file that nullkomma now links,
+   with `perSystem.nullkomma.files.<path>.enable = false` or `.mode = "source"`,
+   set `perSystem.nullkomma.links.<path>.enable = false` instead.
+1. Older nullkomma versions kept their lines in sections between
+   `nullkomma:<name>:start` and `:end` markers.
+   Delete each such section, markers included, then run `nk project-files`
+   and add the lines it reports missing where they fit.
 1. Read nullkomma's new locked revision.
    Before adapting the project, review the history between the saved revisions,
    even if the upgrade reports nothing and the checks pass.
@@ -70,7 +77,6 @@ description: >-
    otherwise, in `flake.nix`, as the template has it.
    Ask the user if the repository does not show whether other flakes use it.
    If the project has the other setup, propose the move to the user.
-1. Reload the dev shell (`direnv reload`) so later commands use the new version.
 1. Run `nk all`, then `nk flake-check`, and fix what fails.
 1. Commit the updated lock files and other files together.
 

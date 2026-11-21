@@ -54,7 +54,7 @@ In the [development shell](#getting-started), `nk` lists the project's tasks,
 grouped by plugin; your own tasks form the `custom` group.
 `nk <task> [args]` runs one in the working tree, after its prerequisites,
 and fails when any of them fails.
-`nk all` formats, regenerates files, builds and runs every check.
+`nk all` formats, builds and runs every check.
 
 A task is a process with a `description` in the [process-compose] `dev` tree,
 so `nk <task>` runs it once, in the foreground, as `process-compose run` does.
@@ -143,6 +143,7 @@ In your project, with a clean working tree, run:
 nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
 git add flake.nix
 nix develop --command nk write-files
+nix develop --command nk project-files
 git add -A
 git commit -m "add nullkomma"
 direnv allow
@@ -150,7 +151,9 @@ direnv allow
 
 The template adds `flake.nix`, keeping existing files;
 `write-files` adds the [project files](#files-in-your-repository) your configuration requires,
-and entering the dev shell links the rest.
+and `project-files` lists the lines nullkomma requires in files you already had, such as `.gitignore`:
+add them before you commit.
+Entering the dev shell links the rest once Git ignores them, and reports them as not linked until then.
 The template's `nixpkgs.follows = "nullkomma/nixpkgs"` uses nullkomma's tested Nixpkgs.
 To use your own, declare `nixpkgs.url` and set `nullkomma.inputs.nixpkgs.follows = "nixpkgs"`.
 After editing your Nix files, run `direnv reload`.
@@ -335,7 +338,8 @@ Links point into the Nix store, so they follow your Nix configuration, and edits
 Entering the dev shell runs `link-files`, which links only paths that Git ignores and that hold nothing of yours,
 and removes the links nullkomma no longer declares.
 To change a link, change the Nix options;
-to own the file instead, disable the link, e.g. `perSystem.nullkomma.links.".Rprofile".enable = false`.
+to own the file instead, disable the link, e.g. `perSystem.nullkomma.links.".Rprofile".enable = false`,
+and remove its line from `.gitignore`.
 
 ## Plugins
 
@@ -518,7 +522,7 @@ Installing editors belongs to your user environment, e.g. [lap](https://github.c
 Renders the project into `packages.site`; `quarto-preview` serves it and reloads on edits.
 Site resources are copied as files,
 including those linked from outside the output directory.
-For a documentation site, select nkdocs, a Quarto extension nullkomma generates, in `_quarto.yml`:
+For a documentation site, select nkdocs, a Quarto extension nullkomma links, in `_quarto.yml`:
 
 ```yaml
 project:
@@ -632,7 +636,8 @@ Interactive R sessions started in the package directory load it with `pkgload::l
 after running `~/.Rprofile`, from a linked `.Rprofile`.
 If loading fails, R still starts.
 To keep a committed `.Rprofile` of your own, set
-`perSystem.nullkomma.links.".Rprofile".enable = false`.
+`perSystem.nullkomma.links.".Rprofile".enable = false`
+and remove `/.Rprofile` from `.gitignore`.
 
 ```nix
 {

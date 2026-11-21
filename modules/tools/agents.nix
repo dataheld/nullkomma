@@ -83,7 +83,7 @@
         perSystem =
           { config, ... }:
           {
-            nullkomma.files."AGENTS.md".source = ./_agents/AGENTS.md;
+            nullkomma.files."AGENTS.md".text = builtins.readFile ./_agents/AGENTS.md;
             nullkomma.links = {
               ".mcp.json".text = builtins.toJSON { mcpServers = config.nullkomma.agents.generatedMcpServers; };
             }

@@ -167,19 +167,41 @@
           privacy =
             sections:
             (raw { nullkomma.privacy = { inherit sections; }; }).debug.config.nullkomma.privacy.policy;
+          importTree = root + "/tests/fixtures/import-tree";
           fileVersions = lib.genAttrs [ "old" "new" ] (
             version:
             raw {
               perSystem.nullkomma.links = {
                 "linked.txt".text = version;
-                "dir/linked".source = template;
+                # A directory with a subdirectory; the new version lacks one file.
+                "dir/linked".source =
+                  if version == "old" then
+                    importTree
+                  else
+                    builtins.path {
+                      path = importTree;
+                      name = "import-tree";
+                      filter = path: _: baseNameOf path != "readme.txt";
+                    };
               }
-              # Declared only by the old version, so the new one prunes them unless they are the project's.
-              // lib.optionalAttrs (version == "old") {
-                "stale.txt".text = version;
-                "stale/linked".source = template;
-                "own.txt".text = version;
-              };
+              // (
+                if version == "old" then
+                  {
+                    # Declared only by the old version, so the new one prunes them unless they are the project's.
+                    "stale.txt".text = version;
+                    "stale/linked".source = importTree;
+                    "own.txt".text = version;
+                    "blocked/inner".text = version;
+                    # Change from file to directory, and back.
+                    "morph".text = version;
+                    "shape/inner".text = version;
+                  }
+                else
+                  {
+                    "morph/inner".text = version;
+                    "shape".text = version;
+                  }
+              );
             }
           );
           # A flake in `nested/`, below its repository's root.
@@ -464,6 +486,19 @@
                 );
                 expected = normalize (summary fixtures.template);
               };
+            testLinkPathsAreNotProjectFiles = {
+              expr =
+                (builtins.tryEval
+                  (perSystem (raw {
+                    perSystem.nullkomma = {
+                      links.".Rprofile".text = "linked";
+                      # How projects owned a generated file before links.
+                      files.".Rprofile".enable = false;
+                    };
+                  })).nullkomma.devShell.shellHook
+                ).success;
+              expected = false;
+            };
             testOptionsDocHasNoStorePaths = {
               expr = lib.hasInfix builtins.storeDir (builtins.toJSON optionsDoc.optionsNix);
               expected = false;
@@ -904,26 +939,47 @@
               pkgs.runCommandLocal "nullkomma-links-test" { nativeBuildInputs = [ pkgs.git ]; } ''
                 ${project template}
                 rm -r ./*
-                mkdir ../outside
-                # Git must ignore a link first, or it could be committed.
+                mkdir ../outside ../bin
+                # `nix-store` registers the garbage collector root when it is on the PATH.
+                cat > ../bin/nix-store <<'SH'
+                #!${pkgs.runtimeShell}
+                echo "$*" >> "$NULLKOMMA_TEST_ROOTS"
+                ln -sfn "$4" "$2"
+                SH
+                chmod +x ../bin/nix-store
+                export NULLKOMMA_TEST_ROOTS="$PWD/../roots" PATH="$PWD/../bin:$PATH"
+                # Git must ignore links and their record first, or they could be committed.
                 fails /linked.txt ${at "old"}
+                grep -qx /.nullkomma/gcroots/ "$TMPDIR/failure.log"
                 test ! -e linked.txt
-                printf '%s\n' '*.txt' /dir/ /stale/ .nullkomma/ > .git/info/exclude
+                test ! -e .nullkomma
+                printf '%s\n' '*.txt' /dir/ /stale/ /blocked /morph /shape .nullkomma/ > .git/info/exclude
                 printf mine > own.txt
+                printf mine > blocked
                 fails "own.txt, as the project has its own" ${at "old"}
+                grep -qF "blocked/inner, as blocked is not a real directory" "$TMPDIR/failure.log"
                 test "$(cat own.txt)" = mine
                 test "$(cat linked.txt)" = old
-                test -L dir/linked/flake.nix
+                test -L dir/linked/sub/b.nix
                 test ! -L dir/linked
+                test ! -L dir/linked/sub
                 [[ "$(readlink linked.txt)" == /nix/store/*-nullkomma-links/linked.txt ]]
+                previous=.nullkomma/gcroots/links
+                test "$(readlink $previous)/linked.txt" = "$(readlink linked.txt)"
+                grep -qxF -- "--add-root $previous --realise $(readlink $previous)" ../roots
                 # Edits fail instead of being overwritten later.
                 if printf edit 2> /dev/null > linked.txt; then
                   echo "A link was writable" >&2
                   exit 1
                 fi
-                rm own.txt
-                test "$(${at "old"} | wc -l)" = 1
-                test "$(${at "old"} | wc -l)" = 0
+                rm own.txt blocked
+                ${at "old"} > out
+                test "$(grep -c 'linked ' out)" = 2
+                # Unchanged links stay as they are, so watchers such as `quarto preview` see no change.
+                touch -h -d @0 linked.txt
+                ${at "old"} > out
+                test "$(wc -l < out)" = 0
+                test "$(stat -c %Y linked.txt)" = 0
                 git add -f linked.txt
                 fails "linked.txt, as Git tracks it" ${at "old"}
                 git rm -q --cached linked.txt
@@ -933,36 +989,50 @@
                 # An upgrade follows the new bundle, and prunes only links into the old one.
                 rm own.txt
                 printf mine > own.txt
-                ${at "new"}
+                printf mine > dir/linked/sub/own.txt
+                ${at "new"} > out
                 test "$(cat linked.txt)" = new
+                test "$(cat own.txt)" = mine
+                test "$(cat dir/linked/sub/own.txt)" = mine
                 test ! -e stale.txt
                 test ! -e stale
-                test "$(cat own.txt)" = mine
-                [[ "$(readlink .nullkomma/gcroots/links)" == /nix/store/*-nullkomma-links ]]
+                test ! -e blocked
+                test ! -e dir/linked/readme.txt
+                grep -qF "removed dir/linked/readme.txt" out
+                if grep -qF "dir/linked/a.nix" out; then
+                  echo "A link the new bundle keeps was pruned" >&2
+                  exit 1
+                fi
+                test -L dir/linked/a.nix
+                test -L dir/linked/sub/b.nix
+                test "$(cat morph/inner)" = new
+                test "$(cat shape)" = new
+                test "$(readlink $previous)/linked.txt" = "$(readlink linked.txt)"
                 rm -r dir
                 ln -s ../outside dir
-                fails "as dir is a symlink" ${at "new"}
+                fails "as dir is not a real directory" ${at "new"}
                 test -z "$(ls ../outside)"
                 touch $out
               '';
             # nullkomma never changes a project file; it creates missing ones and checks the rest.
-            project-files =
+            required-lines =
               let
                 check = task projectFiles "project-files";
                 write = task projectFiles "write-files";
               in
-              pkgs.runCommandLocal "nullkomma-project-files" { nativeBuildInputs = [ pkgs.git ]; } ''
+              pkgs.runCommandLocal "nullkomma-required-lines" { nativeBuildInputs = [ pkgs.git ]; } ''
                 ${project template}
                 fails "docs/notes.md is missing" ${check}
                 ${write}
                 grep -qx required docs/notes.md
                 ${check}
-                test "$(${write} | wc -l)" = 0
+                ${write} > out
+                test "$(wc -l < out)" = 0
                 printf 'own\n' > docs/notes.md
                 ${write}
                 test "$(cat docs/notes.md)" = own
-                fails "lacks lines nullkomma requires:
-                required" ${check}
+                fails "lacks lines nullkomma requires" ${check}
+                grep -qx required "$TMPDIR/failure.log"
                 printf 'own\n# Notes\n\nrequired\n' > docs/notes.md
                 ${check}
                 touch $out
@@ -1055,18 +1125,19 @@
             links-ignored =
               pkgs.runCommandLocal "nullkomma-links-ignored" { nativeBuildInputs = [ pkgs.git ]; }
                 ''
-                  export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
-                  export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
-                  ${project (root + "/tests/fixtures/edited-gitignore")}
-                  link=${lib.escapeShellArg (task ignored "link-files")}
-                  check=${lib.escapeShellArg (task ignored "project-files")}
-                  fails /.agents/skills/linked $link
+                      export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
+                      export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+                      ${project (root + "/tests/fixtures/edited-gitignore")}
+                      link=${lib.escapeShellArg (task ignored "link-files")}
+                      check=${lib.escapeShellArg (task ignored "project-files")}
+                      fails /.agents/skills/linked $link
                   fails "/.agents/skills/linked" $check
+                  test ! -e .nullkomma
                   cat ${(perSystem ignored).nullkomma.files.".gitignore".source} >> .gitignore
                   $check
-                  $link
                   git add -A
                   git commit -qm "adopt"
+                  $link
                   test -z "$(git status --porcelain)"
                   mkdir .agents/skills/own
                   touch .agents/skills/own/SKILL.md
@@ -1074,6 +1145,29 @@
                   test "$(git diff --cached --name-only)" = .agents/skills/own/SKILL.md
                   touch $out
                 '';
+            # Each worktree has its own links and record of them, so an upgrade in one
+            # leaves another's links in place, to prune on its own upgrade (#367).
+            links-worktrees =
+              let
+                at = version: task fileVersions.${version} "link-files";
+              in
+              pkgs.runCommandLocal "nullkomma-links-worktrees" { nativeBuildInputs = [ pkgs.git ]; } ''
+                export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.com
+                export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.com
+                ${project template}
+                printf '%s\n' '*.txt' /dir/ /stale/ /blocked /morph /shape .nullkomma/ > .git/info/exclude
+                git add -A
+                git commit -qm init
+                git worktree add -q ../linked
+                ${at "old"}
+                (cd ../linked && ${at "old"} && ${at "new"})
+                test ! -e ../linked/stale.txt
+                test "$(cat stale.txt)" = old
+                ${at "new"}
+                test ! -e stale.txt
+                test -z "$(git status --porcelain)"
+                touch $out
+              '';
             options-doc = optionsDoc.optionsCommonMark;
           };
         };

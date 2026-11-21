@@ -79,7 +79,10 @@
             ) "nullkomma path ${path} must stay inside the flake's directory.";
             f.enable
           );
-          links = lib.mapAttrs (_: f: f.source) (enabled config.nullkomma.links);
+          links =
+            assert lib.assertMsg (lib.intersectAttrs config.nullkomma.links config.nullkomma.files == { })
+              "nullkomma paths ${toString (lib.attrNames (lib.intersectAttrs config.nullkomma.links config.nullkomma.files))} are links; to own one, set perSystem.nullkomma.links.<path>.enable = false.";
+            lib.mapAttrs (_: f: f.source) (enabled config.nullkomma.links);
           files = enabled config.nullkomma.files;
           # Links point into it at their own path, which marks them as nullkomma's.
           bundle = pkgs.linkFarm "nullkomma-links" links;
@@ -89,16 +92,22 @@
               inherit name runtimeInputs;
               # Functions run once per declared file, which may be none.
               excludeShellChecks = [ "SC2329" ];
-              text = "cd ${config.nullkomma.root}\n" + text;
+              inherit text;
             };
           forFiles =
             command:
             lib.concatMapAttrsStringSep "" (
               path: f: "${command} ${lib.escapeShellArg path} ${f.source}\n"
             ) files;
+          # The dev shell runs it from wherever it was entered; tasks run in the root already.
           link = script "link-files" [ pkgs.coreutils pkgs.findutils pkgs.git ] (
-            "bundle=${bundle}\n"
+            ''
+              git rev-parse --git-dir >/dev/null 2>&1 || exit 0
+              cd ${config.nullkomma.root}
+              bundle=${bundle}
+            ''
             + builtins.readFile ./_links.sh
+            + "prune\n"
             + lib.concatMapStrings (path: "link ${lib.escapeShellArg path}\n") (lib.attrNames links)
             + "finish\n"
           );
@@ -123,9 +132,10 @@
                   status=1
                   return
                 fi
-                missing="$(grep -Fxv -f "$1" "$2" | grep -v '^$' || true)"
+                missing="$(grep -Fxv -f "$1" "$2")" || [ "$?" = 1 ]
+                missing="$(grep -v '^$' <<<"$missing")" || true
                 if [ -n "$missing" ]; then
-                  printf '%s lacks lines nullkomma requires:\n%s\n' "$1" "$missing" >&2
+                  printf '%s lacks lines nullkomma requires; add them where they fit:\n%s\n' "$1" "$missing" >&2
                   status=1
                 fi
               }
@@ -146,11 +156,20 @@
               cp -R ${self} "$out"
               chmod -R u+w "$out"
             ''
-            + lib.concatMapStrings (path: ''
-              rm -rf "$out"/${lib.escapeShellArg path}
-            '') (lib.attrNames links)
+            # As in the working tree, a place the project took stays the project's.
             + ''
-              cp -RL ${bundle}/. "$out"
+              cd ${bundle}
+              find -L . -type f -printf '%P\0' | while IFS= read -r -d "" file; do
+                target="$out/$file"
+                parent="$(dirname "$target")"
+                while [ "$parent" != "$out" ] && [ ! -L "$parent" ] && { [ -d "$parent" ] || [ ! -e "$parent" ]; }; do
+                  parent="$(dirname "$parent")"
+                done
+                if [ "$parent" = "$out" ] && [ ! -e "$target" ] && [ ! -L "$target" ]; then
+                  mkdir -p "$(dirname "$target")"
+                  cp -L "$file" "$target"
+                fi
+              done
               chmod -R u+w "$out"
             ''
           );

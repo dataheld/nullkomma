@@ -675,6 +675,8 @@
         r-files = check "r-files" ''
           git init -q
           ${task fixtures.r "write-files"}
+          # The fixture's .Rbuildignore has the rules nullkomma requires.
+          ${task fixtures.r "project-files"}
           grep -qxF '^project-only[.]txt$' .Rbuildignore
           mkdir -p nix .github/workflows .vscode .direnv .R/library docs .nullkomma/cloudflare .agents/skills/demo
           touch flake.lock nix/helper.nix .github/workflows/ci.yml .vscode/settings.json .nvim.lua \
