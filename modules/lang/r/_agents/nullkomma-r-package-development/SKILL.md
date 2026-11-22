@@ -1,6 +1,6 @@
 ---
 name: nullkomma-r-package-development
-description: Pitfalls when developing an R package with nullkomma; read before editing DESCRIPTION, NAMESPACE, man/ or running R.
+description: Pitfalls when developing an R package with nullkomma; read before editing DESCRIPTION, NAMESPACE, man/, running R or taking screenshots of a Shiny app.
 ---
 
 # Developing R packages
@@ -14,6 +14,8 @@ These points are not obvious from it:
   Edit the roxygen comments, not those files.
 - Iterate with `nk r-test`, which loads the source with pkgload.
   `nix flake check` and CI test an installed copy, so run it before you finish.
+- Keep screenshots of Shiny apps as shinytest2 snapshots, which tests reproduce;
+  the Playwright browser is for looking at a running app, not for screenshots to keep.
 - After changing dependencies in `DESCRIPTION`, run `nix run .#r-lock`;
   it stages `pkg.lock`, as flakes only see tracked files.
 - Packages needed only for development go in `nullkomma.r.extraPackages`.

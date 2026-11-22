@@ -95,7 +95,7 @@
       config = lib.mkIf cfg.enable {
         # nkdocs, a Quarto extension contributing a project type: stock Quarto docs features, nothing brand-specific.
         nullkomma.quarto.extensions.nkdocs = ./_nkdocs;
-        nullkomma.agents.browser.enable = true;
+        nullkomma.agents.browser.enable = lib.mkDefault true;
         nullkomma.generatedPaths = [
           "${prefix}.quarto/**"
           "${prefix}_site/**"

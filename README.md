@@ -423,7 +423,7 @@ Ignores `result`.
 
 Requires its lines in `AGENTS.md`, the rest of which is yours,
 and links the [MCP servers and skills](#mcp-servers-and-skills).
-With `browser.enable`, which `quarto` and Shiny turn on,
+With `browser.enable`, which `quarto` and Shiny turn on by default,
 agents operate the previews in [Playwright's](https://github.com/microsoft/playwright-mcp) headless browser.
 
 ```nix
