@@ -244,7 +244,7 @@
                   # Like R CMD check: shinytest2 then runs apps from the installed package, not pkgload.
                   export TESTTHAT_IS_CHECKING=true
                 fi
-                r-contain Rscript --vanilla -e '${chromote}testthat::test_local(stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = commandArgs(TRUE)[[1]])' "$load"
+                r-contain Rscript --vanilla -e '${chromote}args <- commandArgs(TRUE); testthat::test_local(filter = if (length(args) > 1) paste(args[-1], collapse = "|"), stop_on_failure = TRUE, stop_on_warning = TRUE, load_package = args[[1]])' "$load" "$@"
               '';
             };
             namespace = pkgs.writeShellApplication {
@@ -285,7 +285,7 @@
               }
               (lib.mkIf cfg.testthat.enable {
                 r-test = rInterrupted // {
-                  description = "Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package";
+                  description = "Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package; other arguments are regular expressions selecting test files";
                   depends_on = after "r-document-namespace";
                   command = config.nullkomma.scratch {
                     name = "r-test";
