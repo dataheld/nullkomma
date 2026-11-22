@@ -51,7 +51,7 @@
           options.nullkomma.r.package = lib.mkOption {
             type = lib.types.package;
             readOnly = true;
-            description = "R, Rscript and radian with every package of `nullkomma.r.packages`, and the locale, testthat, browser and shinytest2 timeout environment of nullkomma's R workflows.";
+            description = "R, Rscript and radian with every package of `nullkomma.r.packages`, and the locale, `make`, testthat, browser and shinytest2 timeout environment of nullkomma's R workflows.";
           };
         }
       );
@@ -243,6 +243,11 @@
                         "PATH"
                         ":"
                         "${pkgs.pandoc}/bin"
+                        # R's configuration names its compilers by store path, but `make` by name:
+                        # without this, compiling packages needs `make` on PATH, as in the dev shell.
+                        "--set-default"
+                        "MAKE"
+                        (lib.getExe pkgs.gnumake)
                         "--set-default"
                         "R_BROWSER"
                         config.nullkomma.browse.command
