@@ -380,6 +380,9 @@
                   if console.isalive():
                       console.close(force=True)
               PY
+              # Outside the dev shell, PATH may have no `make`.
+              PATH=${pkgs.bash}/bin:${pkgs.coreutils}/bin:${pkgs.gnugrep}/bin:${pkgs.gnused}/bin \
+                ${rRuntime}/bin/Rscript --vanilla -e 'pkgbuild::check_build_tools()'
               touch $out
             '';
         r-test-watch = check "r-test-watch" ''
@@ -575,6 +578,11 @@
           })
           RS
           ${task fixtures.r "r-test"} --installed
+        '';
+        r-test-filter = check "r-test-filter" ''
+          printf 'test_that("runs unless filtered out", stop("unselected-test-marker"))\n' > tests/testthat/test-unselected.R
+          ${task fixtures.r "r-test"} hello
+          fails unselected-test-marker ${task fixtures.r "r-test"} --installed hello unselected
         '';
         r-rejects-drift = check "r-rejects-drift" ''
           cp NAMESPACE "$TMPDIR/NAMESPACE"

@@ -496,6 +496,10 @@
                   fixtures.cloudflare
                   fixtures.quarto
                   (callFlakeWith { nullkomma.quarto.enable = true; } (root + "/tests/fixtures/r-shiny"))
+                  (callFlakeWith {
+                    nullkomma.quarto.enable = true;
+                    nullkomma.agents.browser.enable = false;
+                  } (root + "/tests/fixtures/r-shiny"))
                   (callFlakeWith { nullkomma.opentofu.enable = true; } template)
                 ];
                 expected = [
@@ -513,6 +517,10 @@
                   [
                     "nullkomma"
                     "playwright"
+                    "r"
+                  ]
+                  [
+                    "nullkomma"
                     "r"
                   ]
                   [
