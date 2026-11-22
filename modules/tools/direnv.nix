@@ -36,21 +36,18 @@
               "nixEnvSelector.suggestion" = false;
             };
           };
-          files.".envrc" = {
-            commentPrefix = "#";
-            sections.direnv = ''
-              # shellcheck shell=bash
-              use flake
-            ''
-            + lib.concatStrings (
-              lib.unique (
-                map (watch "watch_dir") dirs
-                ++ map (watch "watch_file") (
-                  lib.filter (path: !lib.any (dir: within "${toString dir}/" path) dirs) sources
-                )
+          files.".envrc".text = ''
+            # shellcheck shell=bash
+            use flake
+          ''
+          + lib.concatStrings (
+            lib.unique (
+              map (watch "watch_dir") dirs
+              ++ map (watch "watch_file") (
+                lib.filter (path: !lib.any (dir: within "${toString dir}/" path) dirs) sources
               )
-            );
-          };
+            )
+          );
         };
       };
     };

@@ -181,17 +181,15 @@
         perSystem =
           { pkgs, ... }:
           {
-            # Project jobs go outside the section.
-            nullkomma.files.".gitlab-ci.yml" = {
-              commentPrefix = "#";
-              sections.gitlab =
-                assert lib.assertMsg (lib.elem "x86_64-linux" config.systems)
-                  "nullkomma.gitlab requires x86_64-linux in systems.";
-                assert lib.assertMsg (
-                  !cfg.pages.enable || withSystem "x86_64-linux" ({ config, ... }: config.packages ? site)
-                ) "nullkomma.gitlab.pages requires packages.x86_64-linux.site.";
-                (pkgs.formats.yaml { }).generate "gitlab-ci.yml" ci;
-            };
+            # yamlfmt would rewrite the lines nullkomma requires.
+            treefmt.settings.excludes = [ ".gitlab-ci.yml" ];
+            nullkomma.files.".gitlab-ci.yml".source =
+              assert lib.assertMsg (lib.elem "x86_64-linux" config.systems)
+                "nullkomma.gitlab requires x86_64-linux in systems.";
+              assert lib.assertMsg (
+                !cfg.pages.enable || withSystem "x86_64-linux" ({ config, ... }: config.packages ? site)
+              ) "nullkomma.gitlab.pages requires packages.x86_64-linux.site.";
+              (pkgs.formats.yaml { }).generate "gitlab-ci.yml" ci;
           };
       };
     };

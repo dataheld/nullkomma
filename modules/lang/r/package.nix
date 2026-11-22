@@ -243,10 +243,6 @@
                         "--set"
                         "NOT_CRAN"
                         "true"
-                        # Tells the r-non-nix startup files to stand aside.
-                        "--set"
-                        "NULLKOMMA_R_NIX"
-                        "true"
                       ]
                       ++ lib.optionals (pcfg.browser != null) [
                         "--set-default"

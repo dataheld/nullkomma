@@ -41,7 +41,7 @@
               (
                 cd "$tmp"
                 Rscript --vanilla - <<'EOF'
-                  options(repos = c(CRAN = ${builtins.toJSON cfg.ppmUrl}), pkg.platforms = "source")
+                  options(repos = c(CRAN = ${builtins.toJSON "https://packagemanager.posit.co/cran/${cfg.snapshot}"}), pkg.platforms = "source")
                   pak::lockfile_create("deps::.", lockfile = "pkg.lock", lib = "library", dependencies = c(${fields}))
               EOF
               )

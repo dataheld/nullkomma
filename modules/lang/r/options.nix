@@ -9,14 +9,9 @@
     }:
     let
       rlib = import ../../../lib/r.nix { inherit lib; };
-      # Extract snapshot date directly from the flake input's sourceInfo.
-      # If nixpkgs-r has an explicit date ref (e.g. rstats-on-nix/YYYY-MM-DD), use it.
-      # Otherwise format the locked commit date (lastModifiedDate: "YYYYMMDDhhmmss" -> "YYYY-MM-DD").
       sourceInfo = inputs.nixpkgs-r.sourceInfo or { };
       defaultSnapshot =
-        if sourceInfo ? ref && builtins.match "[0-9]{4}-[0-9]{2}-[0-9]{2}" sourceInfo.ref != null then
-          sourceInfo.ref
-        else if sourceInfo ? lastModifiedDate then
+        if sourceInfo ? lastModifiedDate then
           let
             d = sourceInfo.lastModifiedDate;
           in
@@ -91,16 +86,11 @@
           default = defaultSnapshot;
           defaultText = lib.literalExpression "date of nixpkgs-r";
           description = ''
-            CRAN snapshot date, for PPM and non-Nix interop. The default is the date in the ref of
-            `nixpkgs-r`, or else its commit date: an upper bound, as nixpkgs updates its R packages
-            less often. Set it for an exact date.
+            Date of the Posit Package Manager (PPM) CRAN snapshot that `r-lock` resolves against.
+            The default is the commit date of `nixpkgs-r`:
+            an upper bound, as nixpkgs updates its R packages less often.
+            Set it for an exact date.
           '';
-        };
-        ppmUrl = lib.mkOption {
-          type = lib.types.str;
-          default = "https://packagemanager.posit.co/cran/${config.nullkomma.r.snapshot}";
-          defaultText = lib.literalExpression ''"https://packagemanager.posit.co/cran/''${snapshot}"'';
-          description = "Posit Package Manager (PPM) repository URL corresponding to `nullkomma.r.snapshot`.";
         };
         fields = lib.mkOption {
           type = lib.types.listOf lib.types.str;
@@ -113,13 +103,13 @@
               rlib.configNeedsFields (builtins.readFile description)
             );
           defaultText = lib.literalMD "`Depends`, `Imports`, `LinkingTo`, `Suggests`, and all `Config/Needs/*` fields in DESCRIPTION";
-          description = "DESCRIPTION fields whose packages pak resolves. Override with only `Depends`, `Imports` and `LinkingTo` for runtime-only dependencies.";
+          description = "DESCRIPTION fields whose packages pak resolves.";
         };
         extraPackages = lib.mkOption {
           type = lib.types.listOf lib.types.str;
           default = [ ];
           example = [ "devtools" ];
-          description = "Extra R packages from nixpkgs (e.g. dev tooling not in DESCRIPTION); pak, languageserver, pkgload, httpgd, later and rstudioapi are always included.";
+          description = "Extra R packages from nixpkgs, e.g. dev tooling not in DESCRIPTION.";
         };
       };
     };

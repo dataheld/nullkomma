@@ -17,7 +17,10 @@ proposals or assumptions about upstream tools.
    the plugin adds there (check names, package names, tasks, dev-shell tools,
    treefmt programs). Leave a cell empty only when the plugin adds nothing
    there. Never list unimplemented plugins.
-1. Files the plugin writes go in a sentence or two in its section below the
-   table. Its options belong in their descriptions, not the README: the
-   section's config block is generated from them.
-1. Run `nk write-files` and `nix fmt`, and review the diff.
+1. Project files and links the plugin adds go in a sentence or two in its
+   section below the table, and in "Files in your repository".
+1. A plugin's options belong in their descriptions, not the README.
+   `nk nix-unit` names the plugins whose config block in the README is stale
+   (`testReadmeShowsCurrentConfigs`); replace each with
+   `nix eval --raw .#lib.configs.<plugin>`, and remove those of removed plugins.
+   Run `nix fmt`, and review the diff.

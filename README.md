@@ -54,7 +54,7 @@ In the [development shell](#getting-started), `nk` lists the project's tasks,
 grouped by plugin; your own tasks form the `custom` group.
 `nk <task> [args]` runs one in the working tree, after its prerequisites,
 and fails when any of them fails.
-`nk all` formats, regenerates files, builds and runs every check.
+`nk all` formats, builds and runs every check.
 
 A task is a process with a `description` in the [process-compose] `dev` tree,
 so `nk <task>` runs it once, in the foreground, as `process-compose run` does.
@@ -98,13 +98,9 @@ builds and checks run sandboxed, on the files Git tracks (`git add` new files fi
 |                                       | `taskRunners`       | `nk`                                  | processes with a `description`             |
 | `nix flake update`                    | (`flake.lock`)      | `nk flake-update`                     |                                            |
 
-`nk flake-update` also runs `write-files` and `generate-files`;
-after another `nix flake update`, e.g. by a bot, run those two yourself.
-
 ### MCP servers and skills
 
-The [`agents`](#agents) plugin generates two things that coding agents read,
-from your `flake.lock`, so they match the nullkomma you use:
+The [`agents`](#agents) plugin [links](#files-in-your-repository) two things that coding agents read:
 
 - `.mcp.json` lists [MCP] servers.
   `nullkomma` (`nk mcp`) serves the tasks as tools,
@@ -114,7 +110,7 @@ from your `flake.lock`, so they match the nullkomma you use:
   The agent starts each server when it needs it, so they are not processes of the `dev` tree.
   Stdio servers start in the development shell (`nix develop --command`),
   so they and the processes they start see its environment.
-- `.agents/skills/` holds [Agent Skills](https://agentskills.io), named `nk-*`.
+- `.agents/skills/` holds the plugins' [Agent Skills](https://agentskills.io), such as `nk-upgrade`.
 
 This repository is also an [Agent Plugin](https://agent-plugins.org):
 in a project without nullkomma, its nk-adopt skill adds nullkomma,
@@ -144,14 +140,17 @@ In your project, with a clean working tree, run:
 nix flake init --template "https://flakehub.com/f/dataheld/nullkomma/0.1.*#default"
 git add flake.nix
 nix develop --command nk write-files
-nix develop --command nk generate-files
+nix develop --command nk project-files
 git add -A
 git commit -m "add nullkomma"
 direnv allow
 ```
 
 The template adds `flake.nix`, keeping existing files;
-`write-files` and `generate-files` add the [files](#files-in-your-repository) that depend on your configuration.
+`write-files` adds the [project files](#files-in-your-repository) your configuration requires,
+and `project-files` lists the lines nullkomma requires in files you already had, such as `.gitignore`:
+add them before you commit.
+Entering the dev shell links the rest once Git ignores them, and reports them as not linked until then.
 The template's `nixpkgs.follows = "nullkomma/nixpkgs"` uses nullkomma's tested Nixpkgs.
 To use your own, declare `nixpkgs.url` and set `nullkomma.inputs.nixpkgs.follows = "nixpkgs"`.
 After editing your Nix files, run `direnv reload`.
@@ -211,18 +210,18 @@ Your settings override plugins' `lib.mkDefault` values, and lists concatenate.
 typos, rumdl (`markdown`), actionlint, gitleaks, jscpd, Ruff and ty take their settings
 from `nullkomma.lint.<tool>`; the others from treefmt-nix:
 
-| Linter        | Nix configuration                                   | Settings                                                 |
-| ------------- | --------------------------------------------------- | -------------------------------------------------------- |
-| yamllint      | `perSystem.treefmt.programs.yamllint.settings`      | yamllint's YAML config                                   |
-| ShellCheck    | `perSystem.treefmt.programs.shellcheck`             | treefmt-nix options, e.g. `severity`                     |
-| deadnix       | `perSystem.treefmt.programs.deadnix`                | treefmt-nix switches, e.g. `no-lambda-arg`               |
-| nixf-diagnose | `perSystem.treefmt.programs.nixf-diagnose`          | treefmt-nix options, e.g. `ignore`                       |
-| Jarl          | `perSystem.treefmt.settings.formatter.jarl.options` | CLI arguments, e.g. `[ "--ignore=any_is_na" ]`           |
+| Linter        | Nix configuration                                   | Settings                                       |
+| ------------- | --------------------------------------------------- | ---------------------------------------------- |
+| yamllint      | `perSystem.treefmt.programs.yamllint.settings`      | yamllint's YAML config                         |
+| ShellCheck    | `perSystem.treefmt.programs.shellcheck`             | treefmt-nix options, e.g. `severity`           |
+| deadnix       | `perSystem.treefmt.programs.deadnix`                | treefmt-nix switches, e.g. `no-lambda-arg`     |
+| nixf-diagnose | `perSystem.treefmt.programs.nixf-diagnose`          | treefmt-nix options, e.g. `ignore`             |
+| Jarl          | `perSystem.treefmt.settings.formatter.jarl.options` | CLI arguments, e.g. `[ "--ignore=any_is_na" ]` |
 
 `perSystem.treefmt.settings.excludes` skips files for every tool, jscpd included;
 see [treefmt-nix's options](https://flake.parts/options/treefmt-nix.html).
-Generated files aren't formatted or linted;
-add other generated content to `nullkomma.generatedPaths` as treefmt globs.
+Links aren't formatted or linted;
+add generated content to `nullkomma.generatedPaths` as treefmt globs.
 
 ### Tasks and checks
 
@@ -319,57 +318,56 @@ The sections are a starting point, not legal advice.
 
 ## Files in your repository
 
-Features live in Nix; nullkomma writes files only where tools need them:
+Features live in Nix; nullkomma adds files only where tools need them,
+and each file has one author, your project or Nix.
 
-|                             | **Source of truth** (committed, yours to edit)       | **Generated from Nix** (Git-ignored, don't edit)                                            |
-| --------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `nix flake init --template` | `flake.nix`                                          |                                                                                             |
-| `write-files`               | `.envrc`, `.gitignore` and `AGENTS.md` sections, GitHub workflows, `.gitlab-ci.yml` |                                                                                             |
-| `generate-files`            |                                                      | `.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.agents/skills/*`, Quarto brand and extensions |
+**Project files** are committed and yours:
+`flake.nix` from the template, and `.envrc`, `.gitignore`, `AGENTS.md`, `.Rbuildignore`,
+`.github/workflows/push.yml` and `.gitlab-ci.yml` from `write-files`, which creates the missing ones.
+The `project-files` check lists the lines nullkomma requires that a file lacks,
+for example after an upgrade; add them wherever they fit.
+Where that is impractical, `nk write-files --overwrite <file>...` replaces the named files with nullkomma's version,
+if Git has them committed; restore your own lines from `git diff` before you commit.
 
-`write-files` writes source-of-truth files (`nullkomma.files."<path>".mode = "source"`) once; then they are yours.
-It keeps only their marked `sections` up to date, wherever you moved them, and strips them once nullkomma no longer declares them.
-Add your own lines outside the markers, for example your jobs below nullkomma's section of `push.yml`.
-
-`generate-files` overwrites generated files (`mode = "generated"`) when they differ from Nix,
-and removes ones no longer declared; it refuses to overwrite files Git tracks.
-A generated directory holds its own `.gitignore`;
-a generated file must be ignored already, usually by nullkomma's `.gitignore` section, or `generate-files` does not write it and fails.
-Entering the dev shell runs it; tasks never do.
-To change a generated file, change the Nix options.
+**Links** are Git-ignored, read-only links into the Nix store, so they follow your Nix configuration:
+`.mcp.json`, `.vscode/*.json`, `.nvim.lua`, `.Rprofile`, `.agents/skills/*`,
+Quarto brand, extensions and privacy page, and pkgdown assets.
+Entering the dev shell runs `link-files`, which links only paths that Git ignores and that hold nothing of yours,
+and removes the links nullkomma no longer declares.
+To own a file instead, set `perSystem.nullkomma.links.<path>.enable = false` and remove `/<path>` from `.gitignore`.
 
 ## Plugins
 
 Each plugin is exported as `flakeModules.<name>`; each column is an output of your flake that it adds to.
 Those marked under Default are enabled unless you opt out.
 
-| Plugin                                                                                            | Default | `devShells`                                                                                                    | `formatter`                                | `checks`                                                  | `packages`         | `apps`                     | `taskRunners`                                                                                                                                  | `processTrees`                                                                                                                                | MCP                                             |
-| ------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------- | ------------------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| framework                                                                                         | always  | `nk`, [`process-compose`][process-compose]                                                                     | [treefmt]                                  | `treefmt`; [each `check` prerequisite](#tasks-and-checks) |                    |                            | `all`, `check`, `flake-check`, `treefmt`, `write-files`, `generate-files`, `mcp`, `graph`                                                      | `dev`: `treefmt`                                                                                                                              | `nullkomma`                                     |
-| [`nix`](#nix)                                                                                     | ✅       | [nixd]                                                                                                         | [`nixfmt`], [`deadnix`], [`nixf-diagnose`] | `nix-unit`                                                |                    |                            | `nix-unit`, `flake-update`, [`flake-checker`]                                                                                                  | `flake-checker`, `nix-unit`                                                                                                                   |                                                 |
-| [`markdown`][md]                                                                                  | ✅       | [`rumdl`]                                                                                                     | [`mdformat`], [`rumdl`]                    |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`json`][json]                                                                                    | ✅       | [JSON language server][jsonls]                                                                                 | [`jsonfmt`]                                |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`yaml`][yaml]                                                                                    | ✅       | [yaml-language-server]                                                                                         | [`yamlfmt`], [`yamllint`], [`actionlint`]  |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`toml`][toml]                                                                                    | ✅       |                                                                                                                | [`toml-sort`]                              |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`shell`](#shell)                                                                                 | ✅       | [bash-language-server]                                                                                         | [`shfmt`], [`shellcheck`]                  | [bats]                                                    |                    |                            | `bats`                                                                                                                                         | `bats`                                                                                                                                        |                                                 |
-| [`github`](#github)                                                                               | ✅       |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`gitlab`](#gitlab)                                                                               |         |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`agents`](#agents)                                                                               | ✅       |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `playwright` (opt-in)                           |
-| [`keepSorted`][keep-sorted]                                                                       | ✅       |                                                                                                                | `keep-sorted`                              |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`gitleaks`][gitleaks]                                                                            | ✅       |                                                                                                                | `gitleaks`                                 |                                                           |                    |                            | `gitleaks-git`                                                                                                                                 |                                                                                                                                               |                                                 |
-| [`typos`][typos]                                                                                  | ✅       |                                                                                                                | `typos`                                    |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`jscpd`][jscpd]                                                                                  | ✅       |                                                                                                                |                                            | `jscpd`                                                   |                    |                            | `jscpd`                                                                                                                                        | `jscpd`                                                                                                                                       |                                                 |
-| [`git`][git]                                                                                      | ✅       | `git`                                                                                                          |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`direnv`][direnv]                                                                                | ✅       |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`vscode`](#editors)                                                                              | ✅       |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`neovim`](#editors)                                                                              | ✅       |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`flakehub`][flakehub]                                                                            | ✅       | [`fh`]                                                                                                         |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                                 |
-| [`quarto`](#quarto) (includes nkdocs; optional [brand](#brand))                                   |         | [`quarto`]                                                                                                     |                                            |                                                           | `site`             |                            | `quarto-render`, `quarto-preview`                                                                                                              | `quarto-preview`                                                                                                                              | `playwright`                                    |
-| [`cloudflare`][`wrangler`]                                                                        |         | [`wrangler`]                                                                                                   |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `cloudflare-api`, `cloudflare-docs`             |
-| [`cloudflareSite`](#cloudflaresite) (enables `cloudflare`, `opentofu`)                            |         |                                                                                                                |                                            | `cloudflare-validate` ([OpenTofu] validation)             |                    | `deploy`[^deploy]          | `cloudflare-validate`, `cloudflare-plan`, `cloudflare-deploy`                                                                                  |                                                                                                                                               |                                                 |
-| [`opentofu`][terranix]                                                                            |         |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `opentofu`                                      |
-| [`python`](#python)                                                                               |         | [Python], [uv], [ty], editable package with its dependency groups and extras                                   | [`ruff-check`][ruff], `ruff-format`        | `python-lock-check`, `python-test`, `python-typecheck`    | `default`, `dist`  | `<script>`, `python-lock`  | `python-lock`, `python-lock-check`, `python-test`, `python-typecheck`                                                                          | `python-lock-check`, `python-test`, `python-typecheck`                                                                                        |                                                 |
-| [`r`](#r) (optional [non-Nix collaboration](#r-development-without-nix), [pkgdown brand](#brand)) |         | [R], [radian], [Air]; [languageserver], [`pkgload`], [pak], [httpgd], [later], [rstudioapi], [btw], [mcptools] | `air`, [`jarl`][jarl]                      | `r-document-namespace`, `r-test`, `r-check`               | `site` ([pkgdown]) | `r-lock`, `shiny` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-lock`, `r-run-app` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-shiny-<function>` (opt-in) | `r` ([btw], [mcptools]); `playwright` (Shiny)   |
+| Plugin                                                                 | Default | `devShells`                                                                                                    | `formatter`                                | `checks`                                                  | `packages`         | `apps`                     | `taskRunners`                                                                                                                                  | `processTrees`                                                                                                                                | MCP                                           |
+| ---------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------- | ------------------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| framework                                                              | always  | `nk`, [`process-compose`][process-compose]                                                                     | [treefmt]                                  | `treefmt`; [each `check` prerequisite](#tasks-and-checks) |                    |                            | `all`, `check`, `flake-check`, `treefmt`, `write-files`, `link-files`, `project-files`, `mcp`, `graph`                                         | `dev`: `treefmt`                                                                                                                              | `nullkomma`                                   |
+| [`nix`](#nix)                                                          | ✅      | [nixd]                                                                                                         | [`nixfmt`], [`deadnix`], [`nixf-diagnose`] | `nix-unit`                                                |                    |                            | `nix-unit`, `flake-update`, [`flake-checker`]                                                                                                  | `flake-checker`, `nix-unit`                                                                                                                   |                                               |
+| [`markdown`][md]                                                       | ✅      | [`rumdl`]                                                                                                      | [`mdformat`], [`rumdl`]                    |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`json`][json]                                                         | ✅      | [JSON language server][jsonls]                                                                                 | [`jsonfmt`]                                |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`yaml`][yaml]                                                         | ✅      | [yaml-language-server]                                                                                         | [`yamlfmt`], [`yamllint`], [`actionlint`]  |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`toml`][toml]                                                         | ✅      |                                                                                                                | [`toml-sort`]                              |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`shell`](#shell)                                                      | ✅      | [bash-language-server]                                                                                         | [`shfmt`], [`shellcheck`]                  | [bats]                                                    |                    |                            | `bats`                                                                                                                                         | `bats`                                                                                                                                        |                                               |
+| [`github`](#github)                                                    | ✅      |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`gitlab`](#gitlab)                                                    |         |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`agents`](#agents)                                                    | ✅      |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `playwright` (opt-in)                         |
+| [`keepSorted`][keep-sorted]                                            | ✅      |                                                                                                                | `keep-sorted`                              |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`gitleaks`][gitleaks]                                                 | ✅      |                                                                                                                | `gitleaks`                                 |                                                           |                    |                            | `gitleaks-git`                                                                                                                                 |                                                                                                                                               |                                               |
+| [`typos`][typos]                                                       | ✅      |                                                                                                                | `typos`                                    |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`jscpd`][jscpd]                                                       | ✅      |                                                                                                                |                                            | `jscpd`                                                   |                    |                            | `jscpd`                                                                                                                                        | `jscpd`                                                                                                                                       |                                               |
+| [`git`][git]                                                           | ✅      | `git`                                                                                                          |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`direnv`][direnv]                                                     | ✅      |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`vscode`](#editors)                                                   | ✅      |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`neovim`](#editors)                                                   | ✅      |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`flakehub`][flakehub]                                                 | ✅      | [`fh`]                                                                                                         |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               |                                               |
+| [`quarto`](#quarto) (includes nkdocs; optional [brand](#brand))        |         | [`quarto`]                                                                                                     |                                            |                                                           | `site`             |                            | `quarto-render`, `quarto-preview`                                                                                                              | `quarto-preview`                                                                                                                              | `playwright`                                  |
+| [`cloudflare`][`wrangler`]                                             |         | [`wrangler`]                                                                                                   |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `cloudflare-api`, `cloudflare-docs`           |
+| [`cloudflareSite`](#cloudflaresite) (enables `cloudflare`, `opentofu`) |         |                                                                                                                |                                            | `cloudflare-validate` ([OpenTofu] validation)             |                    | `deploy`[^deploy]          | `cloudflare-validate`, `cloudflare-plan`, `cloudflare-deploy`                                                                                  |                                                                                                                                               |                                               |
+| [`opentofu`][terranix]                                                 |         |                                                                                                                |                                            |                                                           |                    |                            |                                                                                                                                                |                                                                                                                                               | `opentofu`                                    |
+| [`python`](#python)                                                    |         | [Python], [uv], [ty], editable package with its dependency groups and extras                                   | [`ruff-check`][ruff], `ruff-format`        | `python-lock-check`, `python-test`, `python-typecheck`    | `default`, `dist`  | `<script>`, `python-lock`  | `python-lock`, `python-lock-check`, `python-test`, `python-typecheck`                                                                          | `python-lock-check`, `python-test`, `python-typecheck`                                                                                        |                                               |
+| [`r`](#r) (optional [pkgdown brand](#brand))                           |         | [R], [radian], [Air]; [languageserver], [`pkgload`], [pak], [httpgd], [later], [rstudioapi], [btw], [mcptools] | `air`, [`jarl`][jarl]                      | `r-document-namespace`, `r-test`, `r-check`               | `site` ([pkgdown]) | `r-lock`, `shiny` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-lock`, `r-run-app` (opt-in) | `r-document-namespace`, `r-document`, `r-test`, `r-check`, `r-build-site`, `r-preview-site`, `r-test-coverage`, `r-shiny-<function>` (opt-in) | `r` ([btw], [mcptools]); `playwright` (Shiny) |
 
 Peer plugins meet only through framework options, so one could live in a flake of its own,
 exporting its `flakeModules.<name>` with its own tasks and inputs;
@@ -382,7 +380,6 @@ plugins without options beyond `enable` have none.
 
 Ignores `result`.
 
-<!-- nullkomma:nix:start -->
 ```nix
 {
   # Whether to enable the nix plugin.
@@ -400,11 +397,9 @@ Ignores `result`.
   # perSystem.nullkomma.nix.unit.tests = { };
 }
 ```
-<!-- nullkomma:nix:end -->
 
 ### `shell`
 
-<!-- nullkomma:shell:start -->
 ```nix
 {
   # Whether to enable the shell plugin.
@@ -423,16 +418,14 @@ Ignores `result`.
   # perSystem.nullkomma.shell.bats.packages = [ ];
 }
 ```
-<!-- nullkomma:shell:end -->
 
 ### `agents`
 
-Writes an `agents` section into `AGENTS.md`, the rest of which is yours,
-and generates the [MCP servers and skills](#mcp-servers-and-skills).
+Requires its lines in `AGENTS.md`, the rest of which is yours,
+and links the [MCP servers and skills](#mcp-servers-and-skills).
 With `browser.enable`, which `quarto` and Shiny turn on,
 agents operate the previews in [Playwright's](https://github.com/microsoft/playwright-mcp) headless browser.
 
-<!-- nullkomma:agents:start -->
 ```nix
 {
   # Whether to enable the agents plugin.
@@ -443,27 +436,25 @@ agents operate the previews in [Playwright's](https://github.com/microsoft/playw
   # nullkomma.agents.browser.enable = false;
 
   # Agent Skill directories by name, each with a `SKILL.md` whose `name`
-  # matches; plugins add here. The `agents` plugin generates them into
+  # matches; plugins add here. The `agents` plugin links them as
   # `.agents/skills/<name>`.
   # nullkomma.agents.skills = { };
 
   # MCP servers by name, each with a `type` (`stdio` with `command` and `args`,
-  # or `http` with `url`); plugins add here. The `agents` plugin writes them to
-  # `.mcp.json`, the `vscode` plugin to `.vscode/mcp.json`; stdio servers start
+  # or `http` with `url`); plugins add here. The `agents` plugin links them as
+  # `.mcp.json`, the `vscode` plugin as `.vscode/mcp.json`; stdio servers start
   # in the dev shell, when enabled.
   # perSystem.nullkomma.agents.mcpServers = { };
 }
 ```
-<!-- nullkomma:agents:end -->
 
 ### `github`
 
-Writes `.github/workflows/push.yml`, which calls nullkomma's reusable CI workflow:
+Requires its lines in `.github/workflows/push.yml`, which call nullkomma's reusable CI workflow:
 it runs `nix flake check` on each supported system,
 then publishes pushes to the default branch and tags to FlakeHub, with the repository's visibility.
 Forks don't publish; private flakes need a [FlakeHub paid plan](https://flakehub.com/signup).
 
-<!-- nullkomma:github:start -->
 ```nix
 {
   # Whether to enable the github plugin.
@@ -476,13 +467,11 @@ Forks don't publish; private flakes need a [FlakeHub paid plan](https://flakehub
   # nullkomma.github.workflows.source = "dataheld/nullkomma/.github/workflows";
 }
 ```
-<!-- nullkomma:github:end -->
 
 ### `gitlab`
 
 In `nix/local.nix`:
 
-<!-- nullkomma:gitlab:start -->
 ```nix
 {
   # Whether to enable the gitlab plugin.
@@ -515,12 +504,11 @@ In `nix/local.nix`:
   # nullkomma.gitlab.tags = [ ];
 }
 ```
-<!-- nullkomma:gitlab:end -->
 
 ### Editors
 
 `vscode` and `neovim` render the plugins' language servers, formatter, MCP servers and recommended extensions
-into generated `.vscode/*.json` and `.nvim.lua`.
+into the linked `.vscode/*.json` and `.nvim.lua`.
 Neovim reads `.nvim.lua` only with `:set exrc`; its `:Format` command formats through treefmt.
 Installing editors belongs to your user environment, e.g. [lap](https://github.com/dataheld/lap).
 
@@ -529,7 +517,7 @@ Installing editors belongs to your user environment, e.g. [lap](https://github.c
 Renders the project into `packages.site`; `quarto-preview` serves it and reloads on edits.
 Site resources are copied as files,
 including those linked from outside the output directory.
-For a documentation site, select nkdocs, a Quarto extension nullkomma generates, in `_quarto.yml`:
+For a documentation site, select nkdocs, a Quarto extension nullkomma links, in `_quarto.yml`:
 
 ```yaml
 project:
@@ -541,9 +529,8 @@ website:
 ```
 
 nkdocs only switches on stock Quarto features; configure everything else in `_quarto.yml` as usual.
-With `brand.enable`, list the generated `_nullkomma-brand.yml` in `_quarto.yml`'s `metadata-files`.
+With `brand.enable`, list the linked `_nullkomma-brand.yml` in `_quarto.yml`'s `metadata-files`.
 
-<!-- nullkomma:quarto:start -->
 ```nix
 {
   # Whether to enable the quarto plugin.
@@ -552,16 +539,16 @@ With `brand.enable`, list the generated `_nullkomma-brand.yml` in `_quarto.yml`'
   # Whether to enable the shared brand on the Quarto website.
   # nullkomma.quarto.brand.enable = false;
 
-  # Quarto extensions by name, placed in `_extensions/<name>` (generated and
-  # Git-ignored) and in the build.
+  # Quarto extensions by name, linked as `_extensions/<name>` and placed in the
+  # build.
   # nullkomma.quarto.extensions = { };
 
   # Extra arguments to `quarto preview`, after `--no-browser`; e.g. `--render
   # all` to render all formats before serving.
   # nullkomma.quarto.preview.args = [ ];
 
-  # Generated page, relative to `root`, rendering `nullkomma.privacy.sections`
-  # if there are any; null to write your own.
+  # Linked page, relative to `root`, rendering `nullkomma.privacy.sections` if
+  # there are any; null to write your own.
   # nullkomma.quarto.privacy.page = "privacy.qmd";
 
   # Quarto project rendered into `packages.site` and served by the
@@ -573,7 +560,6 @@ With `brand.enable`, list the generated `_nullkomma-brand.yml` in `_quarto.yml`'
   # perSystem.nullkomma.quarto.package = …;
 }
 ```
-<!-- nullkomma:quarto:end -->
 
 ### `cloudflareSite`
 
@@ -596,7 +582,6 @@ env:
 
 OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is involved.
 
-<!-- nullkomma:cloudflareSite:start -->
 ```nix
 {
   # Whether to enable the cloudflareSite plugin.
@@ -614,7 +599,6 @@ OpenTofu's S3 backend gets the R2 credentials as `AWS_*`; no AWS account is invo
   # nullkomma.cloudflareSite.worker = config.nullkomma.cloudflareSite.name;
 }
 ```
-<!-- nullkomma:cloudflareSite:end -->
 
 ### `python`
 
@@ -622,7 +606,6 @@ Enable it for a pure-Python package at the flake root:
 [uv2nix] and [pyproject.nix] build it from `pyproject.toml` and `uv.lock`, preferring dependency wheels.
 Native extensions and `[tool.uv] conflicts` are not supported.
 
-<!-- nullkomma:python:start -->
 ```nix
 {
   # Whether to enable the python plugin.
@@ -639,19 +622,15 @@ Native extensions and `[tool.uv] conflicts` are not supported.
   # perSystem.nullkomma.python.test.packages = [ ];
 }
 ```
-<!-- nullkomma:python:end -->
 
 ### `r`
 
 Enable it, then run `nix run .#r-lock`: the development shell needs the `pkg.lock` it writes.
 
 Interactive R sessions started in the package directory load it with `pkgload::load_all()`,
-after running `~/.Rprofile`, from a generated, Git-ignored `.Rprofile`.
+after running `~/.Rprofile`, from a [linked](#files-in-your-repository) `.Rprofile`.
 If loading fails, R still starts.
-To keep a committed `.Rprofile` of your own, set
-`perSystem.nullkomma.files.".Rprofile".enable = false`.
 
-<!-- nullkomma:r:start -->
 ```nix
 {
   # Whether to enable the r plugin.
@@ -689,14 +668,12 @@ To keep a committed `.Rprofile` of your own, set
   # installed, and CRAN's limits on installed size and data compression.
   # nullkomma.r.cranBound = true;
 
-  # Extra R packages from nixpkgs (e.g. dev tooling not in DESCRIPTION); pak,
-  # languageserver, pkgload, httpgd, later and rstudioapi are always included.
+  # Extra R packages from nixpkgs, e.g. dev tooling not in DESCRIPTION.
   # nullkomma.r.extraPackages = [ ];
 
-  # DESCRIPTION fields whose packages pak resolves. Override with only
-  # `Depends`, `Imports` and `LinkingTo` for runtime-only dependencies. Default:
-  # `Depends`, `Imports`, `LinkingTo`, `Suggests`, and all `Config/Needs/*`
-  # fields in DESCRIPTION.
+  # DESCRIPTION fields whose packages pak resolves. Default: `Depends`,
+  # `Imports`, `LinkingTo`, `Suggests`, and all `Config/Needs/*` fields in
+  # DESCRIPTION.
   # nullkomma.r.fields = …;
 
   # Hashes of R packages fetched by URL (`url::`, `pkg@version`, CRAN packages
@@ -710,13 +687,8 @@ To keep a committed `.Rprofile` of your own, set
   # unsupported.
   # nullkomma.r.jarl.enable = true;
 
-  # Whether to enable R development without Nix using the same pinned
-  # dependencies.
-  # nullkomma.r.nonNix.enable = false;
-
-  # Directory generated into pkgdown/assets and copied by pkgdown to the website
-  # root in both local and sandboxed builds. Git-ignored; null keeps
-  # project-owned assets.
+  # Directory linked as pkgdown/assets and copied by pkgdown to the website root
+  # in both local and sandboxed builds; null keeps project-owned assets.
   # nullkomma.r.pkgdown.assets = null;
 
   # Whether to enable the shared brand on the pkgdown website.
@@ -735,10 +707,6 @@ To keep a committed `.Rprofile` of your own, set
   # Page at the site root rendering `nullkomma.privacy`, built by pkgdown
   # without writing to the project; null to supply your own.
   # nullkomma.r.pkgdown.privacy.page = "privacy.html";
-
-  # Posit Package Manager (PPM) repository URL corresponding to
-  # `nullkomma.r.snapshot`.
-  # nullkomma.r.ppmUrl = "https://packagemanager.posit.co/cran/${snapshot}";
 
   # R package directory (containing `DESCRIPTION` and its pak lockfile
   # `pkg.lock`, written by `nix run .#r-lock`); a path literal inside the flake
@@ -764,9 +732,9 @@ To keep a committed `.Rprofile` of your own, set
   # Shiny choose an available port.
   # nullkomma.r.shiny.port = 3838;
 
-  # CRAN snapshot date, for PPM and non-Nix interop. The default is the date in
-  # the ref of `nixpkgs-r`, or else its commit date: an upper bound, as nixpkgs
-  # updates its R packages less often. Set it for an exact date.
+  # Date of the Posit Package Manager (PPM) CRAN snapshot that `r-lock` resolves
+  # against. The default is the commit date of `nixpkgs-r`: an upper bound, as
+  # nixpkgs updates its R packages less often. Set it for an exact date.
   # nullkomma.r.snapshot = date of nixpkgs-r;
 
   # Run testthat with `r-test`: on the pkgload-loaded source in the dev loop and
@@ -790,22 +758,15 @@ To keep a committed `.Rprofile` of your own, set
   # perSystem.nullkomma.r.pkgdown.libraries = [ ];
 }
 ```
-<!-- nullkomma:r:end -->
 
 #### Dependencies
 
 Declare dependencies in `DESCRIPTION`, including `Config/Needs/*` fields;
 [pak] locks them in `pkg.lock`.
 After changing them or updating Nix, run `nk r-lock` and commit both files.
-Nix takes package names from `pkg.lock`, but versions and builds from the `nixpkgs-r` input;
-`r-lock` resolves against the [PPM] snapshot of `nullkomma.r.snapshot`, by default an upper bound.
+Nix takes package names from `pkg.lock`, but versions and builds from the `nixpkgs-r` input.
 The development environment holds exactly these packages, the tools in the table above,
 and `extraPackages`.
-
-> **Note:** Packages from `Remotes`, or missing from `nixpkgs-r`, build from their lockfile-pinned sources
-> unless `allowOffNixpkgs = false`.
-> URL sources and CRAN packages missing from `nixpkgs-r` need `hashes.<package>`
-> from `nix store prefetch-file <url>`. GitLab and local references are unsupported; use `git::` for GitLab.
 
 #### pkgdown website
 
@@ -834,13 +795,6 @@ For an app with arguments, create a function in the package namespace, e.g. `rla
 `nk r-test` loads the working-tree source.
 Flake checks and `nk r-test --installed` test a fresh installation,
 including its installed namespace.
-
-#### R development without Nix
-
-For collaborators without Nix, enable `nullkomma.r.nonNix.enable`, run `nk write-files`,
-and commit `.Renviron`, `.Rprofile`, `.R/install.R`, `.Rbuildignore`
-and the section it adds to your README.
-The startup profile installs from the same PPM snapshot in native R sessions only.
 
 ## Development
 
@@ -892,7 +846,6 @@ It is **not**:
 [opentofu]: https://opentofu.org
 [pak]: https://pak.r-lib.org
 [pkgdown]: https://pkgdown.r-lib.org
-[ppm]: https://packagemanager.posit.co
 [process-compose]: https://f1bonacc1.github.io/process-compose/
 [process-compose-flake]: https://github.com/Platonic-Systems/process-compose-flake
 [pyproject.nix]: https://pyproject-nix.github.io/pyproject.nix/
@@ -904,8 +857,8 @@ It is **not**:
 [terranix]: https://terranix.org/flake-parts.html
 [toml]: https://toml.io
 [treefmt]: https://treefmt.com
-[typos]: https://github.com/crate-ci/typos
 [ty]: https://docs.astral.sh/ty/
+[typos]: https://github.com/crate-ci/typos
 [uv]: https://docs.astral.sh/uv/
 [uv2nix]: https://pyproject-nix.github.io/uv2nix/
 [yaml]: https://yaml.org

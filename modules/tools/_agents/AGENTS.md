@@ -20,4 +20,4 @@ Check your work locally, from fastest to strictest:
    and sees only files that Git tracks: `git add` new files first.
 
 Skills for nullkomma itself are in `.agents/skills/nk-*`;
-if they are missing, run `nk generate-files`.
+if they are missing, run `nk link-files`.

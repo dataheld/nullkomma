@@ -57,25 +57,19 @@
             };
           in
           {
-            nullkomma.files = {
-              "${prefix}_nullkomma-brand.yml" = {
-                mode = "generated";
-                commentPrefix = "#";
-                source = "${siteBrand}/quarto.yml";
-              };
-              "${prefix}_brand" = {
-                mode = "generated";
-                directory = true;
-                source = pkgs.runCommand "quarto-website-brand" { nativeBuildInputs = [ quarto ]; } ''
-                  export HOME="$TMPDIR"
-                  mkdir source
-                  cp ${brandExtension} source/_extension.yml
-                  ln -s ${lib.escapeShellArg "${dirOf brand.lib.brand}"} source/origin
-                  quarto use brand ./source --force
-                  test -f _brand/_brand.yml
-                  mv _brand "$out"
-                '';
-              };
+            nullkomma.links = {
+              "${prefix}_nullkomma-brand.yml".source = "${siteBrand}/quarto.yml";
+              "${prefix}_brand".source =
+                pkgs.runCommand "quarto-website-brand" { nativeBuildInputs = [ quarto ]; }
+                  ''
+                    export HOME="$TMPDIR"
+                    mkdir source
+                    cp ${brandExtension} source/_extension.yml
+                    ln -s ${lib.escapeShellArg "${dirOf brand.lib.brand}"} source/origin
+                    quarto use brand ./source --force
+                    test -f _brand/_brand.yml
+                    mv _brand "$out"
+                  '';
             };
           };
       };

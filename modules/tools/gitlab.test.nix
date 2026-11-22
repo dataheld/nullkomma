@@ -21,7 +21,7 @@
           nullkomma.gitlab.enable = true;
         } (root + "/templates/default");
       files = flake: (perSystem flake).nullkomma.files;
-      pipeline = flake: (files flake).".gitlab-ci.yml".sections.gitlab;
+      pipeline = flake: (files flake).".gitlab-ci.yml".source;
       variants =
         lib.genAttrs
           [
@@ -65,12 +65,10 @@
           expr = {
             gitlab = (files variants.plain) ? ".gitlab-ci.yml";
             github = (files variants.plain) ? ".github/workflows/push.yml";
-            mode = (files variants.plain).".gitlab-ci.yml".mode;
           };
           expected = {
             gitlab = true;
             github = false;
-            mode = "source";
           };
         };
         testGitlabNeedsLinuxChecks = {
@@ -78,7 +76,7 @@
             (builtins.tryEval (
               (consumer {
                 systems = lib.mkForce [ "aarch64-darwin" ];
-              }).allSystems.aarch64-darwin.nullkomma.files.".gitlab-ci.yml".sections.gitlab
+              }).allSystems.aarch64-darwin.nullkomma.files.".gitlab-ci.yml".source
             )).success;
           expected = false;
         };
