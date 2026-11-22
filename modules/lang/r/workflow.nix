@@ -285,7 +285,7 @@
               }
               (lib.mkIf cfg.testthat.enable {
                 r-test = rInterrupted // {
-                  description = "Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package; other arguments are regular expressions selecting test files";
+                  description = "Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package; other arguments select test files by regex";
                   depends_on = after "r-document-namespace";
                   command = config.nullkomma.scratch {
                     name = "r-test";

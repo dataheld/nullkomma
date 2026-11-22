@@ -380,21 +380,11 @@
                   if console.isalive():
                       console.close(force=True)
               PY
+              # Outside the dev shell, PATH may have no `make`.
+              PATH=${pkgs.bash}/bin:${pkgs.coreutils}/bin:${pkgs.gnugrep}/bin:${pkgs.gnused}/bin \
+                ${rRuntime}/bin/Rscript --vanilla -e 'pkgbuild::check_build_tools()'
               touch $out
             '';
-        # As in `nix run .#taskRunners…`, outside the dev shell: no `make` on PATH.
-        r-compiles-outside-dev-shell = pkgs.runCommand "nullkomma-r-compiles-outside-dev-shell" { } ''
-          export PATH=${
-            lib.makeBinPath [
-              pkgs.bash
-              pkgs.coreutils
-              pkgs.gnugrep
-              pkgs.gnused
-            ]
-          }
-          ${rRuntime}/bin/Rscript --vanilla -e 'pkgbuild::check_build_tools(debug = TRUE)'
-          touch $out
-        '';
         r-test-watch = check "r-test-watch" ''
           cat > tests/testthat/test-side-effect.R <<'RS'
           test_that("files written by tests don't restart r-test", {

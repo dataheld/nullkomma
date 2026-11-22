@@ -31,5 +31,5 @@ Available recipes:
     r-lock *args               # Resolve DESCRIPTION into the R lockfile (pkg.lock) with pak
     r-preview-site             # Serve the pkgdown website on localhost, reloading pages when r-build-site rewrites them
     r-run-app                  # Serve the working-tree Shiny apps with pkgload, open them in the browser, and reload them on changes
-    r-test *args               # Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package; other arguments are regular expressions selecting test files
+    r-test *args               # Run testthat on the working-tree package, loaded with pkgload; --installed tests the installed package; other arguments select test files by regex
 ```

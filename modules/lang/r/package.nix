@@ -231,8 +231,7 @@
                         "PATH"
                         ":"
                         "${pkgs.pandoc}/bin"
-                        # R's configuration names its compilers by store path, but `make` by name:
-                        # without this, compiling packages needs `make` on PATH, as in the dev shell.
+                        # R names its compilers by store path, but takes `make` from PATH.
                         "--set-default"
                         "MAKE"
                         (lib.getExe pkgs.gnumake)
