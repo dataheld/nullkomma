@@ -157,19 +157,7 @@
                   R_PROFILE_USER = "/dev/null";
                   R_ENVIRON_USER = "/dev/null";
                   propagatedBuildInputs = deps ++ withoutRPackages (old.propagatedBuildInputs or [ ]);
-                  # nixpkgs' roxygen2, as the lockfile's could depend on this package.
-                  nativeBuildInputs = deps ++ [ base.roxygen2 ] ++ withoutRPackages (old.nativeBuildInputs or [ ]);
-                  # Sources whose manuals are generated, as in nullkomma's packages, may lack them;
-                  # R then installs the package without help pages.
-                  # roxygen2 documents an installed copy: loading the source with pkgload
-                  # would compile it with tools the build lacks, such as cpp11's `decor`.
-                  preBuild = (old.preBuild or "") + ''
-                    if ! compgen -G 'man/*.Rd' >/dev/null && grep -q '^RoxygenNote:' DESCRIPTION; then
-                      mkdir "$TMPDIR/undocumented"
-                      $rCommand CMD INSTALL $installFlags --configure-args="$configureFlags" -l "$TMPDIR/undocumented" .
-                      HOME="$TMPDIR" R_LIBS="$TMPDIR/undocumented" Rscript --vanilla -e 'roxygen2::roxygenise(roclets = "rd", load_code = "installed")'
-                    fi
-                  '';
+                  nativeBuildInputs = deps ++ withoutRPackages (old.nativeBuildInputs or [ ]);
                 })
             )
           ) lock.sources;
