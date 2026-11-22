@@ -20,7 +20,7 @@ proposals or assumptions about upstream tools.
 1. Project files and links the plugin adds go in a sentence or two in its
    section below the table, and in "Files in your repository".
 1. A plugin's options belong in their descriptions, not the README.
-   Replace the config blocks of changed plugins with
-   `nix eval --raw .#lib.configs.<plugin>`, and remove those of removed
-   plugins: `nk project-files` reports only missing lines, not stale ones.
+   `nk nix-unit` names the plugins whose config block in the README is stale
+   (`testReadmeShowsCurrentConfigs`); replace each with
+   `nix eval --raw .#lib.configs.<plugin>`, and remove those of removed plugins.
    Run `nix fmt`, and review the diff.
